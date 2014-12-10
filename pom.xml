@@ -14,8 +14,6 @@
         <jersey.version>2.13</jersey.version>
         <jetty.version>9.2.4.v20141103</jetty.version>
         <jackson.version>2.4.3</jackson.version>
-        <hibernate.version>5.1.3.Final</hibernate.version>
-        <javaxel.version>3.0.0</javaxel.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -71,16 +69,6 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.el</groupId>
-            <artifactId>javax.el-api</artifactId>
-            <version>${javaxel.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>javax.el</artifactId>
-            <version>${javaxel.version}</version>
         </dependency>
     </dependencies>
 
