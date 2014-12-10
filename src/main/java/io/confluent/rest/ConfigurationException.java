@@ -15,27 +15,23 @@
  */
 package io.confluent.rest;
 
-public interface Configuration {
+public class ConfigurationException extends Exception {
+  public ConfigurationException() {
+  }
 
-  /**
-   * Returns true if the server should run in debug mode.
-   */
-  public boolean getDebug();
+  public ConfigurationException(String message) {
+    super(message);
+  }
 
-  /**
-   * Returns the port the server should bind to.
-   */
-  public int getPort();
+  public ConfigurationException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
-  /**
-   * Get an ordered list of the preferred response media types, from most preferred to least
-   * preferred.
-   */
-  public Iterable<String> getPreferredResponseMediaTypes();
+  public ConfigurationException(Throwable cause) {
+    super(cause);
+  }
 
-  /**
-   * Get the default response media type, i.e. the value that should be used if no specific types
-   * are requested
-   */
-  public String getDefaultResponseMediaType();
+  public ConfigurationException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    super(message, cause, enableSuppression, writableStackTrace);
+  }
 }
