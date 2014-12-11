@@ -25,6 +25,8 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
@@ -40,10 +42,22 @@ import io.confluent.rest.validation.JacksonMessageBodyProvider;
 public abstract class Application<T extends Configuration> {
   protected T config;
 
+  public Application() {}
+
+  public Application(T config) {
+    this.config = config;
+  }
+
   /**
    * Parse, load, or generate the Configuration for this application.
    */
-  public abstract T configure() throws ConfigurationException;
+  public T configure() throws ConfigurationException {
+    // Allow this implementation as a nop if they provide
+    if (this.config == null)
+      throw new ConfigurationException("Application.configure() was not overridden for " + getClass().getName() +
+                                       " but the configuration was not passed to the Application class's constructor.");
+    return this.config;
+  }
 
   /**
    * Register resources or additional Providers, ExceptionMappers, and other JAX-RS components with

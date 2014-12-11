@@ -15,27 +15,37 @@
  */
 package io.confluent.rest;
 
-public interface Configuration {
+import java.util.Arrays;
+
+public abstract class Configuration {
 
   /**
    * Returns true if the server should run in debug mode.
    */
-  public boolean getDebug();
+  public boolean getDebug() {
+    return true;
+  }
 
   /**
    * Returns the port the server should bind to.
    */
-  public int getPort();
+  public int getPort() {
+    return 8080;
+  }
 
   /**
    * Get an ordered list of the preferred response media types, from most preferred to least
    * preferred.
    */
-  public Iterable<String> getPreferredResponseMediaTypes();
+  public Iterable<String> getPreferredResponseMediaTypes() {
+    return Arrays.asList("application/json");
+  }
 
   /**
    * Get the default response media type, i.e. the value that should be used if no specific types
    * are requested
    */
-  public String getDefaultResponseMediaType();
+  public String getDefaultResponseMediaType() {
+    return "application/json";
+  }
 }
