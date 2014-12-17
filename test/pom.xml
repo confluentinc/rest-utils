@@ -31,8 +31,8 @@
             <version>${junit.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.glassfish.jersey.test-framework.providers</groupId>
-            <artifactId>jersey-test-framework-provider-jetty</artifactId>
+            <groupId>org.glassfish.jersey.test-framework</groupId>
+            <artifactId>jersey-test-framework-core</artifactId>
             <version>${jersey.version}</version>
         </dependency>
     </dependencies>

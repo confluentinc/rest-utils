@@ -18,6 +18,7 @@ package io.confluent.rest;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
+import org.glassfish.jersey.test.TestProperties;
 import org.junit.After;
 import org.junit.Before;
 
@@ -29,8 +30,8 @@ import java.util.List;
 import java.util.Vector;
 
 public abstract class EmbeddedServerTestHarness<C extends Configuration, T extends io.confluent.rest.Application<C>> {
-  private List<Object> resources = new Vector<>();
-  private List<Class<?>> resourceClasses = new Vector<>();
+  private List<Object> resources = new Vector<Object>();
+  private List<Class<?>> resourceClasses = new Vector<Class<?>>();
 
   protected C config;
   protected T app;
@@ -113,32 +114,38 @@ public abstract class EmbeddedServerTestHarness<C extends Configuration, T exten
     // This is instantiated on demand since we need subclasses to register the resources they need passed along,
     // but JerseyTest calls configure() from its constructor.
     if (test == null) {
-      test = new JerseyTest() {
-        @Override
-        protected Application configure() {
-          ResourceConfig config = new ResourceConfig();
-          // Only configure the base application, resources are added manually with addResource
-          app.configureBaseApplication(config);
-          for (Object resource : resources)
-            config.register(resource);
-          for (Class<?> resource : resourceClasses)
-            config.register(resource);
-          return config;
-        }
-        @Override
-        protected void configureClient(ClientConfig config) {
-          app.configureBaseApplication(config);
-        }
-      };
+      test = new JettyJerseyTest();
     }
     return test;
   }
-
 
   protected Invocation.Builder request(String target, String mediatype) {
     Invocation.Builder builder = getJerseyTest().target(target).request();
     if (mediatype != null)
       builder.accept(mediatype);
     return builder;
+  }
+
+
+  private class JettyJerseyTest extends JerseyTest {
+    public JettyJerseyTest() {
+      super(new JettyTestContainerFactory());
+    }
+
+    @Override
+    protected Application configure() {
+      ResourceConfig config = new ResourceConfig();
+      // Only configure the base application, resources are added manually with addResource
+      app.configureBaseApplication(config);
+      for (Object resource : resources)
+        config.register(resource);
+      for (Class<?> resource : resourceClasses)
+        config.register(resource);
+      return config;
+    }
+    @Override
+    protected void configureClient(ClientConfig config) {
+      app.configureBaseApplication(config);
+    }
   }
 }

@@ -17,8 +17,8 @@
     </modules>
 
     <properties>
-        <jersey.version>2.13</jersey.version>
-        <jetty.version>9.2.4.v20141103</jetty.version>
+        <jersey.version>2.6</jersey.version>
+        <jetty.version>8.1.16.v20140903</jetty.version>
         <jackson.version>2.4.3</jackson.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -31,8 +31,8 @@
                 <version>2.5.1</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                 </configuration>
             </plugin>
         </plugins>
