@@ -26,7 +26,7 @@ import io.confluent.rest.ConfigurationException;
  * An application represents the configured, running, REST service. You have to provide two things:
  * a configuration (to the constructor or by overriding configure()) and a set of resources to
  * for the REST API (added in setupResources()). After defining these, simply call Application.createServer()
- * to get a Jetty server, then call run() to start processing requests.
+ * to get a Jetty server, then call start() to start processing requests.
  *
  * This application uses a simple configuration that allows you to override the message that is echoed
  * back in the response, and the driver program optionally loads this setting from a command line
