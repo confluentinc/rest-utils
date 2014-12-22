@@ -16,6 +16,10 @@
 package io.confluent.rest.examples.helloworld;
 
 import org.eclipse.jetty.server.Server;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.TreeMap;
 
 import javax.ws.rs.core.Configurable;
 
@@ -33,6 +37,8 @@ import io.confluent.rest.ConfigurationException;
  * argument.
  */
 public class HelloWorldApplication extends Application<HelloWorldConfiguration> {
+  private static final Logger log = LoggerFactory.getLogger(HelloWorldApplication.class);
+
   public HelloWorldApplication(HelloWorldConfiguration config) {
     super(config);
   }
@@ -47,18 +53,21 @@ public class HelloWorldApplication extends Application<HelloWorldConfiguration> 
       // This simple configuration is driven by the command line. Run with an argument to specify
       // the format of the message returned by the API, e.g.
       // java -jar rest-utils-examples.jar io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
-      String greetingFormat = args.length > 0 ? args[0] : "Hello, %s!";
-      HelloWorldConfiguration config = new HelloWorldConfiguration(greetingFormat);
+      TreeMap<String,String> settings = new TreeMap<String,String>();
+      if (args.length > 0) {
+        settings.put(HelloWorldConfiguration.GREETING_CONFIG, args[0]);
+      }
+      HelloWorldConfiguration config = new HelloWorldConfiguration(settings);
       HelloWorldApplication app = new HelloWorldApplication(config);
       Server server = app.createServer();
       server.start();
-      System.out.println("Server started, listening for requests...");
+      log.info("Server started, listening for requests...");
       server.join();
     } catch (ConfigurationException e) {
-      System.out.println("Server configuration failed: " + e.getMessage());
+      log.error("Server configuration failed: " + e.getMessage());
       System.exit(1);
     } catch (Exception e) {
-      System.err.println("Server died unexpectedly: " + e.toString());
+      log.error("Server died unexpectedly: " + e.toString());
     }
   }
 

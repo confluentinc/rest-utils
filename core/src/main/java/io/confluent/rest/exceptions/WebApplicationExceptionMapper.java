@@ -57,12 +57,12 @@ public class WebApplicationExceptionMapper
   private String negotiateContentType() {
     List<MediaType> acceptable = headers.getAcceptableMediaTypes();
     for (MediaType mt : acceptable) {
-      for (String providable : config.getPreferredResponseMediaTypes()) {
+      for (String providable : config.getList(Configuration.RESPONSE_MEDIATYPE_PREFERRED_CONFIG)) {
         if (mt.toString().equals(providable)) {
           return providable;
         }
       }
     }
-    return config.getDefaultResponseMediaType();
+    return config.getString(Configuration.RESPONSE_MEDIATYPE_DEFAULT_CONFIG);
   }
 }

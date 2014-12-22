@@ -83,7 +83,7 @@ public abstract class Application<T extends Configuration> {
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     ServletHolder servletHolder = new ServletHolder(servletContainer);
-    Server server = new Server(getConfiguration().getPort());
+    Server server = new Server(getConfiguration().getInt(Configuration.PORT_CONFIG));
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
     context.addServlet(servletHolder, "/*");

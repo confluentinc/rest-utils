@@ -15,37 +15,56 @@
  */
 package io.confluent.rest;
 
-import java.util.Arrays;
+import io.confluent.common.config.AbstractConfig;
+import io.confluent.common.config.ConfigDef;
+import io.confluent.common.config.ConfigDef.Type;
+import io.confluent.common.config.ConfigDef.Importance;
 
-public abstract class Configuration {
+import java.util.Map;
+import java.util.TreeMap;
 
-  /**
-   * Returns true if the server should run in debug mode.
-   */
-  public boolean getDebug() {
-    return true;
+public abstract class Configuration extends AbstractConfig {
+  protected static final ConfigDef config;
+
+  public static final String DEBUG_CONFIG = "debug";
+  private static final String DEBUG_CONFIG_DOC = "Boolean indicating whether extra debugging information is generated in some error response entities.";
+  private static final boolean DEBUG_CONFIG_DEFAULT = true;
+
+  public static final String PORT_CONFIG = "port";
+  private static final String PORT_CONFIG_DOC = "Port to listen on for new connections.";
+  private static final int PORT_CONFIG_DEFAULT = 8080;
+
+  public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
+  private static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC = "An ordered list of the server's preferred media types used for responses, from most preferred to least.";
+  private static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT = "application/json";
+
+  public static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG = "response.mediatype.default";
+  private static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC = "The default response media type that should be used if no specify types are requested in an Accept header.";
+  private static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT = "application/json";
+
+  static {
+    config = new ConfigDef()
+        .define(DEBUG_CONFIG, Type.BOOLEAN,
+                DEBUG_CONFIG_DEFAULT, Importance.HIGH, DEBUG_CONFIG_DOC)
+        .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.HIGH,
+                PORT_CONFIG_DOC)
+        .define(RESPONSE_MEDIATYPE_PREFERRED_CONFIG, Type.LIST,
+                RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT, Importance.HIGH,
+                RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC)
+        .define(RESPONSE_MEDIATYPE_DEFAULT_CONFIG, Type.STRING,
+                RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT, Importance.HIGH,
+                RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC);
   }
 
-  /**
-   * Returns the port the server should bind to.
-   */
-  public int getPort() {
-    return 8080;
+  public Configuration() {
+    super(config, new TreeMap<Object,Object>());
   }
 
-  /**
-   * Get an ordered list of the preferred response media types, from most preferred to least
-   * preferred.
-   */
-  public Iterable<String> getPreferredResponseMediaTypes() {
-    return Arrays.asList("application/json");
+  public Configuration(Map<?, ?> props) {
+    super(config, props);
   }
 
-  /**
-   * Get the default response media type, i.e. the value that should be used if no specific types
-   * are requested
-   */
-  public String getDefaultResponseMediaType() {
-    return "application/json";
+  public static void main(String[] args) {
+    System.out.println(config.toHtmlTable());
   }
 }
