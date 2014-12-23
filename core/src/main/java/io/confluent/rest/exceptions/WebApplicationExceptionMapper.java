@@ -15,7 +15,7 @@
  */
 package io.confluent.rest.exceptions;
 
-import io.confluent.rest.Configuration;
+import io.confluent.rest.RestConfig;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
@@ -31,8 +31,8 @@ public class WebApplicationExceptionMapper
   @Context
   HttpHeaders headers;
 
-  public WebApplicationExceptionMapper(Configuration config) {
-    super(config);
+  public WebApplicationExceptionMapper(RestConfig restConfig) {
+    super(restConfig);
   }
 
   @Override
@@ -57,12 +57,12 @@ public class WebApplicationExceptionMapper
   private String negotiateContentType() {
     List<MediaType> acceptable = headers.getAcceptableMediaTypes();
     for (MediaType mt : acceptable) {
-      for (String providable : config.getList(Configuration.RESPONSE_MEDIATYPE_PREFERRED_CONFIG)) {
+      for (String providable : restConfig.getList(RestConfig.RESPONSE_MEDIATYPE_PREFERRED_CONFIG)) {
         if (mt.toString().equals(providable)) {
           return providable;
         }
       }
     }
-    return config.getString(Configuration.RESPONSE_MEDIATYPE_DEFAULT_CONFIG);
+    return restConfig.getString(RestConfig.RESPONSE_MEDIATYPE_DEFAULT_CONFIG);
   }
 }

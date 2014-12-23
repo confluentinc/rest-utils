@@ -17,15 +17,15 @@ package io.confluent.rest.exceptions;
 
 import javax.ws.rs.core.Response;
 
-import io.confluent.rest.Configuration;
+import io.confluent.rest.RestConfig;
 
 /**
  * Catch-all exception mapper to handle any uncaught errors that aren't already mapped.
  */
 public class GenericExceptionMapper extends DebuggableExceptionMapper<Throwable> {
 
-  public GenericExceptionMapper(Configuration config) {
-    super(config);
+  public GenericExceptionMapper(RestConfig restConfig) {
+    super(restConfig);
   }
 
   @Override

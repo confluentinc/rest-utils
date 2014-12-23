@@ -24,7 +24,7 @@ import java.util.TreeMap;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.rest.Application;
-import io.confluent.rest.ConfigurationException;
+import io.confluent.rest.RestConfigException;
 
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
@@ -36,15 +36,15 @@ import io.confluent.rest.ConfigurationException;
  * back in the response, and the driver program optionally loads this setting from a command line
  * argument.
  */
-public class HelloWorldApplication extends Application<HelloWorldConfiguration> {
+public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
   private static final Logger log = LoggerFactory.getLogger(HelloWorldApplication.class);
 
-  public HelloWorldApplication(HelloWorldConfiguration config) {
+  public HelloWorldApplication(HelloWorldRestConfig config) {
     super(config);
   }
 
   @Override
-  public void setupResources(Configurable<?> config, HelloWorldConfiguration appConfig) {
+  public void setupResources(Configurable<?> config, HelloWorldRestConfig appConfig) {
     config.register(new HelloWorldResource(appConfig));
   }
 
@@ -55,15 +55,15 @@ public class HelloWorldApplication extends Application<HelloWorldConfiguration> 
       // java -jar rest-utils-examples.jar io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
       TreeMap<String,String> settings = new TreeMap<String,String>();
       if (args.length > 0) {
-        settings.put(HelloWorldConfiguration.GREETING_CONFIG, args[0]);
+        settings.put(HelloWorldRestConfig.GREETING_CONFIG, args[0]);
       }
-      HelloWorldConfiguration config = new HelloWorldConfiguration(settings);
+      HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
       HelloWorldApplication app = new HelloWorldApplication(config);
       Server server = app.createServer();
       server.start();
       log.info("Server started, listening for requests...");
       server.join();
-    } catch (ConfigurationException e) {
+    } catch (RestConfigException e) {
       log.error("Server configuration failed: " + e.getMessage());
       System.exit(1);
     } catch (Exception e) {

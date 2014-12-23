@@ -23,7 +23,7 @@ import io.confluent.common.config.ConfigDef.Importance;
 import java.util.Map;
 import java.util.TreeMap;
 
-public abstract class Configuration extends AbstractConfig {
+public abstract class RestConfig extends AbstractConfig {
   protected static final ConfigDef config;
 
   public static final String DEBUG_CONFIG = "debug";
@@ -56,11 +56,11 @@ public abstract class Configuration extends AbstractConfig {
                 RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC);
   }
 
-  public Configuration() {
+  public RestConfig() {
     super(config, new TreeMap<Object,Object>());
   }
 
-  public Configuration(Map<?, ?> props) {
+  public RestConfig(Map<?, ?> props) {
     super(config, props);
   }
 

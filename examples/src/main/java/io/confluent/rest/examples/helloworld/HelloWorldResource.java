@@ -27,9 +27,9 @@ import javax.ws.rs.QueryParam;
 @Path("/hello")
 @Produces("application/vnd.hello.v1+json")
 public class HelloWorldResource {
-  HelloWorldConfiguration config;
+  HelloWorldRestConfig config;
 
-  public HelloWorldResource(HelloWorldConfiguration config) {
+  public HelloWorldResource(HelloWorldRestConfig config) {
     this.config = config;
   }
 
@@ -61,6 +61,6 @@ public class HelloWorldResource {
     //   -> {"message":"Hello, World!"}
     // curl http://localhost:8080/hello?name=Bob
     //   -> {"message":"Hello, Bob!"}
-    return new HelloResponse(String.format(config.getString(HelloWorldConfiguration.GREETING_CONFIG), (name == null ? "World" : name)));
+    return new HelloResponse(String.format(config.getString(HelloWorldRestConfig.GREETING_CONFIG), (name == null ? "World" : name)));
   }
 }

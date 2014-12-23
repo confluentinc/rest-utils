@@ -15,19 +15,19 @@
  */
 package io.confluent.rest;
 
-public class ConfigurationException extends Exception {
-  public ConfigurationException() {
+public class RestConfigException extends Exception {
+  public RestConfigException() {
   }
 
-  public ConfigurationException(String message) {
+  public RestConfigException(String message) {
     super(message);
   }
 
-  public ConfigurationException(String message, Throwable cause) {
+  public RestConfigException(String message, Throwable cause) {
     super(message, cause);
   }
 
-  public ConfigurationException(Throwable cause) {
+  public RestConfigException(Throwable cause) {
     super(cause);
   }
 }
