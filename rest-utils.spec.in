@@ -1,0 +1,57 @@
+Summary: rest-utils are a small framework for building REST services with Jersey, Jackson, and Jetty
+Name: rest-utils
+Version: ##RPMVERSION##
+Release: ##RPMRELEASE##
+Group: Applications/Internet
+License: Apache (v2)
+Source0: rest-utils-%{version}.tar.gz
+URL: http://confluent.io
+BuildRoot: %{_tmppath}/%{name}-%{version}-root
+Vendor: Confluent, Inc.
+Packager: Ewen Cheslack-Postava <ewen@confluent.io>
+BuildArch: noarch
+
+Requires: java >= 1.6
+
+%description
+
+Confluent REST Utils provides a small framework and utilities for writing Java REST APIs using Jersey, Jackson, Jetty, and Hibernate Validator.
+
+%pre
+
+exit 0
+
+%post
+
+%preun
+
+%postun
+
+%prep
+
+%setup
+
+%build
+
+%install
+
+# Clean out any previous builds not on slash
+[ "%{buildroot}" != "/" ] && %{__rm} -rf %{buildroot}
+
+%{__mkdir_p} %{buildroot}
+%{__cp} -R * %{buildroot}
+# The spec file gets included, get rid of it
+%{__rm} %{buildroot}/rest-utils.spec
+
+%files
+%defattr(-,root,root)
+/usr/share/rest-utils
+/usr/share/doc/rest-utils
+
+%clean
+#used to cleanup things outside the build area and possibly inside.
+[ "%{buildroot}" != "/" ] && %{__rm} -rf %{buildroot}
+
+%changelog
+* Mon Dec 22 2014 Ewen Cheslack-Postava <ewen@confluent.io>
+- Initial import
