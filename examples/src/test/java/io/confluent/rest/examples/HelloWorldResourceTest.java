@@ -19,10 +19,10 @@ import org.junit.Test;
 
 import javax.ws.rs.core.Response;
 
-import io.confluent.rest.ConfigurationException;
+import io.confluent.rest.RestConfigException;
 import io.confluent.rest.EmbeddedServerTestHarness;
 import io.confluent.rest.examples.helloworld.HelloWorldApplication;
-import io.confluent.rest.examples.helloworld.HelloWorldConfiguration;
+import io.confluent.rest.examples.helloworld.HelloWorldRestConfig;
 import io.confluent.rest.examples.helloworld.HelloWorldResource;
 
 import static org.junit.Assert.assertEquals;
@@ -33,10 +33,10 @@ import static org.junit.Assert.assertEquals;
  * EmbeddedServerTestHarness does most of the heavy lifting so you only need to issue requests and
  * check responses.
  */
-public class HelloWorldResourceTest extends EmbeddedServerTestHarness<HelloWorldConfiguration, HelloWorldApplication> {
+public class HelloWorldResourceTest extends EmbeddedServerTestHarness<HelloWorldRestConfig, HelloWorldApplication> {
   private final static String mediatype = "application/vnd.hello.v1+json";
 
-  public HelloWorldResourceTest() throws ConfigurationException {
+  public HelloWorldResourceTest() throws RestConfigException {
     // We need to specify which resources we want available, i.e. the ones we need to test. If we need
     // access to the server Configuration, as HelloWorldResource does, a default config is available
     // in the 'config' field.

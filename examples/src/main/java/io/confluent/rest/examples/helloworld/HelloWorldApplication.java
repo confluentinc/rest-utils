@@ -16,29 +16,35 @@
 package io.confluent.rest.examples.helloworld;
 
 import org.eclipse.jetty.server.Server;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.TreeMap;
 
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.rest.Application;
-import io.confluent.rest.ConfigurationException;
+import io.confluent.rest.RestConfigException;
 
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
  * a configuration (to the constructor or by overriding configure()) and a set of resources to
- * for the REST API (added in setupResources()). After defining these, simply call Application.createServer()
- * to get a Jetty server, then call start() to start processing requests.
+ * for the REST API (added in setupResources()). After defining these, simply call
+ * Application.createServer() to get a Jetty server, then call start() to start processing requests.
  *
- * This application uses a simple configuration that allows you to override the message that is echoed
- * back in the response, and the driver program optionally loads this setting from a command line
- * argument.
+ * This application uses a simple configuration that allows you to override the message that is
+ * echoed back in the response, and the driver program optionally loads this setting from a command
+ * line argument.
  */
-public class HelloWorldApplication extends Application<HelloWorldConfiguration> {
-  public HelloWorldApplication(HelloWorldConfiguration config) {
+public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
+  private static final Logger log = LoggerFactory.getLogger(HelloWorldApplication.class);
+
+  public HelloWorldApplication(HelloWorldRestConfig config) {
     super(config);
   }
 
   @Override
-  public void setupResources(Configurable<?> config, HelloWorldConfiguration appConfig) {
+  public void setupResources(Configurable<?> config, HelloWorldRestConfig appConfig) {
     config.register(new HelloWorldResource(appConfig));
   }
 
@@ -46,19 +52,23 @@ public class HelloWorldApplication extends Application<HelloWorldConfiguration> 
     try {
       // This simple configuration is driven by the command line. Run with an argument to specify
       // the format of the message returned by the API, e.g.
-      // java -jar rest-utils-examples.jar io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
-      String greetingFormat = args.length > 0 ? args[0] : "Hello, %s!";
-      HelloWorldConfiguration config = new HelloWorldConfiguration(greetingFormat);
+      // java -jar rest-utils-examples.jar \
+      //    io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
+      TreeMap<String,String> settings = new TreeMap<String,String>();
+      if (args.length > 0) {
+        settings.put(HelloWorldRestConfig.GREETING_CONFIG, args[0]);
+      }
+      HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
       HelloWorldApplication app = new HelloWorldApplication(config);
       Server server = app.createServer();
       server.start();
-      System.out.println("Server started, listening for requests...");
+      log.info("Server started, listening for requests...");
       server.join();
-    } catch (ConfigurationException e) {
-      System.out.println("Server configuration failed: " + e.getMessage());
+    } catch (RestConfigException e) {
+      log.error("Server configuration failed: " + e.getMessage());
       System.exit(1);
     } catch (Exception e) {
-      System.err.println("Server died unexpectedly: " + e.toString());
+      log.error("Server died unexpectedly: " + e.toString());
     }
   }
 

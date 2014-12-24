@@ -15,7 +15,11 @@
  */
 package io.confluent.rest.examples.helloworld;
 
-import io.confluent.rest.Configuration;
+import java.util.Map;
+
+import io.confluent.common.config.ConfigDef.Importance;
+import io.confluent.common.config.ConfigDef.Type;
+import io.confluent.rest.RestConfig;
 
 /**
  * Configuration classes are a convenient place to pass global configuration settings for your
@@ -23,18 +27,24 @@ import io.confluent.rest.Configuration;
  * indicate what port the server should listen on), but all of which have reasonable default
  * implementations.
  */
-public class HelloWorldConfiguration extends Configuration {
-  private final String greeting;
+public class HelloWorldRestConfig extends RestConfig {
+  public static final String GREETING_CONFIG = "greeting";
+  private static final String GREETING_CONFIG_DOC = "Greeting template for responses.";
+  private static final String GREETING_CONFIG_DEFAULT = "Hello, %s!";
 
-  public HelloWorldConfiguration() {
-    this.greeting = "Hello, %s!";
+  static {
+    config.define(GREETING_CONFIG,
+                  Type.STRING,
+                  GREETING_CONFIG_DEFAULT,
+                  Importance.HIGH,
+                  GREETING_CONFIG_DOC);
   }
 
-  public HelloWorldConfiguration(String greeting) {
-    this.greeting = greeting;
+  public HelloWorldRestConfig() {
+    super();
   }
 
-  public String getGreeting() {
-    return greeting;
+  public HelloWorldRestConfig(Map<?, ?> props) {
+    super(props);
   }
 }

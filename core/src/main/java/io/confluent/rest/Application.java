@@ -25,8 +25,6 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
@@ -39,7 +37,7 @@ import io.confluent.rest.validation.JacksonMessageBodyProvider;
  * application-specific configuration class and setupResources() to register REST resources with the
  * JAX-RS server. Use createServer() to get a fully-configured, ready to run Jetty server.
  */
-public abstract class Application<T extends Configuration> {
+public abstract class Application<T extends RestConfig> {
   protected T config;
 
   public Application() {}
@@ -51,25 +49,26 @@ public abstract class Application<T extends Configuration> {
   /**
    * Parse, load, or generate the Configuration for this application.
    */
-  public T configure() throws ConfigurationException {
+  public T configure() throws RestConfigException {
     // Allow this implementation as a nop if they provide
     if (this.config == null)
-      throw new ConfigurationException("Application.configure() was not overridden for " + getClass().getName() +
-                                       " but the configuration was not passed to the Application class's constructor.");
+      throw new RestConfigException(
+          "Application.configure() was not overridden for " + getClass().getName() +
+          " but the configuration was not passed to the Application class's constructor.");
     return this.config;
   }
 
   /**
    * Register resources or additional Providers, ExceptionMappers, and other JAX-RS components with
-   * the Jersey application. This, combined with your Configuration class, is where you can customize
-   * the behavior of the application.
+   * the Jersey application. This, combined with your Configuration class, is where you can
+   * customize the behavior of the application.
    */
   public abstract void setupResources(Configurable<?> config, T appConfig);
 
   /**
    * Configure and create the server.
    */
-  public Server createServer() throws ConfigurationException {
+  public Server createServer() throws RestConfigException {
     if (config == null) {
       configure();
     }
@@ -83,7 +82,7 @@ public abstract class Application<T extends Configuration> {
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     ServletHolder servletHolder = new ServletHolder(servletContainer);
-    Server server = new Server(getConfiguration().getPort());
+    Server server = new Server(getConfiguration().getInt(RestConfig.PORT_CONFIG));
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
     context.addServlet(servletHolder, "/*");
@@ -97,15 +96,15 @@ public abstract class Application<T extends Configuration> {
    * client.
    */
   public void configureBaseApplication(Configurable<?> config) {
-    Configuration restConfig = getConfiguration();
+    RestConfig restRestConfig = getConfiguration();
 
     config.register(JacksonMessageBodyProvider.class);
     config.register(JsonParseExceptionMapper.class);
 
     config.register(ValidationFeature.class);
     config.register(ConstraintViolationExceptionMapper.class);
-    config.register(new WebApplicationExceptionMapper(restConfig));
-    config.register(new GenericExceptionMapper(restConfig));
+    config.register(new WebApplicationExceptionMapper(restRestConfig));
+    config.register(new GenericExceptionMapper(restRestConfig));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
   }

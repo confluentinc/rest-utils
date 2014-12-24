@@ -15,7 +15,7 @@
  */
 package io.confluent.rest.exceptions;
 
-import io.confluent.rest.Configuration;
+import io.confluent.rest.RestConfig;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
@@ -31,22 +31,23 @@ public class WebApplicationExceptionMapper
   @Context
   HttpHeaders headers;
 
-  public WebApplicationExceptionMapper(Configuration config) {
-    super(config);
+  public WebApplicationExceptionMapper(RestConfig restConfig) {
+    super(restConfig);
   }
 
   @Override
   public Response toResponse(WebApplicationException exc) {
-    // WebApplicationException unfortunately doesn't expose the status, or even status code, directly.
+    // WebApplicationException unfortunately doesn't expose the status, or even status code,
+    // directly.
     Response.Status status = Response.Status.fromStatusCode(exc.getResponse().getStatus());
-    // The human-readable message for these can use the exception message directly. Since WebApplicationExceptions
-    // are expected to be passed back to users, it will either contain a situation-specific message or the HTTP status
-    // message
+    // The human-readable message for these can use the exception message directly. Since
+    // WebApplicationExceptions are expected to be passed back to users, it will either contain a
+    // situation-specific message or the HTTP status message
     Response.ResponseBuilder response = createResponse(exc, status, exc.getMessage());
 
-    // Apparently, 415 Unsupported Media Type errors disable content negotiation in Jersey, which causes use to return
-    // data without a content type. Work around this by detecting that specific type of error and performing the
-    // negotiation manually, defaulting
+    // Apparently, 415 Unsupported Media Type errors disable content negotiation in Jersey, which
+    // causes use to return data without a content type. Work around this by detecting that specific
+    // type of error and performing the negotiation manually.
     if (status == Response.Status.UNSUPPORTED_MEDIA_TYPE) {
       response.type(negotiateContentType());
     }
@@ -57,12 +58,12 @@ public class WebApplicationExceptionMapper
   private String negotiateContentType() {
     List<MediaType> acceptable = headers.getAcceptableMediaTypes();
     for (MediaType mt : acceptable) {
-      for (String providable : config.getPreferredResponseMediaTypes()) {
+      for (String providable : restConfig.getList(RestConfig.RESPONSE_MEDIATYPE_PREFERRED_CONFIG)) {
         if (mt.toString().equals(providable)) {
           return providable;
         }
       }
     }
-    return config.getDefaultResponseMediaType();
+    return restConfig.getString(RestConfig.RESPONSE_MEDIATYPE_DEFAULT_CONFIG);
   }
 }

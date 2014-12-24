@@ -18,7 +18,6 @@ package io.confluent.rest;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
-import org.glassfish.jersey.test.TestProperties;
 import org.junit.After;
 import org.junit.Before;
 
@@ -29,7 +28,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Vector;
 
-public abstract class EmbeddedServerTestHarness<C extends Configuration, T extends io.confluent.rest.Application<C>> {
+public abstract class
+    EmbeddedServerTestHarness<C extends RestConfig, T extends io.confluent.rest.Application<C>> {
   private List<Object> resources = new Vector<Object>();
   private List<Class<?>> resourceClasses = new Vector<Class<?>>();
 
@@ -37,7 +37,7 @@ public abstract class EmbeddedServerTestHarness<C extends Configuration, T exten
   protected T app;
   private JerseyTest test;
 
-  public EmbeddedServerTestHarness() throws ConfigurationException {
+  public EmbeddedServerTestHarness() throws RestConfigException {
     this.config = createConfiguration();
   }
 
@@ -45,18 +45,26 @@ public abstract class EmbeddedServerTestHarness<C extends Configuration, T exten
     this.config = config;
   }
 
-  private C createConfiguration() throws ConfigurationException {
-    Class<C> configClass = Generics.getTypeParameter(getClass(), Configuration.class);
+  private C createConfiguration() throws RestConfigException {
+    Class<C> configClass = Generics.getTypeParameter(getClass(), RestConfig.class);
     try {
       return configClass.getConstructor().newInstance();
     } catch (NoSuchMethodException e) {
-      throw new ConfigurationException("Couldn't find default constructor for " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Couldn't find default constructor for " + configClass.getName(), e
+      );
     } catch (IllegalAccessException e) {
-      throw new ConfigurationException("Error invoking default constructor " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor " + configClass.getName(), e
+      );
     } catch (InvocationTargetException e) {
-      throw new ConfigurationException("Error invoking default constructor for " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + configClass.getName(), e
+      );
     } catch (InstantiationException e) {
-      throw new ConfigurationException("Error invoking default constructor for " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + configClass.getName(), e
+      );
     }
   }
 
@@ -65,19 +73,27 @@ public abstract class EmbeddedServerTestHarness<C extends Configuration, T exten
    * to customize the Application's Configuration or invoke a constructor other than
    * Application(Configuration c).
    */
-  protected T createApplication() throws ConfigurationException {
+  protected T createApplication() throws RestConfigException {
     Class<T> appClass = Generics.getTypeParameter(getClass(), io.confluent.rest.Application.class);
 
     try {
       return appClass.getConstructor(this.config.getClass()).newInstance(this.config);
     } catch (NoSuchMethodException e) {
-      throw new ConfigurationException("Couldn't find default constructor for " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Couldn't find default constructor for " + appClass.getName(), e
+      );
     } catch (IllegalAccessException e) {
-      throw new ConfigurationException("Error invoking default constructor " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor " + appClass.getName(), e
+      );
     } catch (InvocationTargetException e) {
-      throw new ConfigurationException("Error invoking default constructor for " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + appClass.getName(), e
+      );
     } catch (InstantiationException e) {
-      throw new ConfigurationException("Error invoking default constructor for " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + appClass.getName(), e
+      );
     }
   }
 
@@ -85,8 +101,10 @@ public abstract class EmbeddedServerTestHarness<C extends Configuration, T exten
   public void setUp() throws Exception {
     try {
       app = createApplication();
-    } catch (ConfigurationException ce) {
-      throw new RuntimeException("Unexpected configuration error when configuring EmbeddedServerTestHarnesss.", ce);
+    } catch (RestConfigException ce) {
+      throw new RuntimeException(
+          "Unexpected configuration error when configuring EmbeddedServerTestHarnesss.", ce
+      );
     }
 
     app.configure();
@@ -111,8 +129,8 @@ public abstract class EmbeddedServerTestHarness<C extends Configuration, T exten
   }
 
   protected JerseyTest getJerseyTest() {
-    // This is instantiated on demand since we need subclasses to register the resources they need passed along,
-    // but JerseyTest calls configure() from its constructor.
+    // This is instantiated on demand since we need subclasses to register the resources they need
+    // passed along, but JerseyTest calls configure() from its constructor.
     if (test == null) {
       test = new JettyJerseyTest();
     }

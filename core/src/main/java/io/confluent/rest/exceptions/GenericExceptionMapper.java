@@ -17,21 +17,21 @@ package io.confluent.rest.exceptions;
 
 import javax.ws.rs.core.Response;
 
-import io.confluent.rest.Configuration;
+import io.confluent.rest.RestConfig;
 
 /**
  * Catch-all exception mapper to handle any uncaught errors that aren't already mapped.
  */
 public class GenericExceptionMapper extends DebuggableExceptionMapper<Throwable> {
 
-  public GenericExceptionMapper(Configuration config) {
-    super(config);
+  public GenericExceptionMapper(RestConfig restConfig) {
+    super(restConfig);
   }
 
   @Override
   public Response toResponse(Throwable exc) {
-    // There's no more specific information about the exception that can be passed back to the user, so we can only
-    // use the generic message. Debug mode will append the exception info.
+    // There's no more specific information about the exception that can be passed back to the user,
+    // so we can only use the generic message. Debug mode will append the exception info.
     return createResponse(exc, Response.Status.INTERNAL_SERVER_ERROR,
                           Response.Status.INTERNAL_SERVER_ERROR.getReasonPhrase()).build();
   }

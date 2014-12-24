@@ -15,7 +15,7 @@
  */
 package io.confluent.rest.exceptions;
 
-import io.confluent.rest.Configuration;
+import io.confluent.rest.RestConfig;
 import io.confluent.rest.entities.ErrorMessage;
 
 import javax.ws.rs.core.Context;
@@ -35,13 +35,13 @@ import java.io.PrintStream;
 @Provider
 public abstract class DebuggableExceptionMapper<E extends Throwable> implements ExceptionMapper<E> {
 
-  Configuration config;
+  RestConfig restConfig;
 
   @Context
   HttpHeaders headers;
 
-  public DebuggableExceptionMapper(Configuration config) {
-    this.config = config;
+  public DebuggableExceptionMapper(RestConfig restConfig) {
+    this.restConfig = restConfig;
   }
 
   /**
@@ -55,7 +55,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
   public Response.ResponseBuilder createResponse(Throwable exc, Response.Status status,
                                                  String msg) {
     String readableMessage = msg;
-    if (config != null && config.getDebug()) {
+    if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
       readableMessage += " " + exc.getClass().getName() + ": " + exc.getMessage();
       try {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
