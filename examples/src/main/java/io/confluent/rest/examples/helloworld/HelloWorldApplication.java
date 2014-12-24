@@ -29,12 +29,12 @@ import io.confluent.rest.RestConfigException;
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
  * a configuration (to the constructor or by overriding configure()) and a set of resources to
- * for the REST API (added in setupResources()). After defining these, simply call Application.createServer()
- * to get a Jetty server, then call start() to start processing requests.
+ * for the REST API (added in setupResources()). After defining these, simply call
+ * Application.createServer() to get a Jetty server, then call start() to start processing requests.
  *
- * This application uses a simple configuration that allows you to override the message that is echoed
- * back in the response, and the driver program optionally loads this setting from a command line
- * argument.
+ * This application uses a simple configuration that allows you to override the message that is
+ * echoed back in the response, and the driver program optionally loads this setting from a command
+ * line argument.
  */
 public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
   private static final Logger log = LoggerFactory.getLogger(HelloWorldApplication.class);
@@ -52,7 +52,8 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
     try {
       // This simple configuration is driven by the command line. Run with an argument to specify
       // the format of the message returned by the API, e.g.
-      // java -jar rest-utils-examples.jar io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
+      // java -jar rest-utils-examples.jar \
+      //    io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
       TreeMap<String,String> settings = new TreeMap<String,String>();
       if (args.length > 0) {
         settings.put(HelloWorldRestConfig.GREETING_CONFIG, args[0]);

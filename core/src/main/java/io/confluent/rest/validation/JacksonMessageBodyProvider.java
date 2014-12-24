@@ -62,13 +62,14 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
     } catch (UnrecognizedPropertyException e) {
       throw ConstraintViolations.simpleException("Unrecognized field: " + e.getPropertyName());
     } catch (JsonMappingException e) {
-      // This needs to handle 2 JSON parsing error cases. Normally you would expect to see a JsonMappingException
-      // because the data couldn't be parsed, but it can also occur when the raw JSON is valid and satisfies the
-      // validation constraint annotations, but an exception is thrown by the entity
-      // during construction. In the former case, we want to return a 400 (Bad Request), in the latter a 422
-      // (Unprocessable Entity) with a useful error message. We don't want to expose just any exception message
-      // via the API, so this code specifically detects ConstraintViolationExceptions that were thrown *after*
-      // the normal validation checks, i.e. when the entity Java object was being constructed.
+      // This needs to handle 2 JSON parsing error cases. Normally you would expect to see a
+      // JsonMappingException because the data couldn't be parsed, but it can also occur when the
+      // raw JSON is valid and satisfies the validation constraint annotations, but an exception is
+      // thrown by the entity during construction. In the former case, we want to return a 400
+      // (Bad Request), in the latter a 422 (Unprocessable Entity) with a useful error message. We
+      // don't want to expose just any exception message via the API, so this code specifically
+      // detects ConstraintViolationExceptions that were thrown *after* the normal validation
+      // checks, i.e. when the entity Java object was being constructed.
       Throwable cause = e.getCause();
       if (cause instanceof ConstraintViolationException) {
         throw (ConstraintViolationException) cause;

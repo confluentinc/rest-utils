@@ -61,6 +61,8 @@ public class HelloWorldResource {
     //   -> {"message":"Hello, World!"}
     // curl http://localhost:8080/hello?name=Bob
     //   -> {"message":"Hello, Bob!"}
-    return new HelloResponse(String.format(config.getString(HelloWorldRestConfig.GREETING_CONFIG), (name == null ? "World" : name)));
+    return new HelloResponse(
+        String.format(config.getString(HelloWorldRestConfig.GREETING_CONFIG),
+                      (name == null ? "World" : name)));
   }
 }

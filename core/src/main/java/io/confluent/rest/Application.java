@@ -52,15 +52,16 @@ public abstract class Application<T extends RestConfig> {
   public T configure() throws RestConfigException {
     // Allow this implementation as a nop if they provide
     if (this.config == null)
-      throw new RestConfigException("Application.configure() was not overridden for " + getClass().getName() +
-                                       " but the configuration was not passed to the Application class's constructor.");
+      throw new RestConfigException(
+          "Application.configure() was not overridden for " + getClass().getName() +
+          " but the configuration was not passed to the Application class's constructor.");
     return this.config;
   }
 
   /**
    * Register resources or additional Providers, ExceptionMappers, and other JAX-RS components with
-   * the Jersey application. This, combined with your Configuration class, is where you can customize
-   * the behavior of the application.
+   * the Jersey application. This, combined with your Configuration class, is where you can
+   * customize the behavior of the application.
    */
   public abstract void setupResources(Configurable<?> config, T appConfig);
 

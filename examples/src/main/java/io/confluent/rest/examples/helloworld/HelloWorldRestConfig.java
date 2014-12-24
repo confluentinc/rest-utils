@@ -33,7 +33,11 @@ public class HelloWorldRestConfig extends RestConfig {
   private static final String GREETING_CONFIG_DEFAULT = "Hello, %s!";
 
   static {
-    config.define(GREETING_CONFIG, Type.STRING, GREETING_CONFIG_DEFAULT, Importance.HIGH, GREETING_CONFIG_DOC);
+    config.define(GREETING_CONFIG,
+                  Type.STRING,
+                  GREETING_CONFIG_DEFAULT,
+                  Importance.HIGH,
+                  GREETING_CONFIG_DOC);
   }
 
   public HelloWorldRestConfig() {

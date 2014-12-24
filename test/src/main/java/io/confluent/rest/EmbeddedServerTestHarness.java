@@ -28,7 +28,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Vector;
 
-public abstract class EmbeddedServerTestHarness<C extends RestConfig, T extends io.confluent.rest.Application<C>> {
+public abstract class
+    EmbeddedServerTestHarness<C extends RestConfig, T extends io.confluent.rest.Application<C>> {
   private List<Object> resources = new Vector<Object>();
   private List<Class<?>> resourceClasses = new Vector<Class<?>>();
 
@@ -49,13 +50,21 @@ public abstract class EmbeddedServerTestHarness<C extends RestConfig, T extends 
     try {
       return configClass.getConstructor().newInstance();
     } catch (NoSuchMethodException e) {
-      throw new RestConfigException("Couldn't find default constructor for " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Couldn't find default constructor for " + configClass.getName(), e
+      );
     } catch (IllegalAccessException e) {
-      throw new RestConfigException("Error invoking default constructor " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor " + configClass.getName(), e
+      );
     } catch (InvocationTargetException e) {
-      throw new RestConfigException("Error invoking default constructor for " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + configClass.getName(), e
+      );
     } catch (InstantiationException e) {
-      throw new RestConfigException("Error invoking default constructor for " + configClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + configClass.getName(), e
+      );
     }
   }
 
@@ -70,13 +79,21 @@ public abstract class EmbeddedServerTestHarness<C extends RestConfig, T extends 
     try {
       return appClass.getConstructor(this.config.getClass()).newInstance(this.config);
     } catch (NoSuchMethodException e) {
-      throw new RestConfigException("Couldn't find default constructor for " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Couldn't find default constructor for " + appClass.getName(), e
+      );
     } catch (IllegalAccessException e) {
-      throw new RestConfigException("Error invoking default constructor " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor " + appClass.getName(), e
+      );
     } catch (InvocationTargetException e) {
-      throw new RestConfigException("Error invoking default constructor for " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + appClass.getName(), e
+      );
     } catch (InstantiationException e) {
-      throw new RestConfigException("Error invoking default constructor for " + appClass.getName(), e);
+      throw new RestConfigException(
+          "Error invoking default constructor for " + appClass.getName(), e
+      );
     }
   }
 
@@ -85,7 +102,9 @@ public abstract class EmbeddedServerTestHarness<C extends RestConfig, T extends 
     try {
       app = createApplication();
     } catch (RestConfigException ce) {
-      throw new RuntimeException("Unexpected configuration error when configuring EmbeddedServerTestHarnesss.", ce);
+      throw new RuntimeException(
+          "Unexpected configuration error when configuring EmbeddedServerTestHarnesss.", ce
+      );
     }
 
     app.configure();
@@ -110,8 +129,8 @@ public abstract class EmbeddedServerTestHarness<C extends RestConfig, T extends 
   }
 
   protected JerseyTest getJerseyTest() {
-    // This is instantiated on demand since we need subclasses to register the resources they need passed along,
-    // but JerseyTest calls configure() from its constructor.
+    // This is instantiated on demand since we need subclasses to register the resources they need
+    // passed along, but JerseyTest calls configure() from its constructor.
     if (test == null) {
       test = new JettyJerseyTest();
     }
