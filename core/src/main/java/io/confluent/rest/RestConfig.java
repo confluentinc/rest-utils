@@ -27,26 +27,26 @@ public abstract class RestConfig extends AbstractConfig {
   protected static final ConfigDef config;
 
   public static final String DEBUG_CONFIG = "debug";
-  private static final String DEBUG_CONFIG_DOC =
+  protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some " +
       "error response entities.";
-  private static final boolean DEBUG_CONFIG_DEFAULT = true;
+  protected static final boolean DEBUG_CONFIG_DEFAULT = true;
 
   public static final String PORT_CONFIG = "port";
-  private static final String PORT_CONFIG_DOC = "Port to listen on for new connections.";
-  private static final int PORT_CONFIG_DEFAULT = 8080;
+  protected static final String PORT_CONFIG_DOC = "Port to listen on for new connections.";
+  protected static final int PORT_CONFIG_DEFAULT = 8080;
 
   public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
-  private static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
+  protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
       "An ordered list of the server's preferred media types used for responses, " +
       "from most preferred to least.";
-  private static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT = "application/json";
+  protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT = "application/json";
 
   public static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG = "response.mediatype.default";
-  private static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC =
+  protected static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC =
       "The default response media type that should be used if no specify types are requested in " +
       "an Accept header.";
-  private static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT = "application/json";
+  protected static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT = "application/json";
 
   static {
     config = new ConfigDef()
