@@ -1,0 +1,16 @@
+Source: rest-utils
+Section: misc
+Priority: optional
+Maintainer: Ewen Cheslack-Postava <ewen@confluent.io>
+Build-Depends: debhelper (>= 9), java7-jdk, javahelper (>= 0.40),
+ make, maven
+Standards-Version: 3.9.3
+Homepage: http://confluent.io
+
+Package: rest-utils
+Architecture: all
+Depends: java6-runtime, ${java:Depends}, ${misc:Depends}
+Recommends: ${java:Recommends}
+Description: Confluent utilities for writing Java REST APIs
+ Confluent REST Utils provides a small framework and utilities for writing Java
+ REST APIs using Jersey, Jackson, Jetty, and Hibernate Validator.
