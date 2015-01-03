@@ -18,13 +18,16 @@
             </includes>
         </fileSet>
     </fileSets>
-    <moduleSets>
-        <moduleSet>
-            <useAllReactorProjects>true</useAllReactorProjects>
-            <binaries>
-                <outputDirectory>share/rest-utils/</outputDirectory>
-                <unpack>false</unpack>
-            </binaries>
-        </moduleSet>
-    </moduleSets>
+    <dependencySets>
+        <dependencySet>
+            <outputDirectory>share/rest-utils</outputDirectory>
+            <useProjectArtifact>true</useProjectArtifact>
+            <useTransitiveFiltering>true</useTransitiveFiltering>
+            <excludes>
+                <exclude>io.confluent:common-utils</exclude>
+                <exclude>io.confluent:common-config</exclude>
+                <exclude>io.confluent:common-metrics</exclude>
+            </excludes>
+        </dependencySet>
+    </dependencySets>
 </assembly>
