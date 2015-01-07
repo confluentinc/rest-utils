@@ -15,6 +15,9 @@
  */
 package io.confluent.rest.exceptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.ws.rs.core.Response;
 
 import io.confluent.rest.RestConfig;
@@ -23,6 +26,7 @@ import io.confluent.rest.RestConfig;
  * Catch-all exception mapper to handle any uncaught errors that aren't already mapped.
  */
 public class GenericExceptionMapper extends DebuggableExceptionMapper<Throwable> {
+  private static final Logger log = LoggerFactory.getLogger(GenericExceptionMapper.class);
 
   public GenericExceptionMapper(RestConfig restConfig) {
     super(restConfig);
@@ -30,6 +34,8 @@ public class GenericExceptionMapper extends DebuggableExceptionMapper<Throwable>
 
   @Override
   public Response toResponse(Throwable exc) {
+    log.error("Unhandled exception resulting in internal server error response", exc);
+
     // There's no more specific information about the exception that can be passed back to the user,
     // so we can only use the generic message. Debug mode will append the exception info.
     return createResponse(exc, Response.Status.INTERNAL_SERVER_ERROR,
