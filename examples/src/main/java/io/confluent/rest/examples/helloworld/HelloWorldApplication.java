@@ -15,7 +15,6 @@
  */
 package io.confluent.rest.examples.helloworld;
 
-import org.eclipse.jetty.server.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,10 +59,9 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
       }
       HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
       HelloWorldApplication app = new HelloWorldApplication(config);
-      Server server = app.createServer();
-      server.start();
+      app.start();
       log.info("Server started, listening for requests...");
-      server.join();
+      app.join();
     } catch (RestConfigException e) {
       log.error("Server configuration failed: " + e.getMessage());
       System.exit(1);

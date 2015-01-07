@@ -23,7 +23,7 @@ import io.confluent.common.config.ConfigDef.Importance;
 import java.util.Map;
 import java.util.TreeMap;
 
-public abstract class RestConfig extends AbstractConfig {
+public class RestConfig extends AbstractConfig {
   protected static final ConfigDef config;
 
   public static final String DEBUG_CONFIG = "debug";
@@ -48,6 +48,11 @@ public abstract class RestConfig extends AbstractConfig {
       "an Accept header.";
   protected static final String RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT = "application/json";
 
+  public static final String SHUTDOWN_GRACEFUL_MS_CONFIG = "shutdown.graceful.ms";
+  protected static final String SHUTDOWN_GRACEFUL_MS_DOC =
+      "Amount of time to wait after a shutdown request for outstanding requests to complete.";
+  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "1000";
+
   static {
     config = new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
@@ -59,7 +64,10 @@ public abstract class RestConfig extends AbstractConfig {
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC)
         .define(RESPONSE_MEDIATYPE_DEFAULT_CONFIG, Type.STRING,
                 RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT, Importance.HIGH,
-                RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC);
+                RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC)
+        .define(SHUTDOWN_GRACEFUL_MS_CONFIG, Type.INT,
+                SHUTDOWN_GRACEFUL_MS_DEFAULT, Importance.LOW,
+                SHUTDOWN_GRACEFUL_MS_DOC);
   }
 
   public RestConfig() {
