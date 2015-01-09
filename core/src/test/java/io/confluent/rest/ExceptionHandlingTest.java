@@ -30,7 +30,7 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
 
 import io.confluent.rest.entities.ErrorMessage;
-import io.confluent.rest.exceptions.NotFoundException;
+import io.confluent.rest.exceptions.RestNotFoundException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -110,7 +110,7 @@ public class ExceptionHandlingTest {
     @GET
     @Path("/restnotfound")
     public String restNotFound() {
-      throw new NotFoundException("Rest Not Found", 4040);
+      throw new RestNotFoundException("Rest Not Found", 4040);
     }
 
     @GET

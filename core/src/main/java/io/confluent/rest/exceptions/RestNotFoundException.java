@@ -18,13 +18,13 @@ package io.confluent.rest.exceptions;
 
 import javax.ws.rs.core.Response;
 
-public class NotAuthorizedException extends RestException {
+public class RestNotFoundException extends RestException {
 
-  public NotAuthorizedException(String message, int errorCode) {
-    super(message, Response.Status.UNAUTHORIZED.getStatusCode(), errorCode);
+  public RestNotFoundException(String message, int errorCode) {
+    super(message, Response.Status.NOT_FOUND.getStatusCode(), errorCode);
   }
 
-  public NotAuthorizedException(String message, int errorCode, Throwable cause) {
-    super(message, Response.Status.UNAUTHORIZED.getStatusCode(), errorCode, cause);
+  public RestNotFoundException(String message, int errorCode, Throwable cause) {
+    super(message, Response.Status.NOT_FOUND.getStatusCode(), errorCode, cause);
   }
 }
