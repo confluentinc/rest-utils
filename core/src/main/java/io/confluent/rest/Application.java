@@ -107,6 +107,7 @@ public abstract class Application<T extends RestConfig> {
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     Slf4jRequestLog requestLog = new Slf4jRequestLog();
     requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    requestLog.setLogLatency(true);
     requestLogHandler.setRequestLog(requestLog);
 
     HandlerCollection handlers = new HandlerCollection();
