@@ -17,7 +17,11 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.DefaultHandler;
+import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -32,6 +36,7 @@ import javax.ws.rs.core.Configurable;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
 /**
@@ -94,10 +99,20 @@ public abstract class Application<T extends RestConfig> {
         Application.this.shutdownLatch.countDown();
       }
     };
+
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
     context.addServlet(servletHolder, "/*");
-    server.setHandler(context);
+
+    RequestLogHandler requestLogHandler = new RequestLogHandler();
+    Slf4jRequestLog requestLog = new Slf4jRequestLog();
+    requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    requestLog.setLogLatency(true);
+    requestLogHandler.setRequestLog(requestLog);
+
+    HandlerCollection handlers = new HandlerCollection();
+    handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
+    server.setHandler(handlers);
 
     int gracefulShutdownMs = getConfiguration().getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {

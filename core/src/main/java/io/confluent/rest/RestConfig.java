@@ -53,6 +53,11 @@ public class RestConfig extends AbstractConfig {
       "Amount of time to wait after a shutdown request for outstanding requests to complete.";
   protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "1000";
 
+  public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
+  protected static final String REQUEST_LOGGER_NAME_DOC =
+      "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
+  protected static final String REQUEST_LOGGER_NAME_DEFAULT = "io.confluent.rest-utils.requests";
+
   static {
     config = new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
@@ -67,7 +72,10 @@ public class RestConfig extends AbstractConfig {
                 RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC)
         .define(SHUTDOWN_GRACEFUL_MS_CONFIG, Type.INT,
                 SHUTDOWN_GRACEFUL_MS_DEFAULT, Importance.LOW,
-                SHUTDOWN_GRACEFUL_MS_DOC);
+                SHUTDOWN_GRACEFUL_MS_DOC)
+        .define(REQUEST_LOGGER_NAME_CONFIG, Type.STRING,
+                REQUEST_LOGGER_NAME_DEFAULT, Importance.LOW,
+                REQUEST_LOGGER_NAME_DOC);
   }
 
   public RestConfig() {
