@@ -12,7 +12,7 @@ VERSION=$(shell grep version pom.xml | head -n 1 | awk -F'>|<' '{ print $$3 }')
 endif
 
 export PACKAGE_TITLE=rest-utils
-export PACKAGE_NAME=$(PACKAGE_TITLE)-$(VERSION)
+export PACKAGE_NAME=confluent-rest-utils-$(VERSION)
 
 # Defaults that are likely to vary by platform. These are cleanly separated so
 # it should be easy to maintain altered values on platform-specific branches
