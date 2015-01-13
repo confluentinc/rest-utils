@@ -12,6 +12,7 @@ VERSION=$(shell grep version pom.xml | head -n 1 | awk -F'>|<' '{ print $$3 }')
 endif
 
 export PACKAGE_TITLE=rest-utils
+export FULL_PACKAGE_TITLE=confluent-rest-utils
 export PACKAGE_NAME=confluent-rest-utils-$(VERSION)
 
 # Defaults that are likely to vary by platform. These are cleanly separated so
@@ -78,7 +79,7 @@ install: build
 clean:
 	rm -rf $(DESTDIR)
 	rm -rf $(CURDIR)/$(PACKAGE_NAME)*
-	rm -rf $(PACKAGE_TITLE)-$(RPM_VERSION)*rpm
+	rm -rf $(FULL_PACKAGE_TITLE)-$(RPM_VERSION)*rpm
 	rm -rf RPM_BUILDING
 
 distclean: clean
