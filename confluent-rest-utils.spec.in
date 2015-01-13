@@ -1,10 +1,10 @@
-Summary: rest-utils are a small framework for building REST services with Jersey, Jackson, and Jetty
-Name: rest-utils
+Summary: confluent-rest-utils are a small framework for building REST services with Jersey, Jackson, and Jetty
+Name: confluent-rest-utils
 Version: ##RPMVERSION##
 Release: ##RPMRELEASE##
 Group: Applications/Internet
 License: Apache (v2)
-Source0: rest-utils-%{version}.tar.gz
+Source0: confluent-rest-utils-%{version}.tar.gz
 URL: http://confluent.io
 BuildRoot: %{_tmppath}/%{name}-%{version}-root
 Vendor: Confluent, Inc.
@@ -41,7 +41,7 @@ exit 0
 %{__mkdir_p} %{buildroot}
 %{__cp} -R * %{buildroot}
 # The spec file gets included, get rid of it
-%{__rm} %{buildroot}/rest-utils.spec
+%{__rm} %{buildroot}/confluent-rest-utils.spec
 
 %files
 %defattr(-,root,root)
