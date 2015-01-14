@@ -52,8 +52,8 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
    * @param exc    Throwable that triggered this ExceptionMapper
    * @param status HTTP response status
    */
-  public Response.ResponseBuilder createResponse(Throwable exc, Response.Status status,
-                                                 String msg) {
+  public Response.ResponseBuilder createResponse(Throwable exc, int errorCode,
+                                                 Response.Status status, String msg) {
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
       readableMessage += " " + exc.getClass().getName() + ": " + exc.getMessage();
@@ -68,7 +68,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
         // Ignore
       }
     }
-    final ErrorMessage message = new ErrorMessage(status.getStatusCode(), readableMessage);
+    final ErrorMessage message = new ErrorMessage(errorCode, readableMessage);
 
     return Response.status(status)
         .entity(message);

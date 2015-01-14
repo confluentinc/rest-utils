@@ -43,7 +43,9 @@ public class WebApplicationExceptionMapper
     // The human-readable message for these can use the exception message directly. Since
     // WebApplicationExceptions are expected to be passed back to users, it will either contain a
     // situation-specific message or the HTTP status message
-    Response.ResponseBuilder response = createResponse(exc, status, exc.getMessage());
+    int errorCode = (exc instanceof RestException) ? ((RestException)exc).getErrorCode()
+                                                   : status.getStatusCode();
+    Response.ResponseBuilder response = createResponse(exc, errorCode, status, exc.getMessage());
 
     // Apparently, 415 Unsupported Media Type errors disable content negotiation in Jersey, which
     // causes use to return data without a content type. Work around this by detecting that specific
