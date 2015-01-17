@@ -107,7 +107,6 @@ public abstract class
       );
     }
 
-    app.configure();
     getJerseyTest().setUp();
   }
 

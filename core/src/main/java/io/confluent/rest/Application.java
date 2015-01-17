@@ -17,6 +17,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -29,42 +30,47 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.core.Configurable;
 
+import io.confluent.common.metrics.JmxReporter;
+import io.confluent.common.metrics.MetricConfig;
+import io.confluent.common.metrics.Metrics;
+import io.confluent.common.metrics.MetricsReporter;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
+import io.confluent.rest.metrics.MetricsSelectChannelConnector;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
 /**
- * A REST application. Extend this class and implement the configure() method to generate your
- * application-specific configuration class and setupResources() to register REST resources with the
- * JAX-RS server. Use createServer() to get a fully-configured, ready to run Jetty server.
+ * A REST application. Extend this class and implement setupResources() to register REST
+ * resources with the JAX-RS server. Use createServer() to get a fully-configured, ready to run
+ * Jetty server.
  */
 public abstract class Application<T extends RestConfig> {
   protected T config;
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
-
-  public Application() {}
+  protected Metrics metrics;
 
   public Application(T config) {
     this.config = config;
-  }
-
-  /**
-   * Parse, load, or generate the Configuration for this application.
-   */
-  public T configure() throws RestConfigException {
-    // Allow this implementation as a nop if they provide
-    if (this.config == null)
-      throw new RestConfigException(
-          "Application.configure() was not overridden for " + getClass().getName() +
-          " but the configuration was not passed to the Application class's constructor.");
-    return this.config;
+    MetricConfig metricConfig = new MetricConfig()
+        .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
+        .timeWindow(config.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
+                    TimeUnit.MILLISECONDS);
+    List<MetricsReporter> reporters =
+        config.getConfiguredInstances(RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
+                                      MetricsReporter.class);
+    reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
+    this.metrics = new Metrics(metricConfig, reporters, config.getTime());
   }
 
   /**
@@ -75,13 +81,18 @@ public abstract class Application<T extends RestConfig> {
   public abstract void setupResources(Configurable<?> config, T appConfig);
 
   /**
+   * Returns a map of tag names to tag values to apply to metrics for this application.
+   *
+   * @return a Map of tags and values
+   */
+  public Map<String,String> getMetricsTags() {
+    return new LinkedHashMap<String, String>();
+  }
+
+  /**
    * Configure and create the server.
    */
   public Server createServer() throws RestConfigException {
-    if (config == null) {
-      configure();
-    }
-
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
@@ -91,14 +102,22 @@ public abstract class Application<T extends RestConfig> {
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     ServletHolder servletHolder = new ServletHolder(servletContainer);
-    server = new Server(getConfiguration().getInt(RestConfig.PORT_CONFIG)) {
+    server = new Server() {
       @Override
       protected void doStop() throws Exception {
         super.doStop();
+        Application.this.metrics.close();
         Application.this.onShutdown();
         Application.this.shutdownLatch.countDown();
       }
     };
+
+    int port = getConfiguration().getInt(RestConfig.PORT_CONFIG);
+    Map<String, String> metricTags = getMetricsTags();
+    String connectorMetricGrpName = "jetty";
+    MetricsSelectChannelConnector connector = new MetricsSelectChannelConnector(
+        port, metrics, connectorMetricGrpName, metricTags);
+    server.setConnectors(new Connector[]{connector});
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
