@@ -15,10 +15,6 @@
     <packaging>jar</packaging>
     <name>rest-utils</name>
 
-    <properties>
-        <junit.version>4.11</junit.version>
-    </properties>
-
     <dependencyManagement>
         <dependencies>
             <dependency>

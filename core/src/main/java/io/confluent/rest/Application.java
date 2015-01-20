@@ -46,6 +46,7 @@ import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
+import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.metrics.MetricsSelectChannelConnector;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
@@ -96,7 +97,9 @@ public abstract class Application<T extends RestConfig> {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
-    configureBaseApplication(resourceConfig);
+    Map<String, String> metricTags = getMetricsTags();
+
+    configureBaseApplication(resourceConfig, metricTags);
     setupResources(resourceConfig, getConfiguration());
 
     // Configure the servlet container
@@ -113,10 +116,8 @@ public abstract class Application<T extends RestConfig> {
     };
 
     int port = getConfiguration().getInt(RestConfig.PORT_CONFIG);
-    Map<String, String> metricTags = getMetricsTags();
-    String connectorMetricGrpName = "jetty";
     MetricsSelectChannelConnector connector = new MetricsSelectChannelConnector(
-        port, metrics, connectorMetricGrpName, metricTags);
+        port, metrics, "jetty", metricTags);
     server.setConnectors(new Connector[]{connector});
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -142,21 +143,28 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
+  public void configureBaseApplication(Configurable<?> config) {
+    configureBaseApplication(config, null);
+  }
+
   /**
    * Register standard components for a JSON REST application on the given JAX-RS configurable,
    * which can be either an ResourceConfig for a server or a ClientConfig for a Jersey-based REST
    * client.
    */
-  public void configureBaseApplication(Configurable<?> config) {
-    RestConfig restRestConfig = getConfiguration();
+  public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
+    RestConfig restConfig = getConfiguration();
 
     config.register(JacksonMessageBodyProvider.class);
     config.register(JsonParseExceptionMapper.class);
 
     config.register(ValidationFeature.class);
     config.register(ConstraintViolationExceptionMapper.class);
-    config.register(new WebApplicationExceptionMapper(restRestConfig));
-    config.register(new GenericExceptionMapper(restRestConfig));
+    config.register(new WebApplicationExceptionMapper(restConfig));
+    config.register(new GenericExceptionMapper(restConfig));
+
+    config.register(new MetricsResourceMethodApplicationListener(metrics, "jersey",
+                                                                 metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
   }

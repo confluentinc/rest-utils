@@ -22,6 +22,7 @@
         <jersey.version>2.6</jersey.version>
         <jetty.version>8.1.16.v20140903</jetty.version>
         <jackson.version>2.4.3</jackson.version>
+        <junit.version>4.11</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

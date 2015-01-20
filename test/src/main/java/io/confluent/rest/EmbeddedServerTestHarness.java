@@ -113,6 +113,7 @@ public abstract class
   @After
   public void tearDown() throws Exception {
     test.tearDown();
+    test = null;
   }
 
   protected void addResource(Object resource) {
@@ -153,7 +154,7 @@ public abstract class
     protected Application configure() {
       ResourceConfig config = new ResourceConfig();
       // Only configure the base application, resources are added manually with addResource
-      app.configureBaseApplication(config);
+      app.configureBaseApplication(config, null);
       for (Object resource : resources)
         config.register(resource);
       for (Class<?> resource : resourceClasses)
@@ -162,7 +163,7 @@ public abstract class
     }
     @Override
     protected void configureClient(ClientConfig config) {
-      app.configureBaseApplication(config);
+      app.configureBaseApplication(config, null);
     }
   }
 }
