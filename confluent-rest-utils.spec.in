@@ -45,7 +45,7 @@ exit 0
 
 %files
 %defattr(-,root,root)
-/usr/share/rest-utils
+/usr/share/java/rest-utils
 /usr/share/doc/rest-utils
 
 %clean
