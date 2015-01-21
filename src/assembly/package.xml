@@ -20,7 +20,7 @@
     </fileSets>
     <dependencySets>
         <dependencySet>
-            <outputDirectory>share/rest-utils</outputDirectory>
+            <outputDirectory>share/java/rest-utils</outputDirectory>
             <useProjectArtifact>true</useProjectArtifact>
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <excludes>
