@@ -24,6 +24,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
+import io.confluent.rest.annotations.PerformanceMetric;
+
 @Path("/hello")
 @Produces("application/vnd.hello.v1+json")
 public class HelloWorldResource {
@@ -54,6 +56,7 @@ public class HelloWorldResource {
   }
 
   @GET
+  @PerformanceMetric("hello-with-name")
   public HelloResponse hello(@QueryParam("name") String name) {
     // Use a configuration setting to control the message that's written. The name is extracted from
     // the query parameter "name", or defaults to "World". You can test this API with curl:

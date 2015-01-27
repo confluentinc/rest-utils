@@ -35,6 +35,7 @@ import io.confluent.common.metrics.stats.Avg;
 import io.confluent.common.metrics.stats.Count;
 import io.confluent.common.metrics.stats.Rate;
 import io.confluent.common.utils.Time;
+import io.confluent.rest.annotations.PerformanceMetric;
 
 /**
  * Jersey ResourceMethodApplicationListener that records metrics for each endpoint by listening
@@ -62,7 +63,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   public void onEvent(ApplicationEvent event) {
     if (event.getType() == ApplicationEvent.Type.INITIALIZATION_FINISHED) {
       // Special null key is used for global stats
-      methodMetrics.put(null, new MethodMetrics(null, this.metrics, metricGrpPrefix, metricTags));
+      methodMetrics.put(null,
+                        new MethodMetrics(null, null, this.metrics, metricGrpPrefix, metricTags));
 
       for (final Resource resource : event.getResourceModel().getResources()) {
         for (final ResourceMethod method : resource.getAllMethods()) {
@@ -80,10 +82,11 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   private void register(ResourceMethod method) {
     final Method definitionMethod = method.getInvocable().getDefinitionMethod();
-    if (!definitionMethod.getDeclaringClass().getName().startsWith("org.glassfish.jersey")) {
+    if (definitionMethod.isAnnotationPresent(PerformanceMetric.class)) {
+      PerformanceMetric annotation = definitionMethod.getAnnotation(PerformanceMetric.class);
       methodMetrics.put(
           definitionMethod,
-          new MethodMetrics(method, this.metrics, metricGrpPrefix, metricTags));
+          new MethodMetrics(method, annotation, this.metrics, metricGrpPrefix, metricTags));
     }
   }
 
@@ -98,23 +101,22 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private Sensor requests;
     private Sensor exceptions;
 
-    public MethodMetrics(ResourceMethod method, Metrics metrics, String metricGrpPrefix,
-                         Map<String, String> metricTags) {
+    public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
+                         String metricGrpPrefix, Map<String, String> metricTags) {
       String metricGrpName = metricGrpPrefix + "-metrics";
 
-      this.requests = metrics.sensor(getName(method, "requests"));
-      MetricName metricName = new MetricName(getName(method, "requests-rate"), metricGrpName,
-                                             "Rate of HTTP requests",
-                                             metricTags);
+      this.requests = metrics.sensor(getName(method, annotation, "requests"));
+      MetricName metricName = new MetricName(getName(method, annotation, "requests-rate"),
+                                             metricGrpName, "Rate of HTTP requests", metricTags);
       this.requests.add(metricName, new Rate(new Count()));
-      metricName = new MetricName(getName(method, "requests-latency-avg"), metricGrpName,
-                                  "Average latency of HTTP requests requests",
+      metricName = new MetricName(getName(method, annotation, "requests-latency-avg"),
+                                  metricGrpName, "Average latency of HTTP requests requests",
                                   metricTags);
       this.requests.add(metricName, new Avg());
 
-      this.exceptions = metrics.sensor(getName(method, "request-exceptions"));
-      metricName = new MetricName(getName(method, "request-exceptions-rate"), metricGrpName,
-                                  "Rate at which HTTP requests are being generated",
+      this.exceptions = metrics.sensor(getName(method, annotation, "request-exceptions"));
+      metricName = new MetricName(getName(method, annotation, "request-exceptions-rate"),
+                                  metricGrpName, "Rate at which HTTP requests are being generated",
                                   metricTags);
       this.exceptions.add(metricName, new Rate());
     }
@@ -133,9 +135,16 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       exceptions.record();
     }
 
-    private static String getName(final ResourceMethod method, String metric) {
+    private static String getName(final ResourceMethod method,
+                                  final PerformanceMetric annotation, String metric) {
       StringBuilder builder = new StringBuilder();
-      if (method != null) {
+      boolean prefixed = false;
+      if (annotation != null && !annotation.value().equals(PerformanceMetric.DEFAULT_NAME)) {
+        builder.append(annotation.value());
+        builder.append('.');
+        prefixed = true;
+      }
+      if (!prefixed && method != null) {
         String className = method.getInvocable().getDefinitionMethod()
             .getDeclaringClass().getSimpleName();
         String methodName = method.getInvocable().getDefinitionMethod().getName();
