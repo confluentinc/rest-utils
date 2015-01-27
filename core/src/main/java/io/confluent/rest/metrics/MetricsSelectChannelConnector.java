@@ -38,24 +38,24 @@ public class MetricsSelectChannelConnector extends SelectChannelConnector {
 
     String metricGrpName = metricGrpPrefix + "-metrics";
     this.accepts = metrics.sensor("connections-accepted");
-    MetricName metricName = new MetricName("connections-accepted-rate", metricGrpName,
-                                           "Rate at which Jetty TCP connections are being accepted",
-                                           metricTags);
+    MetricName metricName = new MetricName(
+        "connections-accepted-rate", metricGrpName,
+        "The average rate per second of accepted Jetty TCP connections", metricTags);
     this.accepts.add(metricName, new Rate());
     this.connects = metrics.sensor("connections-opened");
-    metricName = new MetricName("connections-opened-rate", metricGrpName,
-                                "Rate at which new Jetty TCP connections are being opened",
-                                metricTags);
+    metricName = new MetricName
+        ("connections-opened-rate", metricGrpName,
+         "The average rate per second of opened Jetty TCP connections", metricTags);
     this.connects.add(metricName, new Rate());
     this.disconnects = metrics.sensor("connections-closed");
-    metricName = new MetricName("connections-closed-rate", metricGrpName,
-                                "Rate at which Jetty TCP connections are being closed",
-                                metricTags);
+    metricName = new MetricName(
+        "connections-closed-rate", metricGrpName,
+        "The average rate per second of closed Jetty TCP connections", metricTags);
     this.disconnects.add(metricName, new Rate());
     this.connections = metrics.sensor("connections");
-    metricName = new MetricName("connections-active", metricGrpName,
-                                "Total number of active TCP connections",
-                                metricTags);
+    metricName = new MetricName(
+        "connections-active", metricGrpName,
+        "Total number of active Jetty TCP connections", metricTags);
     this.connections.add(metricName, new Total());
   }
 
