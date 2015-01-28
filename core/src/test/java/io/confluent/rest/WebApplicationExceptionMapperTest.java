@@ -38,7 +38,7 @@ public class WebApplicationExceptionMapperTest {
   public void setUp() {
     Properties props = new Properties();
     props.setProperty("debug", "false");
-    RestConfig config = new RestConfig(props);
+    RestConfig config = new TestRestConfig(props);
     mapper = new WebApplicationExceptionMapper(config);
   }
 
