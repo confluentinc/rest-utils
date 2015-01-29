@@ -39,14 +39,14 @@ import static org.junit.Assert.assertEquals;
  */
 public class ExceptionHandlingTest {
 
-  RestConfig config;
+  TestRestConfig config;
   ExceptionApplication app;
 
   @Before
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
-    config = new RestConfig(props);
+    config = new TestRestConfig(props);
     app = new ExceptionApplication(config);
     app.start();
   }
@@ -91,14 +91,14 @@ public class ExceptionHandlingTest {
   }
 
   // Test app just has endpoints that trigger different types of exceptions.
-  private static class ExceptionApplication extends Application<RestConfig> {
+  private static class ExceptionApplication extends Application<TestRestConfig> {
 
-    ExceptionApplication(RestConfig props) {
+    ExceptionApplication(TestRestConfig props) {
       super(props);
     }
 
     @Override
-    public void setupResources(Configurable<?> config, RestConfig appConfig) {
+    public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
       config.register(ExceptionResource.class);
     }
   }

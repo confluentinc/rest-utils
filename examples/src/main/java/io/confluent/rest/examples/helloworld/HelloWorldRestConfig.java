@@ -17,6 +17,7 @@ package io.confluent.rest.examples.helloworld;
 
 import java.util.Map;
 
+import io.confluent.common.config.ConfigDef;
 import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.config.ConfigDef.Type;
 import io.confluent.rest.RestConfig;
@@ -28,23 +29,26 @@ import io.confluent.rest.RestConfig;
  * implementations.
  */
 public class HelloWorldRestConfig extends RestConfig {
+  private static ConfigDef config;
+
   public static final String GREETING_CONFIG = "greeting";
   private static final String GREETING_CONFIG_DOC = "Greeting template for responses.";
   private static final String GREETING_CONFIG_DEFAULT = "Hello, %s!";
 
   static {
-    config.define(GREETING_CONFIG,
-                  Type.STRING,
-                  GREETING_CONFIG_DEFAULT,
-                  Importance.HIGH,
-                  GREETING_CONFIG_DOC);
+    config = baseConfigDef()
+        .define(GREETING_CONFIG,
+                Type.STRING,
+                GREETING_CONFIG_DEFAULT,
+                Importance.HIGH,
+                GREETING_CONFIG_DOC);
   }
 
   public HelloWorldRestConfig() {
-    super();
+    super(config);
   }
 
   public HelloWorldRestConfig(Map<?, ?> props) {
-    super(props);
+    super(config, props);
   }
 }

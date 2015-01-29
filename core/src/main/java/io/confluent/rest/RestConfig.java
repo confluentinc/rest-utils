@@ -24,8 +24,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class RestConfig extends AbstractConfig {
-  protected static final ConfigDef config;
-
   public static final String DEBUG_CONFIG = "debug";
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some " +
@@ -58,8 +56,8 @@ public class RestConfig extends AbstractConfig {
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
   protected static final String REQUEST_LOGGER_NAME_DEFAULT = "io.confluent.rest-utils.requests";
 
-  static {
-    config = new ConfigDef()
+  public static ConfigDef baseConfigDef() {
+    return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
                 DEBUG_CONFIG_DEFAULT, Importance.HIGH, DEBUG_CONFIG_DOC)
         .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.HIGH,
@@ -78,15 +76,11 @@ public class RestConfig extends AbstractConfig {
                 REQUEST_LOGGER_NAME_DOC);
   }
 
-  public RestConfig() {
-    super(config, new TreeMap<Object,Object>());
+  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
+    super(definition, originals);
   }
 
-  public RestConfig(Map<?, ?> props) {
-    super(config, props);
-  }
-
-  public static void main(String[] args) {
-    System.out.println(config.toHtmlTable());
+  public RestConfig(ConfigDef definition) {
+    super(definition, new TreeMap<Object,Object>());
   }
 }
