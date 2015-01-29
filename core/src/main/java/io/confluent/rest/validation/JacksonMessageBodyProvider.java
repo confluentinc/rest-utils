@@ -43,6 +43,10 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
     setMapper(new ObjectMapper());
   }
 
+  public JacksonMessageBodyProvider(ObjectMapper mapper) {
+    setMapper(mapper);
+  }
+
   @Override
   protected boolean hasMatchingMediaType(MediaType mediaType) {
     return super.hasMatchingMediaType(mediaType) ||
