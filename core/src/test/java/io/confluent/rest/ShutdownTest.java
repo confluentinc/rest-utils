@@ -18,8 +18,6 @@ package io.confluent.rest;
 
 import org.junit.Test;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,7 +35,7 @@ public class ShutdownTest {
   public void testShutdownHook() throws Exception {
     Properties props = new Properties();
     props.put("shutdown.graceful.ms", "50");
-    ShutdownApplication app = new ShutdownApplication(new RestConfig(props));
+    ShutdownApplication app = new ShutdownApplication(new TestRestConfig(props));
     app.start();
 
     StopThread stop = new StopThread(app);
@@ -51,7 +49,7 @@ public class ShutdownTest {
   public void testGracefulShutdown() throws Exception {
     Properties props = new Properties();
     props.put("shutdown.graceful.ms", "50");
-    final RestConfig config = new RestConfig(props);
+    final TestRestConfig config = new TestRestConfig(props);
     ShutdownApplication app = new ShutdownApplication(config);
     app.start();
 
@@ -69,11 +67,11 @@ public class ShutdownTest {
   }
 
 
-  private static class ShutdownApplication extends Application<RestConfig> {
+  private static class ShutdownApplication extends Application<TestRestConfig> {
     public AtomicBoolean shutdown = new AtomicBoolean(false);
     public SlowResource resource = new SlowResource();
 
-    ShutdownApplication(RestConfig props) {
+    ShutdownApplication(TestRestConfig props) {
       super(props);
     }
 
@@ -83,7 +81,7 @@ public class ShutdownTest {
     }
 
     @Override
-    public void setupResources(Configurable<?> config, RestConfig appConfig) {
+    public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
       config.register(resource);
     }
   }

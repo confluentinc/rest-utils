@@ -15,6 +15,7 @@
  */
 package io.confluent.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import org.eclipse.jetty.server.Connector;
@@ -155,7 +156,9 @@ public abstract class Application<T extends RestConfig> {
   public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
     RestConfig restConfig = getConfiguration();
 
-    config.register(JacksonMessageBodyProvider.class);
+    ObjectMapper jsonMapper = getJsonMapper();
+    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
+    config.register(jsonProvider);
     config.register(JsonParseExceptionMapper.class);
 
     config.register(ValidationFeature.class);
@@ -171,6 +174,16 @@ public abstract class Application<T extends RestConfig> {
 
   public T getConfiguration() {
     return this.config;
+  }
+
+  /**
+   * Gets a JSON ObjectMapper to use for (de)serialization of request/response entities. Override
+   * this to configure the behavior of the serializer. One simple example of customization is to
+   * set the INDENT_OUTPUT flag to make the output more readable. The default is a default
+   * Jackson ObjectMapper.
+   */
+  protected ObjectMapper getJsonMapper() {
+    return new ObjectMapper();
   }
 
   /**

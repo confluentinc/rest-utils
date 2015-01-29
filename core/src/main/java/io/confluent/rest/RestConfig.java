@@ -26,8 +26,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class RestConfig extends AbstractConfig {
-  protected static final ConfigDef config;
-
   public static final String DEBUG_CONFIG = "debug";
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some " +
@@ -85,8 +83,8 @@ public class RestConfig extends AbstractConfig {
       "of new metric creation. The JmxReporter is always included to register JMX statistics.";
   protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
 
-  static {
-    config = new ConfigDef()
+  public static ConfigDef baseConfigDef() {
+    return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
                 DEBUG_CONFIG_DEFAULT, Importance.HIGH, DEBUG_CONFIG_DOC)
         .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.HIGH,
@@ -120,19 +118,15 @@ public class RestConfig extends AbstractConfig {
 
   private static Time defaultTime = new SystemTime();
 
-  public RestConfig() {
-    super(config, new TreeMap<Object,Object>());
+  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
+    super(definition, originals);
   }
 
-  public RestConfig(Map<?, ?> props) {
-    super(config, props);
+  public RestConfig(ConfigDef definition) {
+    super(definition, new TreeMap<Object,Object>());
   }
 
   public Time getTime() {
     return defaultTime;
-  }
-
-  public static void main(String[] args) {
-    System.out.println(config.toHtmlTable());
   }
 }
