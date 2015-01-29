@@ -18,6 +18,8 @@ package io.confluent.rest.examples.helloworld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.TreeMap;
 
 import javax.ws.rs.core.Configurable;
@@ -45,6 +47,15 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
   @Override
   public void setupResources(Configurable<?> config, HelloWorldRestConfig appConfig) {
     config.register(new HelloWorldResource(appConfig));
+  }
+
+  @Override
+  public Map<String, String> getMetricsTags() {
+    Map<String, String> tags = new LinkedHashMap<String, String>();
+    // In a real app, you might have or generate a unique ID for this instance and add other
+    // tags like data center, app version, etc.
+    tags.put("instance-id", "1");
+    return tags;
   }
 
   public static void main(String[] args) {

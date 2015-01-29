@@ -19,6 +19,8 @@ import io.confluent.common.config.AbstractConfig;
 import io.confluent.common.config.ConfigDef;
 import io.confluent.common.config.ConfigDef.Type;
 import io.confluent.common.config.ConfigDef.Importance;
+import io.confluent.common.utils.SystemTime;
+import io.confluent.common.utils.Time;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -56,6 +58,31 @@ public class RestConfig extends AbstractConfig {
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
   protected static final String REQUEST_LOGGER_NAME_DEFAULT = "io.confluent.rest-utils.requests";
 
+  public static final String METRICS_JMX_PREFIX_CONFIG = "metrics.jmx.prefix";
+  protected static final String METRICS_JMX_PREFIX_DOC =
+      "Prefix to apply to metric names for the default JMX reporter.";
+  protected static final String METRICS_JMX_PREFIX_DEFAULT = "rest-utils";
+
+  public static final String METRICS_SAMPLE_WINDOW_MS_CONFIG = "metrics.sample.window.ms";
+  protected static final String METRICS_SAMPLE_WINDOW_MS_DOC =
+      "The metrics system maintains a configurable number of samples over a fixed window size. " +
+      "This configuration controls the size of the window. For example we might maintain two " +
+      "samples each measured over a 30 second period. When a window expires we erase and " +
+      "overwrite the oldest window.";
+  protected static final long METRICS_SAMPLE_WINDOW_MS_DEFAULT = 30000;
+
+  public static final String METRICS_NUM_SAMPLES_CONFIG = "metrics.num.samples";
+  protected static final String METRICS_NUM_SAMPLES_DOC =
+      "The number of samples maintained to compute metrics.";
+  protected static final int METRICS_NUM_SAMPLES_DEFAULT = 2;
+
+  public static final String METRICS_REPORTER_CLASSES_CONFIG = "metric.reporters";
+  protected static final String METRICS_REPORTER_CLASSES_DOC =
+      "A list of classes to use as metrics reporters. Implementing the " +
+      "<code>MetricReporter</code> interface allows plugging in classes that will be notified " +
+      "of new metric creation. The JmxReporter is always included to register JMX statistics.";
+  protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
+
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
@@ -73,8 +100,23 @@ public class RestConfig extends AbstractConfig {
                 SHUTDOWN_GRACEFUL_MS_DOC)
         .define(REQUEST_LOGGER_NAME_CONFIG, Type.STRING,
                 REQUEST_LOGGER_NAME_DEFAULT, Importance.LOW,
-                REQUEST_LOGGER_NAME_DOC);
+                REQUEST_LOGGER_NAME_DOC)
+        .define(METRICS_JMX_PREFIX_CONFIG, Type.STRING,
+                METRICS_JMX_PREFIX_DEFAULT, Importance.LOW, METRICS_JMX_PREFIX_DOC)
+        .define(METRICS_REPORTER_CLASSES_CONFIG, Type.LIST,
+                METRICS_REPORTER_CLASSES_DEFAULT, Importance.LOW, METRICS_REPORTER_CLASSES_DOC)
+        .define(METRICS_SAMPLE_WINDOW_MS_CONFIG,
+                Type.LONG,
+                METRICS_SAMPLE_WINDOW_MS_DEFAULT,
+                ConfigDef.Range.atLeast(0),
+                Importance.LOW,
+                METRICS_SAMPLE_WINDOW_MS_DOC)
+        .define(METRICS_NUM_SAMPLES_CONFIG, Type.INT,
+                METRICS_NUM_SAMPLES_DEFAULT, ConfigDef.Range.atLeast(1),
+                Importance.LOW, METRICS_NUM_SAMPLES_DOC);
   }
+
+  private static Time defaultTime = new SystemTime();
 
   public RestConfig(ConfigDef definition, Map<?, ?> originals) {
     super(definition, originals);
@@ -82,5 +124,9 @@ public class RestConfig extends AbstractConfig {
 
   public RestConfig(ConfigDef definition) {
     super(definition, new TreeMap<Object,Object>());
+  }
+
+  public Time getTime() {
+    return defaultTime;
   }
 }
