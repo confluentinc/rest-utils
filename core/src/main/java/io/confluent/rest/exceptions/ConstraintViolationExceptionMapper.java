@@ -47,10 +47,16 @@ public class ConstraintViolationExceptionMapper
 
   @Override
   public Response toResponse(ConstraintViolationException exception) {
-    final ErrorMessage message = new ErrorMessage(
-        UNPROCESSABLE_ENTITY_CODE,
-        ConstraintViolations.formatUntyped(exception.getConstraintViolations())
-    );
+    final ErrorMessage message;
+    if (exception instanceof RestConstraintViolationException) {
+      RestConstraintViolationException restException = (RestConstraintViolationException)exception;
+      message = new ErrorMessage(restException.getErrorCode(), restException.getMessage());
+    } else {
+      message = new ErrorMessage(
+          UNPROCESSABLE_ENTITY_CODE,
+          ConstraintViolations.formatUntyped(exception.getConstraintViolations())
+      );
+    }
 
     return Response.status(UNPROCESSABLE_ENTITY_CODE)
         .entity(message)
