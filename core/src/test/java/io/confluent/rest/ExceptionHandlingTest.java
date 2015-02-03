@@ -31,6 +31,7 @@ import javax.ws.rs.core.Response;
 
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.RestNotFoundException;
+import io.confluent.rest.exceptions.RestServerErrorException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -86,7 +87,7 @@ public class ExceptionHandlingTest {
   public void testUnexpectedException() {
     // Under non-debug mode, this uses a completely generic message since unexpected errors
     // is the one case we want to be certain we don't leak extra info
-    testAppException("/unexpected", 500, 500,
+    testAppException("/unexpected", 500, 50001,
                      Response.Status.INTERNAL_SERVER_ERROR.getReasonPhrase());
   }
 
@@ -122,7 +123,7 @@ public class ExceptionHandlingTest {
     @GET
     @Path("/unexpected")
     public String unexpected() {
-      throw new RuntimeException("Internal server error.");
+      throw new RestServerErrorException("Internal Server Error", 50001);
     }
   }
 
