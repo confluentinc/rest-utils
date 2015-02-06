@@ -17,6 +17,8 @@ Requires: confluent-common >= ##RPMVERSION##
 
 Confluent REST Utils provides a small framework and utilities for writing Java REST APIs using Jersey, Jackson, Jetty, and Hibernate Validator.
 
+%define __jar_repack %{nil}
+
 %pre
 
 exit 0
