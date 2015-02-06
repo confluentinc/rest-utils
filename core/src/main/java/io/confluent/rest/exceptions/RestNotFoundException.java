@@ -20,6 +20,8 @@ import javax.ws.rs.core.Response;
 
 public class RestNotFoundException extends RestException {
 
+  public static final int DEFAULT_ERROR_CODE = Response.Status.NOT_FOUND.getStatusCode();
+  
   public RestNotFoundException(String message, int errorCode) {
     super(message, Response.Status.NOT_FOUND.getStatusCode(), errorCode);
   }

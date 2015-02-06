@@ -20,6 +20,8 @@ import javax.ws.rs.core.Response;
 
 public class RestNotAuthorizedException extends RestException {
 
+  public static final int DEFAULT_ERROR_CODE = Response.Status.UNAUTHORIZED.getStatusCode();
+
   public RestNotAuthorizedException(String message, int errorCode) {
     super(message, Response.Status.UNAUTHORIZED.getStatusCode(), errorCode);
   }

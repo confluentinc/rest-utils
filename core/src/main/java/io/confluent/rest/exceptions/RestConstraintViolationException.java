@@ -20,7 +20,6 @@ import java.util.Set;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
-import javax.ws.rs.core.Response;
 
 /**
  * ConstraintViolationException that includes RestException-like data to create a standard error
@@ -29,6 +28,8 @@ import javax.ws.rs.core.Response;
  */
 public class RestConstraintViolationException extends ConstraintViolationException {
 
+  public static final int DEFAULT_ERROR_CODE = 
+      ConstraintViolationExceptionMapper.UNPROCESSABLE_ENTITY_CODE;
   private int errorCode;
 
   public RestConstraintViolationException(String message, int errorCode) {
