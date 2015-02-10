@@ -30,7 +30,7 @@ public class RestConfig extends AbstractConfig {
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some " +
       "error response entities.";
-  protected static final boolean DEBUG_CONFIG_DEFAULT = true;
+  protected static final boolean DEBUG_CONFIG_DEFAULT = false;
 
   public static final String PORT_CONFIG = "port";
   protected static final String PORT_CONFIG_DOC = "Port to listen on for new connections.";
@@ -86,14 +86,14 @@ public class RestConfig extends AbstractConfig {
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
-                DEBUG_CONFIG_DEFAULT, Importance.HIGH, DEBUG_CONFIG_DOC)
-        .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.HIGH,
+                DEBUG_CONFIG_DEFAULT, Importance.LOW, DEBUG_CONFIG_DOC)
+        .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.LOW,
                 PORT_CONFIG_DOC)
         .define(RESPONSE_MEDIATYPE_PREFERRED_CONFIG, Type.LIST,
-                RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT, Importance.HIGH,
+                RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT, Importance.LOW,
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC)
         .define(RESPONSE_MEDIATYPE_DEFAULT_CONFIG, Type.STRING,
-                RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT, Importance.HIGH,
+                RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT, Importance.LOW,
                 RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC)
         .define(SHUTDOWN_GRACEFUL_MS_CONFIG, Type.INT,
                 SHUTDOWN_GRACEFUL_MS_DEFAULT, Importance.LOW,
