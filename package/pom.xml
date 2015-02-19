@@ -11,7 +11,7 @@
     </parent>
 
     <groupId>io.confluent</groupId>
-    <artifactId>package</artifactId>
+    <artifactId>rest-utils-package</artifactId>
     <packaging>pom</packaging>
     <name>rest-utils-package</name>
 
