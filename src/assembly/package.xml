@@ -15,6 +15,7 @@
                 <include>README*</include>
                 <include>LICENSE*</include>
                 <include>NOTICE*</include>
+                <include>licenses/*</include>
             </includes>
         </fileSet>
     </fileSets>
@@ -22,6 +23,7 @@
         <dependencySet>
             <outputDirectory>share/java/rest-utils</outputDirectory>
             <useProjectArtifact>true</useProjectArtifact>
+            <scope>runtime</scope>
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <excludes>
                 <exclude>io.confluent:common-utils</exclude>
