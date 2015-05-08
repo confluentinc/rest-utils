@@ -317,15 +317,28 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         return count;
       }
 
+      // Note that we override all of these even though FilterOutputStream only requires
+      // overriding the first to avoid doing byte-by-byte handling of the stream. Do NOT call
+      // super.write() for these as they will convert everything into a series of write(int)
+      // calls and wreck performance.
+
       @Override
       public void write(int b) throws IOException {
-        super.write(b);
         count++;
+        out.write(b);
       }
 
-      // The methods write(byte[]) and write(byte[],int,int) are guaranteed to call write(int),
-      // either directly or indirectly, for FilterOutputStream, so they do not need to be
-      // overridden -- all the accounting is handled by write(int)
+      @Override
+      public void write(byte[] bytes) throws IOException {
+        count += bytes.length;
+        out.write(bytes);
+      }
+
+      @Override
+      public void write(byte[] bytes, int off, int len) throws IOException {
+        count += len;
+        out.write(bytes, off, len);
+      }
     }
   }
 }
