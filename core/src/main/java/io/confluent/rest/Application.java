@@ -21,9 +21,11 @@ import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -48,7 +50,6 @@ import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
-import io.confluent.rest.metrics.MetricsSelectChannelConnector;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
 /**
@@ -116,9 +117,9 @@ public abstract class Application<T extends RestConfig> {
       }
     };
 
-    int port = getConfiguration().getInt(RestConfig.PORT_CONFIG);
-    MetricsSelectChannelConnector connector = new MetricsSelectChannelConnector(
-        port, metrics, "jetty", metricTags);
+    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
+    connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", metricTags));
+    connector.setPort(getConfiguration().getInt(RestConfig.PORT_CONFIG));
     server.setConnectors(new Connector[]{connector});
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -133,11 +134,16 @@ public abstract class Application<T extends RestConfig> {
 
     HandlerCollection handlers = new HandlerCollection();
     handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
-    server.setHandler(handlers);
+
+    /* Needed for graceful shutdown as per `setStopTimeout` documentation */
+    StatisticsHandler statsHandler = new StatisticsHandler();
+    statsHandler.setHandler(handlers);
+
+    server.setHandler(statsHandler);
 
     int gracefulShutdownMs = getConfiguration().getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {
-      server.setGracefulShutdown(gracefulShutdownMs);
+      server.setStopTimeout(gracefulShutdownMs);
     }
     server.setStopAtShutdown(true);
 

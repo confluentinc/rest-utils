@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.validation.JacksonMessageBodyProvider;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -60,7 +61,7 @@ public class ExceptionHandlingTest {
 
   private void testAppException(String path, int expectedStatus, int expectedErrorCode,
                                 String expectedMessage) {
-    Response response = ClientBuilder.newClient()
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
         .path(path)
         .request()
@@ -94,12 +95,15 @@ public class ExceptionHandlingTest {
   // Test app just has endpoints that trigger different types of exceptions.
   private static class ExceptionApplication extends Application<TestRestConfig> {
 
+    Configurable resourceConfig;
+
     ExceptionApplication(TestRestConfig props) {
       super(props);
     }
 
     @Override
     public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
+      resourceConfig = config;
       config.register(ExceptionResource.class);
     }
   }

@@ -40,7 +40,7 @@ import java.util.Locale;
 
 import javax.servlet.http.Cookie;
 
-import org.eclipse.jetty.http.HttpHeaders;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.PathMap;
 import org.eclipse.jetty.server.Authentication;
 import org.eclipse.jetty.server.Request;
@@ -136,7 +136,7 @@ public abstract class AbstractNCSARequestLog extends AbstractLifeCycle implement
       String addr = null;
       if (_preferProxiedForAddress)
       {
-        addr = request.getHeader(HttpHeaders.X_FORWARDED_FOR.toString());
+        addr = request.getHeader(HttpHeader.X_FORWARDED_FOR.toString());
       }
 
       if (addr == null)
@@ -250,7 +250,7 @@ public abstract class AbstractNCSARequestLog extends AbstractLifeCycle implement
   protected void logExtended(Request request,
                              StringBuilder b) throws IOException
   {
-    String referer = request.getHeader(HttpHeaders.REFERER.toString());
+    String referer = request.getHeader(HttpHeader.REFERER.toString());
     if (referer == null)
       b.append("\"-\" ");
     else
@@ -260,7 +260,7 @@ public abstract class AbstractNCSARequestLog extends AbstractLifeCycle implement
       b.append("\" ");
     }
 
-    String agent = request.getHeader(HttpHeaders.USER_AGENT.toString());
+    String agent = request.getHeader(HttpHeader.USER_AGENT.toString());
     if (agent == null)
       b.append("\"-\" ");
     else

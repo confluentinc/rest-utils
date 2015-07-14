@@ -12,14 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
+ */
+package io.confluent.rest;
 
-package io.confluent.rest.metrics;
-
-import org.eclipse.jetty.io.Connection;
-import org.eclipse.jetty.server.nio.SelectChannelConnector;
-
-import java.io.IOException;
+import java.net.Socket;
 import java.util.Map;
 
 import io.confluent.common.metrics.MetricName;
@@ -27,15 +23,21 @@ import io.confluent.common.metrics.Metrics;
 import io.confluent.common.metrics.Sensor;
 import io.confluent.common.metrics.stats.Rate;
 import io.confluent.common.metrics.stats.Total;
+import org.eclipse.jetty.io.NetworkTrafficListener;
 
-public class MetricsSelectChannelConnector extends SelectChannelConnector {
-  private Sensor accepts, connects, disconnects, connections;
+public class MetricsListener extends NetworkTrafficListener.Adapter {
 
-  public MetricsSelectChannelConnector(int port, Metrics metrics, String metricGrpPrefix,
-                                       Map<String,String> metricTags) {
-    super();
-    this.setPort(port);
+  /*
+   * `NetworkTrafficListener` in Jetty 9.2 doesn't expose `accepted` so we can't report this accurately. In an effort
+   * to be backwards compatible, we temporarily approximate the value by using `opened`. `accepts` will be removed
+   * in a future release.
+   */
+  @Deprecated
+  private final Sensor accepts;
 
+  private final Sensor connects, disconnects, connections;
+
+  public MetricsListener(Metrics metrics, String metricGrpPrefix, Map<String, String> metricTags) {
     String metricGrpName = metricGrpPrefix + "-metrics";
     this.accepts = metrics.sensor("connections-accepted");
     MetricName metricName = new MetricName(
@@ -45,7 +47,7 @@ public class MetricsSelectChannelConnector extends SelectChannelConnector {
     this.connects = metrics.sensor("connections-opened");
     metricName = new MetricName
         ("connections-opened-rate", metricGrpName,
-         "The average rate per second of opened Jetty TCP connections", metricTags);
+       "The average rate per second of opened Jetty TCP connections", metricTags);
     this.connects.add(metricName, new Rate());
     this.disconnects = metrics.sensor("connections-closed");
     metricName = new MetricName(
@@ -59,23 +61,19 @@ public class MetricsSelectChannelConnector extends SelectChannelConnector {
     this.connections.add(metricName, new Total());
   }
 
+
+
   @Override
-  public void accept(int acceptorID) throws IOException {
-    super.accept(acceptorID);
+  public void opened(Socket socket) {
+    this.connects.record();
+    this.connections.record(1);
     this.accepts.record();
   }
 
   @Override
-  protected void connectionOpened(Connection connection) {
-    super.connectionOpened(connection);
-    this.connects.record();
-    this.connections.record(1);
-  }
-
-  @Override
-  protected void connectionClosed(Connection connection) {
-    super.connectionClosed(connection);
+  public void closed(Socket socket) {
     this.disconnects.record();
     this.connections.record(-1);
   }
+
 }
