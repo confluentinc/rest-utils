@@ -25,32 +25,42 @@ import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
+import java.net.MalformedURLException;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import javax.servlet.DispatcherType;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.metrics.JmxReporter;
 import io.confluent.common.metrics.MetricConfig;
 import io.confluent.common.metrics.Metrics;
 import io.confluent.common.metrics.MetricsReporter;
+import io.confluent.rest.documentation.CrossOriginResourceSharingFilter;
+import io.confluent.rest.documentation.RedirectDocResource;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import io.swagger.jaxrs.config.BeanConfig;
+import io.swagger.jaxrs.listing.ApiListingResource;
+import io.swagger.jaxrs.listing.SwaggerSerializers;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
@@ -103,6 +113,7 @@ public abstract class Application<T extends RestConfig> {
 
     configureBaseApplication(resourceConfig, metricTags);
     setupResources(resourceConfig, getConfiguration());
+    setupSwaggerResource(resourceConfig);
 
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
@@ -126,6 +137,9 @@ public abstract class Application<T extends RestConfig> {
     context.setContextPath("/");
     context.addServlet(servletHolder, "/*");
 
+    context.addFilter(CrossOriginResourceSharingFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
+    ResourceHandler webJarsResourceHandler = createWebJarsResourceHandler();
+
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     Slf4jRequestLog requestLog = new Slf4jRequestLog();
     requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
@@ -133,7 +147,7 @@ public abstract class Application<T extends RestConfig> {
     requestLogHandler.setRequestLog(requestLog);
 
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
+    handlers.setHandlers(new Handler[]{webJarsResourceHandler, context, new DefaultHandler(), requestLogHandler});
 
     /* Needed for graceful shutdown as per `setStopTimeout` documentation */
     StatisticsHandler statsHandler = new StatisticsHandler();
@@ -148,6 +162,37 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  private ResourceHandler createWebJarsResourceHandler() {
+    ResourceHandler webJarsResourceHandler = new ResourceHandler() {
+      @Override
+      public Resource getResource(String path) throws MalformedURLException {
+          Resource resource = Resource.newClassPathResource(path);
+        if (resource == null || !resource.exists()) {
+          resource = Resource.newClassPathResource("META-INF/resources" + path);
+        }
+        return resource;
+      }
+    };
+    webJarsResourceHandler.setDirectoriesListed(true);
+    webJarsResourceHandler.setWelcomeFiles(new String[]{"index.html"});
+    webJarsResourceHandler.setResourceBase("META-INF/resources/");
+    return webJarsResourceHandler;
+  }
+
+  private void setupSwaggerResource(ResourceConfig config) {
+    BeanConfig beanConfig = new BeanConfig();
+    beanConfig.setVersion("1.0.2");
+    beanConfig.setSchemes(new String[] { "http" });
+    beanConfig.setHost("localhost:8082");
+    beanConfig.setBasePath("/");
+    beanConfig.setResourcePackage("io.confluent");
+    beanConfig.setScan(true);
+    config.register(beanConfig);
+    config.register(ApiListingResource.class);
+    config.register(SwaggerSerializers.class);
+    config.register(RedirectDocResource.class);
   }
 
   public void configureBaseApplication(Configurable<?> config) {
