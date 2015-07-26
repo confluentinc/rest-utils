@@ -96,4 +96,17 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
+        <filters>
+            <filter>${basedir}/src/main/resources/rest-utils-build-time-properties.properties</filter>
+        </filters>
+    </build>
 </project>

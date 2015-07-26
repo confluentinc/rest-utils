@@ -83,6 +83,14 @@ public class RestConfig extends AbstractConfig {
       "of new metric creation. The JmxReporter is always included to register JMX statistics.";
   protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
 
+  public static final String SWAGGER_UI_INDEX_HTML_PATH_CONFIG = "/rest-utils-swagger-ui-index.html";
+  protected static final String SWAGGER_UI_INDEX_HTML_PATH_DOC = "Classpath path of custom swagger-ui index.html.";
+  protected static final String SWAGGER_UI_INDEX_HTML_PATH_DEFAULT = "/rest-utils-swagger-ui-index.html";
+
+  public static final String API_EXAMPLES_PATH_CONFIG = "/api-examples/";
+  protected static final String API_EXAMPLES_PATH_DOC = "Port to listen on for new connections.";
+  protected static final String API_EXAMPLES_PATH_DEFAULT = "/api-examples/";
+
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
@@ -113,7 +121,13 @@ public class RestConfig extends AbstractConfig {
                 METRICS_SAMPLE_WINDOW_MS_DOC)
         .define(METRICS_NUM_SAMPLES_CONFIG, Type.INT,
                 METRICS_NUM_SAMPLES_DEFAULT, ConfigDef.Range.atLeast(1),
-                Importance.LOW, METRICS_NUM_SAMPLES_DOC);
+                Importance.LOW, METRICS_NUM_SAMPLES_DOC)
+        .define(SWAGGER_UI_INDEX_HTML_PATH_CONFIG, Type.STRING,
+        		SWAGGER_UI_INDEX_HTML_PATH_DEFAULT, Importance.LOW,
+        		SWAGGER_UI_INDEX_HTML_PATH_DOC)
+        .define(API_EXAMPLES_PATH_CONFIG, Type.STRING,
+        		API_EXAMPLES_PATH_DEFAULT, Importance.LOW,
+        		API_EXAMPLES_PATH_DOC);
   }
 
   private static Time defaultTime = new SystemTime();
