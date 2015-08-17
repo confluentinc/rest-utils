@@ -46,6 +46,8 @@
         <jersey.version>2.19</jersey.version>
         <jetty.version>9.2.12.v20150709</jetty.version>
         <jackson.version>2.5.4</jackson.version>
+        <swagger.version>1.5.0</swagger.version>
+        <swagger-ui.version>2.1.0</swagger-ui.version>
         <junit.version>4.12</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

@@ -1,0 +1,25 @@
+// BEWARE: This is clearly not valid json as it contains comments ;-)
+{
+  "request": {
+    "method": "POST", // http method
+    "path": "/resource/{pathParameter}", // path - the same specification as jax-rs
+    "parameters": { // parameters - path and query parameters
+      "pathParameter": "pathParameterValue",
+      "queryParameter": "queryParameterValue"
+    },
+    "headers": { // http records
+      "Content-Type": "application/vnd.kafka.binary.v1+json",
+      "Accept": "application/json; qs=0.5"
+    },
+    "body": { // body can be string in which case it is send as it is or a valid json in which case it is run through JSON.stringify() first
+      "foo": "bar"
+    }
+  },
+  "response": { // response is not currently used but we could one day render the expected response
+    "status": null,
+    "message": null,
+    "headers": {
+    },
+    "body": null
+  }
+}

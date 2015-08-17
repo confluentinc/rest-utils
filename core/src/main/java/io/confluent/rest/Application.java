@@ -33,9 +33,11 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -45,12 +47,16 @@ import io.confluent.common.metrics.JmxReporter;
 import io.confluent.common.metrics.MetricConfig;
 import io.confluent.common.metrics.Metrics;
 import io.confluent.common.metrics.MetricsReporter;
+import io.confluent.rest.documentation.SwaggerResource;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import io.swagger.jaxrs.config.BeanConfig;
+import io.swagger.jaxrs.listing.ApiListingResource;
+import io.swagger.jaxrs.listing.SwaggerSerializers;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
@@ -58,6 +64,10 @@ import io.confluent.rest.validation.JacksonMessageBodyProvider;
  * Jetty server.
  */
 public abstract class Application<T extends RestConfig> {
+  private static final String CONTEXT_PATH = "/";
+  private static final String BUILD_TIME_PROPERTIES_PATH = "rest-utils-build-time-properties.properties";
+  private static final String SWAGGER_UI_VERSION_PROPERTY_NAME_IN_MAVEN = "swagger-ui.version";
+
   protected T config;
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -103,10 +113,12 @@ public abstract class Application<T extends RestConfig> {
 
     configureBaseApplication(resourceConfig, metricTags);
     setupResources(resourceConfig, getConfiguration());
+    setupSwaggerResource(resourceConfig, getConfiguration());
 
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     ServletHolder servletHolder = new ServletHolder(servletContainer);
+//    servletHolder.setInitParameter(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "webjars/.*");
     server = new Server() {
       @Override
       protected void doStop() throws Exception {
@@ -123,8 +135,10 @@ public abstract class Application<T extends RestConfig> {
     server.setConnectors(new Connector[]{connector});
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    context.setContextPath("/");
-    context.addServlet(servletHolder, "/*");
+    context.setContextPath(CONTEXT_PATH);
+    context.addServlet(servletHolder, CONTEXT_PATH + "*");
+
+//    context.addFilter(CrossOriginResourceSharingFilter.class, "/doc/cors-headers-adding-proxy/*", EnumSet.of(DispatcherType.REQUEST));
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     Slf4jRequestLog requestLog = new Slf4jRequestLog();
@@ -148,6 +162,31 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  private void setupSwaggerResource(ResourceConfig config, T appConfig) {
+    BeanConfig beanConfig = new BeanConfig();
+    beanConfig.setVersion("1.0");
+    beanConfig.setSchemes(new String[] { "http" });
+    beanConfig.setHost("localhost:" + appConfig.getInt(RestConfig.PORT_CONFIG));
+    beanConfig.setBasePath(CONTEXT_PATH);
+    beanConfig.setResourcePackage("io.confluent");
+    beanConfig.setScan(true);
+
+    Properties properties = new Properties();
+    try {
+      properties.load(this.getClass().getClassLoader().getResourceAsStream(BUILD_TIME_PROPERTIES_PATH));
+    } catch (IOException e) {
+      // pass
+    }
+    String swaggerUiVersion = properties.getProperty(SWAGGER_UI_VERSION_PROPERTY_NAME_IN_MAVEN);
+    String swaggerUiIndexHtmlPath = appConfig.getString(RestConfig.SWAGGER_UI_INDEX_HTML_PATH_CONFIG);
+    String apiExamplesPath = appConfig.getString(RestConfig.API_EXAMPLES_PATH_CONFIG);
+
+    config.register(beanConfig);
+    config.register(ApiListingResource.class);
+    config.register(SwaggerSerializers.class);
+    config.register(new SwaggerResource(swaggerUiVersion, swaggerUiIndexHtmlPath, apiExamplesPath));
   }
 
   public void configureBaseApplication(Configurable<?> config) {
