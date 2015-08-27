@@ -7,7 +7,7 @@
     <groupId>io.confluent</groupId>
     <artifactId>rest-utils-parent</artifactId>
     <packaging>pom</packaging>
-    <version>1.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>rest-utils-parent</name>
     <organization>
         <name>Confluent, Inc.</name>
@@ -42,7 +42,7 @@
     </modules>
 
     <properties>
-        <confluent.common.version>1.0</confluent.common.version>
+        <confluent.common.version>1.0.1-SNAPSHOT</confluent.common.version>
         <jersey.version>2.6</jersey.version>
         <jetty.version>8.1.16.v20140903</jetty.version>
         <jackson.version>2.4.3</jackson.version>
