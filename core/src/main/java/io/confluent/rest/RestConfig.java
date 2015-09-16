@@ -53,6 +53,11 @@ public class RestConfig extends AbstractConfig {
       "Amount of time to wait after a shutdown request for outstanding requests to complete.";
   protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "1000";
 
+  public static final String ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG = "access.control.allow.origin";
+  protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DOC =
+      "Set value for Jetty Access-Control-Allow-Origin header";
+  protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT = "";
+
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
@@ -98,6 +103,9 @@ public class RestConfig extends AbstractConfig {
         .define(SHUTDOWN_GRACEFUL_MS_CONFIG, Type.INT,
                 SHUTDOWN_GRACEFUL_MS_DEFAULT, Importance.LOW,
                 SHUTDOWN_GRACEFUL_MS_DOC)
+        .define(ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, Type.STRING,
+                ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT, Importance.LOW,
+                ACCESS_CONTROL_ALLOW_ORIGIN_DOC)
         .define(REQUEST_LOGGER_NAME_CONFIG, Type.STRING,
                 REQUEST_LOGGER_NAME_DEFAULT, Importance.LOW,
                 REQUEST_LOGGER_NAME_DOC)
