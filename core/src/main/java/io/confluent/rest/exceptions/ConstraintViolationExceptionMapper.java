@@ -52,9 +52,13 @@ public class ConstraintViolationExceptionMapper
       RestConstraintViolationException restException = (RestConstraintViolationException)exception;
       message = new ErrorMessage(restException.getErrorCode(), restException.getMessage());
     } else {
+      String violationMessage = ConstraintViolations.formatUntyped(exception.getConstraintViolations());
+      if (violationMessage == null || violationMessage.length() == 0) {
+        violationMessage = exception.getMessage();
+      }
       message = new ErrorMessage(
           UNPROCESSABLE_ENTITY_CODE,
-          ConstraintViolations.formatUntyped(exception.getConstraintViolations())
+          violationMessage
       );
     }
 
