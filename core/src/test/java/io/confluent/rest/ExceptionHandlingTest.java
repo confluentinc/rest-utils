@@ -16,25 +16,28 @@
 
 package io.confluent.rest;
 
-import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import static org.junit.Assert.assertEquals;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Configurable;
+import javax.ws.rs.core.Response;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Properties;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.Response;
-
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.RestNotFoundException;
 import io.confluent.rest.exceptions.RestServerErrorException;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Tests that a demo app catches exceptions correctly and returns errors in the expected format.
@@ -59,8 +62,8 @@ public class ExceptionHandlingTest {
     app.join();
   }
 
-  private void testAppException(String path, int expectedStatus, int expectedErrorCode,
-                                String expectedMessage) {
+  private void testGetException(String path, int expectedStatus, int expectedErrorCode,
+      String expectedMessage) {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
         .path(path)
@@ -73,23 +76,49 @@ public class ExceptionHandlingTest {
     assertEquals(expectedMessage, msg.getMessage());
   }
 
+  private void testPostException(String path, Entity entity, int expectedStatus, int expectedErrorCode,
+      String expectedMessage) {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+      .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+      .path(path)
+      .request()
+      .post(entity);
+    assertEquals(expectedStatus, response.getStatus());
+
+    ErrorMessage msg = response.readEntity(ErrorMessage.class);
+    assertEquals(expectedErrorCode, msg.getErrorCode());
+    assertEquals(expectedMessage, msg.getMessage());
+  }
+
   @Test
   public void testRestException() {
-    testAppException("/restnotfound", 404, 4040, "Rest Not Found");
+    testGetException("/restnotfound", 404, 4040, "Rest Not Found");
   }
 
   @Test
   public void testNonRestException() {
     // These just duplicate the HTTP status code but should carry the custom message through
-    testAppException("/notfound", 404, 404, "Generic Not Found");
+    testGetException("/notfound", 404, 404, "Generic Not Found");
   }
 
   @Test
   public void testUnexpectedException() {
     // Under non-debug mode, this uses a completely generic message since unexpected errors
     // is the one case we want to be certain we don't leak extra info
-    testAppException("/unexpected", 500, 50001,
+    testGetException("/unexpected", 500, 50001,
                      Response.Status.INTERNAL_SERVER_ERROR.getReasonPhrase());
+  }
+
+  public static class FakeType {
+    public String something;
+  }
+
+  @Test
+  public void testUnrecognizedField() {
+    Map<String, String> m = new HashMap<String, String>();
+    m.put("something", "something");
+    m.put("something-else", "something-else");
+    testPostException("/unrecognizedfield", Entity.json(m), 422, 422, "Unrecognized field: something-else");
   }
 
   // Test app just has endpoints that trigger different types of exceptions.
@@ -128,6 +157,12 @@ public class ExceptionHandlingTest {
     @Path("/unexpected")
     public String unexpected() {
       throw new RestServerErrorException("Internal Server Error", 50001);
+    }
+
+    @POST
+    @Path("/unrecognizedfield")
+    public String blah(FakeType ft) {
+      return ft.something;
     }
   }
 
