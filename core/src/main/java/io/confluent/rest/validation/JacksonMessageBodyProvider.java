@@ -15,12 +15,14 @@
  */
 package io.confluent.rest.validation;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import javax.validation.ConstraintViolationException;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.Provider;
@@ -40,10 +42,13 @@ import java.lang.reflect.Type;
 public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
 
   public JacksonMessageBodyProvider() {
-    setMapper(new ObjectMapper());
+	ObjectMapper mapper = new ObjectMapper();
+	mapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
+    setMapper(mapper);
   }
 
   public JacksonMessageBodyProvider(ObjectMapper mapper) {
+	mapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
     setMapper(mapper);
   }
 
@@ -77,6 +82,8 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
       Throwable cause = e.getCause();
       if (cause instanceof ConstraintViolationException) {
         throw (ConstraintViolationException) cause;
+      }else if(cause instanceof WebApplicationException){
+    	throw (WebApplicationException) cause;  
       }
       throw e;
     }
