@@ -48,7 +48,6 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
   }
 
   public JacksonMessageBodyProvider(ObjectMapper mapper) {
-	mapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
     setMapper(mapper);
   }
 
@@ -82,8 +81,6 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
       Throwable cause = e.getCause();
       if (cause instanceof ConstraintViolationException) {
         throw (ConstraintViolationException) cause;
-      }else if(cause instanceof WebApplicationException){
-    	throw (WebApplicationException) cause;  
       }
       throw e;
     }

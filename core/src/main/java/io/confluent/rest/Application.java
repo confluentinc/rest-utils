@@ -175,6 +175,7 @@ public abstract class Application<T extends RestConfig> {
     RestConfig restConfig = getConfiguration();
 
     ObjectMapper jsonMapper = getJsonMapper();
+    jsonMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
     JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
     config.register(jsonProvider);
     config.register(JsonParseExceptionMapper.class);
