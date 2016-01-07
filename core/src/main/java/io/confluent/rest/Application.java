@@ -174,9 +174,7 @@ public abstract class Application<T extends RestConfig> {
   public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
     RestConfig restConfig = getConfiguration();
 
-    ObjectMapper jsonMapper = getJsonMapper();
-    jsonMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
-    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
+    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider();
     config.register(jsonProvider);
     config.register(JsonParseExceptionMapper.class);
 
