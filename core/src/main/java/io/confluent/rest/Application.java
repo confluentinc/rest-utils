@@ -134,7 +134,13 @@ public abstract class Application<T extends RestConfig> {
     if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
       filterHolder.setName("cross-origin");
-      filterHolder.setInitParameter("allowedOrigins", allowedOrigins);
+      filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins);
+      String allowedMethods = getConfiguration().getString(
+          RestConfig.ACCESS_CONTROL_ALLOWED_METHODS
+      );
+      if (allowedMethods != null && !allowedOrigins.trim().isEmpty()) {
+        filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
+      }
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 

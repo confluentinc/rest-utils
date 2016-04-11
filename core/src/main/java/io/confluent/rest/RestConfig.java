@@ -58,6 +58,12 @@ public class RestConfig extends AbstractConfig {
       "Set value for Jetty Access-Control-Allow-Origin header";
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT = "";
 
+  public static final String ACCESS_CONTROL_ALLOWED_METHODS = "access.control.allowed.methods";
+  protected static final String ACCESS_CONTROL_ALLOWED_METHODS_DOC =
+      "Set value to Jetty Access-Control-Allow-Origin header for specified methods";
+  protected static final String ACCESS_CONTROL_ALLOWED_METHODS_DEFAULT = "";
+
+
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
@@ -106,6 +112,9 @@ public class RestConfig extends AbstractConfig {
         .define(ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, Type.STRING,
                 ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT, Importance.LOW,
                 ACCESS_CONTROL_ALLOW_ORIGIN_DOC)
+        .define(ACCESS_CONTROL_ALLOWED_METHODS, Type.STRING,
+                ACCESS_CONTROL_ALLOWED_METHODS_DEFAULT, Importance.LOW,
+                ACCESS_CONTROL_ALLOWED_METHODS_DOC)
         .define(REQUEST_LOGGER_NAME_CONFIG, Type.STRING,
                 REQUEST_LOGGER_NAME_DEFAULT, Importance.LOW,
                 REQUEST_LOGGER_NAME_DOC)
