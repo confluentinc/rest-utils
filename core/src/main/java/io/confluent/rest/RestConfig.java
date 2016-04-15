@@ -58,10 +58,10 @@ public class RestConfig extends AbstractConfig {
       "Set value for Jetty Access-Control-Allow-Origin header";
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT = "";
 
-  public static final String ACCESS_CONTROL_ALLOWED_METHODS = "access.control.allowed.methods";
-  protected static final String ACCESS_CONTROL_ALLOWED_METHODS_DOC =
+  public static final String ACCESS_CONTROL_ALLOW_METHODS = "access.control.allow.methods";
+  protected static final String ACCESS_CONTROL_ALLOW_METHODS_DOC =
       "Set value to Jetty Access-Control-Allow-Origin header for specified methods";
-  protected static final String ACCESS_CONTROL_ALLOWED_METHODS_DEFAULT = "";
+  protected static final String ACCESS_CONTROL_ALLOW_METHODS_DEFAULT = "";
 
 
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
@@ -112,9 +112,9 @@ public class RestConfig extends AbstractConfig {
         .define(ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, Type.STRING,
                 ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT, Importance.LOW,
                 ACCESS_CONTROL_ALLOW_ORIGIN_DOC)
-        .define(ACCESS_CONTROL_ALLOWED_METHODS, Type.STRING,
-                ACCESS_CONTROL_ALLOWED_METHODS_DEFAULT, Importance.LOW,
-                ACCESS_CONTROL_ALLOWED_METHODS_DOC)
+        .define(ACCESS_CONTROL_ALLOW_METHODS, Type.STRING,
+                ACCESS_CONTROL_ALLOW_METHODS_DEFAULT, Importance.LOW,
+                ACCESS_CONTROL_ALLOW_METHODS_DOC)
         .define(REQUEST_LOGGER_NAME_CONFIG, Type.STRING,
                 REQUEST_LOGGER_NAME_DEFAULT, Importance.LOW,
                 REQUEST_LOGGER_NAME_DOC)
