@@ -18,10 +18,9 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
-import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
@@ -30,6 +29,7 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
@@ -55,6 +55,8 @@ import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
@@ -66,6 +68,8 @@ public abstract class Application<T extends RestConfig> {
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
+
+  private static final Logger log = LoggerFactory.getLogger(Application.class);
 
   public Application(T config) {
     this.config = config;
@@ -121,10 +125,77 @@ public abstract class Application<T extends RestConfig> {
       }
     };
 
-    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
-    connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", metricTags));
-    connector.setPort(getConfiguration().getInt(RestConfig.PORT_CONFIG));
-    server.setConnectors(new Connector[]{connector});
+    // http
+    if (config.getString(RestConfig.REST_PROTOCOL_CONFIG).equals(RestConfig.REST_PROTOCOL_HTTP) ||
+        config.getString(RestConfig.REST_PROTOCOL_CONFIG).equals(RestConfig.REST_PROTOCOL_HTTP_PLUS_HTTPS)) {
+      NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
+      connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", metricTags));
+      connector.setPort(getConfiguration().getInt(RestConfig.PORT_CONFIG));
+      server.addConnector(connector);
+      log.info("Added http connector.");
+    }
+
+    // https
+    if (config.getString(RestConfig.REST_PROTOCOL_CONFIG).equals(RestConfig.REST_PROTOCOL_HTTPS) ||
+        config.getString(RestConfig.REST_PROTOCOL_CONFIG).equals(RestConfig.REST_PROTOCOL_HTTP_PLUS_HTTPS)) {
+      SslContextFactory sslContextFactory = new SslContextFactory();
+      // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN. This is a Jetty requirement.
+      if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
+        sslContextFactory.setKeyStorePath(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
+        sslContextFactory.setKeyStorePassword(config.getString(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG));
+        sslContextFactory.setKeyManagerPassword(config.getString(RestConfig.SSL_KEY_PASSWORD_CONFIG));
+        sslContextFactory.setKeyStoreType(config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG));
+
+        if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+          sslContextFactory.setSslKeyManagerFactoryAlgorithm(
+                  config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
+        }
+      }
+
+      sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
+
+      if (!config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG).isEmpty()) {
+        sslContextFactory.setIncludeProtocols(config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG).split(","));
+      }
+
+      if (!config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG).isEmpty()) {
+        sslContextFactory.setIncludeCipherSuites(config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG).split(","));
+      }
+
+      if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
+        sslContextFactory.setEndpointIdentificationAlgorithm(
+                config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
+      }
+
+      if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
+        sslContextFactory.setTrustStorePath(config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG));
+        sslContextFactory.setTrustStorePassword(config.getString(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG));
+        sslContextFactory.setTrustStoreType(config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG));
+
+        if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+          sslContextFactory.setTrustManagerFactoryAlgorithm(
+                  config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
+        }
+      }
+
+      sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
+      if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
+        sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
+      }
+
+      NetworkTrafficServerConnector sslConnector = new NetworkTrafficServerConnector(server, sslContextFactory);
+      sslConnector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty-https", metricTags));
+      sslConnector.setPort(getConfiguration().getInt(RestConfig.PORT_HTTPS_CONFIG));
+      server.addConnector(sslConnector);
+      log.info("Added https connector.");
+    }
+
+    if (server.getConnectors().length < 1) {
+      log.error("No connectors were added to Jetty, meaning http and https are disabled. " +
+               "This is likely a configuration error. " + RestConfig.REST_PROTOCOL_CONFIG +
+               " is likely not configured correctly. Current value: " +
+               config.getString(RestConfig.REST_PROTOCOL_CONFIG));
+    }
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
