@@ -61,6 +61,7 @@ public class SslTest {
   private File serverKeystore;
 
   public static final String SSL_PASSWORD = "test1234";
+  public static final String EXPECTED_200_MSG = "Response status must be 200.";
 
   @Before
   public void setUp() throws Exception {
@@ -111,9 +112,11 @@ public class SslTest {
     try {
       app.start();
 
-      makeGetRequestAndVerify200("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
-      makeGetRequestAndVerify200("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
-              clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      int statusCode = makeGetRequest("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      statusCode = makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
 
       // ensure that jetty-metrics and jetty-https-metrics have the same value.
       int activeConnectionsCount = 0;
@@ -137,7 +140,7 @@ public class SslTest {
     }
   }
 
-  @Test
+  @Test(expected = HttpHostConnectException.class)
   public void testHttpsOnly() throws Exception {
     Properties props = new Properties();
     props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
@@ -147,19 +150,16 @@ public class SslTest {
     try {
       app.start();
 
-      try {
-        makeGetRequestAndVerify200("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
-      } catch (HttpHostConnectException hhce) {
-        // expected.
-      }
-      makeGetRequestAndVerify200("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
-              clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      int statusCode = makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+                                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      makeGetRequest("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
     } finally {
       app.stop();
     }
   }
 
-  @Test
+  @Test(expected = HttpHostConnectException.class)
   public void testHttpOnly() throws Exception {
     Properties props = new Properties();
     props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTP);
@@ -168,14 +168,10 @@ public class SslTest {
     try {
       app.start();
 
-      makeGetRequestAndVerify200("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
-
-      try {
-        makeGetRequestAndVerify200("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
-                clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (HttpHostConnectException hhce) {
-        // expected.
-      }
+      int statusCode = makeGetRequest("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+                     clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
     } finally {
       app.stop();
     }
@@ -191,13 +187,14 @@ public class SslTest {
     try {
       app.start();
 
-      makeGetRequestAndVerify200("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test");
+      int statusCode = makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test");
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
     } finally {
       app.stop();
     }
   }
 
-  @Test
+  @Test(expected = SocketException.class)
   public void testHttpsWithAuthAndBadClientCert() throws Exception {
     Properties props = new Properties();
     props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
@@ -214,20 +211,14 @@ public class SslTest {
       Map<String, X509Certificate> certs = new HashMap<>();
       createKeystoreWithCert(untrustedClient, "client", certs);
 
-      try {
-        makeGetRequestAndVerify200("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
-                untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (SSLHandshakeException she) {
-        // expected.
-      } catch (SocketException se) {
-        // expected. SocketException is thrown when SSLHandshakeException is caught.
-      }
+      makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+                     untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
     } finally {
       app.stop();
     }
   }
 
-  @Test
+  @Test(expected = SocketException.class)
   public void testHttpsWithAuthAndNoClientCert() throws Exception {
     Properties props = new Properties();
     props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
@@ -239,20 +230,15 @@ public class SslTest {
     try {
       app.start();
 
-      try {
-        makeGetRequestAndVerify200("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test");
-      } catch (SSLHandshakeException she) {
-        // expected.
-      } catch (SocketException se) {
-        // expected. SocketException is thrown when SSLHandshakeException is caught.
-      }
+      makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test");
     } finally {
       app.stop();
     }
   }
 
-  private void makeGetRequestAndVerify200(String url, String clientKeystoreLocation, String clientKeystorePassword,
-                                          String clientKeyPassword)
+  // returns the http response status code.
+  private int makeGetRequest(String url, String clientKeystoreLocation, String clientKeystorePassword,
+                             String clientKeyPassword)
       throws Exception {
     log.debug("Making GET " + url);
     HttpGet httpget = new HttpGet(url);
@@ -281,13 +267,15 @@ public class SslTest {
     }
 
     CloseableHttpResponse response = httpclient.execute(httpget);
-    assertEquals("Response status must be 200.", 200, response.getStatusLine().getStatusCode());
+    int statusCode = response.getStatusLine().getStatusCode();
     response.close();
     httpclient.close();
+    return statusCode;
   }
 
-  private void makeGetRequestAndVerify200(String url) throws Exception {
-    makeGetRequestAndVerify200(url, null, null, null);
+  // returns the http response status code.
+  private int makeGetRequest(String url) throws Exception {
+    return makeGetRequest(url, null, null, null);
   }
 
   private static class SslTestApplication extends Application<TestRestConfig> {
