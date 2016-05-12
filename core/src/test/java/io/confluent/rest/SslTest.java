@@ -53,6 +53,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SslTest {
   private static final Logger log = LoggerFactory.getLogger(SslTest.class);
@@ -104,6 +106,7 @@ public class SslTest {
 
   @Test
   public void testHttpAndHttps() throws Exception {
+    TestMetricsReporter.reset();
     Properties props = new Properties();
     String httpUri = "http://localhost:8080";
     String httpsUri = "https://localhost:8081";
@@ -120,24 +123,7 @@ public class SslTest {
       statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
-
-      // ensure that jetty-metrics and jetty-https-metrics have the same value.
-      int activeConnectionsCount = 0;
-      double firstActiveConnectionsValue = 0;
-      for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-        if (metric.metricName().name().equals("connections-active")) {
-          if (activeConnectionsCount == 0) {
-            firstActiveConnectionsValue = metric.value();
-          } else {
-            assertEquals("Metrics values in jetty-metrics and jetty-https-metrics should be equal.",
-                    firstActiveConnectionsValue, metric.value(), 0.0);
-          }
-          activeConnectionsCount++;
-        }
-      }
-
-      assertEquals("There should be two occurrences of each metric, one for http and one for https",
-              2, activeConnectionsCount);
+      assertMetricsCollected();
     } finally {
       app.stop();
     }
@@ -145,9 +131,11 @@ public class SslTest {
 
   @Test(expected = NoHttpResponseException.class)
   public void testHttpsOnly() throws Exception {
+    TestMetricsReporter.reset();
     Properties props = new Properties();
     String uri = "https://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     configServerKeystore(props);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
@@ -157,6 +145,7 @@ public class SslTest {
       int statusCode = makeGetRequest(uri + "/test",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertMetricsCollected();
       makeGetRequest("http://localhost:8080/test");
     } finally {
       app.stop();
@@ -165,9 +154,11 @@ public class SslTest {
 
   @Test(expected = SSLException.class)
   public void testHttpOnly() throws Exception {
+    TestMetricsReporter.reset();
     Properties props = new Properties();
     String uri = "http://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
     try {
@@ -175,10 +166,20 @@ public class SslTest {
 
       int statusCode = makeGetRequest(uri + "/test");
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertMetricsCollected();
       makeGetRequest("https://localhost:8080/test",
                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
     } finally {
       app.stop();
+    }
+  }
+
+  private void assertMetricsCollected() {
+    assertNotEquals("Expected to have metrics.", 0, TestMetricsReporter.getMetricTimeseries().size());
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-latency-max")) {
+        assertTrue("Metrics should be collected (max latency shouldn't be 0)", metric.value() != 0.0);
+      }
     }
   }
 

@@ -25,10 +25,7 @@ import java.util.Map;
 
 public class TestMetricsReporter implements MetricsReporter {
 
-  private static final List<KafkaMetric> metricTimeseries;
-  static {
-    metricTimeseries = new LinkedList<KafkaMetric>();
-  }
+  private static List<KafkaMetric> metricTimeseries = new LinkedList<KafkaMetric>();
 
   public void metricChange(KafkaMetric metric) {
     metricTimeseries.add(metric);
@@ -37,6 +34,8 @@ public class TestMetricsReporter implements MetricsReporter {
   public static List<KafkaMetric> getMetricTimeseries() {
     return metricTimeseries;
   }
+
+  public static void reset() { metricTimeseries = new LinkedList<KafkaMetric>(); }
 
   public static void print() {
     for (KafkaMetric metric : metricTimeseries) {

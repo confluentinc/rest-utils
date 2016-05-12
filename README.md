@@ -17,10 +17,8 @@ the server's trust store.
 
 Metrics
 -------
-When both http and https protocols are enabled, two metrics groups are created, `jetty-metrics` and
-`jetty-https-metrics`. However, `jetty-https-metrics` is a duplicate of `jetty-metrics`. Put differently, each
-metrics group will have the same value for all metrics, and those values will be influenced by both http and
-https requests.
+When both http and https and enabled, metrics are not separated per protocol. Meaning, when observing metrics, the
+values of each metric are a combination of both http and https.
 
 Contribute
 ----------

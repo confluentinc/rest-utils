@@ -129,6 +129,8 @@ public abstract class Application<T extends RestConfig> {
       }
     };
 
+    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
+
     List<URI> listeners = parseListeners(config.getString(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG));
     for (URI listener : listeners) {
@@ -137,7 +139,7 @@ public abstract class Application<T extends RestConfig> {
       // http
       if (listener.getScheme().equals("http")) {
         NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
-        connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", metricTags));
+        connector.addNetworkTrafficListener(metricsListener);
         connector.setPort(listener.getPort());
         connector.setHost(listener.getHost());
         server.addConnector(connector);
@@ -191,7 +193,7 @@ public abstract class Application<T extends RestConfig> {
         }
 
         NetworkTrafficServerConnector sslConnector = new NetworkTrafficServerConnector(server, sslContextFactory);
-        sslConnector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty-https", metricTags));
+        sslConnector.addNetworkTrafficListener(metricsListener);
         sslConnector.setPort(listener.getPort());
         sslConnector.setHost(listener.getHost());
         server.addConnector(sslConnector);
