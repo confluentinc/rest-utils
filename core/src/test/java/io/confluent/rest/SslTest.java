@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -216,7 +217,6 @@ public class SslTest {
       File untrustedClient = File.createTempFile("SslTest-client-keystore", ".jks");
       Map<String, X509Certificate> certs = new HashMap<>();
       createKeystoreWithCert(untrustedClient, "client", certs);
-
       makeGetRequest(uri + "/test",
                      untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
     } finally {
@@ -236,8 +236,13 @@ public class SslTest {
     SslTestApplication app = new SslTestApplication(config);
     try {
       app.start();
-
-      makeGetRequest(uri + "/test");
+      try {
+        makeGetRequest(uri + "/test");
+      } catch (SSLHandshakeException she) {
+        // JDK7 will throw the SHE, but JDK8 will throw the SE. This catch allows this code
+        // to run on JDK7 and JDK8.
+        throw new SocketException(she.toString());
+      }
     } finally {
       app.stop();
     }
