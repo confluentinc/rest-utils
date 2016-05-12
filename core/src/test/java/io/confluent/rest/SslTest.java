@@ -19,9 +19,9 @@ package io.confluent.rest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
+import org.apache.http.NoHttpResponseException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -104,7 +104,9 @@ public class SslTest {
   @Test
   public void testHttpAndHttps() throws Exception {
     Properties props = new Properties();
-    props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTP_PLUS_HTTPS);
+    String httpUri = "http://localhost:8080";
+    String httpsUri = "https://localhost:8081";
+    props.put(RestConfig.LISTENERS_CONFIG, httpUri + "," + httpsUri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     configServerKeystore(props);
     TestRestConfig config = new TestRestConfig(props);
@@ -112,9 +114,9 @@ public class SslTest {
     try {
       app.start();
 
-      int statusCode = makeGetRequest("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
+      int statusCode = makeGetRequest(httpUri + "/test");
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
-      statusCode = makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+      statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
 
@@ -140,37 +142,39 @@ public class SslTest {
     }
   }
 
-  @Test(expected = HttpHostConnectException.class)
+  @Test(expected = NoHttpResponseException.class)
   public void testHttpsOnly() throws Exception {
     Properties props = new Properties();
-    props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
     try {
       app.start();
 
-      int statusCode = makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+      int statusCode = makeGetRequest(uri + "/test",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
-      makeGetRequest("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
+      makeGetRequest("http://localhost:8080/test");
     } finally {
       app.stop();
     }
   }
 
-  @Test(expected = HttpHostConnectException.class)
+  @Test(expected = SSLException.class)
   public void testHttpOnly() throws Exception {
     Properties props = new Properties();
-    props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTP);
+    String uri = "http://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
     try {
       app.start();
 
-      int statusCode = makeGetRequest("http://localhost:" + RestConfig.PORT_CONFIG_DEFAULT + "/test");
+      int statusCode = makeGetRequest(uri + "/test");
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
-      makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+      makeGetRequest("https://localhost:8080/test",
                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
     } finally {
       app.stop();
@@ -180,14 +184,15 @@ public class SslTest {
   @Test
   public void testHttpsWithNoClientCertAndNoServerTruststore() throws Exception {
     Properties props = new Properties();
-    props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
     try {
       app.start();
 
-      int statusCode = makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test");
+      int statusCode = makeGetRequest(uri + "/test");
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
     } finally {
       app.stop();
@@ -197,7 +202,8 @@ public class SslTest {
   @Test(expected = SocketException.class)
   public void testHttpsWithAuthAndBadClientCert() throws Exception {
     Properties props = new Properties();
-    props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     configServerTruststore(props);
     enableSslClientAuth(props);
@@ -211,7 +217,7 @@ public class SslTest {
       Map<String, X509Certificate> certs = new HashMap<>();
       createKeystoreWithCert(untrustedClient, "client", certs);
 
-      makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test",
+      makeGetRequest(uri + "/test",
                      untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
     } finally {
       app.stop();
@@ -221,7 +227,8 @@ public class SslTest {
   @Test(expected = SocketException.class)
   public void testHttpsWithAuthAndNoClientCert() throws Exception {
     Properties props = new Properties();
-    props.put(RestConfig.REST_PROTOCOL_CONFIG, RestConfig.REST_PROTOCOL_HTTPS);
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     configServerTruststore(props);
     enableSslClientAuth(props);
@@ -230,7 +237,7 @@ public class SslTest {
     try {
       app.start();
 
-      makeGetRequest("https://localhost:" + (RestConfig.PORT_HTTPS_CONFIG_DEFAULT) + "/test");
+      makeGetRequest(uri + "/test");
     } finally {
       app.stop();
     }

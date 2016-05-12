@@ -33,22 +33,15 @@ public class RestConfig extends AbstractConfig {
   protected static final boolean DEBUG_CONFIG_DEFAULT = false;
 
   public static final String PORT_CONFIG = "port";
-  protected static final String PORT_CONFIG_DOC = "Port to listen on for new HTTP connections.";
+  protected static final String PORT_CONFIG_DOC = "DEPRECATED: port to listen on for new HTTP connections. Use " +
+      "listeners instead.";
   protected static final int PORT_CONFIG_DEFAULT = 8080;
 
-  public static final String PORT_HTTPS_CONFIG = "port.https";
-  protected static final String PORT_HTTPS_CONFIG_DOC = "Port to listen on for new HTTPS connections.";
-  protected static final int PORT_HTTPS_CONFIG_DEFAULT = 8081;
-
-  public static final String REST_PROTOCOL_HTTP = "http";
-  public static final String REST_PROTOCOL_HTTPS = "https";
-  public static final String REST_PROTOCOL_HTTP_PLUS_HTTPS =
-          REST_PROTOCOL_HTTP + "+" + REST_PROTOCOL_HTTPS;
-
-  public static final String REST_PROTOCOL_CONFIG = "rest.protocol";
-  protected static final String REST_PROTOCOL_DOC = "Which HTTP protocols to use. Possible values:" +
-      "http, https, http+https";
-  protected static final String REST_PROTOCOL_CONFIG_DEFAULT = REST_PROTOCOL_HTTP;
+  public static final String LISTENERS_CONFIG = "listeners";
+  protected static final String LISTENERS_DOC = "List of listeners. http and https are supported. Each " +
+      "listener must include the protocol, hostname, and port. For example: http://myhost:8080," +
+      "https://0.0.0.0:8081";
+  protected static final String LISTENERS_DEFAULT = ""; // TODO: add a default value when `PORT_CONFIG` is deprecated.
 
   public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
   protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
@@ -175,12 +168,10 @@ public class RestConfig extends AbstractConfig {
     return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
                 DEBUG_CONFIG_DEFAULT, Importance.LOW, DEBUG_CONFIG_DOC)
-        .define(REST_PROTOCOL_CONFIG, Type.STRING, REST_PROTOCOL_CONFIG_DEFAULT, Importance.MEDIUM,
-                REST_PROTOCOL_DOC)
         .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.LOW,
                 PORT_CONFIG_DOC)
-        .define(PORT_HTTPS_CONFIG, Type.INT, PORT_HTTPS_CONFIG_DEFAULT, Importance.LOW,
-                PORT_HTTPS_CONFIG_DOC)
+        .define(LISTENERS_CONFIG, Type.STRING, LISTENERS_DEFAULT, Importance.HIGH,
+                LISTENERS_DOC)
         .define(RESPONSE_MEDIATYPE_PREFERRED_CONFIG, Type.LIST,
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT, Importance.LOW,
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC)
