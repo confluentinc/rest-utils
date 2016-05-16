@@ -135,18 +135,10 @@ public abstract class Application<T extends RestConfig> {
             config.getInt(RestConfig.PORT_CONFIG));
     for (URI listener : listeners) {
       log.info("Adding listener: " + listener.toString());
-
-      // http
+      NetworkTrafficServerConnector connector;
       if (listener.getScheme().equals("http")) {
-        NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
-        connector.addNetworkTrafficListener(metricsListener);
-        connector.setPort(listener.getPort());
-        connector.setHost(listener.getHost());
-        server.addConnector(connector);
-      }
-
-      // https
-      if (listener.getScheme().equals("https")) {
+        connector = new NetworkTrafficServerConnector(server);
+      } else {
         SslContextFactory sslContextFactory = new SslContextFactory();
         // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN. This is a Jetty requirement.
         // TODO: investigate this further. Would be better to use SubjectAltNames.
@@ -193,12 +185,13 @@ public abstract class Application<T extends RestConfig> {
           sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
         }
 
-        NetworkTrafficServerConnector sslConnector = new NetworkTrafficServerConnector(server, sslContextFactory);
-        sslConnector.addNetworkTrafficListener(metricsListener);
-        sslConnector.setPort(listener.getPort());
-        sslConnector.setHost(listener.getHost());
-        server.addConnector(sslConnector);
+        connector = new NetworkTrafficServerConnector(server, sslContextFactory);
       }
+
+      connector.addNetworkTrafficListener(metricsListener);
+      connector.setPort(listener.getPort());
+      connector.setHost(listener.getHost());
+      server.addConnector(connector);
     }
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
