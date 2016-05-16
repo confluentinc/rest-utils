@@ -17,8 +17,10 @@ the server's trust store.
 
 Metrics
 -------
-When both http and https and enabled, metrics are not separated per protocol. Meaning, when observing metrics, the
-values of each metric are a combination of both http and https.
+One metrics group exists that spans all listeners. Meaning, when using multiple listeners and observing metrics, the
+values of each metric are a combination of all listeners. For example, if the maximum latency for a http listener
+is 50ms and the maximum latency for a https listener is 100ms, the `request-latency-max` metric will be 100ms, the max
+across all listeners.
 
 Contribute
 ----------
