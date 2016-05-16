@@ -279,10 +279,17 @@ public class SslTest {
               .build();
     }
 
-    CloseableHttpResponse response = httpclient.execute(httpget);
-    int statusCode = response.getStatusLine().getStatusCode();
-    response.close();
-    httpclient.close();
+    int statusCode = -1;
+    CloseableHttpResponse response = null;
+    try {
+      response = httpclient.execute(httpget);
+      statusCode = response.getStatusLine().getStatusCode();
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+      httpclient.close();
+    }
     return statusCode;
   }
 
