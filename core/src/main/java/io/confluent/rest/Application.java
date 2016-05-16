@@ -157,11 +157,11 @@ public abstract class Application<T extends RestConfig> {
         sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
 
         if (!config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG).isEmpty()) {
-          sslContextFactory.setIncludeProtocols(config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG).split(","));
+          sslContextFactory.setIncludeProtocols(getList(config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG)));
         }
 
         if (!config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG).isEmpty()) {
-          sslContextFactory.setIncludeCipherSuites(config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG).split(","));
+          sslContextFactory.setIncludeCipherSuites(getList(config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG)));
         }
 
         if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
@@ -236,10 +236,18 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
+  private static String[] getList(String original) {
+    String[] parts = original.split(",");
+    for (int i = 0; i < parts.length; i++) {
+      parts[i] = parts[i].trim();
+    }
+    return parts;
+  }
+
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
   //       configuration.
   static List<URI> parseListeners(String listenersStr, int deprecatedPort) {
-    String[] parts = listenersStr.split(",");
+    String[] parts = getList(listenersStr);
 
     // handle deprecated case, using PORT_CONFIG.
     // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG will have a default value which

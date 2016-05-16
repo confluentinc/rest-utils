@@ -40,6 +40,14 @@ public class ApplicationTest {
     assertExpectedUri(listeners.get(1), "https", "localhost", 124);
   }
 
+  @Test
+  public void testParseListenersMultipleWithSpace() {
+    List<URI> listeners = Application.parseListeners("http://localhost:123 , https://localhost:124", -1);
+    assertEquals("Should have two listeners.", 2, listeners.size());
+    assertExpectedUri(listeners.get(0), "http", "localhost", 123);
+    assertExpectedUri(listeners.get(1), "https", "localhost", 124);
+  }
+
   @Test(expected = ConfigException.class)
   public void testParseListenersUnparseableUri() {
     List<URI> listeners = Application.parseListeners("!", -1);
