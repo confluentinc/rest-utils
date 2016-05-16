@@ -149,6 +149,7 @@ public abstract class Application<T extends RestConfig> {
       if (listener.getScheme().equals("https")) {
         SslContextFactory sslContextFactory = new SslContextFactory();
         // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN. This is a Jetty requirement.
+        // TODO: investigate this further. Would be better to use SubjectAltNames.
         if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
           sslContextFactory.setKeyStorePath(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
           sslContextFactory.setKeyStorePassword(config.getString(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG));
