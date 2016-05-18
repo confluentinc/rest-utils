@@ -131,7 +131,7 @@ public abstract class Application<T extends RestConfig> {
 
     MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
 
-    List<URI> listeners = parseListeners(config.getString(RestConfig.LISTENERS_CONFIG),
+    List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG));
     for (URI listener : listeners) {
       log.info("Adding listener: " + listener.toString());
@@ -156,12 +156,14 @@ public abstract class Application<T extends RestConfig> {
 
         sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
 
-        if (!config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG).isEmpty()) {
-          sslContextFactory.setIncludeProtocols(getList(config.getString(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG)));
+        List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
+        if (!enabledProtocols.isEmpty()) {
+          sslContextFactory.setIncludeProtocols((String[]) enabledProtocols.toArray());
         }
 
-        if (!config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG).isEmpty()) {
-          sslContextFactory.setIncludeCipherSuites(getList(config.getString(RestConfig.SSL_CIPHER_SUITES_CONFIG)));
+        List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
+        if (!cipherSuites.isEmpty()) {
+          sslContextFactory.setIncludeCipherSuites((String[]) cipherSuites.toArray());
         }
 
         if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
@@ -236,28 +238,21 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
-  private static String[] getList(String original) {
-    String[] parts = original.split(",");
-    for (int i = 0; i < parts.length; i++) {
-      parts[i] = parts[i].trim();
-    }
-    return parts;
-  }
-
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
   //       configuration.
-  static List<URI> parseListeners(String listenersStr, int deprecatedPort) {
-    String[] parts = getList(listenersStr);
-
+  static List<URI> parseListeners(List<String> listenersConfig, int deprecatedPort) {
     // handle deprecated case, using PORT_CONFIG.
     // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG will have a default value which
     //       includes the default port.
-    if (parts.length == 0 || parts[0].isEmpty()) {
-      parts = new String[] {"http://0.0.0.0:" + deprecatedPort};
+    if (listenersConfig.isEmpty() || listenersConfig.get(0).isEmpty()) {
+      log.warn("DEPRECATION warning: `listeners` configuration is not configured. Falling back to the deprecated " +
+               "`port` configuration.");
+      listenersConfig = new ArrayList<String>(1);
+      listenersConfig.add("http://0.0.0.0:" + deprecatedPort);
     }
 
-    List<URI> listeners = new ArrayList<URI>(parts.length);
-    for (String listenerStr : parts) {
+    List<URI> listeners = new ArrayList<URI>(listenersConfig.size());
+    for (String listenerStr : listenersConfig) {
       URI uri;
       try {
         uri = new URI(listenerStr);

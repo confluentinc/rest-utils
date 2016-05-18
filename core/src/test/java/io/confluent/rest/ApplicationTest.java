@@ -20,6 +20,7 @@ import io.confluent.common.config.ConfigException;
 import org.junit.Test;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -27,22 +28,18 @@ import static org.junit.Assert.assertEquals;
 public class ApplicationTest {
   @Test
   public void testParseListenersDeprecated() {
-    List<URI> listeners = Application.parseListeners("", RestConfig.PORT_CONFIG_DEFAULT);
+    List<String> listenersConfig = new ArrayList<String>();
+    List<URI> listeners = Application.parseListeners(listenersConfig, RestConfig.PORT_CONFIG_DEFAULT);
     assertEquals("Should have only one listener.", 1, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "0.0.0.0", RestConfig.PORT_CONFIG_DEFAULT);
   }
 
   @Test
   public void testParseListenersHttpAndHttps() {
-    List<URI> listeners = Application.parseListeners("http://localhost:123,https://localhost:124", -1);
-    assertEquals("Should have two listeners.", 2, listeners.size());
-    assertExpectedUri(listeners.get(0), "http", "localhost", 123);
-    assertExpectedUri(listeners.get(1), "https", "localhost", 124);
-  }
-
-  @Test
-  public void testParseListenersMultipleWithSpace() {
-    List<URI> listeners = Application.parseListeners("http://localhost:123 , https://localhost:124", -1);
+    List<String> listenersConfig = new ArrayList<String>();
+    listenersConfig.add("http://localhost:123");
+    listenersConfig.add("https://localhost:124");
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1);
     assertEquals("Should have two listeners.", 2, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "localhost", 123);
     assertExpectedUri(listeners.get(1), "https", "localhost", 124);
@@ -50,19 +47,27 @@ public class ApplicationTest {
 
   @Test(expected = ConfigException.class)
   public void testParseListenersUnparseableUri() {
-    List<URI> listeners = Application.parseListeners("!", -1);
+    List<String> listenersConfig = new ArrayList<String>();
+    listenersConfig.add("!");
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1);
   }
 
   @Test
   public void testParseListenersUnsupportedScheme() {
-    List<URI> listeners = Application.parseListeners("http://localhost:8080,foo://localhost:8081", -1);
+    List<String> listenersConfig = new ArrayList<String>();
+    listenersConfig.add("http://localhost:8080");
+    listenersConfig.add("foo://localhost:8081");
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1);
     assertEquals("Should have one listener.", 1, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "localhost", 8080);
   }
 
   @Test(expected = ConfigException.class)
   public void testParseListenersNoSupportedListeners() {
-    List<URI> listeners = Application.parseListeners("foo://localhost:8080,bar://localhost:8081", -1);
+    List<String> listenersConfig = new ArrayList<String>();
+    listenersConfig.add("foo://localhost:8080");
+    listenersConfig.add("bar://localhost:8081");
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1);
   }
 
   private void assertExpectedUri(URI uri, String scheme, String host, int port) {

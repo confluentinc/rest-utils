@@ -41,7 +41,7 @@ public class RestConfig extends AbstractConfig {
   protected static final String LISTENERS_DOC = "List of listeners. http and https are supported. Each " +
       "listener must include the protocol, hostname, and port. For example: http://myhost:8080," +
       "https://0.0.0.0:8081";
-  protected static final String LISTENERS_DEFAULT = ""; // TODO: add a default value when `PORT_CONFIG` is deprecated.
+  protected static final String LISTENERS_DEFAULT = ""; // TODO: add a default value when `PORT_CONFIG` is deleted.
 
   public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
   protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
@@ -163,14 +163,13 @@ public class RestConfig extends AbstractConfig {
       "Leave blank to use Jetty's default.";
   protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT = "";
 
-
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
                 DEBUG_CONFIG_DEFAULT, Importance.LOW, DEBUG_CONFIG_DOC)
         .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.LOW,
                 PORT_CONFIG_DOC)
-        .define(LISTENERS_CONFIG, Type.STRING, LISTENERS_DEFAULT, Importance.HIGH,
+        .define(LISTENERS_CONFIG, Type.LIST, LISTENERS_DEFAULT, Importance.HIGH,
                 LISTENERS_DOC)
         .define(RESPONSE_MEDIATYPE_PREFERRED_CONFIG, Type.LIST,
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT, Importance.LOW,
@@ -239,10 +238,10 @@ public class RestConfig extends AbstractConfig {
         .define(SSL_CLIENT_AUTH_CONFIG, Type.BOOLEAN,
                 SSL_CLIENT_AUTH_DEFAULT, Importance.MEDIUM,
                 SSL_CLIENT_AUTH_DOC)
-        .define(SSL_ENABLED_PROTOCOLS_CONFIG, Type.STRING,
+        .define(SSL_ENABLED_PROTOCOLS_CONFIG, Type.LIST,
                 SSL_ENABLED_PROTOCOLS_DEFAULT, Importance.MEDIUM,
                 SSL_ENABLED_PROTOCOLS_DOC)
-        .define(SSL_CIPHER_SUITES_CONFIG, Type.STRING,
+        .define(SSL_CIPHER_SUITES_CONFIG, Type.LIST,
                 SSL_CIPHER_SUITES_DEFAULT, Importance.LOW,
                 SSL_CIPHER_SUITES_DOC)
         .define(SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, Type.STRING,
