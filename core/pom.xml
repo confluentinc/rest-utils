@@ -89,7 +89,7 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Kafka's SSL utilities are used is tests. -->
+        <!-- Kafka's SSL utilities are used in tests. -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_${kafka.scala.version}</artifactId>
