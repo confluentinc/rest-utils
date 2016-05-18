@@ -33,8 +33,15 @@ public class RestConfig extends AbstractConfig {
   protected static final boolean DEBUG_CONFIG_DEFAULT = false;
 
   public static final String PORT_CONFIG = "port";
-  protected static final String PORT_CONFIG_DOC = "Port to listen on for new connections.";
+  protected static final String PORT_CONFIG_DOC = "DEPRECATED: port to listen on for new HTTP connections. Use " +
+      "listeners instead.";
   protected static final int PORT_CONFIG_DEFAULT = 8080;
+
+  public static final String LISTENERS_CONFIG = "listeners";
+  protected static final String LISTENERS_DOC = "List of listeners. http and https are supported. Each " +
+      "listener must include the protocol, hostname, and port. For example: http://myhost:8080," +
+      "https://0.0.0.0:8081";
+  protected static final String LISTENERS_DEFAULT = ""; // TODO: add a default value when `PORT_CONFIG` is deleted.
 
   public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
   protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
@@ -93,6 +100,68 @@ public class RestConfig extends AbstractConfig {
       "<code>MetricReporter</code> interface allows plugging in classes that will be notified " +
       "of new metric creation. The JmxReporter is always included to register JMX statistics.";
   protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
+  public static final String SSL_KEYSTORE_LOCATION_CONFIG = "ssl.keystore.location";
+  protected static final String SSL_KEYSTORE_LOCATION_DOC =
+      "Location of the keystore file to use for SSL. This is required for HTTPS.";
+  protected static final String SSL_KEYSTORE_LOCATION_DEFAULT = "";
+  public static final String SSL_KEYSTORE_PASSWORD_CONFIG = "ssl.keystore.password";
+  protected static final String SSL_KEYSTORE_PASSWORD_DOC =
+      "The store password for the keystore file.";
+  protected static final String SSL_KEYSTORE_PASSWORD_DEFAULT = "";
+  public static final String SSL_KEY_PASSWORD_CONFIG = "ssl.key.password";
+  protected static final String SSL_KEY_PASSWORD_DOC =
+      "The password of the private key in the keystore file.";
+  protected static final String SSL_KEY_PASSWORD_DEFAULT = "";
+  public static final String SSL_KEYSTORE_TYPE_CONFIG = "ssl.keystore.type";
+  protected static final String SSL_KEYSTORE_TYPE_DOC =
+      "The type of keystore file.";
+  protected static final String SSL_KEYSTORE_TYPE_DEFAULT = "JKS";
+  public static final String SSL_KEYMANAGER_ALGORITHM_CONFIG = "ssl.keymanager.algorithm";
+  protected static final String SSL_KEYMANAGER_ALGORITHM_DOC =
+      "The algorithm used by the key manager factory for SSL connections. Leave blank to use Jetty's default.";
+  protected static final String SSL_KEYMANAGER_ALGORITHM_DEFAULT = "";
+  public static final String SSL_TRUSTSTORE_LOCATION_CONFIG = "ssl.truststore.location";
+  protected static final String SSL_TRUSTSTORE_LOCATION_DOC =
+      "Location of the trust store. Required only to authenticate HTTPS clients.";
+  protected static final String SSL_TRUSTSTORE_LOCATION_DEFAULT = "";
+  public static final String SSL_TRUSTSTORE_PASSWORD_CONFIG = "ssl.truststore.password";
+  protected static final String SSL_TRUSTSTORE_PASSWORD_DOC =
+      "The store password for the trust store file.";
+  protected static final String SSL_TRUSTSTORE_PASSWORD_DEFAULT = "";
+  public static final String SSL_TRUSTSTORE_TYPE_CONFIG = "ssl.truststore.type";
+  protected static final String SSL_TRUSTSTORE_TYPE_DOC =
+      "The type of trust store file.";
+  protected static final String SSL_TRUSTSTORE_TYPE_DEFAULT = "JKS";
+  public static final String SSL_TRUSTMANAGER_ALGORITHM_CONFIG = "ssl.trustmanager.algorithm";
+  protected static final String SSL_TRUSTMANAGER_ALGORITHM_DOC =
+      "The algorithm used by the trust manager factory for SSL connections. Leave blank to use Jetty's default.";
+  protected static final String SSL_TRUSTMANAGER_ALGORITHM_DEFAULT = "";
+  public static final String SSL_PROTOCOL_CONFIG = "ssl.protocol";
+  protected static final String SSL_PROTOCOL_DOC =
+      "The SSL protocol used to generate the SslContextFactory.";
+  protected static final String SSL_PROTOCOL_DEFAULT = "TLS";
+  public static final String SSL_PROVIDER_CONFIG = "ssl.provider";
+  protected static final String SSL_PROVIDER_DOC =
+      "The SSL security provider name. Leave blank to use Jetty's default.";
+  protected static final String SSL_PROVIDER_DEFAULT = "";
+  public static final String SSL_CLIENT_AUTH_CONFIG = "ssl.client.auth";
+  protected static final String SSL_CLIENT_AUTH_DOC =
+      "Whether or not to require the https client to authenticate via the server's trust store.";
+  protected static final boolean SSL_CLIENT_AUTH_DEFAULT = false;
+  public static final String SSL_ENABLED_PROTOCOLS_CONFIG = "ssl.enabled.protocols";
+  protected static final String SSL_ENABLED_PROTOCOLS_DOC =
+      "The list of protocols enabled for SSL connections. Comma-separated list. " +
+      "Leave blank to use Jetty's defaults.";
+  protected static final String SSL_ENABLED_PROTOCOLS_DEFAULT = "";
+  public static final String SSL_CIPHER_SUITES_CONFIG = "ssl.cipher.suites";
+  protected static final String SSL_CIPHER_SUITES_DOC =
+      "A list of SSL cipher suites. Leave blank to use Jetty's defaults.";
+  protected static final String SSL_CIPHER_SUITES_DEFAULT = "";
+  public static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG = "ssl.endpoint.identification.algorithm";
+  protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DOC =
+      "The endpoint identification algorithm to validate the server hostname using the server certificate. " +
+      "Leave blank to use Jetty's default.";
+  protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT = "";
 
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
@@ -100,6 +169,8 @@ public class RestConfig extends AbstractConfig {
                 DEBUG_CONFIG_DEFAULT, Importance.LOW, DEBUG_CONFIG_DOC)
         .define(PORT_CONFIG, Type.INT, PORT_CONFIG_DEFAULT, Importance.LOW,
                 PORT_CONFIG_DOC)
+        .define(LISTENERS_CONFIG, Type.LIST, LISTENERS_DEFAULT, Importance.HIGH,
+                LISTENERS_DOC)
         .define(RESPONSE_MEDIATYPE_PREFERRED_CONFIG, Type.LIST,
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT, Importance.LOW,
                 RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC)
@@ -130,7 +201,52 @@ public class RestConfig extends AbstractConfig {
                 METRICS_SAMPLE_WINDOW_MS_DOC)
         .define(METRICS_NUM_SAMPLES_CONFIG, Type.INT,
                 METRICS_NUM_SAMPLES_DEFAULT, ConfigDef.Range.atLeast(1),
-                Importance.LOW, METRICS_NUM_SAMPLES_DOC);
+                Importance.LOW, METRICS_NUM_SAMPLES_DOC)
+        .define(SSL_KEYSTORE_LOCATION_CONFIG, Type.STRING,
+                SSL_KEYSTORE_LOCATION_DEFAULT, Importance.HIGH,
+                SSL_KEYSTORE_LOCATION_DOC)
+        .define(SSL_KEYSTORE_PASSWORD_CONFIG, Type.STRING,
+                SSL_KEYSTORE_PASSWORD_DEFAULT, Importance.HIGH,
+                SSL_KEYSTORE_PASSWORD_DOC)
+        .define(SSL_KEY_PASSWORD_CONFIG, Type.STRING,
+                SSL_KEY_PASSWORD_DEFAULT, Importance.HIGH,
+                SSL_KEY_PASSWORD_DOC)
+        .define(SSL_KEYSTORE_TYPE_CONFIG, Type.STRING,
+                SSL_KEYSTORE_TYPE_DEFAULT, Importance.MEDIUM,
+                SSL_KEYSTORE_TYPE_DOC)
+        .define(SSL_KEYMANAGER_ALGORITHM_CONFIG, Type.STRING,
+                SSL_KEYMANAGER_ALGORITHM_DEFAULT, Importance.LOW,
+                SSL_KEYMANAGER_ALGORITHM_DOC)
+        .define(SSL_TRUSTSTORE_LOCATION_CONFIG, Type.STRING,
+                SSL_TRUSTSTORE_LOCATION_DEFAULT, Importance.HIGH,
+                SSL_TRUSTSTORE_LOCATION_DOC)
+        .define(SSL_TRUSTSTORE_PASSWORD_CONFIG, Type.STRING,
+                SSL_TRUSTSTORE_PASSWORD_DEFAULT, Importance.HIGH,
+                SSL_TRUSTSTORE_PASSWORD_DOC)
+        .define(SSL_TRUSTSTORE_TYPE_CONFIG, Type.STRING,
+                SSL_TRUSTSTORE_TYPE_DEFAULT, Importance.MEDIUM,
+                SSL_TRUSTSTORE_TYPE_DOC)
+        .define(SSL_TRUSTMANAGER_ALGORITHM_CONFIG, Type.STRING,
+                SSL_TRUSTMANAGER_ALGORITHM_DEFAULT, Importance.LOW,
+                SSL_TRUSTMANAGER_ALGORITHM_DOC)
+        .define(SSL_PROTOCOL_CONFIG, Type.STRING,
+                SSL_PROTOCOL_DEFAULT, Importance.MEDIUM,
+                SSL_PROTOCOL_DOC)
+        .define(SSL_PROVIDER_CONFIG, Type.STRING,
+                SSL_PROVIDER_DEFAULT, Importance.MEDIUM,
+                SSL_PROVIDER_DOC)
+        .define(SSL_CLIENT_AUTH_CONFIG, Type.BOOLEAN,
+                SSL_CLIENT_AUTH_DEFAULT, Importance.MEDIUM,
+                SSL_CLIENT_AUTH_DOC)
+        .define(SSL_ENABLED_PROTOCOLS_CONFIG, Type.LIST,
+                SSL_ENABLED_PROTOCOLS_DEFAULT, Importance.MEDIUM,
+                SSL_ENABLED_PROTOCOLS_DOC)
+        .define(SSL_CIPHER_SUITES_CONFIG, Type.LIST,
+                SSL_CIPHER_SUITES_DEFAULT, Importance.LOW,
+                SSL_CIPHER_SUITES_DOC)
+        .define(SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, Type.STRING,
+                SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT, Importance.LOW,
+                SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DOC);
   }
 
   private static Time defaultTime = new SystemTime();

@@ -18,10 +18,10 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
-import org.eclipse.jetty.server.Connector;
+import io.confluent.common.config.ConfigException;
 import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
@@ -30,12 +30,16 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 import java.util.EnumSet;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +59,8 @@ import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
@@ -66,6 +72,8 @@ public abstract class Application<T extends RestConfig> {
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
+
+  private static final Logger log = LoggerFactory.getLogger(Application.class);
 
   public Application(T config) {
     this.config = config;
@@ -121,10 +129,72 @@ public abstract class Application<T extends RestConfig> {
       }
     };
 
-    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
-    connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", metricTags));
-    connector.setPort(getConfiguration().getInt(RestConfig.PORT_CONFIG));
-    server.setConnectors(new Connector[]{connector});
+    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
+
+    List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
+            config.getInt(RestConfig.PORT_CONFIG));
+    for (URI listener : listeners) {
+      log.info("Adding listener: " + listener.toString());
+      NetworkTrafficServerConnector connector;
+      if (listener.getScheme().equals("http")) {
+        connector = new NetworkTrafficServerConnector(server);
+      } else {
+        SslContextFactory sslContextFactory = new SslContextFactory();
+        // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN. This is a Jetty requirement.
+        // TODO: investigate this further. Would be better to use SubjectAltNames.
+        if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
+          sslContextFactory.setKeyStorePath(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
+          sslContextFactory.setKeyStorePassword(config.getString(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG));
+          sslContextFactory.setKeyManagerPassword(config.getString(RestConfig.SSL_KEY_PASSWORD_CONFIG));
+          sslContextFactory.setKeyStoreType(config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG));
+
+          if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+            sslContextFactory.setSslKeyManagerFactoryAlgorithm(
+                    config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
+          }
+        }
+
+        sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
+
+        List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
+        if (!enabledProtocols.isEmpty()) {
+          sslContextFactory.setIncludeProtocols((String[]) enabledProtocols.toArray());
+        }
+
+        List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
+        if (!cipherSuites.isEmpty()) {
+          sslContextFactory.setIncludeCipherSuites((String[]) cipherSuites.toArray());
+        }
+
+        if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
+          sslContextFactory.setEndpointIdentificationAlgorithm(
+                  config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
+        }
+
+        if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
+          sslContextFactory.setTrustStorePath(config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG));
+          sslContextFactory.setTrustStorePassword(config.getString(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG));
+          sslContextFactory.setTrustStoreType(config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG));
+
+          if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+            sslContextFactory.setTrustManagerFactoryAlgorithm(
+                    config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
+          }
+        }
+
+        sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
+        if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
+          sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
+        }
+
+        connector = new NetworkTrafficServerConnector(server, sslContextFactory);
+      }
+
+      connector.addNetworkTrafficListener(metricsListener);
+      connector.setPort(listener.getPort());
+      connector.setHost(listener.getHost());
+      server.addConnector(connector);
+    }
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
@@ -166,6 +236,43 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
+  //       configuration.
+  static List<URI> parseListeners(List<String> listenersConfig, int deprecatedPort) {
+    // handle deprecated case, using PORT_CONFIG.
+    // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG will have a default value which
+    //       includes the default port.
+    if (listenersConfig.isEmpty() || listenersConfig.get(0).isEmpty()) {
+      log.warn("DEPRECATION warning: `listeners` configuration is not configured. Falling back to the deprecated " +
+               "`port` configuration.");
+      listenersConfig = new ArrayList<String>(1);
+      listenersConfig.add("http://0.0.0.0:" + deprecatedPort);
+    }
+
+    List<URI> listeners = new ArrayList<URI>(listenersConfig.size());
+    for (String listenerStr : listenersConfig) {
+      URI uri;
+      try {
+        uri = new URI(listenerStr);
+      } catch (URISyntaxException use) {
+        throw new ConfigException("Could not parse a listener URI from the `listener` configuration option.");
+      }
+      String scheme = uri.getScheme();
+      if (scheme != null && (scheme.equals("http") || scheme.equals("https"))) {
+        listeners.add(uri);
+      } else {
+        log.warn("Found a listener with an unsupported scheme (ony http and https are supported). Ignoring " +
+                "listener '" + listenerStr + "'");
+      }
+    }
+
+    if (listeners.isEmpty()) {
+      throw new ConfigException("No listeners are configured. Must have at least one listener.");
+    }
+
+    return listeners;
   }
 
   public void configureBaseApplication(Configurable<?> config) {
