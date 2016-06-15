@@ -43,13 +43,13 @@
 
     <properties>
         <confluent.common.version>3.1.0-SNAPSHOT</confluent.common.version>
+        <kafka.version>0.10.1.0-SNAPSHOT</kafka.version>
         <jersey.version>2.19</jersey.version>
         <jetty.version>9.2.12.v20150709</jetty.version>
         <jackson.version>2.5.4</jackson.version>
         <junit.version>4.12</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <apache.httpclient.version>4.5.2</apache.httpclient.version>
-        <kafka.version>0.10.0.0-cp1</kafka.version>
         <kafka.scala.version>2.11</kafka.scala.version>
         <bouncycastle.bcpkix.version>1.54</bouncycastle.bcpkix.version>
     </properties>
