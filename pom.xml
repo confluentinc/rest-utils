@@ -42,6 +42,7 @@
     </modules>
 
     <properties>
+        <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <confluent.common.version>3.1.0-SNAPSHOT</confluent.common.version>
         <kafka.version>0.10.1.0-SNAPSHOT</kafka.version>
         <jersey.version>2.19</jersey.version>
@@ -53,6 +54,14 @@
         <kafka.scala.version>2.11</kafka.scala.version>
         <bouncycastle.bcpkix.version>1.54</bouncycastle.bcpkix.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <name>Confluent</name>
+            <url>${confluent.maven.repo}</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>
