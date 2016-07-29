@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.common.config.ConfigException;
+import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
@@ -36,6 +37,7 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
+import java.lang.management.ManagementFactory;
 import java.util.EnumSet;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -128,6 +130,10 @@ public abstract class Application<T extends RestConfig> {
         Application.this.shutdownLatch.countDown();
       }
     };
+
+    MBeanContainer mbContainer = new MBeanContainer(ManagementFactory.getPlatformMBeanServer());
+    server.addEventListener(mbContainer);
+    server.addBean(mbContainer);
 
     MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
 
