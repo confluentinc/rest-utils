@@ -37,12 +37,13 @@ import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 import java.util.EnumSet;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -132,7 +133,7 @@ public abstract class Application<T extends RestConfig> {
     MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
 
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
-            config.getInt(RestConfig.PORT_CONFIG));
+            config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
     for (URI listener : listeners) {
       log.info("Adding listener: " + listener.toString());
       NetworkTrafficServerConnector connector;
@@ -240,7 +241,8 @@ public abstract class Application<T extends RestConfig> {
 
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
   //       configuration.
-  static List<URI> parseListeners(List<String> listenersConfig, int deprecatedPort) {
+  public static List<URI> parseListeners(List<String> listenersConfig, int deprecatedPort,
+                                         List<String> supportedSchemes, String defaultScheme) {
     // handle deprecated case, using PORT_CONFIG.
     // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG will have a default value which
     //       includes the default port.
@@ -248,7 +250,7 @@ public abstract class Application<T extends RestConfig> {
       log.warn("DEPRECATION warning: `listeners` configuration is not configured. Falling back to the deprecated " +
                "`port` configuration.");
       listenersConfig = new ArrayList<String>(1);
-      listenersConfig.add("http://0.0.0.0:" + deprecatedPort);
+      listenersConfig.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
     }
 
     List<URI> listeners = new ArrayList<URI>(listenersConfig.size());
@@ -260,10 +262,14 @@ public abstract class Application<T extends RestConfig> {
         throw new ConfigException("Could not parse a listener URI from the `listener` configuration option.");
       }
       String scheme = uri.getScheme();
-      if (scheme != null && (scheme.equals("http") || scheme.equals("https"))) {
+      if (uri.getPort() == -1) {
+        throw new ConfigException("Found a listener without a port. All listeners must have a port. The " +
+          "listener without a port is: " + listenerStr);
+      }
+      if (scheme != null && supportedSchemes.contains(scheme)) {
         listeners.add(uri);
       } else {
-        log.warn("Found a listener with an unsupported scheme (ony http and https are supported). Ignoring " +
+        log.warn("Found a listener with an unsupported scheme (supported: " + supportedSchemes + "). Ignoring " +
                 "listener '" + listenerStr + "'");
       }
     }
