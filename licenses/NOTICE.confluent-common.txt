@@ -1,11 +1,5 @@
 The following libraries are included in packaged versions of this project:
 
-* Apache log4j
- * COPYRIGHT: Copyright 2010 The Apache Software Foundation
- * LICENSE: licenses/LICENSE.apache2.txt
- * NOTICE: licenses/NOTICE.log4j.txt
- * HOMEPAGE: http://logging.apache.org/log4j/1.2/
-
 * Apache ZooKeeper
  * COPYRIGHT: Copyright 2009-2014 The Apache Software Foundation
  * LICENSE: licenses/LICENSE.apache2.txt
