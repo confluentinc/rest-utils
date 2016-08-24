@@ -44,6 +44,7 @@
     <properties>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <confluent.common.version>3.1.0-SNAPSHOT</confluent.common.version>
+        <slf4j.version>1.7.21</slf4j.version>
         <kafka.version>0.10.1.0-SNAPSHOT</kafka.version>
         <jersey.version>2.19</jersey.version>
         <jetty.version>9.2.12.v20150709</jetty.version>
@@ -62,6 +63,15 @@
             <url>${confluent.maven.repo}</url>
         </repository>
     </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>

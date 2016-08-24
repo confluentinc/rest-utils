@@ -22,16 +22,6 @@
             <artifactId>rest-utils</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>rest-utils-test</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>rest-utils-examples</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
     <build>
