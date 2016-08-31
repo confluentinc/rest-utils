@@ -18,8 +18,13 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
-import io.confluent.common.config.ConfigException;
+import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.DefaultIdentityService;
+import org.eclipse.jetty.security.SecurityHandler;
+import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
@@ -31,27 +36,31 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
-import java.util.EnumSet;
-import java.util.Arrays;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import javax.servlet.DispatcherType;
 import javax.ws.rs.core.Configurable;
 
+import io.confluent.common.config.ConfigException;
 import io.confluent.common.metrics.JmxReporter;
 import io.confluent.common.metrics.MetricConfig;
 import io.confluent.common.metrics.Metrics;
@@ -62,8 +71,6 @@ import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
@@ -206,6 +213,13 @@ public abstract class Application<T extends RestConfig> {
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
     context.addServlet(servletHolder, "/*");
+    String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(authMethod)) {
+      String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+      List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+      final SecurityHandler securityHandler = createSecurityHandler(realm, roles);
+      context.setSecurityHandler(securityHandler);
+    }
 
     String allowedOrigins = getConfiguration().getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
     if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
@@ -243,6 +257,27 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  static boolean enableBasicAuth(String authMethod) {
+    return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
+  }
+
+  static ConstraintSecurityHandler createSecurityHandler(String realm, List<String> roles) {
+    final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+    Constraint constraint = new Constraint();
+    constraint.setAuthenticate(true);
+    constraint.setRoles(roles.toArray(new String[0]));
+    ConstraintMapping constraintMapping = new ConstraintMapping();
+    constraintMapping.setConstraint(constraint);
+    constraintMapping.setMethod("*");
+    constraintMapping.setPathSpec("/*");
+    securityHandler.addConstraintMapping(constraintMapping);
+    securityHandler.setAuthenticator(new BasicAuthenticator());
+    securityHandler.setLoginService(new JAASLoginService(realm));
+    securityHandler.setIdentityService(new DefaultIdentityService());
+    securityHandler.setRealmName(realm);
+    return securityHandler;
   }
 
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
