@@ -48,7 +48,7 @@ public class ShutdownTest {
   @Test
   public void testGracefulShutdown() throws Exception {
     Properties props = new Properties();
-    props.put("shutdown.graceful.ms", "50");
+    props.put("shutdown.graceful.ms", "150");
     final TestRestConfig config = new TestRestConfig(props);
     ShutdownApplication app = new ShutdownApplication(config);
     app.start();
@@ -116,7 +116,7 @@ public class ShutdownTest {
 
   private static class RequestThread extends Thread {
     RestConfig config;
-    boolean finished = false;
+    volatile boolean finished = false;
     String response = null;
 
     RequestThread(RestConfig config) {
