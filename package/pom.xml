@@ -37,7 +37,7 @@
                         </goals>
                         <configuration>
                             <descriptors>
-                                <descriptor>src/assembly/package.xml</descriptor>
+                                <descriptor>${basedir}/src/assembly/package.xml</descriptor>
                             </descriptors>
                         </configuration>
                     </execution>
