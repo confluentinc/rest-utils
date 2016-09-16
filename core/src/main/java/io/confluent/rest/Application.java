@@ -32,10 +32,13 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -58,6 +61,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import javax.servlet.DispatcherType;
+import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.config.ConfigException;
@@ -106,6 +110,20 @@ public abstract class Application<T extends RestConfig> {
   public abstract void setupResources(Configurable<?> config, T appConfig);
 
   /**
+   * Returns a list of static resources to serve using the default servlet.
+   *
+   * For example, static files can be served from class loader resources by returning
+   * <code>new ResourceCollection(Resource.newClassPathResource("static"));</code>
+   *
+   * For those resources to get served, it is necessary to add a static resources property to the
+   * config in @link{{@link #setupResources(Configurable, RestConfig)}}, e.g. using something like
+   * <code>config.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");</code>
+   *
+   * @return
+   */
+  protected ResourceCollection getStaticResources() { return null; }
+
+  /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
    *
    * @return a Map of tags and values
@@ -128,7 +146,8 @@ public abstract class Application<T extends RestConfig> {
 
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
-    ServletHolder servletHolder = new ServletHolder(servletContainer);
+    FilterHolder servletHolder = new FilterHolder(servletContainer);
+
     server = new Server() {
       @Override
       protected void doStop() throws Exception {
@@ -212,7 +231,15 @@ public abstract class Application<T extends RestConfig> {
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
-    context.addServlet(servletHolder, "/*");
+
+    ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
+    defaultHolder.setInitParameter("dirAllowed", "false");
+
+    ResourceCollection staticResources = getStaticResources();
+    if (staticResources != null) {
+      context.setBaseResource(staticResources);
+    }
+
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
       String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
@@ -234,6 +261,9 @@ public abstract class Application<T extends RestConfig> {
       }
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
+
+    context.addFilter(servletHolder, "/*", null);
+    context.addServlet(defaultHolder, "/*");
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     Slf4jRequestLog requestLog = new Slf4jRequestLog();

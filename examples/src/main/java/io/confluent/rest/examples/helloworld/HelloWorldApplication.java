@@ -15,6 +15,9 @@
  */
 package io.confluent.rest.examples.helloworld;
 
+import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.ResourceCollection;
+import org.glassfish.jersey.servlet.ServletProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +50,7 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
   @Override
   public void setupResources(Configurable<?> config, HelloWorldRestConfig appConfig) {
     config.register(new HelloWorldResource(appConfig));
+    config.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");
   }
 
   @Override
@@ -56,6 +60,11 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
     // tags like data center, app version, etc.
     tags.put("instance-id", "1");
     return tags;
+  }
+
+  @Override
+  protected ResourceCollection getStaticResources() {
+    return new ResourceCollection(Resource.newClassPathResource("static"));
   }
 
   public static void main(String[] args) {
