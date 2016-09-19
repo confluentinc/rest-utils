@@ -36,8 +36,8 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.AsyncGzipFilter;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
-import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -61,7 +61,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import javax.servlet.DispatcherType;
-import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.config.ConfigException;
@@ -243,6 +242,14 @@ public abstract class Application<T extends RestConfig> {
     ResourceCollection staticResources = getStaticResources();
     if (staticResources != null) {
       context.setBaseResource(staticResources);
+    }
+
+    if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
+      FilterHolder gzipFilter = new FilterHolder(AsyncGzipFilter.class);
+      // do not check if .gz file already exists for the requested resource
+      gzipFilter.setInitParameter("checkGzExists", "false");
+      gzipFilter.setInitParameter("methods", "GET,POST");
+      context.addFilter(gzipFilter, "/*", null);
     }
 
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
