@@ -124,6 +124,11 @@ public abstract class Application<T extends RestConfig> {
   protected ResourceCollection getStaticResources() { return null; }
 
   /**
+   * add any servlet filters that should be called after resource handling but before falling back to the default servlet
+   */
+  protected void configurePostResourceHandling(ServletContextHandler context) {}
+
+  /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
    *
    * @return a Map of tags and values
@@ -263,6 +268,7 @@ public abstract class Application<T extends RestConfig> {
     }
 
     context.addFilter(servletHolder, "/*", null);
+    configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
