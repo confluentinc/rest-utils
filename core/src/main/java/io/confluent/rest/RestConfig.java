@@ -176,6 +176,11 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_ROLES_DOC = "Valid roles to authenticate against.";
   public static final List<String> AUTHENTICATION_ROLES_DEFAULT = Arrays.asList("*");
 
+  public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
+  protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
+  private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
+
+
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(DEBUG_CONFIG, Type.BOOLEAN,
@@ -279,6 +284,12 @@ public class RestConfig extends AbstractConfig {
             AUTHENTICATION_ROLES_DEFAULT,
             Importance.LOW,
             AUTHENTICATION_ROLES_DOC
+        ).define(
+            ENABLE_GZIP_COMPRESSION_CONFIG,
+            Type.BOOLEAN,
+            ENABLE_GZIP_COMPRESSION_DEFAULT,
+            Importance.LOW,
+            ENABLE_GZIP_COMPRESSION_DOC
         );
   }
 
