@@ -17,6 +17,8 @@
 package io.confluent.rest;
 
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -31,6 +33,8 @@ import javax.ws.rs.core.Configurable;
 import static org.junit.Assert.*;
 
 public class ShutdownTest {
+  private static final Logger log = LoggerFactory.getLogger(ShutdownTest.class);
+
   @Test
   public void testShutdownHook() throws Exception {
     Properties props = new Properties();
@@ -61,6 +65,11 @@ public class ShutdownTest {
     stop.start();
 
     app.join();
+    log.info("Application finished");
+
+    // The request thread may not quite be done yet. Wait on it, but only give it a small amount of extra time to finish
+    // to validate that we actually completed the request promptly.
+    req.join(50);
 
     assertTrue(req.finished);
     assertEquals("done", req.response);
@@ -108,6 +117,7 @@ public class ShutdownTest {
     @Override
     public void run() {
       try {
+        log.info("Requesting application stop");
         app.stop();
       } catch (Exception e) {
       }
@@ -129,16 +139,19 @@ public class ShutdownTest {
       // the request.
       while(true) {
         try {
+          log.info("Starting client");
           Client client = ClientBuilder.newClient();
           response = client
               .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
               .path("/")
               .request()
               .get(String.class);
+          log.info("Marking request finished");
           finished = true;
           return;
         } catch (javax.ws.rs.ProcessingException e) {
           // ignore and retry
+          log.info("Request failed, will retry", e);
         }
       }
     }
