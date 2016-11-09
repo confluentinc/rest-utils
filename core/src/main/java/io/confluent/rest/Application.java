@@ -22,6 +22,8 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.ConnectionFactory;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
@@ -121,9 +123,13 @@ public abstract class Application<T extends RestConfig> {
       }
     };
 
-    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
+    //NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
+    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server, null, null, null, 16, 8,new ConnectionFactory[]{new HttpConnectionFactory()});
     connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", metricTags));
     connector.setPort(getConfiguration().getInt(RestConfig.PORT_CONFIG));
+    connector.setAcceptQueueSize(1024);
+    //connector.setAcceptorPriorityDelta(1);
+    //connector.setReuseAddress(true);
     server.setConnectors(new Connector[]{connector});
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
