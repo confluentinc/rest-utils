@@ -218,8 +218,12 @@ public class SslTest {
       File untrustedClient = File.createTempFile("SslTest-client-keystore", ".jks");
       Map<String, X509Certificate> certs = new HashMap<>();
       createKeystoreWithCert(untrustedClient, "client", certs);
-      makeGetRequest(uri + "/test",
-                     untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      try {
+        makeGetRequest(uri + "/test",
+                untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      } catch (SSLHandshakeException she) { // handle a transient failure.
+        throw new SocketException(she.getMessage());
+      }
     } finally {
       app.stop();
     }
