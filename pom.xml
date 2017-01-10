@@ -7,7 +7,7 @@
     <groupId>io.confluent</groupId>
     <artifactId>rest-utils-parent</artifactId>
     <packaging>pom</packaging>
-    <version>3.1.2-SNAPSHOT</version>
+    <version>3.1.2</version>
     <name>rest-utils-parent</name>
     <organization>
         <name>Confluent, Inc.</name>
@@ -43,9 +43,9 @@
 
     <properties>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
-        <confluent.common.version>3.1.2-SNAPSHOT</confluent.common.version>
+        <confluent.common.version>3.1.2</confluent.common.version>
         <slf4j.version>1.7.21</slf4j.version>
-        <kafka.version>0.10.1.1-SNAPSHOT</kafka.version>
+        <kafka.version>0.10.1.1-cp1</kafka.version>
         <jersey.version>2.19</jersey.version>
         <jetty.version>9.2.12.v20150709</jetty.version>
         <jackson.version>2.5.4</jackson.version>
