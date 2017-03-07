@@ -46,10 +46,12 @@ public class StaticResourcesTest {
 
   @Before
   public void setUp() throws Exception {
-    staticContent =
-        new BufferedReader(new InputStreamReader(
-            ClassLoader.getSystemResourceAsStream("static/index.html"), Charset.forName("utf-8")
-        )).readLine() + System.lineSeparator();
+    try (
+        InputStreamReader isr = new InputStreamReader(ClassLoader.getSystemResourceAsStream("static/index.html"), Charset.forName("utf-8"));
+        BufferedReader br = new BufferedReader(isr)
+    ) {
+      staticContent = br.readLine() + System.lineSeparator();
+    }
 
     Properties props = new Properties();
     props.setProperty("debug", "false");
