@@ -26,6 +26,7 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 import javax.ws.rs.GET;
@@ -47,7 +48,7 @@ public class StaticResourcesTest {
   @Before
   public void setUp() throws Exception {
     try (
-        InputStreamReader isr = new InputStreamReader(ClassLoader.getSystemResourceAsStream("static/index.html"), Charset.forName("utf-8"));
+        InputStreamReader isr = new InputStreamReader(ClassLoader.getSystemResourceAsStream("static/index.html"), StandardCharsets.UTF_8);
         BufferedReader br = new BufferedReader(isr)
     ) {
       staticContent = br.readLine() + System.lineSeparator();
