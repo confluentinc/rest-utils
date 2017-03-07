@@ -23,6 +23,7 @@ import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -174,7 +175,7 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_REALM_DOC = "Security realm to be used in authentication.";
   public static final String AUTHENTICATION_ROLES_CONFIG = "authentication.roles";
   public static final String AUTHENTICATION_ROLES_DOC = "Valid roles to authenticate against.";
-  public static final List<String> AUTHENTICATION_ROLES_DEFAULT = Arrays.asList("*");
+  public static final List<String> AUTHENTICATION_ROLES_DEFAULT = Collections.unmodifiableList(Arrays.asList("*"));
 
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";

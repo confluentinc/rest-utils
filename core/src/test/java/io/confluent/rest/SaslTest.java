@@ -16,55 +16,32 @@
 
 package io.confluent.rest;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.apache.http.HttpResponse;
-import org.apache.http.NoHttpResponseException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
-import org.apache.kafka.common.config.types.Password;
-import org.apache.kafka.test.TestSslUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import sun.security.provider.certpath.OCSPResponse;
-
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
-import java.security.KeyPair;
-import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 import javax.security.auth.login.Configuration;
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
@@ -101,7 +78,7 @@ public class SaslTest {
                   + "};\n";
     Files.write(
         jaasFile.toPath(),
-        jaas.getBytes(),
+        jaas.getBytes(StandardCharsets.UTF_8),
         StandardOpenOption.TRUNCATE_EXISTING
     );
 
@@ -110,7 +87,7 @@ public class SaslTest {
                              + "jun: kafka-\n";
     Files.write(
         loginPropertiesFile.toPath(),
-        loginProperties.getBytes(),
+        loginProperties.getBytes(StandardCharsets.UTF_8),
         StandardOpenOption.TRUNCATE_EXISTING
     );
     previousAuthConfig = System.getProperty("java.security.auth.login.config");

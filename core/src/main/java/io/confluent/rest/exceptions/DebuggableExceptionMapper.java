@@ -15,8 +15,10 @@
  */
 package io.confluent.rest.exceptions;
 
-import io.confluent.rest.RestConfig;
-import io.confluent.rest.entities.ErrorMessage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
@@ -24,9 +26,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import io.confluent.rest.RestConfig;
+import io.confluent.rest.entities.ErrorMessage;
 
 /**
  * Abstract exception mapper that checks the debug flag and generates an error message including the
@@ -59,11 +60,11 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
       readableMessage += " " + exc.getClass().getName() + ": " + exc.getMessage();
       try {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        PrintStream stream = new PrintStream(os);
+        PrintStream stream = new PrintStream(os, false, StandardCharsets.UTF_8.name());
         exc.printStackTrace(stream);
         stream.close();
         os.close();
-        readableMessage += "\n" + os.toString();
+        readableMessage += System.lineSeparator() + os.toString(StandardCharsets.UTF_8.name());
       } catch (IOException e) {
         // Ignore
       }
