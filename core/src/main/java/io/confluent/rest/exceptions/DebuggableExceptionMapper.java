@@ -64,7 +64,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
         exc.printStackTrace(stream);
         stream.close();
         os.close();
-        readableMessage += "\n" + os.toString(StandardCharsets.UTF_8.name());
+        readableMessage += System.lineSeparator() + os.toString(StandardCharsets.UTF_8.name());
       } catch (IOException e) {
         // Ignore
       }
