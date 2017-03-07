@@ -195,12 +195,12 @@ public abstract class Application<T extends RestConfig> {
 
         List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
         if (!enabledProtocols.isEmpty()) {
-          sslContextFactory.setIncludeProtocols((String[]) enabledProtocols.toArray());
+          sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
         }
 
         List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
         if (!cipherSuites.isEmpty()) {
-          sslContextFactory.setIncludeCipherSuites((String[]) cipherSuites.toArray());
+          sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
         }
 
         if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
