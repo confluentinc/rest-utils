@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest.validation;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -49,9 +50,14 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
 
   @Override
   protected boolean hasMatchingMediaType(MediaType mediaType) {
-    return super.hasMatchingMediaType(mediaType) ||
-           (mediaType != null && mediaType.getType().equals("application") && mediaType.getSubtype()
-               .equals("octet-stream"));
+    return super.hasMatchingMediaType(mediaType)
+           || isApplicationOctetStream(mediaType);
+  }
+
+  protected boolean isApplicationOctetStream(MediaType mediaType) {
+    return mediaType != null
+           && mediaType.getType().equals("application")
+           && mediaType.getSubtype().equals("octet-stream");
   }
 
   @Override

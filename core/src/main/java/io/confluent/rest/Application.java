@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -111,19 +112,26 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Returns a list of static resources to serve using the default servlet.
    *
-   * For example, static files can be served from class loader resources by returning
-   * <code>new ResourceCollection(Resource.newClassPathResource("static"));</code>
+   * <p>For example, static files can be served from class loader resources by returning
+   * {@code
+   * new ResourceCollection(Resource.newClassPathResource("static"));
+   * }
    *
-   * For those resources to get served, it is necessary to add a static resources property to the
+   * <p>For those resources to get served, it is necessary to add a static resources property to the
    * config in @link{{@link #setupResources(Configurable, RestConfig)}}, e.g. using something like
-   * <code>config.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");</code>
+   * {@code
+   * config.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");
+   * }
    *
-   * @return
+   * @return static resource collection
    */
-  protected ResourceCollection getStaticResources() { return null; }
+  protected ResourceCollection getStaticResources() {
+    return null;
+  }
 
   /**
-   * add any servlet filters that should be called after resource handling but before falling back to the default servlet
+   * add any servlet filters that should be called after resource
+   * handling but before falling back to the default servlet
    */
   protected void configurePostResourceHandling(ServletContextHandler context) {}
 
@@ -150,7 +158,7 @@ public abstract class Application<T extends RestConfig> {
 
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
-    FilterHolder servletHolder = new FilterHolder(servletContainer);
+    final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
     server = new Server() {
       @Override
@@ -177,13 +185,21 @@ public abstract class Application<T extends RestConfig> {
         connector = new NetworkTrafficServerConnector(server);
       } else {
         SslContextFactory sslContextFactory = new SslContextFactory();
-        // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN. This is a Jetty requirement.
+        // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN.
         // TODO: investigate this further. Would be better to use SubjectAltNames.
         if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
-          sslContextFactory.setKeyStorePath(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
-          sslContextFactory.setKeyStorePassword(config.getString(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG));
-          sslContextFactory.setKeyManagerPassword(config.getString(RestConfig.SSL_KEY_PASSWORD_CONFIG));
-          sslContextFactory.setKeyStoreType(config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG));
+          sslContextFactory.setKeyStorePath(
+              config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
+          );
+          sslContextFactory.setKeyStorePassword(
+              config.getString(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG)
+          );
+          sslContextFactory.setKeyManagerPassword(
+              config.getString(RestConfig.SSL_KEY_PASSWORD_CONFIG)
+          );
+          sslContextFactory.setKeyStoreType(
+              config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
+          );
 
           if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
             sslContextFactory.setSslKeyManagerFactoryAlgorithm(
@@ -209,13 +225,20 @@ public abstract class Application<T extends RestConfig> {
         }
 
         if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
-          sslContextFactory.setTrustStorePath(config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG));
-          sslContextFactory.setTrustStorePassword(config.getString(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG));
-          sslContextFactory.setTrustStoreType(config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG));
+          sslContextFactory.setTrustStorePath(
+              config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
+          );
+          sslContextFactory.setTrustStorePassword(
+              config.getString(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG)
+          );
+          sslContextFactory.setTrustStoreType(
+              config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
+          );
 
           if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
             sslContextFactory.setTrustManagerFactoryAlgorithm(
-                    config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG));
+                    config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
+            );
           }
         }
 
@@ -260,7 +283,9 @@ public abstract class Application<T extends RestConfig> {
       context.setSecurityHandler(securityHandler);
     }
 
-    String allowedOrigins = getConfiguration().getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
+    String allowedOrigins = getConfiguration().getString(
+        RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG
+    );
     if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
       filterHolder.setName("cross-origin");
@@ -323,16 +348,22 @@ public abstract class Application<T extends RestConfig> {
     return securityHandler;
   }
 
-  // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
-  //       configuration.
-  public static List<URI> parseListeners(List<String> listenersConfig, int deprecatedPort,
-                                         List<String> supportedSchemes, String defaultScheme) {
+  // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
+  // It's only used to support the deprecated configuration.
+  public static List<URI> parseListeners(
+      List<String> listenersConfig,
+      int deprecatedPort,
+      List<String> supportedSchemes,
+      String defaultScheme
+  ) {
     // handle deprecated case, using PORT_CONFIG.
-    // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG will have a default value which
-    //       includes the default port.
+    // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG
+    // will have a default value which includes the default port.
     if (listenersConfig.isEmpty() || listenersConfig.get(0).isEmpty()) {
-      log.warn("DEPRECATION warning: `listeners` configuration is not configured. Falling back to the deprecated " +
-               "`port` configuration.");
+      log.warn(
+          "DEPRECATION warning: `listeners` configuration is not configured. "
+          + "Falling back to the deprecated `port` configuration."
+      );
       listenersConfig = new ArrayList<String>(1);
       listenersConfig.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
     }
@@ -343,18 +374,25 @@ public abstract class Application<T extends RestConfig> {
       try {
         uri = new URI(listenerStr);
       } catch (URISyntaxException use) {
-        throw new ConfigException("Could not parse a listener URI from the `listener` configuration option.");
+        throw new ConfigException(
+            "Could not parse a listener URI from the `listener` configuration option."
+        );
       }
       String scheme = uri.getScheme();
       if (uri.getPort() == -1) {
-        throw new ConfigException("Found a listener without a port. All listeners must have a port. The " +
-          "listener without a port is: " + listenerStr);
+        throw new ConfigException(
+            "Found a listener without a port. All listeners must have a port. The "
+            + "listener without a port is: " + listenerStr
+        );
       }
       if (scheme != null && supportedSchemes.contains(scheme)) {
         listeners.add(uri);
       } else {
-        log.warn("Found a listener with an unsupported scheme (supported: " + supportedSchemes + "). Ignoring " +
-                "listener '" + listenerStr + "'");
+        log.warn(
+            "Found a listener with an unsupported scheme (supported: {}). Ignoring listener '{}'",
+            supportedSchemes,
+            listenerStr
+        );
       }
     }
 
@@ -409,7 +447,7 @@ public abstract class Application<T extends RestConfig> {
 
   /**
    * Start the server (creating it if necessary).
-   * @throws Exception
+   * @throws Exception If the application fails to start
    */
   public void start() throws Exception {
     if (server == null) {
@@ -421,7 +459,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Wait for the server to exit, allowing existing requests to complete if graceful shutdown is
    * enabled and invoking the shutdown hook before returning.
-   * @throws InterruptedException
+   * @throws InterruptedException If the internal threadpool fails to stop
    */
   public void join() throws InterruptedException {
     server.join();
@@ -430,7 +468,7 @@ public abstract class Application<T extends RestConfig> {
 
   /**
    * Request that the server shutdown.
-   * @throws Exception
+   * @throws Exception If the application fails to stop
    */
   public void stop() throws Exception {
     server.stop();

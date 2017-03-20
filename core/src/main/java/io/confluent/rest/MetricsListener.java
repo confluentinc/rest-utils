@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest;
 
 import java.net.Socket;
@@ -28,36 +29,50 @@ import org.eclipse.jetty.io.NetworkTrafficListener;
 public class MetricsListener extends NetworkTrafficListener.Adapter {
 
   /*
-   * `NetworkTrafficListener` in Jetty 9.2 doesn't expose `accepted` so we can't report this accurately. In an effort
-   * to be backwards compatible, we temporarily approximate the value by using `opened`. `accepts` will be removed
-   * in a future release.
+   * `NetworkTrafficListener` in Jetty 9.2 doesn't expose `accepted`
+   * so we can't report this accurately. In an effort to be backwards
+   * compatible, we temporarily approximate the value by using `opened`.
+   * `accepts` will be removed in a future release.
    */
   @Deprecated
   private final Sensor accepts;
-
-  private final Sensor connects, disconnects, connections;
+  private final Sensor connects;
+  private final Sensor disconnects;
+  private final Sensor connections;
 
   public MetricsListener(Metrics metrics, String metricGrpPrefix, Map<String, String> metricTags) {
     String metricGrpName = metricGrpPrefix + "-metrics";
     this.accepts = metrics.sensor("connections-accepted");
     MetricName metricName = new MetricName(
-        "connections-accepted-rate", metricGrpName,
-        "The average rate per second of accepted Jetty TCP connections", metricTags);
+        "connections-accepted-rate",
+        metricGrpName,
+        "The average rate per second of accepted Jetty TCP connections",
+        metricTags
+    );
     this.accepts.add(metricName, new Rate());
     this.connects = metrics.sensor("connections-opened");
-    metricName = new MetricName
-        ("connections-opened-rate", metricGrpName,
-       "The average rate per second of opened Jetty TCP connections", metricTags);
+    metricName = new MetricName(
+        "connections-opened-rate",
+        metricGrpName,
+       "The average rate per second of opened Jetty TCP connections",
+        metricTags
+    );
     this.connects.add(metricName, new Rate());
     this.disconnects = metrics.sensor("connections-closed");
     metricName = new MetricName(
-        "connections-closed-rate", metricGrpName,
-        "The average rate per second of closed Jetty TCP connections", metricTags);
+        "connections-closed-rate",
+        metricGrpName,
+        "The average rate per second of closed Jetty TCP connections",
+        metricTags
+    );
     this.disconnects.add(metricName, new Rate());
     this.connections = metrics.sensor("connections");
     metricName = new MetricName(
-        "connections-active", metricGrpName,
-        "Total number of active Jetty TCP connections", metricTags);
+        "connections-active",
+        metricGrpName,
+        "Total number of active Jetty TCP connections",
+        metricTags
+    );
     this.connections.add(metricName, new Total());
   }
 

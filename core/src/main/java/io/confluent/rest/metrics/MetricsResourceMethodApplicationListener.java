@@ -259,6 +259,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private static class CountingInputStream extends FilterInputStream {
       private long count = 0;
       private long mark = 0;
+
       public CountingInputStream(InputStream is) {
         super(is);
       }

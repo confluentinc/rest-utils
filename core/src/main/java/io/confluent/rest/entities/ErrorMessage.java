@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest.entities;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,8 +26,10 @@ public class ErrorMessage {
   private int errorCode;
   private String message;
 
-  public ErrorMessage(@JsonProperty("error_code") int errorCode,
-                      @JsonProperty("message") String message) {
+  public ErrorMessage(
+      @JsonProperty("error_code") int errorCode,
+      @JsonProperty("message") String message
+  ) {
     this.errorCode = errorCode;
     this.message = message;
   }
@@ -37,8 +40,8 @@ public class ErrorMessage {
   }
 
   @JsonProperty("error_code")
-  public void setErrorCode(int error_code) {
-    this.errorCode = error_code;
+  public void setErrorCode(int errorCode) {
+    this.errorCode = errorCode;
   }
 
   @JsonProperty
