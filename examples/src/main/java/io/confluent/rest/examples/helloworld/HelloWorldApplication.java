@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest.examples.helloworld;
 
 import org.eclipse.jetty.util.resource.Resource;
@@ -34,9 +35,9 @@ import io.confluent.rest.RestConfigException;
  * An application represents the configured, running, REST service. You have to provide two things:
  * a configuration (to the constructor or by overriding configure()) and a set of resources to
  * for the REST API (added in setupResources()). After defining these, simply call
- * Application.createServer() to get a Jetty server, then call start() to start processing requests.
+ * Application.createServer() to get a Jetty server, then call start() to start processing requests
  *
- * This application uses a simple configuration that allows you to override the message that is
+ * <p>This application uses a simple configuration that allows you to override the message that is
  * echoed back in the response, and the driver program optionally loads this setting from a command
  * line argument.
  */

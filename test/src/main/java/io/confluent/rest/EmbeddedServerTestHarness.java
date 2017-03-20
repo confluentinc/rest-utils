@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest;
 
 import org.glassfish.jersey.client.ClientConfig;
@@ -140,8 +141,9 @@ public abstract class
 
   protected Invocation.Builder request(String target, String mediatype) {
     Invocation.Builder builder = getJerseyTest().target(target).request();
-    if (mediatype != null)
+    if (mediatype != null) {
       builder.accept(mediatype);
+    }
     return builder;
   }
 
@@ -156,12 +158,15 @@ public abstract class
       ResourceConfig config = new ResourceConfig();
       // Only configure the base application, resources are added manually with addResource
       app.configureBaseApplication(config, null);
-      for (Object resource : resources)
+      for (Object resource : resources) {
         config.register(resource);
-      for (Class<?> resource : resourceClasses)
+      }
+      for (Class<?> resource : resourceClasses) {
         config.register(resource);
+      }
       return config;
     }
+
     @Override
     protected void configureClient(ClientConfig config) {
       app.configureBaseApplication(config, null);

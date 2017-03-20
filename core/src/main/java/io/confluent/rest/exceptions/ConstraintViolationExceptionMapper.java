@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest.exceptions;
 
 import javax.validation.ConstraintViolationException;
@@ -52,7 +53,9 @@ public class ConstraintViolationExceptionMapper
       RestConstraintViolationException restException = (RestConstraintViolationException)exception;
       message = new ErrorMessage(restException.getErrorCode(), restException.getMessage());
     } else {
-      String violationMessage = ConstraintViolations.formatUntyped(exception.getConstraintViolations());
+      String violationMessage = ConstraintViolations.formatUntyped(
+          exception.getConstraintViolations()
+      );
       if (violationMessage == null || violationMessage.length() == 0) {
         violationMessage = exception.getMessage();
       }
