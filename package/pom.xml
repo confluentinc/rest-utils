@@ -20,7 +20,6 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>rest-utils</artifactId>
-            <version>${project.version}</version>
         </dependency>
     </dependencies>
 
