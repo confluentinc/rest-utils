@@ -377,10 +377,7 @@ public abstract class Application<T extends RestConfig> {
   public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
     RestConfig restConfig = getConfiguration();
 
-    ObjectMapper jsonMapper = getJsonMapper();
-    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
-    config.register(jsonProvider);
-    config.register(JsonParseExceptionMapper.class);
+    registerJsonProvider(config, true);
 
     config.register(ValidationFeature.class);
     config.register(ConstraintViolationExceptionMapper.class);
@@ -391,6 +388,22 @@ public abstract class Application<T extends RestConfig> {
                                                                  metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
+  }
+
+  /**
+   * Register a body provider and optional exception mapper for (de)serializing JSON in
+   * request/response entities.
+   * @param config The config to register the provider
+   * @param registerExceptionMapper Whether or not to register an additional exception mapper for
+   *                                handling errors in (de)serialization
+   */
+  protected void registerJsonProvider(Configurable<?> config, boolean registerExceptionMapper) {
+    ObjectMapper jsonMapper = getJsonMapper();
+    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
+    config.register(jsonProvider);
+    if (registerExceptionMapper) {
+      config.register(JsonParseExceptionMapper.class);
+    }
   }
 
   public T getConfiguration() {
