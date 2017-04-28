@@ -375,9 +375,9 @@ public abstract class Application<T extends RestConfig> {
    * client.
    */
   public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
-    RestConfig restConfig = getConfiguration();
-
     registerJsonProvider(config, true);
+
+    RestConfig restConfig = getConfiguration();
 
     config.register(ValidationFeature.class);
     config.register(ConstraintViolationExceptionMapper.class);
