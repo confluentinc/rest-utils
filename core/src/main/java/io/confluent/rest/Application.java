@@ -395,7 +395,11 @@ public abstract class Application<T extends RestConfig> {
    * @param registerExceptionMapper Whether or not to register an additional exception mapper for
    *                                handling errors in (de)serialization
    */
-  protected void registerJsonProvider(Configurable<?> config, T restConfig, boolean registerExceptionMapper) {
+  protected void registerJsonProvider(
+      Configurable<?> config,
+      T restConfig,
+      boolean registerExceptionMapper
+  ) {
     ObjectMapper jsonMapper = getJsonMapper();
     JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
     config.register(jsonProvider);
