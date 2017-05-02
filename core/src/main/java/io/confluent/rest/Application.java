@@ -413,22 +413,57 @@ public abstract class Application<T extends RestConfig> {
    * client.
    */
   public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
-    RestConfig restConfig = getConfiguration();
+    T restConfig = getConfiguration();
 
-    ObjectMapper jsonMapper = getJsonMapper();
-    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
-    config.register(jsonProvider);
-    config.register(JsonParseExceptionMapper.class);
-
-    config.register(ValidationFeature.class);
-    config.register(ConstraintViolationExceptionMapper.class);
-    config.register(new WebApplicationExceptionMapper(restConfig));
-    config.register(new GenericExceptionMapper(restConfig));
+    registerJsonProvider(config, restConfig, true);
+    registerFeatures(config, restConfig);
+    registerExceptionMappers(config, restConfig);
 
     config.register(new MetricsResourceMethodApplicationListener(metrics, "jersey",
                                                                  metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
+  }
+
+  /**
+   * Register a body provider and optional exception mapper for (de)serializing JSON in
+   * request/response entities.
+   * @param config The config to register the provider with
+   * @param restConfig The application's configuration
+   * @param registerExceptionMapper Whether or not to register an additional exception mapper for
+   *                                handling errors in (de)serialization
+   */
+  protected void registerJsonProvider(
+      Configurable<?> config,
+      T restConfig,
+      boolean registerExceptionMapper
+  ) {
+    ObjectMapper jsonMapper = getJsonMapper();
+    JacksonMessageBodyProvider jsonProvider = new JacksonMessageBodyProvider(jsonMapper);
+    config.register(jsonProvider);
+    if (registerExceptionMapper) {
+      config.register(JsonParseExceptionMapper.class);
+    }
+  }
+
+  /**
+   * Register server features
+   * @param config The config to register the features with
+   * @param restConfig The application's configuration
+   */
+  protected void registerFeatures(Configurable<?> config, T restConfig) {
+    config.register(ValidationFeature.class);
+  }
+
+  /**
+   * Register handlers for translating exceptions into responses.
+   * @param config The config to register the mappers with
+   * @param restConfig The application's configuration
+   */
+  protected void registerExceptionMappers(Configurable<?> config, T restConfig) {
+    config.register(ConstraintViolationExceptionMapper.class);
+    config.register(new WebApplicationExceptionMapper(restConfig));
+    config.register(new GenericExceptionMapper(restConfig));
   }
 
   public T getConfiguration() {
