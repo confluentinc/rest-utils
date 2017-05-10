@@ -28,8 +28,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.common.config.types.Password;
+import org.apache.kafka.test.TestSslUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -52,9 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class SslTest {
   private static final Logger log = LoggerFactory.getLogger(SslTest.class);
@@ -200,6 +198,30 @@ public class SslTest {
       app.stop();
     }
   }
+
+    @Test
+    public void testHttpsWithAuthAndCorrectClientCert() throws Exception {
+        TestMetricsReporter.reset();
+        Properties props = new Properties();
+        String uri = "https://localhost:8080";
+        props.put(RestConfig.LISTENERS_CONFIG, uri);
+        props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+        configServerKeystore(props);
+        configServerTruststore(props);
+        enableSslClientAuth(props);
+        TestRestConfig config = new TestRestConfig(props);
+        SslTestApplication app = new SslTestApplication(config);
+        try {
+            app.start();
+
+            int statusCode = makeGetRequest(uri + "/test",
+                    clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+            assertEquals(EXPECTED_200_MSG, 200, statusCode);
+            assertMetricsCollected();
+        } finally {
+            app.stop();
+        }
+    }
 
   @Test(expected = SocketException.class)
   public void testHttpsWithAuthAndBadClientCert() throws Exception {
