@@ -136,6 +136,11 @@ public abstract class Application<T extends RestConfig> {
   protected void configurePostResourceHandling(ServletContextHandler context) {}
 
   /**
+   * add any servlet filters that should be called before resource handling
+   */
+  protected void configurePreResourceHandling(ServletContextHandler context) {}
+
+  /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
    *
    * @return a Map of tags and values
@@ -299,6 +304,7 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
+    configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
