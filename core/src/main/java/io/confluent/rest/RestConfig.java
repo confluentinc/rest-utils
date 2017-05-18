@@ -18,11 +18,17 @@ package io.confluent.rest;
 
 import io.confluent.common.config.AbstractConfig;
 import io.confluent.common.config.ConfigDef;
-import io.confluent.common.config.ConfigDef.Type;
 import io.confluent.common.config.ConfigDef.Importance;
+import io.confluent.common.config.ConfigDef.Type;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
+import io.confluent.rest.auth.PrincipalNameConverter;
+import io.confluent.rest.auth.RestAuthorizationFilter;
+import io.confluent.rest.auth.RestAuthorizer;
+import io.confluent.rest.auth.RestPrincipalBuilder;
+import io.confluent.rest.auth.RestX509CertificatePrincipalBuilder;
 
+import javax.servlet.Filter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -196,6 +202,53 @@ public class RestConfig extends AbstractConfig {
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
   private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
+
+  public static final String AUTHORIZATION_ENABLED_CONFIG = "authorization.enabled";
+  public static final String AUTHORIZATION_ENABLED_DOC = "Enables authorization filter.";
+  public static final boolean AUTHORIZATION_ENABLED_DEFAULT = false;
+
+  public static final String AUTHORIZATION_FILTER_CLASS_CONFIG = "authorization.filter.class.name";
+  public static final String AUTHORIZATION_FILTER_CLASS_DOC =
+          "The class that should be used as authorization filter."
+                  + " If not provided default: "
+                  + RestAuthorizationFilter.class.getCanonicalName() + "will be used."
+                  + " It has to implement " + Filter.class.getCanonicalName() + ".";
+  public static final Class AUTHORIZATION_FILTER_CLASS_DEFAULT = RestAuthorizationFilter.class;
+
+  public static final String AUTHORIZATION_FILTER_PATH_CONFIG =
+          "authorization.filter.path";
+  public static final String AUTHORIZATION_FILTER_PATH_DOC =
+          "Url pattern used for authorization filter.";
+  public static final String AUTHORIZATION_FILTER_PATH_DEFAULT = "/*";
+
+  public static final String AUTHORIZATION_AUTHORIZER_CLASS_CONFIG =
+          "authorization.rest.authorizer.class.name";
+  public static final String AUTHORIZATION_AUTHORIZER_CLASS_DOC =
+          "Class that will be used for authorization. "
+                  + " It have to implement " + RestAuthorizer.class.getCanonicalName() + ".";
+
+  public static final String AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_CONFIG =
+          "authorization.rest.principal.builder.class.name";
+  public static final Class AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DEFAULT =
+          RestX509CertificatePrincipalBuilder.class;
+
+  public static final String AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DOC =
+          "Name of class which will be used to extract principal name from request."
+                  + " If not provided default "
+                  + RestX509CertificatePrincipalBuilder.class.getCanonicalName() + "."
+                  + " It has to implement " + RestPrincipalBuilder.class.getCanonicalName();
+
+  public static final String AUTHORIZATION_PRINCIPAL_CONVERTER_CONFIG =
+          "authorization.principal.name.converter.class.name";
+  public static final String AUTHORIZATION_PRINCIPAL_CONVERTER_DOC =
+          "Name of class which will be used to convert X509Certificate DN to principal name."
+                  + " If not provided full DN will be used."
+                  + " It has to implement " + PrincipalNameConverter.class.getCanonicalName() + ".";
+  public static final String AUTHORIZATION_PRINCIPAL_CONVERTER_DEFAULT =
+          RestX509CertificatePrincipalBuilder.IdentityPrincipalNameConverter.class.getName();
+
+  public static final String AUTHORIZATION_ZOOKEEPER_CONNECT_CONFIG = "zookeeper.connect";
+  public static final String AUTHORIZATION_SUPER_USERS_CONFIG = "super.users";
 
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
@@ -394,7 +447,45 @@ public class RestConfig extends AbstractConfig {
             ENABLE_GZIP_COMPRESSION_DEFAULT,
             Importance.LOW,
             ENABLE_GZIP_COMPRESSION_DOC
-        );
+        ).define(AUTHORIZATION_ENABLED_CONFIG,
+            ConfigDef.Type.BOOLEAN,
+            AUTHORIZATION_ENABLED_DEFAULT,
+            ConfigDef.Importance.LOW,
+            AUTHORIZATION_ENABLED_DOC
+        ).define(AUTHORIZATION_FILTER_CLASS_CONFIG,
+            ConfigDef.Type.CLASS,
+            AUTHORIZATION_FILTER_CLASS_DEFAULT,
+            ConfigDef.Importance.LOW,
+            AUTHORIZATION_FILTER_CLASS_DOC
+        ).define(AUTHORIZATION_FILTER_PATH_CONFIG,
+            ConfigDef.Type.STRING,
+            AUTHORIZATION_FILTER_PATH_DEFAULT,
+            ConfigDef.Importance.LOW,
+            AUTHORIZATION_FILTER_PATH_DOC
+        ).define(AUTHORIZATION_AUTHORIZER_CLASS_CONFIG,
+            ConfigDef.Type.CLASS,
+            Object.class.getName(),
+            ConfigDef.Importance.LOW,
+            AUTHORIZATION_AUTHORIZER_CLASS_DOC
+        ).define(AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_CONFIG,
+            ConfigDef.Type.CLASS,
+            AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DEFAULT,
+            ConfigDef.Importance.LOW,
+            AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DOC
+        ).define(AUTHORIZATION_PRINCIPAL_CONVERTER_CONFIG,
+            ConfigDef.Type.CLASS,
+            AUTHORIZATION_PRINCIPAL_CONVERTER_DEFAULT,
+            ConfigDef.Importance.LOW,
+            AUTHORIZATION_PRINCIPAL_CONVERTER_DOC
+        ).define(AUTHORIZATION_ZOOKEEPER_CONNECT_CONFIG,
+            ConfigDef.Type.STRING,
+            "",
+            ConfigDef.Importance.LOW,
+            ""
+        ).define(AUTHORIZATION_SUPER_USERS_CONFIG,
+            ConfigDef.Type.STRING,
+            "",
+            ConfigDef.Importance.LOW, "");
   }
 
   private static Time defaultTime = new SystemTime();
@@ -409,5 +500,13 @@ public class RestConfig extends AbstractConfig {
 
   public Time getTime() {
     return defaultTime;
+  }
+
+  public <T> T getConfiguredInstance(String key, Class<T> t) {
+    T instance = super.getConfiguredInstance(key, t);
+    if (instance instanceof RestConfigurable) {
+      ((RestConfigurable) instance).configure(this);
+    }
+    return instance;
   }
 }
