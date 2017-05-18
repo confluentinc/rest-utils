@@ -23,16 +23,18 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Properties;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 
@@ -65,12 +67,12 @@ public class StaticResourcesTest {
     app.join();
   }
 
-  //@Test
+  @Test
   public void testStaticContent() throws Exception {
     testGet("/index.html", 200, staticContent);
   }
 
-  //@Test
+  @Test
   public void testDefaultServletMapsToIndex() throws Exception {
     testGet("/", 200, staticContent);
   }
