@@ -1,12 +1,12 @@
 /**
  * Copyright 2014 Confluent Inc.
- * <p/>
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p/>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -47,13 +47,12 @@ public class RestX509CertificatePrincipalBuilder
     Object certsObj = servletRequest.getAttribute("javax.servlet.request.X509Certificate");
     if (certsObj instanceof X509Certificate[]) {
       X509Certificate[] certs = (X509Certificate[]) certsObj;
-      for (X509Certificate cert : certs) {
-        String principalName = principalNameConverter
-                .convertPrincipalName(cert.getSubjectDN().toString());
+      if (certs.length > 0) {
+        String dn = certs[0].getSubjectDN().toString();
+        log.debug("Certificate DN {}", dn);
+        String principalName = principalNameConverter.convertPrincipalName(dn);
         log.debug("Principal name {}", principalName);
-        if (principalName != null) {
-          return principalName;
-        }
+        return principalName;
       }
     }
     return null;

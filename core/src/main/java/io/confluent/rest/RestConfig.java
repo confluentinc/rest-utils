@@ -225,7 +225,7 @@ public class RestConfig extends AbstractConfig {
           "authorization.rest.authorizer.class.name";
   public static final String AUTHORIZATION_AUTHORIZER_CLASS_DOC =
           "Class that will be used for authorization. "
-                  + " It have to implement " + RestAuthorizer.class.getCanonicalName() + ".";
+                  + " It has to implement " + RestAuthorizer.class.getCanonicalName() + ".";
 
   public static final String AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_CONFIG =
           "authorization.rest.principal.builder.class.name";
@@ -448,42 +448,42 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             ENABLE_GZIP_COMPRESSION_DOC
         ).define(AUTHORIZATION_ENABLED_CONFIG,
-            ConfigDef.Type.BOOLEAN,
+            Type.BOOLEAN,
             AUTHORIZATION_ENABLED_DEFAULT,
             ConfigDef.Importance.LOW,
             AUTHORIZATION_ENABLED_DOC
         ).define(AUTHORIZATION_FILTER_CLASS_CONFIG,
-            ConfigDef.Type.CLASS,
+            Type.CLASS,
             AUTHORIZATION_FILTER_CLASS_DEFAULT,
             ConfigDef.Importance.LOW,
             AUTHORIZATION_FILTER_CLASS_DOC
         ).define(AUTHORIZATION_FILTER_PATH_CONFIG,
-            ConfigDef.Type.STRING,
+            Type.STRING,
             AUTHORIZATION_FILTER_PATH_DEFAULT,
             ConfigDef.Importance.LOW,
             AUTHORIZATION_FILTER_PATH_DOC
         ).define(AUTHORIZATION_AUTHORIZER_CLASS_CONFIG,
-            ConfigDef.Type.CLASS,
+            Type.CLASS,
             Object.class.getName(),
             ConfigDef.Importance.LOW,
             AUTHORIZATION_AUTHORIZER_CLASS_DOC
         ).define(AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_CONFIG,
-            ConfigDef.Type.CLASS,
+            Type.CLASS,
             AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DEFAULT,
             ConfigDef.Importance.LOW,
             AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DOC
         ).define(AUTHORIZATION_PRINCIPAL_CONVERTER_CONFIG,
-            ConfigDef.Type.CLASS,
+            Type.CLASS,
             AUTHORIZATION_PRINCIPAL_CONVERTER_DEFAULT,
             ConfigDef.Importance.LOW,
             AUTHORIZATION_PRINCIPAL_CONVERTER_DOC
         ).define(AUTHORIZATION_ZOOKEEPER_CONNECT_CONFIG,
-            ConfigDef.Type.STRING,
+            Type.STRING,
             "",
             ConfigDef.Importance.LOW,
             ""
         ).define(AUTHORIZATION_SUPER_USERS_CONFIG,
-            ConfigDef.Type.STRING,
+            Type.STRING,
             "",
             ConfigDef.Importance.LOW, "");
   }
