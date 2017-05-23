@@ -450,42 +450,43 @@ public class RestConfig extends AbstractConfig {
         ).define(AUTHORIZATION_ENABLED_CONFIG,
             Type.BOOLEAN,
             AUTHORIZATION_ENABLED_DEFAULT,
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             AUTHORIZATION_ENABLED_DOC
         ).define(AUTHORIZATION_FILTER_CLASS_CONFIG,
             Type.CLASS,
             AUTHORIZATION_FILTER_CLASS_DEFAULT,
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             AUTHORIZATION_FILTER_CLASS_DOC
         ).define(AUTHORIZATION_FILTER_PATH_CONFIG,
             Type.STRING,
             AUTHORIZATION_FILTER_PATH_DEFAULT,
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             AUTHORIZATION_FILTER_PATH_DOC
         ).define(AUTHORIZATION_AUTHORIZER_CLASS_CONFIG,
             Type.CLASS,
             Object.class.getName(),
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             AUTHORIZATION_AUTHORIZER_CLASS_DOC
         ).define(AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_CONFIG,
             Type.CLASS,
             AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DEFAULT,
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             AUTHORIZATION_PRINCIPAL_BUILDER_CLASS_DOC
         ).define(AUTHORIZATION_PRINCIPAL_CONVERTER_CONFIG,
             Type.CLASS,
             AUTHORIZATION_PRINCIPAL_CONVERTER_DEFAULT,
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             AUTHORIZATION_PRINCIPAL_CONVERTER_DOC
         ).define(AUTHORIZATION_ZOOKEEPER_CONNECT_CONFIG,
             Type.STRING,
             "",
-            ConfigDef.Importance.LOW,
+            Importance.LOW,
             ""
         ).define(AUTHORIZATION_SUPER_USERS_CONFIG,
             Type.STRING,
             "",
-            ConfigDef.Importance.LOW, "");
+            Importance.LOW,
+            "");
   }
 
   private static Time defaultTime = new SystemTime();
