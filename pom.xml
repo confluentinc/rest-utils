@@ -49,7 +49,6 @@
     <properties>
         <apache.httpclient.version>4.5.2</apache.httpclient.version>
         <bouncycastle.bcpkix.version>1.55</bouncycastle.bcpkix.version>
-        <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <jersey.version>2.25</jersey.version>
         <jetty.version>9.2.19.v20160908</jetty.version>
         <jackson.version>2.8.4</jackson.version>
@@ -59,7 +58,7 @@
         <repository>
             <id>confluent</id>
             <name>Confluent</name>
-            <url>${confluent.maven.repo}</url>
+            <url>http://packages.confluent.io/maven/</url>
         </repository>
     </repositories>
 
