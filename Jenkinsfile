@@ -1,15 +1,17 @@
 #!/usr/bin/env groovy
 
-properties([
-  pipelineTriggers([
-    triggers: [
+properties(
+  [
+    [
+      $class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false
+    ], 
+    pipelineTriggers(
       [
-        $class: 'jenkins.triggers.ReverseBuildTrigger',
-        upstreamProjects: "confluentinc/common/3.3.x", result: hudson.model.Result.SUCCESS
+        upstream(threshold: 'SUCCESS', upstreamProjects: 'confluentinc/common/3.3.x')
       ]
-    ]
-  ]),
-])
+    )
+  ]
+)
 
 
 common {
