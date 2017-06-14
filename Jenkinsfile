@@ -2,5 +2,5 @@
 
 common {
   slackChannel = '#clients-eng'
-  upstreamProjects = 'confluentinc/common/3.3.x'
+  upstreamProjects = 'confluentinc/common'
 }
