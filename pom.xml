@@ -51,10 +51,8 @@
         <apache.httpclient.version>4.5.3</apache.httpclient.version>
         <bouncycastle.bcpkix.version>1.58</bouncycastle.bcpkix.version>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
-        <!-- can't upgrade jersey past 2.25 until we move to java 8 -->
-        <jersey.version>2.25</jersey.version>
-        <!-- can't upgrade jetty past 9.2 until we move to java 8 -->
-        <jetty.version>9.2.24.v20180105</jetty.version>
+        <jersey.version>2.26-b06</jersey.version>
+        <jetty.version>9.4.6.v20170531</jetty.version>
     </properties>
 
     <repositories>
@@ -96,6 +94,12 @@
                 <groupId>org.glassfish.jersey.ext</groupId>
                 <artifactId>jersey-bean-validation</artifactId>
                 <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jersey.inject</groupId>
+                <artifactId>jersey-hk2</artifactId>
+                <version>${jersey.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.media</groupId>

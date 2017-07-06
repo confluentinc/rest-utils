@@ -22,6 +22,7 @@ import io.confluent.rest.annotations.PerformanceMetric;
 import org.apache.http.NoHttpResponseException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -84,7 +85,7 @@ public class SslTest {
   private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     // IMPORTANT: CN must be "localhost" because Jetty expects the server CN to be the FQDN.
-    X509Certificate cCert = TestSslUtils.generateCertificate("CN=localhost, O=A client", keypair, 30, "SHA1withRSA");
+    X509Certificate cCert = TestSslUtils.generateCertificate("CN=localhost, O=A client", keypair, 30, "SHA256WITHRSA");
     TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
   }
@@ -276,10 +277,11 @@ public class SslTest {
       SSLContext sslContext = sslContextBuilder.build();
 
       SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext, new String[]{"TLSv1"},
-              null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+              null, NoopHostnameVerifier.INSTANCE);
 
       httpclient = HttpClients.custom()
               .setSSLSocketFactory(sslSf)
+              .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
               .build();
     }
 

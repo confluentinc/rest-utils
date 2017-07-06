@@ -17,7 +17,6 @@
 package io.confluent.rest;
 
 import io.confluent.common.config.ConfigException;
-import jersey.repackaged.com.google.common.collect.Lists;
 
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -105,7 +104,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithNoRoles() {
-    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Lists.<String>newArrayList());
+    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, new ArrayList<String>());
     assertEquals(securityHandler.getRealmName(), REALM);
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -116,7 +115,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithAllRoles() {
-    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Lists.<String>newArrayList("*"));
+    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Arrays.asList("*"));
     assertEquals(securityHandler.getRealmName(), REALM);
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -127,7 +126,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithSpecificRoles() {
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     assertEquals(securityHandler.getRealmName(), REALM);
     assertFalse(securityHandler.getRoles().isEmpty());
