@@ -379,20 +379,26 @@ public abstract class Application<T extends RestConfig> {
         );
       }
       String scheme = uri.getScheme();
+      if (scheme == null) {
+        throw new ConfigException(
+            "Found a listener without a scheme. All listeners must have a scheme. The "
+            + "listener without a scheme is: " + listenerStr
+        );
+      }
       if (uri.getPort() == -1) {
         throw new ConfigException(
             "Found a listener without a port. All listeners must have a port. The "
             + "listener without a port is: " + listenerStr
         );
       }
-      if (scheme != null && supportedSchemes.contains(scheme)) {
-        listeners.add(uri);
-      } else {
+      if (!supportedSchemes.contains(scheme)) {
         log.warn(
             "Found a listener with an unsupported scheme (supported: {}). Ignoring listener '{}'",
             supportedSchemes,
             listenerStr
         );
+      } else {
+        listeners.add(uri);
       }
     }
 
