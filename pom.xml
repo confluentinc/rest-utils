@@ -51,7 +51,7 @@
         <bouncycastle.bcpkix.version>1.55</bouncycastle.bcpkix.version>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <jersey.version>2.25</jersey.version>
-        <jetty.version>9.2.19.v20160908</jetty.version>
+        <jetty.version>9.2.22.v20170606</jetty.version>
         <jackson.version>2.8.4</jackson.version>
     </properties>
 
