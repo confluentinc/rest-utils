@@ -192,10 +192,10 @@ public abstract class Application<T extends RestConfig> {
               config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
           );
           sslContextFactory.setKeyStorePassword(
-              config.getString(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG)
+              config.getPassword(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG).value()
           );
           sslContextFactory.setKeyManagerPassword(
-              config.getString(RestConfig.SSL_KEY_PASSWORD_CONFIG)
+              config.getPassword(RestConfig.SSL_KEY_PASSWORD_CONFIG).value()
           );
           sslContextFactory.setKeyStoreType(
               config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
@@ -229,7 +229,7 @@ public abstract class Application<T extends RestConfig> {
               config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
           );
           sslContextFactory.setTrustStorePassword(
-              config.getString(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG)
+              config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
           );
           sslContextFactory.setTrustStoreType(
               config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
