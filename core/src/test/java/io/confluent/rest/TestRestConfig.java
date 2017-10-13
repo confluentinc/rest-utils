@@ -23,7 +23,7 @@ import io.confluent.common.config.ConfigDef;
 /**
  * Test config class that only uses the built-in properties of RestConfig.
  */
-class TestRestConfig extends RestConfig {
+public class TestRestConfig extends RestConfig {
   private static final ConfigDef config;
   static {
     config = baseConfigDef();
