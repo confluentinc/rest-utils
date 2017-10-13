@@ -239,7 +239,14 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         final long elapsed = time.milliseconds() - started;
         final long requestSize = wrappedRequestStream.size();
-        final long responseSize = wrappedResponseStream.size();
+        final long responseSize;
+        // nothing guarantees we always encounter an event where getContainerResponse is not null
+        // in the event of dispatch errors, the error response is delegated to the servlet container
+        if (wrappedResponseStream != null) {
+          responseSize = wrappedResponseStream.size();
+        } else {
+          responseSize = 0;
+        }
         this.metrics.get(null).finished(requestSize, responseSize, elapsed);
         final MethodMetrics metrics = getMethodMetrics(event);
         if (metrics != null) {
