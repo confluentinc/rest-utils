@@ -287,13 +287,13 @@ public class RestConfig extends AbstractConfig {
             SSL_KEYSTORE_LOCATION_DOC
         ).define(
             SSL_KEYSTORE_PASSWORD_CONFIG,
-            Type.STRING,
+            Type.PASSWORD,
             SSL_KEYSTORE_PASSWORD_DEFAULT,
             Importance.HIGH,
             SSL_KEYSTORE_PASSWORD_DOC
         ).define(
             SSL_KEY_PASSWORD_CONFIG,
-            Type.STRING,
+            Type.PASSWORD,
             SSL_KEY_PASSWORD_DEFAULT,
             Importance.HIGH,
             SSL_KEY_PASSWORD_DOC
@@ -317,7 +317,7 @@ public class RestConfig extends AbstractConfig {
             SSL_TRUSTSTORE_LOCATION_DOC
         ).define(
             SSL_TRUSTSTORE_PASSWORD_CONFIG,
-            Type.STRING,
+            Type.PASSWORD,
             SSL_TRUSTSTORE_PASSWORD_DEFAULT,
             Importance.HIGH,
             SSL_TRUSTSTORE_PASSWORD_DOC)
