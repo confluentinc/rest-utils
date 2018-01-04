@@ -105,6 +105,14 @@ public class RestConfig extends AbstractConfig {
       + "<code>MetricReporter</code> interface allows plugging in classes that will be notified "
       + "of new metric creation. The JmxReporter is always included to register JMX statistics.";
   protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
+
+  public static final String METRICS_TAGS_CONFIG = "metrics.tags.map";
+  protected static final String METRICS_TAGS_DOC =
+      "A comma separated list of metrics tag entries of the form <tag_name>:<tag_value>. This can"
+      + " be used to specify additional tags during deployment like data center, instance "
+      + "details, etc.";
+  protected static final String METRICS_TAGS_DEFAULT = "";
+
   public static final String SSL_KEYSTORE_LOCATION_CONFIG = "ssl.keystore.location";
   protected static final String SSL_KEYSTORE_LOCATION_DOC =
       "Location of the keystore file to use for SSL. This is required for HTTPS.";
@@ -279,6 +287,12 @@ public class RestConfig extends AbstractConfig {
             ConfigDef.Range.atLeast(1),
             Importance.LOW,
             METRICS_NUM_SAMPLES_DOC
+        ).define(
+            METRICS_TAGS_CONFIG,
+            Type.MAP,
+            METRICS_TAGS_DEFAULT,
+            Importance.LOW,
+            METRICS_TAGS_DOC
         ).define(
             SSL_KEYSTORE_LOCATION_CONFIG,
             Type.STRING,
