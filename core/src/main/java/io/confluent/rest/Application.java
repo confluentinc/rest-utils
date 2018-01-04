@@ -152,13 +152,10 @@ public abstract class Application<T extends RestConfig> {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
-    Map<String, String> metricTags = getMetricsTags();
     Map<String, String> configuredTags = getConfiguration().getMap(RestConfig.METRICS_TAGS_CONFIG);
 
-    Map<String, String> combinedMetricsTags = new HashMap<>(metricTags);
+    Map<String, String> combinedMetricsTags = new HashMap<>(getMetricsTags());
     combinedMetricsTags.putAll(configuredTags);
-
-    log.info("The metrics tags are " + combinedMetricsTags);
 
     configureBaseApplication(resourceConfig, combinedMetricsTags);
     setupResources(resourceConfig, getConfiguration());

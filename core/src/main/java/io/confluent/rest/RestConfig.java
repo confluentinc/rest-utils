@@ -106,7 +106,7 @@ public class RestConfig extends AbstractConfig {
       + "of new metric creation. The JmxReporter is always included to register JMX statistics.";
   protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
 
-  public static final String METRICS_TAGS_CONFIG = "metrics.tags.map";
+  public static final String METRICS_TAGS_CONFIG = "metrics.tag.map";
   protected static final String METRICS_TAGS_DOC =
       "A comma separated list of metrics tag entries of the form <tag_name>:<tag_value>. This can"
       + " be used to specify additional tags during deployment like data center, instance "
