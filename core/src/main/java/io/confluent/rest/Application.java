@@ -55,6 +55,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -151,9 +152,12 @@ public abstract class Application<T extends RestConfig> {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
-    Map<String, String> metricTags = getMetricsTags();
+    Map<String, String> configuredTags = getConfiguration().getMap(RestConfig.METRICS_TAGS_CONFIG);
 
-    configureBaseApplication(resourceConfig, metricTags);
+    Map<String, String> combinedMetricsTags = new HashMap<>(getMetricsTags());
+    combinedMetricsTags.putAll(configuredTags);
+
+    configureBaseApplication(resourceConfig, combinedMetricsTags);
     setupResources(resourceConfig, getConfiguration());
 
     // Configure the servlet container
@@ -174,7 +178,7 @@ public abstract class Application<T extends RestConfig> {
     server.addEventListener(mbContainer);
     server.addBean(mbContainer);
 
-    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
+    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", combinedMetricsTags);
 
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
