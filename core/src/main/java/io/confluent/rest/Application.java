@@ -287,6 +287,9 @@ public abstract class Application<T extends RestConfig> {
       context.setSecurityHandler(securityHandler);
     }
 
+    List<String> unsecurePaths = config.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
+    setUnsecurePathConstraints(context, unsecurePaths);
+
     String allowedOrigins = getConfiguration().getString(
         RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG
     );
@@ -330,6 +333,27 @@ public abstract class Application<T extends RestConfig> {
 
     return server;
   }
+
+  static void setUnsecurePathConstraints(
+      ServletContextHandler context,
+      List<String> unsecurePaths
+  ) {
+    //we need to set unsecure path only if there is an existing security handler. Otherwise all
+    // paths are by default unsecure
+    if (context.getSecurityHandler() != null && !unsecurePaths.isEmpty()) {
+      for (String path : unsecurePaths) {
+        Constraint constraint = new Constraint();
+        constraint.setAuthenticate(false);
+        ConstraintMapping constraintMapping = new ConstraintMapping();
+        constraintMapping.setConstraint(constraint);
+        constraintMapping.setMethod("*");
+        constraintMapping.setPathSpec(path);
+        ((ConstraintSecurityHandler) context.getSecurityHandler())
+            .addConstraintMapping(constraintMapping);
+      }
+    }
+  }
+
 
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
