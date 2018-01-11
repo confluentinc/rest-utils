@@ -201,6 +201,12 @@ public class RestConfig extends AbstractConfig {
   public static final List<String> AUTHENTICATION_ROLES_DEFAULT =
       Collections.unmodifiableList(Arrays.asList("*"));
 
+  public static final String AUTHENTICATION_SKIP_PATHS = "authentication.skip.paths";
+  public static final String AUTHENTICATION_SKIP_PATHS_DOC = "Comma separated list of paths that "
+                                                             + "can be "
+                                                             + "accessed without authentication";
+  public static final String AUTHENTICATION_SKIP_PATHS_DEFAULT = "";
+
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
   private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
@@ -402,6 +408,12 @@ public class RestConfig extends AbstractConfig {
             AUTHENTICATION_ROLES_DEFAULT,
             Importance.LOW,
             AUTHENTICATION_ROLES_DOC
+        ).define(
+            AUTHENTICATION_SKIP_PATHS,
+            Type.LIST,
+            AUTHENTICATION_SKIP_PATHS_DEFAULT,
+            Importance.LOW,
+            AUTHENTICATION_SKIP_PATHS_DOC
         ).define(
             ENABLE_GZIP_COMPRESSION_CONFIG,
             Type.BOOLEAN,
