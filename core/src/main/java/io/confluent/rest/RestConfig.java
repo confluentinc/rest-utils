@@ -207,6 +207,10 @@ public class RestConfig extends AbstractConfig {
                                                              + "accessed without authentication";
   public static final String AUTHENTICATION_SKIP_PATHS_DEFAULT = "";
 
+  public static final String WEBSOCKET_PATH_PREFIX_CONFIG = "websocket.path.prefix";
+  public static final String WEBSOCKET_PATH_PREFIX_DOC =
+      "Path under which this app can register websocket endpoints.";
+
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
   private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
@@ -420,6 +424,12 @@ public class RestConfig extends AbstractConfig {
             ENABLE_GZIP_COMPRESSION_DEFAULT,
             Importance.LOW,
             ENABLE_GZIP_COMPRESSION_DOC
+        ).define(
+            WEBSOCKET_PATH_PREFIX_CONFIG,
+            Type.STRING,
+            "/ws",
+            Importance.LOW,
+            WEBSOCKET_PATH_PREFIX_DOC
         );
   }
 
