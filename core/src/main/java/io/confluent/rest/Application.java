@@ -28,7 +28,6 @@ import org.eclipse.jetty.security.SecurityHandler;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
-import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -88,6 +87,7 @@ public abstract class Application<T extends RestConfig> {
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
+  protected final Slf4jRequestLog requestLog;
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -102,6 +102,9 @@ public abstract class Application<T extends RestConfig> {
                                       MetricsReporter.class);
     reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
     this.metrics = new Metrics(metricConfig, reporters, config.getTime());
+    this.requestLog = new Slf4jRequestLog();
+    this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    this.requestLog.setLogLatency(true);
   }
 
   /**
@@ -312,7 +315,7 @@ public abstract class Application<T extends RestConfig> {
     context.addServlet(defaultHolder, "/*");
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
-    requestLogHandler.setRequestLog(getRequestLog());
+    requestLogHandler.setRequestLog(requestLog);
 
     HandlerCollection handlers = new HandlerCollection();
     handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
@@ -510,29 +513,6 @@ public abstract class Application<T extends RestConfig> {
    */
   protected ObjectMapper getJsonMapper() {
     return new ObjectMapper();
-  }
-
-  /**
-   * Returns the default {@link Slf4jRequestLog} used. Separate method made available in order to
-   * allow overloading of {@link #getRequestLog()} by returning a different class of
-   * {@link RequestLog} without making it impossible to rely on the class of the default
-   * implementation being an instance of {@link Slf4jRequestLog}.
-   */
-  protected final Slf4jRequestLog getSlf4jRequestLog() {
-    Slf4jRequestLog result = new Slf4jRequestLog();
-    result.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    result.setLogLatency(true);
-    return result;
-  }
-
-  /**
-   * Gets a {@link RequestLog} to use for logging requests. By default, returns
-   * {@link #getSlf4jRequestLog()}. One simple example of use would be to set the
-   * {@link Slf4jRequestLog#setExtended(boolean)} method of the log in order to enable extended
-   * logging (http referer field, user agent) information.
-   */
-  protected RequestLog getRequestLog() {
-    return getSlf4jRequestLog();
   }
 
   /**
