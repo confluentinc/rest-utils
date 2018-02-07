@@ -87,6 +87,7 @@ public abstract class Application<T extends RestConfig> {
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
+  protected final Slf4jRequestLog requestLog;
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -101,6 +102,9 @@ public abstract class Application<T extends RestConfig> {
                                       MetricsReporter.class);
     reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
     this.metrics = new Metrics(metricConfig, reporters, config.getTime());
+    this.requestLog = new Slf4jRequestLog();
+    this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    this.requestLog.setLogLatency(true);
   }
 
   /**
@@ -311,9 +315,6 @@ public abstract class Application<T extends RestConfig> {
     context.addServlet(defaultHolder, "/*");
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
-    Slf4jRequestLog requestLog = new Slf4jRequestLog();
-    requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    requestLog.setLogLatency(true);
     requestLogHandler.setRequestLog(requestLog);
 
     HandlerCollection handlers = new HandlerCollection();
