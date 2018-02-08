@@ -54,8 +54,8 @@
         <!-- can't upgrade jersey past 2.25 until we move to java 8 -->
         <jersey.version>2.25</jersey.version>
         <!-- can't upgrade jetty past 9.2 until we move to java 8 -->
-        <jetty.version>9.2.22.v20170606</jetty.version>
-        <jackson.version>2.9.1</jackson.version>
+        <jetty.version>9.2.24.v20180105</jetty.version>
+        <jackson.version>2.9.4</jackson.version>
     </properties>
 
     <repositories>
