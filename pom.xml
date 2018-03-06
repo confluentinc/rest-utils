@@ -46,7 +46,7 @@
         <confluent.common.version>3.0.2-SNAPSHOT</confluent.common.version>
         <jersey.version>2.19</jersey.version>
         <jetty.version>9.2.12.v20150709</jetty.version>
-        <jackson.version>2.5.4</jackson.version>
+        <jackson.version>2.9.4</jackson.version>
         <junit.version>4.12</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <apache.httpclient.version>4.5.2</apache.httpclient.version>
