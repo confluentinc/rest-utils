@@ -51,6 +51,9 @@ public class ExceptionHandlingTest {
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
+    // Override normal port to 0 for unit tests to use a random, available, ephemeral port that
+    // won't conflict with locally running services or parallel tests
+    props.setProperty(RestConfig.PORT_CONFIG, "0");
     config = new TestRestConfig(props);
     app = new ExceptionApplication(config);
     app.start();
@@ -65,7 +68,7 @@ public class ExceptionHandlingTest {
   private void testGetException(String path, int expectedStatus, int expectedErrorCode,
       String expectedMessage) {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + app.localPorts().get(0))
         .path(path)
         .request()
         .get();
@@ -79,7 +82,7 @@ public class ExceptionHandlingTest {
   private void testPostException(String path, Entity entity, int expectedStatus, int expectedErrorCode,
       String expectedMessage) {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-      .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+      .target("http://localhost:" + app.localPorts().get(0))
       .path(path)
       .request()
       .post(entity);
