@@ -19,6 +19,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.common.config.ConfigException;
+
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
@@ -121,6 +123,12 @@ public abstract class Application<T extends RestConfig> {
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     ServletHolder servletHolder = new ServletHolder(servletContainer);
     server = new Server() {
+      @Override
+      protected void doStart() throws Exception {
+        super.doStart();
+        Application.this.onStarted();
+      }
+
       @Override
       protected void doStop() throws Exception {
         super.doStop();
@@ -239,6 +247,26 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
+  /**
+   * Get the local ports that were bound for the listeners.
+   * @return a List containing the local ports
+   */
+  public List<Integer> localPorts() {
+    List<Integer> ports = new ArrayList<>();
+    for(Connector connector : server.getConnectors()) {
+      if (!(connector instanceof NetworkTrafficServerConnector)) {
+        throw new RuntimeException(
+            String.format(
+                "Expected NetworkTrafficServerConnector for listener but found %s",
+                connector.getClass()
+            )
+        );
+      }
+      ports.add(((NetworkTrafficServerConnector) connector).getLocalPort());
+    }
+    return ports;
+  }
+
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated. It's only used to support the deprecated
   //       configuration.
   public static List<URI> parseListeners(List<String> listenersConfig, int deprecatedPort,
@@ -350,6 +378,10 @@ public abstract class Application<T extends RestConfig> {
    */
   public void stop() throws Exception {
     server.stop();
+  }
+
+  public void onStarted() {
+    // Intentionally left blank
   }
 
   /**

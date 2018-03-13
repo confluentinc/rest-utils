@@ -16,15 +16,21 @@
 
 package io.confluent.rest;
 
+import io.confluent.common.config.ConfigDef;
 import io.confluent.common.config.ConfigException;
 import org.junit.Test;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.core.Configurable;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ApplicationTest {
   @Test
@@ -77,6 +83,52 @@ public class ApplicationTest {
     List<String> listenersConfig = new ArrayList<String>();
     listenersConfig.add("http://localhost");
     List<URI> listeners = Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+  }
+
+  @Test
+  public void zeroForPortShouldHaveNonZeroLocalPort() throws Exception {
+    TestRestConfig config = new TestRestConfig(
+        Collections.singletonMap(RestConfig.PORT_CONFIG, "0")
+    );
+    TestApplication testApp = new TestApplication(config);
+    testApp.start();
+    List<Integer> localPorts = testApp.localPorts();
+    assertEquals(1, localPorts.size());
+    // Validate not only that it isn't zero, but also a valid value
+    assertTrue("Should have a valid local port value greater than 0", localPorts.get(0) > 0);
+    assertTrue(
+        "Should have a valid local port value less than or equal to 65535",
+        localPorts.get(0) <= 0xFFFF
+    );
+    testApp.stop();
+    testApp.join();
+  }
+
+  private class TestApplication extends Application<TestRestConfig> {
+    TestApplication(TestRestConfig config) {
+      super(config);
+    }
+
+    @Override
+    public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
+      // intentionally left blank
+    }
+  }
+
+  private static class TestRestConfig extends RestConfig {
+    private static ConfigDef config;
+
+    static {
+      config = baseConfigDef();
+    }
+
+    public TestRestConfig() {
+      super(config);
+    }
+
+    public TestRestConfig(Map<?, ?> props) {
+      super(config, props);
+    }
   }
 
   private void assertExpectedUri(URI uri, String scheme, String host, int port) {

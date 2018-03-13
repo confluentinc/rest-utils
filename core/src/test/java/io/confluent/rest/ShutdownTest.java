@@ -35,6 +35,9 @@ public class ShutdownTest {
   public void testShutdownHook() throws Exception {
     Properties props = new Properties();
     props.put("shutdown.graceful.ms", "50");
+    // Override normal port to 0 for unit tests to use a random, available, ephemeral port that
+    // won't conflict with locally running services or parallel tests
+    props.put(RestConfig.PORT_CONFIG, "0");
     ShutdownApplication app = new ShutdownApplication(new TestRestConfig(props));
     app.start();
 
@@ -49,11 +52,14 @@ public class ShutdownTest {
   public void testGracefulShutdown() throws Exception {
     Properties props = new Properties();
     props.put("shutdown.graceful.ms", "50");
+    // Override normal port to 0 for unit tests to use a random, available, ephemeral port that
+    // won't conflict with locally running services or parallel tests
+    props.put(RestConfig.PORT_CONFIG, "0");
     final TestRestConfig config = new TestRestConfig(props);
     ShutdownApplication app = new ShutdownApplication(config);
     app.start();
 
-    RequestThread req = new RequestThread(config);
+    RequestThread req = new RequestThread(app.localPorts().get(0));
     req.start();
     app.resource.requestProcessingStarted.await();
 
@@ -115,12 +121,12 @@ public class ShutdownTest {
   };
 
   private static class RequestThread extends Thread {
-    RestConfig config;
+    int port;
     boolean finished = false;
     String response = null;
 
-    RequestThread(RestConfig config) {
-      this.config = config;
+    RequestThread(int port) {
+      this.port = port;
     }
     @Override
     public void run() {
@@ -131,7 +137,7 @@ public class ShutdownTest {
         try {
           Client client = ClientBuilder.newClient();
           response = client
-              .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+              .target("http://localhost:" + port)
               .path("/")
               .request()
               .get(String.class);
