@@ -335,8 +335,8 @@ public abstract class Application<T extends RestConfig> {
     );
     final ContextHandlerCollection contexts = new ContextHandlerCollection();
     contexts.setHandlers(new Handler[] {
-        webSocketServletContext,
-        statsHandler
+        statsHandler,
+        webSocketServletContext
     });
 
     server.setHandler(contexts);
