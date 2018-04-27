@@ -47,6 +47,7 @@
     </modules>
 
     <properties>
+        <activation.version>1.1.1</activation.version>
         <apache.httpclient.version>4.5.3</apache.httpclient.version>
         <bouncycastle.bcpkix.version>1.58</bouncycastle.bcpkix.version>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
@@ -86,6 +87,12 @@
                 <groupId>org.glassfish.jersey.containers</groupId>
                 <artifactId>jersey-container-servlet</artifactId>
                 <version>${jersey.version}</version>
+            </dependency>
+            <!-- Jersey dependency that was available in the JDK before Java 9 -->
+            <dependency>
+                <groupId>javax.activation</groupId>
+                <artifactId>activation</artifactId>
+                <version>${activation.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.ext</groupId>
