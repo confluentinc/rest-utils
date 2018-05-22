@@ -33,6 +33,14 @@
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-servlet</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.glassfish.jersey.bundles.repackaged</groupId>
+          <artifactId>jersey-guava</artifactId>
+        </dependency>
         <!-- Jersey dependency that was available in the JDK before Java 9 -->
         <dependency>
             <groupId>javax.xml.bind</groupId>

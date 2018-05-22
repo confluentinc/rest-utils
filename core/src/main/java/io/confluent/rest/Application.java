@@ -214,7 +214,7 @@ public abstract class Application<T extends RestConfig> {
           );
 
           if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-            sslContextFactory.setSslKeyManagerFactoryAlgorithm(
+            sslContextFactory.setKeyManagerFactoryAlgorithm(
                     config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
           }
         }
