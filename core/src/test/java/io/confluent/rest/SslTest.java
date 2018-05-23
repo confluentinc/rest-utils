@@ -19,7 +19,7 @@ package io.confluent.rest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
-import org.apache.http.NoHttpResponseException;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -42,6 +42,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.SocketException;
@@ -129,7 +130,7 @@ public class SslTest {
     }
   }
 
-  @Test(expected = NoHttpResponseException.class)
+  @Test(expected = ClientProtocolException.class)
   public void testHttpsOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -275,7 +276,7 @@ public class SslTest {
       }
       SSLContext sslContext = sslContextBuilder.build();
 
-      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext, new String[]{"TLSv1"},
+      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext, new String[]{"TLSv1.2"},
               null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
       httpclient = HttpClients.custom()

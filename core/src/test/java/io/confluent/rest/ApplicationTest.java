@@ -17,7 +17,6 @@
 package io.confluent.rest;
 
 import io.confluent.common.config.ConfigException;
-import jersey.repackaged.com.google.common.collect.Lists;
 
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -28,6 +27,7 @@ import org.junit.Test;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -105,7 +105,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithNoRoles() {
-    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Lists.<String>newArrayList());
+    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Collections.emptyList());
     assertEquals(securityHandler.getRealmName(), REALM);
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -116,7 +116,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithAllRoles() {
-    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Lists.<String>newArrayList("*"));
+    ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, Arrays.asList("*"));
     assertEquals(securityHandler.getRealmName(), REALM);
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -127,7 +127,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithSpecificRoles() {
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     assertEquals(securityHandler.getRealmName(), REALM);
     assertFalse(securityHandler.getRoles().isEmpty());
@@ -143,7 +143,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithMultipleUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 3);
@@ -152,7 +152,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithSingleUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 1);
@@ -161,7 +161,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithNoUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 0);
@@ -170,9 +170,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithoutSecurityConstraints(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    Application.setUnsecurePathConstraints(
-        servletContextHandler,
-        Lists.<String>newArrayList("/path1"));
+    Application.setUnsecurePathConstraints(servletContextHandler, Arrays.asList("/path1"));
     assertNull(servletContextHandler.getSecurityHandler());
 
   }
