@@ -35,11 +35,11 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.AsyncGzipFilter;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.security.Constraint;
@@ -279,14 +279,6 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
-      FilterHolder gzipFilter = new FilterHolder(AsyncGzipFilter.class);
-      // do not check if .gz file already exists for the requested resource
-      gzipFilter.setInitParameter("checkGzExists", "false");
-      gzipFilter.setInitParameter("methods", "GET,POST");
-      context.addFilter(gzipFilter, "/*", null);
-    }
-
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
       String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
@@ -339,7 +331,8 @@ public abstract class Application<T extends RestConfig> {
         webSocketServletContext
     });
 
-    server.setHandler(contexts);
+    server.setHandler(wrapWithGzipHandler(contexts));
+
     ServerContainer container =
         WebSocketServerContainerInitializer.configureContext(webSocketServletContext);
     registerWebSocketEndpoints(container);
@@ -350,6 +343,16 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  public Handler wrapWithGzipHandler(Handler handler) {
+    if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
+      GzipHandler gzip = new GzipHandler();
+      gzip.setIncludedMethods("GET", "POST");
+      gzip.setHandler(handler);
+      return gzip;
+    }
+    return handler;
   }
 
   /**
