@@ -29,6 +29,7 @@ import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -77,7 +78,6 @@ import io.confluent.common.metrics.MetricsReporter;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
-import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
