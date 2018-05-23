@@ -58,7 +58,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
     assertEquals(500, response.getStatus());
-    assertTrue(response.readEntity(String.class).contains("Resource Java method invocation error"));
   }
 
   private static class ApplicationWithFilter extends Application<TestRestConfig> {

@@ -142,7 +142,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithMultipleUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 3);
@@ -151,7 +151,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithSingleUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 1);
@@ -160,7 +160,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithNoUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    final ArrayList<String> roles = Lists.<String>newArrayList("roleA", "roleB");
+    final List<String> roles = Arrays.asList("roleA", "roleB");
     ConstraintSecurityHandler securityHandler = Application.createSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 0);
@@ -169,9 +169,7 @@ public class ApplicationTest {
   @Test
   public void testSetUnsecurePathConstraintsWithoutSecurityConstraints(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
-    Application.setUnsecurePathConstraints(
-        servletContextHandler,
-        Lists.<String>newArrayList("/path1"));
+    Application.setUnsecurePathConstraints(servletContextHandler, Arrays.asList("/path1"));
     assertNull(servletContextHandler.getSecurityHandler());
 
   }
