@@ -42,7 +42,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import java.io.File;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -89,9 +88,7 @@ public class SaslTest {
     );
     previousAuthConfig = System.getProperty("java.security.auth.login.config");
     Configuration.setConfiguration(null);
-    URI jaasUri = jaasFile.toURI();
-    String jaasUrl = jaasUri.getRawPath().replace(":","");
-    System.setProperty("java.security.auth.login.config", jaasFile.getAbsolutePath() );
+    System.setProperty("java.security.auth.login.config", jaasFile.getAbsolutePath());
     httpclient = HttpClients.createDefault();
     TestMetricsReporter.reset();
     Properties props = new Properties();
