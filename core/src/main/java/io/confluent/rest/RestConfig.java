@@ -197,6 +197,11 @@ public class RestConfig extends AbstractConfig {
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
   private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
 
+  public static final String IDLE_TIMEOUT_MS_CONFIG = "idle.timeout.ms";
+  public static final String IDLE_TIMEOUT_MS_DOC =
+          "The number of milliseconds to hold an idle session open for.";
+  public static final long IDLE_TIMEOUT_MS_DEFAULT = 30000;
+
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(
@@ -394,6 +399,12 @@ public class RestConfig extends AbstractConfig {
             ENABLE_GZIP_COMPRESSION_DEFAULT,
             Importance.LOW,
             ENABLE_GZIP_COMPRESSION_DOC
+        ).define(
+            IDLE_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            IDLE_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            IDLE_TIMEOUT_MS_DOC
         );
   }
 
