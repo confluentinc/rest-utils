@@ -18,17 +18,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
-import io.confluent.common.config.ConfigException;
-import io.confluent.common.metrics.JmxReporter;
-import io.confluent.common.metrics.MetricConfig;
-import io.confluent.common.metrics.Metrics;
-import io.confluent.common.metrics.MetricsReporter;
-import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
-import io.confluent.rest.exceptions.GenericExceptionMapper;
-import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
-import io.confluent.rest.logging.Slf4jRequestLog;
-import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
-import io.confluent.rest.validation.JacksonMessageBodyProvider;
+
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -59,8 +49,6 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.DispatcherType;
-import javax.ws.rs.core.Configurable;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -72,6 +60,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import javax.servlet.DispatcherType;
+import javax.ws.rs.core.Configurable;
+
+import io.confluent.common.config.ConfigException;
+import io.confluent.common.metrics.JmxReporter;
+import io.confluent.common.metrics.MetricConfig;
+import io.confluent.common.metrics.Metrics;
+import io.confluent.common.metrics.MetricsReporter;
+import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
+import io.confluent.rest.exceptions.GenericExceptionMapper;
+import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import io.confluent.rest.logging.Slf4jRequestLog;
+import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
+import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
