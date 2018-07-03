@@ -105,6 +105,14 @@ public class RestConfig extends AbstractConfig {
       + "<code>MetricReporter</code> interface allows plugging in classes that will be notified "
       + "of new metric creation. The JmxReporter is always included to register JMX statistics.";
   protected static final String METRICS_REPORTER_CLASSES_DEFAULT = "";
+
+  public static final String METRICS_TAGS_CONFIG = "metrics.tag.map";
+  protected static final String METRICS_TAGS_DOC =
+      "A comma separated list of metrics tag entries of the form <tag_name>:<tag_value>. This can"
+      + " be used to specify additional tags during deployment like data center, instance "
+      + "details, etc.";
+  protected static final String METRICS_TAGS_DEFAULT = "";
+
   public static final String SSL_KEYSTORE_LOCATION_CONFIG = "ssl.keystore.location";
   protected static final String SSL_KEYSTORE_LOCATION_DOC =
       "Location of the keystore file to use for SSL. This is required for HTTPS.";
@@ -192,6 +200,12 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_ROLES_DOC = "Valid roles to authenticate against.";
   public static final List<String> AUTHENTICATION_ROLES_DEFAULT =
       Collections.unmodifiableList(Arrays.asList("*"));
+
+  public static final String AUTHENTICATION_SKIP_PATHS = "authentication.skip.paths";
+  public static final String AUTHENTICATION_SKIP_PATHS_DOC = "Comma separated list of paths that "
+                                                             + "can be "
+                                                             + "accessed without authentication";
+  public static final String AUTHENTICATION_SKIP_PATHS_DEFAULT = "";
 
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
@@ -284,6 +298,12 @@ public class RestConfig extends AbstractConfig {
             ConfigDef.Range.atLeast(1),
             Importance.LOW,
             METRICS_NUM_SAMPLES_DOC
+        ).define(
+            METRICS_TAGS_CONFIG,
+            Type.MAP,
+            METRICS_TAGS_DEFAULT,
+            Importance.LOW,
+            METRICS_TAGS_DOC
         ).define(
             SSL_KEYSTORE_LOCATION_CONFIG,
             Type.STRING,
@@ -393,6 +413,12 @@ public class RestConfig extends AbstractConfig {
             AUTHENTICATION_ROLES_DEFAULT,
             Importance.LOW,
             AUTHENTICATION_ROLES_DOC
+        ).define(
+            AUTHENTICATION_SKIP_PATHS,
+            Type.LIST,
+            AUTHENTICATION_SKIP_PATHS_DEFAULT,
+            Importance.LOW,
+            AUTHENTICATION_SKIP_PATHS_DOC
         ).define(
             ENABLE_GZIP_COMPRESSION_CONFIG,
             Type.BOOLEAN,

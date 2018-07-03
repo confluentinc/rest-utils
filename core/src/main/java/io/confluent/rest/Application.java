@@ -55,6 +55,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,7 @@ public abstract class Application<T extends RestConfig> {
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
+  protected final Slf4jRequestLog requestLog;
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -100,6 +102,9 @@ public abstract class Application<T extends RestConfig> {
                                       MetricsReporter.class);
     reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
     this.metrics = new Metrics(metricConfig, reporters, config.getTime());
+    this.requestLog = new Slf4jRequestLog();
+    this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    this.requestLog.setLogLatency(true);
   }
 
   /**
@@ -151,9 +156,12 @@ public abstract class Application<T extends RestConfig> {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
-    Map<String, String> metricTags = getMetricsTags();
+    Map<String, String> configuredTags = getConfiguration().getMap(RestConfig.METRICS_TAGS_CONFIG);
 
-    configureBaseApplication(resourceConfig, metricTags);
+    Map<String, String> combinedMetricsTags = new HashMap<>(getMetricsTags());
+    combinedMetricsTags.putAll(configuredTags);
+
+    configureBaseApplication(resourceConfig, combinedMetricsTags);
     setupResources(resourceConfig, getConfiguration());
 
     // Configure the servlet container
@@ -174,7 +182,7 @@ public abstract class Application<T extends RestConfig> {
     server.addEventListener(mbContainer);
     server.addBean(mbContainer);
 
-    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", metricTags);
+    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", combinedMetricsTags);
 
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
@@ -286,6 +294,9 @@ public abstract class Application<T extends RestConfig> {
       context.setSecurityHandler(securityHandler);
     }
 
+    List<String> unsecurePaths = config.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
+    setUnsecurePathConstraints(context, unsecurePaths);
+
     String allowedOrigins = getConfiguration().getString(
         RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG
     );
@@ -307,9 +318,6 @@ public abstract class Application<T extends RestConfig> {
     context.addServlet(defaultHolder, "/*");
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
-    Slf4jRequestLog requestLog = new Slf4jRequestLog();
-    requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    requestLog.setLogLatency(true);
     requestLogHandler.setRequestLog(requestLog);
 
     HandlerCollection handlers = new HandlerCollection();
@@ -329,6 +337,27 @@ public abstract class Application<T extends RestConfig> {
 
     return server;
   }
+
+  static void setUnsecurePathConstraints(
+      ServletContextHandler context,
+      List<String> unsecurePaths
+  ) {
+    //we need to set unsecure path only if there is an existing security handler. Otherwise all
+    // paths are by default unsecure
+    if (context.getSecurityHandler() != null && !unsecurePaths.isEmpty()) {
+      for (String path : unsecurePaths) {
+        Constraint constraint = new Constraint();
+        constraint.setAuthenticate(false);
+        ConstraintMapping constraintMapping = new ConstraintMapping();
+        constraintMapping.setConstraint(constraint);
+        constraintMapping.setMethod("*");
+        constraintMapping.setPathSpec(path);
+        ((ConstraintSecurityHandler) context.getSecurityHandler())
+            .addConstraintMapping(constraintMapping);
+      }
+    }
+  }
+
 
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
