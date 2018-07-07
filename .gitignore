@@ -1,6 +1,11 @@
 
 # Build products
-target/
+**/target/
+**/.classpath
+**/.settings
+**/.checkstyle
+**/.project
+
 
 # IntelliJ data
 *.iml
