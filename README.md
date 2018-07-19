@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fconfluentinc%2Frest-utils.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fconfluentinc%2Frest-utils?ref=badge_shield)
+
 Confluent REST Utils
 ====================
 
@@ -32,3 +34,7 @@ License
 -------
 
 The project is licensed under the Apache 2 license.
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fconfluentinc%2Frest-utils.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fconfluentinc%2Frest-utils?ref=badge_large)
