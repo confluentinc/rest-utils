@@ -213,7 +213,7 @@ public class RestConfig extends AbstractConfig {
 
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
-  private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
+  private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
