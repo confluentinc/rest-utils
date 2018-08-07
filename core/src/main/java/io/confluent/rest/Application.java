@@ -279,13 +279,7 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
-    if (enableBasicAuth(authMethod)) {
-      String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-      List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      final SecurityHandler securityHandler = createSecurityHandler(realm, roles);
-      context.setSecurityHandler(securityHandler);
-    }
+    configureSecurityHandler(context);
 
     List<String> unsecurePaths = config.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
     setUnsecurePathConstraints(context, unsecurePaths);
@@ -345,6 +339,16 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
+  protected void configureSecurityHandler(ServletContextHandler context) {
+    String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(authMethod)) {
+      String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+      List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+      final SecurityHandler securityHandler = createBasicSecurityHandler(realm, roles);
+      context.setSecurityHandler(securityHandler);
+    }
+  }
+
   public Handler wrapWithGzipHandler(Handler handler) {
     if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
       GzipHandler gzip = new GzipHandler();
@@ -388,8 +392,18 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
-  static ConstraintSecurityHandler createSecurityHandler(String realm, List<String> roles) {
+  static ConstraintSecurityHandler createBasicSecurityHandler(String realm, List<String> roles) {
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+    ConstraintMapping constraintMapping = createGlobalAuthConstraint(roles);
+    securityHandler.addConstraintMapping(constraintMapping);
+    securityHandler.setAuthenticator(new BasicAuthenticator());
+    securityHandler.setLoginService(new JAASLoginService(realm));
+    securityHandler.setIdentityService(new DefaultIdentityService());
+    securityHandler.setRealmName(realm);
+    return securityHandler;
+  }
+
+  protected static ConstraintMapping createGlobalAuthConstraint(List<String> roles) {
     Constraint constraint = new Constraint();
     constraint.setAuthenticate(true);
     constraint.setRoles(roles.toArray(new String[0]));
@@ -397,12 +411,7 @@ public abstract class Application<T extends RestConfig> {
     constraintMapping.setConstraint(constraint);
     constraintMapping.setMethod("*");
     constraintMapping.setPathSpec("/*");
-    securityHandler.addConstraintMapping(constraintMapping);
-    securityHandler.setAuthenticator(new BasicAuthenticator());
-    securityHandler.setLoginService(new JAASLoginService(realm));
-    securityHandler.setIdentityService(new DefaultIdentityService());
-    securityHandler.setRealmName(realm);
-    return securityHandler;
+    return constraintMapping;
   }
 
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
