@@ -197,8 +197,6 @@ public abstract class Application<T extends RestConfig> {
         connector = new NetworkTrafficServerConnector(server);
       } else {
         SslContextFactory sslContextFactory = new SslContextFactory();
-        // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN.
-        // TODO: investigate this further. Would be better to use SubjectAltNames.
         if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
           sslContextFactory.setKeyStorePath(
               config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
