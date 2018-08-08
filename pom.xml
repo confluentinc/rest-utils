@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>common</artifactId>
-        <version>4.0.0</version>
+        <version>5.0.0</version>
     </parent>
 
     <artifactId>rest-utils-parent</artifactId>
@@ -47,14 +47,12 @@
     </modules>
 
     <properties>
+        <activation.version>1.1.1</activation.version>
         <apache.httpclient.version>4.5.3</apache.httpclient.version>
         <bouncycastle.bcpkix.version>1.58</bouncycastle.bcpkix.version>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
-        <!-- can't upgrade jersey past 2.25 until we move to java 8 -->
-        <jersey.version>2.25</jersey.version>
-        <!-- can't upgrade jetty past 9.2 until we move to java 8 -->
-        <jetty.version>9.2.22.v20170606</jetty.version>
-        <jackson.version>2.9.1</jackson.version>
+        <jersey.version>2.27</jersey.version>
+        <jetty.version>9.4.11.v20180605</jetty.version>
     </properties>
 
     <repositories>
@@ -86,9 +84,20 @@
                 <artifactId>jersey-container-servlet</artifactId>
                 <version>${jersey.version}</version>
             </dependency>
+            <!-- Jersey dependency that was available in the JDK before Java 9 -->
+            <dependency>
+                <groupId>javax.activation</groupId>
+                <artifactId>activation</artifactId>
+                <version>${activation.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.ext</groupId>
                 <artifactId>jersey-bean-validation</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jersey.inject</groupId>
+                <artifactId>jersey-hk2</artifactId>
                 <version>${jersey.version}</version>
             </dependency>
             <dependency>
@@ -129,6 +138,11 @@
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.eclipse.jetty.websocket</groupId>
+                <artifactId>javax-websocket-server-impl</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
                 <version>${jackson.version}</version>
@@ -160,13 +174,11 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcpkix-jdk15on</artifactId>
                 <version>${bouncycastle.bcpkix.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
                 <version>${apache.httpclient.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.test-framework</groupId>

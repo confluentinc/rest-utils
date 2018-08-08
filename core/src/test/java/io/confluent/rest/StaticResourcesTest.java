@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
@@ -69,12 +68,12 @@ public class StaticResourcesTest {
 
   @Test
   public void testStaticContent() throws Exception {
-    testGet("/index.html", 200, staticContent);
+    testGet("/index.html", 200, staticContent.trim());
   }
 
   @Test
   public void testDefaultServletMapsToIndex() throws Exception {
-    testGet("/", 200, staticContent);
+    testGet("/", 200, staticContent.trim());
   }
 
   @Test
@@ -89,7 +88,8 @@ public class StaticResourcesTest {
         .request()
         .get();
     assertEquals(expectedStatus, response.getStatus());
-    assertEquals(expectedMessage, response.readEntity(String.class));
+    final String entity = response.readEntity(String.class);
+    assertEquals(expectedMessage, entity == null ? null : entity.trim());
   }
 
   private static class StaticApplication extends Application<TestRestConfig> {
