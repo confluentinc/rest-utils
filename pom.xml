@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>common</artifactId>
-        <version>4.1.1</version>
+        <version>5.0.0</version>
     </parent>
 
     <artifactId>rest-utils-parent</artifactId>
@@ -51,11 +51,8 @@
         <apache.httpclient.version>4.5.3</apache.httpclient.version>
         <bouncycastle.bcpkix.version>1.58</bouncycastle.bcpkix.version>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
-        <java.version>1.7</java.version>
-        <!-- can't upgrade jersey past 2.25 until we move to java 8 -->
-        <jersey.version>2.25</jersey.version>
-        <!-- can't upgrade jetty past 9.2 until we move to java 8 -->
-        <jetty.version>9.2.24.v20180105</jetty.version>
+        <jersey.version>2.27</jersey.version>
+        <jetty.version>9.4.11.v20180605</jetty.version>
     </properties>
 
     <repositories>
@@ -99,6 +96,11 @@
                 <version>${jersey.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.glassfish.jersey.inject</groupId>
+                <artifactId>jersey-hk2</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.glassfish.jersey.media</groupId>
                 <artifactId>jersey-media-json-jackson</artifactId>
                 <version>${jersey.version}</version>
@@ -133,6 +135,11 @@
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-jaas</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.websocket</groupId>
+                <artifactId>javax-websocket-server-impl</artifactId>
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
