@@ -139,6 +139,11 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
+   * add any servlet filters that should be called before resource handling
+   */
+  protected void configurePreResourceHandling(ServletContextHandler context) {}
+
+  /**
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
@@ -269,6 +274,7 @@ public abstract class Application<T extends RestConfig> {
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
 
+
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");
 
@@ -297,7 +303,7 @@ public abstract class Application<T extends RestConfig> {
       }
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
-
+    configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
