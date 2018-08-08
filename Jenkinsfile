@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
 common {
-  slackChannel = '#clients-eng'
+  slackChannel = '#c3-oncall'
   upstreamProjects = 'confluentinc/common'
 }
