@@ -29,19 +29,23 @@ import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.Slf4jRequestLog;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.AsyncGzipFilter;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
+import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
@@ -63,6 +67,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import javax.servlet.DispatcherType;
+import javax.servlet.ServletException;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.config.ConfigException;
@@ -73,7 +78,6 @@ import io.confluent.common.metrics.MetricsReporter;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
-import io.confluent.rest.logging.Slf4jRequestLog;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
@@ -152,7 +156,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure and create the server.
    */
-  public Server createServer() throws RestConfigException {
+  public Server createServer() throws RestConfigException, ServletException {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
@@ -210,7 +214,7 @@ public abstract class Application<T extends RestConfig> {
           );
 
           if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-            sslContextFactory.setSslKeyManagerFactoryAlgorithm(
+            sslContextFactory.setKeyManagerFactoryAlgorithm(
                     config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
           }
         }
@@ -278,14 +282,6 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
-      FilterHolder gzipFilter = new FilterHolder(AsyncGzipFilter.class);
-      // do not check if .gz file already exists for the requested resource
-      gzipFilter.setInitParameter("checkGzExists", "false");
-      gzipFilter.setInitParameter("methods", "GET,POST");
-      context.addFilter(gzipFilter, "/*", null);
-    }
-
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
       String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
@@ -327,8 +323,22 @@ public abstract class Application<T extends RestConfig> {
     StatisticsHandler statsHandler = new StatisticsHandler();
     statsHandler.setHandler(handlers);
 
-    server.setHandler(statsHandler);
+    final ServletContextHandler webSocketServletContext =
+        new ServletContextHandler(ServletContextHandler.SESSIONS);
+    webSocketServletContext.setContextPath(
+        config.getString(RestConfig.WEBSOCKET_PATH_PREFIX_CONFIG)
+    );
+    final ContextHandlerCollection contexts = new ContextHandlerCollection();
+    contexts.setHandlers(new Handler[] {
+        statsHandler,
+        webSocketServletContext
+    });
 
+    server.setHandler(wrapWithGzipHandler(contexts));
+
+    ServerContainer container =
+        WebSocketServerContainerInitializer.configureContext(webSocketServletContext);
+    registerWebSocketEndpoints(container);
     int gracefulShutdownMs = getConfiguration().getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {
       server.setStopTimeout(gracefulShutdownMs);
@@ -336,6 +346,24 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  public Handler wrapWithGzipHandler(Handler handler) {
+    if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
+      GzipHandler gzip = new GzipHandler();
+      gzip.setIncludedMethods("GET", "POST");
+      gzip.setHandler(handler);
+      return gzip;
+    }
+    return handler;
+  }
+
+  /**
+   * Used to register any websocket endpoints that will live under the path configured via
+   * {@link io.confluent.rest.RestConfig#WEBSOCKET_PATH_PREFIX_CONFIG}
+   */
+  protected void registerWebSocketEndpoints(ServerContainer container) {
+
   }
 
   static void setUnsecurePathConstraints(
