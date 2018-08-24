@@ -19,6 +19,9 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.rest.auth.Authenticator;
+import io.confluent.rest.auth.NoCustomAuth;
+import io.confluent.rest.auth.jetty.PluggableAuthenticator;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -346,11 +349,46 @@ public abstract class Application<T extends RestConfig> {
   protected void configureSecurityHandler(ServletContextHandler context) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
-      String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-      List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      final SecurityHandler securityHandler = createBasicSecurityHandler(realm, roles);
-      context.setSecurityHandler(securityHandler);
+      context.setSecurityHandler(createBasicAuthHandler());
+    } else if (enableCustomAuth(authMethod)) {
+      context.setSecurityHandler(createCustomSecurityHandler());
     }
+  }
+
+  private SecurityHandler createBasicAuthHandler() {
+    String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+    List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+    return createBasicSecurityHandler(realm, roles);
+  }
+
+  protected SecurityHandler createCustomSecurityHandler() {
+    final Authenticator authenticator = getConfiguration().getConfiguredInstance(
+        RestConfig.AUTHENTICATION_METHOD_CUSTOM_TYPE_CONFIG,
+        Authenticator.class);
+
+    // Todo(ac): Maybe switch it so that the default impl handles Basic auth...?
+    if (authenticator instanceof NoCustomAuth) {
+      throw new ConfigException(RestConfig.AUTHENTICATION_METHOD_CUSTOM_TYPE_CONFIG,
+          authenticator.getClass(),
+          "A none-default authentication factory must be supplied"
+              + " for 'CUSTOM' the authentication method");
+    }
+
+    final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+
+    final List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+    if (!roles.isEmpty()) {
+      securityHandler.addConstraintMapping(createGlobalAuthConstraint(roles));
+    }
+
+    final PluggableAuthenticator jettyAuthenticator = new PluggableAuthenticator(authenticator);
+    securityHandler.setAuthenticator(jettyAuthenticator);
+    securityHandler.setLoginService(jettyAuthenticator.getLoginService());
+    securityHandler.setIdentityService(jettyAuthenticator.getIdentifyService());
+
+    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+    securityHandler.setRealmName(realm);
+    return securityHandler;
   }
 
   public Handler wrapWithGzipHandler(Handler handler) {
@@ -393,13 +431,18 @@ public abstract class Application<T extends RestConfig> {
 
 
   static boolean enableBasicAuth(String authMethod) {
-    return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
+    return RestConfig.AUTHENTICATION_METHOD_BASIC.equalsIgnoreCase(authMethod);
+  }
+
+  static boolean enableCustomAuth(String authMethod) {
+    return RestConfig.AUTHENTICATION_METHOD_CUSTOM.equalsIgnoreCase(authMethod);
   }
 
   static ConstraintSecurityHandler createBasicSecurityHandler(String realm, List<String> roles) {
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-    ConstraintMapping constraintMapping = createGlobalAuthConstraint(roles);
-    securityHandler.addConstraintMapping(constraintMapping);
+    if (!roles.isEmpty()) {
+      securityHandler.addConstraintMapping(createGlobalAuthConstraint(roles));
+    }
     securityHandler.setAuthenticator(new BasicAuthenticator());
     securityHandler.setLoginService(new JAASLoginService(realm));
     securityHandler.setIdentityService(new DefaultIdentityService());
