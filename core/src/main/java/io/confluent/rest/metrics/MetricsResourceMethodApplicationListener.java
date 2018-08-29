@@ -55,13 +55,13 @@ import io.confluent.rest.annotations.PerformanceMetric;
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
 
-  public static final String RUNTIME_TAGS_PROP_KEY = "_runtime_tags";
+  public static final String RUNTIME_TAGS_PROP_KEY = "_request_tags";
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
   private Map<String, String> metricTags;
   Time time;
-  private Map<Method, RuntimeMetrics> methodMetrics = new HashMap<>();
+  private Map<Method, RequestScopedMetrics> methodMetrics = new HashMap<>();
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
                                            Map<String,String> metricTags, Time time) {
@@ -77,7 +77,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     if (event.getType() == ApplicationEvent.Type.INITIALIZATION_FINISHED) {
       // Special null key is used for global stats
       MethodMetrics m = new MethodMetrics(null, null, this.metrics, metricGrpPrefix, metricTags);
-      methodMetrics.put(null, new RuntimeMetrics(m, new ConstructionContext(this)));
+      methodMetrics.put(null, new RequestScopedMetrics(m, new ConstructionContext(this)));
 
       for (final Resource resource : event.getResourceModel().getResources()) {
         for (final ResourceMethod method : resource.getAllMethods()) {
@@ -100,7 +100,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       MethodMetrics m = new MethodMetrics(method, annotation, metrics, metricGrpPrefix, metricTags);
       ConstructionContext context = new ConstructionContext(method, annotation, this);
-      methodMetrics.put(definitionMethod, new RuntimeMetrics(m, context));
+      methodMetrics.put(definitionMethod, new RequestScopedMetrics(m, context));
     }
   }
 
@@ -109,13 +109,13 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     return new MetricsRequestEventListener(methodMetrics, time);
   }
 
-  private static class RuntimeMetrics {
+  private static class RequestScopedMetrics {
     private final MethodMetrics methodMetrics;
     private final ConstructionContext context;
     private Map<SortedMap<String, String>, MethodMetrics> runtimeMetrics
         = new ConcurrentHashMap<>();
 
-    public RuntimeMetrics(MethodMetrics metrics, ConstructionContext context) {
+    public RequestScopedMetrics(MethodMetrics metrics, ConstructionContext context) {
       this.methodMetrics = metrics;
       this.context = context;
     }
@@ -131,17 +131,19 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
     public MethodMetrics create(Map<String, String> runtimeTags) {
       Map<String, String> allTags = new HashMap<>();
-      allTags.putAll(context.methodAppListener.metricTags);
+      allTags.putAll(context.metricTags);
       allTags.putAll(runtimeTags);
       return new MethodMetrics(context.method, context.performanceMetric,
-          context.methodAppListener.metrics, context.methodAppListener.metricGrpPrefix, allTags);
+          context.metrics, context.metricGrpPrefix, allTags);
     }
   }
 
   private static class ConstructionContext {
     private ResourceMethod method;
     private PerformanceMetric performanceMetric;
-    private MetricsResourceMethodApplicationListener methodAppListener;
+    private Map<String, String> metricTags;
+    private String metricGrpPrefix;
+    private Metrics metrics;
 
     public ConstructionContext(MetricsResourceMethodApplicationListener methodAppListener) {
       this(null, null, methodAppListener);
@@ -154,7 +156,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     ) {
       this.method = method;
       this.performanceMetric = performanceMetric;
-      this.methodAppListener = methodAppListener;
+      this.metrics = methodAppListener.metrics;
+      this.metricTags = methodAppListener.metricTags;
+      this.metricGrpPrefix = methodAppListener.metricGrpPrefix;
     }
   }
 
@@ -264,12 +268,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   private static class MetricsRequestEventListener implements RequestEventListener {
     private final Time time;
-    private final Map<Method, RuntimeMetrics> metrics;
+    private final Map<Method, RequestScopedMetrics> metrics;
     private long started;
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
 
-    public MetricsRequestEventListener(final Map<Method, RuntimeMetrics> metrics, Time time) {
+    public MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time) {
       this.metrics = metrics;
       this.time = time;
     }
@@ -316,16 +320,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         return null;
       }
 
-      RuntimeMetrics metrics = this.metrics.get(method.getInvocable().getDefinitionMethod());
+      RequestScopedMetrics metrics = this.metrics.get(method.getInvocable().getDefinitionMethod());
       if (metrics == null) {
         return null;
       }
 
-      Map tags = null;
-      if (event.getContainerRequest() != null) {
-        tags = (Map) event.getContainerRequest().getProperty(RUNTIME_TAGS_PROP_KEY);
-      }
-
+      Map tags = (Map) event.getContainerRequest().getProperty(RUNTIME_TAGS_PROP_KEY);
       if (tags == null) {
         return metrics.metrics();
       }
