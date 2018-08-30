@@ -301,6 +301,15 @@ public abstract class Application<T extends RestConfig> {
       if (allowedMethods != null && !allowedOrigins.trim().isEmpty()) {
         filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
       }
+      String controlMaxAge = getConfiguration().getString(RestConfig.ACCESS_CONTROL_MAX_AGE);
+      if (controlMaxAge != null && !controlMaxAge.trim().isEmpty()) {
+        filterHolder.setInitParameter(CrossOriginFilter.PREFLIGHT_MAX_AGE_PARAM, controlMaxAge);
+      }
+      String allowedHeaders = getConfiguration().getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
+      if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
+        filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
+      }
+
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
     configurePreResourceHandling(context);
