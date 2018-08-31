@@ -27,7 +27,7 @@ import io.confluent.rest.annotations.PerformanceMetric;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class RuntimeMetricsIntegrationTest {
+public class RequestScopedMetricsIntegrationTest {
 
   TestRestConfig config;
   SimpleApplication app;
@@ -49,7 +49,7 @@ public class RuntimeMetricsIntegrationTest {
 
   @Test
   @Category(IntegrationTest.class)
-  public void testRuntimeMetricsCreateAndLookup() throws InterruptedException {
+  public void testRequestScopedMetricsCreateAndLookup() throws InterruptedException {
     int numMetrics = app.numMetrics();
 
     // this request should create a new metric with runtime tags
@@ -116,7 +116,7 @@ public class RuntimeMetricsIntegrationTest {
     public void filter(ContainerRequestContext context) {
       Map<String, String> maps = new HashMap<>();
       maps.put("runtime_tag-1", "runtime_value-1");
-      context.setProperty(MetricsResourceMethodApplicationListener.RUNTIME_TAGS_PROP_KEY, maps);
+      context.setProperty(MetricsResourceMethodApplicationListener.REQUEST_TAGS_PROP_KEY, maps);
     }
   }
 

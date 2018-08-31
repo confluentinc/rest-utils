@@ -55,7 +55,7 @@ import io.confluent.rest.annotations.PerformanceMetric;
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
 
-  public static final String RUNTIME_TAGS_PROP_KEY = "_request_tags";
+  public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
@@ -112,7 +112,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   private static class RequestScopedMetrics {
     private final MethodMetrics methodMetrics;
     private final ConstructionContext context;
-    private Map<SortedMap<String, String>, MethodMetrics> runtimeMetrics
+    private Map<SortedMap<String, String>, MethodMetrics> requestMetrics
         = new ConcurrentHashMap<>();
 
     public RequestScopedMetrics(MethodMetrics metrics, ConstructionContext context) {
@@ -124,15 +124,15 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       return methodMetrics;
     }
 
-    public MethodMetrics metrics(Map<String, String> runtimeTags) {
-      TreeMap<String, String> key = new TreeMap<>(runtimeTags);
-      return runtimeMetrics.compute(key, (k, v) -> v == null ? create(k) : v);
+    public MethodMetrics metrics(Map<String, String> requestTags) {
+      TreeMap<String, String> key = new TreeMap<>(requestTags);
+      return requestMetrics.compute(key, (k, v) -> v == null ? create(k) : v);
     }
 
-    public MethodMetrics create(Map<String, String> runtimeTags) {
+    public MethodMetrics create(Map<String, String> requestTags) {
       Map<String, String> allTags = new HashMap<>();
       allTags.putAll(context.metricTags);
-      allTags.putAll(runtimeTags);
+      allTags.putAll(requestTags);
       return new MethodMetrics(context.method, context.performanceMetric,
           context.metrics, context.metricGrpPrefix, allTags);
     }
@@ -325,7 +325,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         return null;
       }
 
-      Map tags = (Map) event.getContainerRequest().getProperty(RUNTIME_TAGS_PROP_KEY);
+      Map tags = (Map) event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
       if (tags == null) {
         return metrics.metrics();
       }
