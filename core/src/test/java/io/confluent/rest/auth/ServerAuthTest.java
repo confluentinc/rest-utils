@@ -18,7 +18,6 @@ package io.confluent.rest.auth;
 
 import static org.apache.kafka.common.config.ConfigDef.NO_DEFAULT_VALUE;
 
-import com.sun.org.apache.xml.internal.serialize.OutputFormat;
 import io.confluent.common.Configurable;
 import io.confluent.common.utils.IntegrationTest;
 import io.confluent.rest.RestConfig;
