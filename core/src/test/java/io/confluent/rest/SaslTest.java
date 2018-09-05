@@ -337,10 +337,6 @@ public class SaslTest {
 
   @ServerEndpoint(value = "/test")
   public static class WSEndpoint {
-    public WSEndpoint() {
-
-    }
-
     @OnOpen
     public void onOpen(final Session session, final EndpointConfig endpointConfig) {
       session.getAsyncRemote().sendText("Test message",
