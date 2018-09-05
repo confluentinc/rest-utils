@@ -39,7 +39,9 @@ import org.asynchttpclient.ws.WebSocketUpgradeHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,10 +88,13 @@ public class SaslTest {
   private SaslTestApplication app;
   private CloseableHttpClient httpclient;
 
+  @Rule
+  public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
   @Before
   public void setUp() throws Exception {
-    File jaasFile = File.createTempFile("jaas", ".config");
-    File loginPropertiesFile = File.createTempFile("login", ".properties");
+    File jaasFile = tmpFolder.newFile("jaas.config");
+    File loginPropertiesFile = tmpFolder.newFile("login.properties");
 
     String jaas = "c3 {\n"
                   + "  org.eclipse.jetty.jaas.spi.PropertyFileLoginModule required\n"
