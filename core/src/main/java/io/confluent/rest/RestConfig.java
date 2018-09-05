@@ -23,6 +23,8 @@ import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
+import io.confluent.rest.auth.Authenticator;
+import io.confluent.rest.auth.NoCustomAuth;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -179,27 +181,41 @@ public class RestConfig extends AbstractConfig {
       + "server certificate. Leave blank to use Jetty's default.";
   protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT = "";
 
+  public static final String AUTHENTICATION_METHOD_CUSTOM_TYPE_CONFIG =
+      "authentication.custom.class";
+
+  private static final String AUTHENTICATION_METHOD_CUSTOM_TYPE_DOC =
+      "A custom authentication implementation. Must implement " + Authenticator.class.getName();
+
   public static final String AUTHENTICATION_METHOD_CONFIG = "authentication.method";
   public static final String AUTHENTICATION_METHOD_NONE = "NONE";
   public static final String AUTHENTICATION_METHOD_BASIC = "BASIC";
+  public static final String AUTHENTICATION_METHOD_CUSTOM = "CUSTOM";
   public static final String AUTHENTICATION_METHOD_DOC =
-      "Method of authentication. Must be BASIC to enable authentication. "
-      + "You must supply a valid JAAS config file for the 'java.security.auth.login.config'"
-      + " system property for the appropriate authentication provider.";
+      "Method of authentication. Must be BASIC or CUSTOM to enable authentication. "
+      + "For BASIC, you must supply a valid JAAS config file for the "
+      + "'java.security.auth.login.config' system property for the appropriate "
+      + "authentication provider. "
+      + "For CUSTOM, you must supply your own authentication implementation via '"
+      + AUTHENTICATION_METHOD_CUSTOM_TYPE_CONFIG + "'";
+
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
       ConfigDef.ValidString.in(
           Arrays.asList(
               AUTHENTICATION_METHOD_NONE,
-              AUTHENTICATION_METHOD_BASIC
+              AUTHENTICATION_METHOD_BASIC,
+              AUTHENTICATION_METHOD_CUSTOM
           )
       );
+
+
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
   public static final String AUTHENTICATION_REALM_DOC =
       "Security realm to be used in authentication.";
   public static final String AUTHENTICATION_ROLES_CONFIG = "authentication.roles";
   public static final String AUTHENTICATION_ROLES_DOC = "Valid roles to authenticate against.";
   public static final List<String> AUTHENTICATION_ROLES_DEFAULT =
-      Collections.unmodifiableList(Arrays.asList("*"));
+      Collections.unmodifiableList(Collections.singletonList("")); // Defaults to no role required.
 
   public static final String AUTHENTICATION_SKIP_PATHS = "authentication.skip.paths";
   public static final String AUTHENTICATION_SKIP_PATHS_DOC = "Comma separated list of paths that "
@@ -393,6 +409,12 @@ public class RestConfig extends AbstractConfig {
             SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT,
             Importance.LOW,
             SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DOC
+        ).define(
+            AUTHENTICATION_METHOD_CUSTOM_TYPE_CONFIG,
+            Type.CLASS,
+            NoCustomAuth.class,
+            Importance.LOW,
+            AUTHENTICATION_METHOD_CUSTOM_TYPE_DOC
         ).define(
             AUTHENTICATION_METHOD_CONFIG,
             Type.STRING,

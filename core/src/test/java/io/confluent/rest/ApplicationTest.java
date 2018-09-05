@@ -110,8 +110,7 @@ public class ApplicationTest {
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
     assertNotNull(securityHandler.getAuthenticator());
-    assertEquals(1, securityHandler.getConstraintMappings().size());
-    assertFalse(securityHandler.getConstraintMappings().get(0).getConstraint().isAnyRole());
+    assertEquals(0, securityHandler.getConstraintMappings().size());
   }
 
   @Test
