@@ -161,7 +161,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure and create the server.
    */
-  public Server createServer() throws RestConfigException, ServletException {
+  public Server createServer() throws ServletException {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
@@ -323,6 +323,9 @@ public abstract class Application<T extends RestConfig> {
     webSocketServletContext.setContextPath(
         config.getString(RestConfig.WEBSOCKET_PATH_PREFIX_CONFIG)
     );
+
+    configureSecurityHandler(webSocketServletContext);
+
     final ContextHandlerCollection contexts = new ContextHandlerCollection();
     contexts.setHandlers(new Handler[] {
         statsHandler,
