@@ -78,7 +78,7 @@ public class CustomInitTest {
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     props.put(RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
         Collections.singletonList(CustomRestInitializer.class.getName()));
-    props.put(RestConfig.WEBSOCKET_SERVLET_INITIALIZER_CLASSES_CONFIG,
+    props.put(RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG,
         Collections.singletonList(CustomWsInitializer.class.getName()));
 
     app = new CustomInitTestApplication(new TestRestConfig(props));

@@ -17,7 +17,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG;
-import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZER_CLASSES_CONFIG;
+import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
@@ -344,7 +344,7 @@ public abstract class Application<T extends RestConfig> {
         WebSocketServerContainerInitializer.configureContext(webSocketContext);
     registerWebSocketEndpoints(container);
 
-    applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZER_CLASSES_CONFIG);
+    applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     int gracefulShutdownMs = getConfiguration().getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {
