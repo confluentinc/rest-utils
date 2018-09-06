@@ -23,9 +23,10 @@ import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import javax.websocket.EndpointConfig;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
@@ -162,10 +163,18 @@ public class CustomInitTest {
     }
   }
 
-  public static class CustomRestInitializer implements BiConsumer<ServletContextHandler, RestConfig> {
+  public static class CustomRestInitializer
+      implements Consumer<ServletContextHandler>, io.confluent.common.Configurable {
+
+    private RestConfig config;
 
     @Override
-    public void accept(final ServletContextHandler context, final RestConfig config) {
+    public void configure(final Map<String, ?> config) {
+      this.config = new RestConfig(RestConfig.baseConfigDef(), config);
+    }
+
+    @Override
+    public void accept(final ServletContextHandler context) {
       final List<String> roles = config.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
       final Constraint constraint = new Constraint();
       constraint.setAuthenticate(true);
@@ -210,9 +219,9 @@ public class CustomInitTest {
     }
   }
 
-  public static class CustomWsInitializer implements BiConsumer<ServletContextHandler, RestConfig> {
+  public static class CustomWsInitializer implements Consumer<ServletContextHandler> {
     @Override
-    public void accept(final ServletContextHandler context, final RestConfig config) {
+    public void accept(final ServletContextHandler context) {
       try {
         ServerContainer container = context.getBean(ServerContainer.class);
 

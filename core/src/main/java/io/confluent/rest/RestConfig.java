@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.eclipse.jetty.servlet.ServletContextHandler;
 
 public class RestConfig extends AbstractConfig {
   public static final String DEBUG_CONFIG = "debug";
@@ -219,8 +220,7 @@ public class RestConfig extends AbstractConfig {
       "rest.servlet.initializor.classes";
   public static final String REST_SERVLET_INITIALIZERS_CLASSES_DOC =
       "Defines one or more initializer for the rest endpoint's ServletContextHandler. "
-          + "Each initializer must implement "
-          + "BiConsumer<ServletContextHandler, ? extends RestConfig>. "
+          + "Each initializer must implement Consumer<ServletContextHandler>. "
           + "It will be called to perform initialization of the handler, in order. "
           + "This is an internal feature and subject to change, "
           + "including changes to the Jetty version";
@@ -229,8 +229,7 @@ public class RestConfig extends AbstractConfig {
       "websocket.servlet.initializor.classes";
   public static final String WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC =
       "Defines one or more initializer for the websocket endpoint's ServletContextHandler. "
-          + "Each initializer must implement "
-          + "BiConsumer<ServletContextHandler, ? extends RestConfig>. "
+          + "Each initializer must implement <ServletContextHandler>. "
           + "It will be called to perform custom initialization of the handler, in order. "
           + "This is an internal feature and subject to change, "
           + "including changes to the Jetty version";
@@ -473,7 +472,7 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestConfig(ConfigDef definition) {
-    super(definition, new TreeMap<Object,Object>());
+    super(definition, new TreeMap<>());
   }
 
   public Time getTime() {
