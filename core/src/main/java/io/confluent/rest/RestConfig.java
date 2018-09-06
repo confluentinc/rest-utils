@@ -215,6 +215,25 @@ public class RestConfig extends AbstractConfig {
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
   private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = true;
 
+  public static final String REST_SERVLET_INITIALIZERS_CLASSES_CONFIG =
+      "rest.servlet.initializor.classes";
+  public static final String REST_SERVLET_INITIALIZER_CLASSES_DOC =
+      "Defines one or more initializer for the rest endpoint's ServletContextHandler. "
+          + "Each initializer must implement Consumer<ServletContextHandler>. "
+          + "It will be called to perform initialization of the handler, in order. "
+          + "This is an internal feature and subject to change, "
+          + "including changes to the Jetty version";
+
+  public static final String WEBSOCKET_SERVLET_INITIALIZER_CLASSES_CONFIG =
+      "websocket.servlet.initializor.classes";
+  public static final String WEBSOCKET_SERVLET_INITIALIZER_CLASSES_DOC =
+      "Defines one or more initializer for the websocket endpoint's ServletContextHandler. "
+          + "Each initializer must implement Consumer<ServletContextHandler>. "
+          + "It will be called to perform custom initialization of the handler, in order. "
+          + "This is an internal feature and subject to change, "
+          + "including changes to the Jetty version";
+
+
   public static ConfigDef baseConfigDef() {
     return new ConfigDef()
         .define(
@@ -430,6 +449,18 @@ public class RestConfig extends AbstractConfig {
             "/ws",
             Importance.LOW,
             WEBSOCKET_PATH_PREFIX_DOC
+        ).define(
+            REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
+            Type.LIST,
+            Collections.emptyList(),
+            Importance.LOW,
+            REST_SERVLET_INITIALIZER_CLASSES_DOC
+        ).define(
+            WEBSOCKET_SERVLET_INITIALIZER_CLASSES_CONFIG,
+            Type.LIST,
+            Collections.emptyList(),
+            Importance.LOW,
+            WEBSOCKET_SERVLET_INITIALIZER_CLASSES_DOC
         );
   }
 
