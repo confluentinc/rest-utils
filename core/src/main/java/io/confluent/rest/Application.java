@@ -22,7 +22,7 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -360,10 +360,10 @@ public abstract class Application<T extends RestConfig> {
       ServletContextHandler context,
       String initializerConfigName) {
     getConfiguration()
-        .getConfiguredInstances(initializerConfigName, Consumer.class)
+        .getConfiguredInstances(initializerConfigName, BiConsumer.class)
         .forEach(initializer -> {
           try {
-            initializer.accept(context);
+            initializer.accept(context, getConfiguration());
           } catch (final Exception e) {
             throw new RuntimeException("Exception from custom initializer. "
                 + "config:" + initializerConfigName + ", initializer" + initializer, e);

@@ -219,7 +219,8 @@ public class RestConfig extends AbstractConfig {
       "rest.servlet.initializor.classes";
   public static final String REST_SERVLET_INITIALIZERS_CLASSES_DOC =
       "Defines one or more initializer for the rest endpoint's ServletContextHandler. "
-          + "Each initializer must implement Consumer<ServletContextHandler>. "
+          + "Each initializer must implement "
+          + "BiConsumer<ServletContextHandler, ? extends RestConfig>. "
           + "It will be called to perform initialization of the handler, in order. "
           + "This is an internal feature and subject to change, "
           + "including changes to the Jetty version";
@@ -228,7 +229,8 @@ public class RestConfig extends AbstractConfig {
       "websocket.servlet.initializor.classes";
   public static final String WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC =
       "Defines one or more initializer for the websocket endpoint's ServletContextHandler. "
-          + "Each initializer must implement Consumer<ServletContextHandler>. "
+          + "Each initializer must implement "
+          + "BiConsumer<ServletContextHandler, ? extends RestConfig>. "
           + "It will be called to perform custom initialization of the handler, in order. "
           + "This is an internal feature and subject to change, "
           + "including changes to the Jetty version";

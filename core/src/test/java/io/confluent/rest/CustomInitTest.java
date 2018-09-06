@@ -22,9 +22,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import javax.websocket.EndpointConfig;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
@@ -76,6 +77,7 @@ public class CustomInitTest {
     final Properties props = new Properties();
     props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    props.put(RestConfig.AUTHENTICATION_ROLES_CONFIG, "SomeRequiredRole");
     props.put(RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
         Collections.singletonList(CustomRestInitializer.class.getName()));
     props.put(RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG,
@@ -160,14 +162,16 @@ public class CustomInitTest {
     }
   }
 
-  public static class CustomRestInitializer implements Consumer<ServletContextHandler> {
+  public static class CustomRestInitializer implements BiConsumer<ServletContextHandler, RestConfig> {
 
     @Override
-    public void accept(final ServletContextHandler context) {
+    public void accept(final ServletContextHandler context, final RestConfig config) {
+      final List<String> roles = config.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
       final Constraint constraint = new Constraint();
       constraint.setAuthenticate(true);
-      constraint.setRoles(new String[]{"SomeRequiredRole"});
-      ConstraintMapping constraintMapping = new ConstraintMapping();
+      constraint.setRoles(roles.toArray(new String[0]));
+
+      final ConstraintMapping constraintMapping = new ConstraintMapping();
       constraintMapping.setConstraint(constraint);
       constraintMapping.setMethod("*");
       constraintMapping.setPathSpec("/*");
@@ -175,7 +179,7 @@ public class CustomInitTest {
       final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
       securityHandler.addConstraintMapping(constraintMapping);
       securityHandler.setAuthenticator(new BasicAuthenticator());
-      securityHandler.setLoginService(new TestLoginService("TestRealm"));
+      securityHandler.setLoginService(new TestLoginService());
       securityHandler.setRealmName("TestRealm");
 
      context.setSecurityHandler(securityHandler);
@@ -183,9 +187,6 @@ public class CustomInitTest {
   }
 
   private static class TestLoginService extends AbstractLoginService {
-    private TestLoginService(final String realm) {
-    }
-
     @Override
     protected String[] loadRoleInfo(final UserPrincipal user) {
       if (user.getName().equals("jun")) {
@@ -209,10 +210,9 @@ public class CustomInitTest {
     }
   }
 
-  public static class CustomWsInitializer implements Consumer<ServletContextHandler> {
-
+  public static class CustomWsInitializer implements BiConsumer<ServletContextHandler, RestConfig> {
     @Override
-    public void accept(final ServletContextHandler context) {
+    public void accept(final ServletContextHandler context, final RestConfig config) {
       try {
         ServerContainer container = context.getBean(ServerContainer.class);
 
