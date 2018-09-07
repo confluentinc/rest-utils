@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import org.eclipse.jetty.servlet.ServletContextHandler;
 
 public class RestConfig extends AbstractConfig {
   public static final String DEBUG_CONFIG = "debug";
@@ -235,7 +234,9 @@ public class RestConfig extends AbstractConfig {
           + "including changes to the Jetty version";
 
 
+  // CHECKSTYLE_RULES.OFF: MethodLength
   public static ConfigDef baseConfigDef() {
+    // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
         .define(
             DEBUG_CONFIG,
