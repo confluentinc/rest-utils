@@ -234,9 +234,7 @@ public class RestConfig extends AbstractConfig {
           + "including changes to the Jetty version";
 
 
-  // CHECKSTYLE_RULES.OFF: MethodLength
   public static ConfigDef baseConfigDef() {
-    // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
         .define(
             DEBUG_CONFIG,
