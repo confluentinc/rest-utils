@@ -205,9 +205,6 @@
                     <execution>
                         <id>validate</id>
                         <phase>validate</phase>
-                        <configuration>
-                            <suppressionsLocation>checkstyle/suppressions.xml</suppressionsLocation>
-                        </configuration>
                         <goals>
                             <goal>check</goal>
                         </goals>
