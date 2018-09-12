@@ -16,9 +16,13 @@
 
 package io.confluent.rest;
 
+import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG;
+import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import java.util.function.Consumer;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -148,6 +152,12 @@ public abstract class Application<T extends RestConfig> {
    * handling but before falling back to the default servlet
    */
   protected void configurePostResourceHandling(ServletContextHandler context) {}
+
+  /**
+   * add any servlet filters that should be called after resource
+   * handling but before falling back to the default servlet
+   */
+  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {}
 
   /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
@@ -308,6 +318,8 @@ public abstract class Application<T extends RestConfig> {
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
 
+    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
+
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
 
@@ -318,25 +330,30 @@ public abstract class Application<T extends RestConfig> {
     StatisticsHandler statsHandler = new StatisticsHandler();
     statsHandler.setHandler(handlers);
 
-    final ServletContextHandler webSocketServletContext =
+    final ServletContextHandler webSocketContext =
         new ServletContextHandler(ServletContextHandler.SESSIONS);
-    webSocketServletContext.setContextPath(
+    webSocketContext.setContextPath(
         config.getString(RestConfig.WEBSOCKET_PATH_PREFIX_CONFIG)
     );
 
-    configureSecurityHandler(webSocketServletContext);
+    configureSecurityHandler(webSocketContext);
 
     final ContextHandlerCollection contexts = new ContextHandlerCollection();
     contexts.setHandlers(new Handler[] {
         statsHandler,
-        webSocketServletContext
+        webSocketContext
     });
 
     server.setHandler(wrapWithGzipHandler(contexts));
 
     ServerContainer container =
-        WebSocketServerContainerInitializer.configureContext(webSocketServletContext);
+        WebSocketServerContainerInitializer.configureContext(webSocketContext);
     registerWebSocketEndpoints(container);
+
+    configureWebSocketPostResourceHandling(webSocketContext);
+
+    applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG);
+
     int gracefulShutdownMs = getConfiguration().getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {
       server.setStopTimeout(gracefulShutdownMs);
@@ -344,6 +361,22 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void applyCustomConfiguration(
+      ServletContextHandler context,
+      String initializerConfigName) {
+    getConfiguration()
+        .getConfiguredInstances(initializerConfigName, Consumer.class)
+        .forEach(initializer -> {
+          try {
+            initializer.accept(context);
+          } catch (final Exception e) {
+            throw new RuntimeException("Exception from custom initializer. "
+                + "config:" + initializerConfigName + ", initializer" + initializer, e);
+          }
+        });
   }
 
   protected void configureSecurityHandler(ServletContextHandler context) {
