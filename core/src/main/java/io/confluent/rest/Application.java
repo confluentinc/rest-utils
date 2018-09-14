@@ -90,7 +90,9 @@ import io.confluent.rest.validation.JacksonMessageBodyProvider;
  * resources with the JAX-RS server. Use createServer() to get a fully-configured, ready to run
  * Jetty server.
  */
+// CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public abstract class Application<T extends RestConfig> {
+  // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -171,7 +173,10 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure and create the server.
    */
+  // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
   public Server createServer() throws ServletException {
+    // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
+
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 

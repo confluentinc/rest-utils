@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.confluent.rest;
 
 // This is borrowed directly from DropWizard's Generics class. You can find the original at:
@@ -26,6 +27,7 @@ import java.lang.reflect.TypeVariable;
  * Helper methods for class type parameters.
  * @see <a href="http://gafter.blogspot.com/2006/12/super-type-tokens.html">Super Type Tokens</a>
  */
+// CHECKSTYLE:OFF
 public class Generics {
   private Generics() { /* singleton */ }
 
@@ -92,4 +94,4 @@ public class Generics {
     return null;
   }
 }
-
+// CHECKSTYLE:ON

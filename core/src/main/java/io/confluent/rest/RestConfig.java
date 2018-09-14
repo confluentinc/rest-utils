@@ -233,8 +233,9 @@ public class RestConfig extends AbstractConfig {
           + "This is an internal feature and subject to change, "
           + "including changes to the Jetty version";
 
-
+  // CHECKSTYLE_RULES.OFF: MethodLength
   public static ConfigDef baseConfigDef() {
+    // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
         .define(
             DEBUG_CONFIG,
