@@ -277,6 +277,8 @@ public abstract class Application<T extends RestConfig> {
           sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
         }
 
+        sslContextFactory.setRenegotiationAllowed(false);
+
         connector = new NetworkTrafficServerConnector(server, sslContextFactory);
       }
 
