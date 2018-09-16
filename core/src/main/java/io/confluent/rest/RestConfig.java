@@ -75,6 +75,16 @@ public class RestConfig extends AbstractConfig {
       "Set value to Jetty Access-Control-Allow-Origin header for specified methods";
   protected static final String ACCESS_CONTROL_ALLOW_METHODS_DEFAULT = "";
 
+  public static final String ACCESS_CONTROL_ALLOW_HEADERS = "access.control.allow.headers";
+  protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DOC =
+        "Set value to Jetty Access-Control-Allow-Headers header for specified methods";
+  protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
+
+  public static final String ACCESS_CONTROL_MAX_AGE = "access.control.max.age";
+  protected static final String ACCESS_CONTROL_MAX_AGE_DOC =
+        "Set value to Jetty Access-Control-Max-Age header for specified methods";
+  protected static final String ACCESS_CONTROL_MAX_AGE_DEFAULT = "";
+
 
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
@@ -285,6 +295,18 @@ public class RestConfig extends AbstractConfig {
             ACCESS_CONTROL_ALLOW_METHODS_DEFAULT,
             Importance.LOW,
             ACCESS_CONTROL_ALLOW_METHODS_DOC
+        ).define(
+            ACCESS_CONTROL_ALLOW_HEADERS,
+            Type.STRING,
+            ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT,
+            Importance.LOW,
+            ACCESS_CONTROL_ALLOW_HEADERS_DOC
+        ).define(
+            ACCESS_CONTROL_MAX_AGE,
+            Type.LONG,
+            ACCESS_CONTROL_MAX_AGE_DEFAULT,
+            Importance.LOW,
+            ACCESS_CONTROL_MAX_AGE_DOC
         ).define(
             REQUEST_LOGGER_NAME_CONFIG,
             Type.STRING,
