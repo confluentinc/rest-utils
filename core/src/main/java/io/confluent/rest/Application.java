@@ -305,19 +305,20 @@ public abstract class Application<T extends RestConfig> {
     List<String> unsecurePaths = config.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
     setUnsecurePathConstraints(context, unsecurePaths);
 
-    String allowedOrigins = getConfiguration().getString(
-        RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG
-    );
-    if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
+    if (isCorsEnabled()) {
+      String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
+      String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
       filterHolder.setName("cross-origin");
-      filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins);
-      String allowedMethods = getConfiguration().getString(
-          RestConfig.ACCESS_CONTROL_ALLOW_METHODS
+      filterHolder.setInitParameter(
+          CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins
+
       );
-      if (allowedMethods != null && !allowedOrigins.trim().isEmpty()) {
+      if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
         filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
       }
+      // handle preflight cors requests at the filter level, do not forward down the filter chain
+      filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
     configurePreResourceHandling(context);
@@ -368,6 +369,11 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  private boolean isCorsEnabled() {
+    String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
+    return allowedOrigins != null && !allowedOrigins.trim().isEmpty();
   }
 
   @SuppressWarnings("unchecked")
@@ -434,12 +440,11 @@ public abstract class Application<T extends RestConfig> {
     }
   }
 
-
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
-  static ConstraintSecurityHandler createBasicSecurityHandler(String realm, List<String> roles) {
+  protected ConstraintSecurityHandler createBasicSecurityHandler(String realm, List<String> roles) {
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
     ConstraintMapping constraintMapping = createGlobalAuthConstraint(roles);
     securityHandler.addConstraintMapping(constraintMapping);
@@ -450,13 +455,17 @@ public abstract class Application<T extends RestConfig> {
     return securityHandler;
   }
 
-  protected static ConstraintMapping createGlobalAuthConstraint(List<String> roles) {
+  protected ConstraintMapping createGlobalAuthConstraint(List<String> roles) {
     Constraint constraint = new Constraint();
     constraint.setAuthenticate(true);
     constraint.setRoles(roles.toArray(new String[0]));
     ConstraintMapping constraintMapping = new ConstraintMapping();
     constraintMapping.setConstraint(constraint);
     constraintMapping.setMethod("*");
+    if (isCorsEnabled()) {
+      // CORS preflight requests must be allowed without authentication
+      constraintMapping.setMethodOmissions(new String[]{"OPTIONS"});
+    }
     constraintMapping.setPathSpec("/*");
     return constraintMapping;
   }
