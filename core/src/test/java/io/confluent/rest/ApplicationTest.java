@@ -16,12 +16,11 @@
 
 package io.confluent.rest;
 
-import io.confluent.common.config.ConfigException;
-
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.net.URI;
@@ -29,6 +28,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
+
+import javax.ws.rs.core.Configurable;
+
+import io.confluent.common.config.ConfigException;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -40,6 +44,26 @@ import static org.junit.Assert.assertTrue;
 public class ApplicationTest {
 
   public static final String REALM = "realm";
+
+  TestApplication application;
+
+  public class TestApplication extends Application<RestConfig> {
+
+    public TestApplication(RestConfig config) {
+      super(config);
+    }
+
+    @Override
+    public void setupResources(Configurable<?> config, RestConfig appConfig) {
+
+    }
+  }
+
+  @Before
+  public void setup() {
+    Properties props = new Properties();
+    application = new TestApplication(new TestRestConfig(props));
+  }
 
   @Test
   public void testParseListenersDeprecated() {
@@ -55,7 +79,7 @@ public class ApplicationTest {
     List<String> listenersConfig = new ArrayList<String>();
     listenersConfig.add("http://localhost:123");
     listenersConfig.add("https://localhost:124");
-    List<URI> listeners = Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+    List<URI> listeners = application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
     assertEquals("Should have two listeners.", 2, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "localhost", 123);
     assertExpectedUri(listeners.get(1), "https", "localhost", 124);
@@ -105,7 +129,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithNoRoles() {
-    ConstraintSecurityHandler securityHandler = Application.createBasicSecurityHandler(REALM, Collections.emptyList());
+    ConstraintSecurityHandler securityHandler = application.createBasicSecurityHandler(REALM, Collections.emptyList());
     assertEquals(securityHandler.getRealmName(), REALM);
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -116,7 +140,7 @@ public class ApplicationTest {
 
   @Test
   public void testCreateSecurityHandlerWithAllRoles() {
-    ConstraintSecurityHandler securityHandler = Application.createBasicSecurityHandler(REALM, Arrays.asList("*"));
+    ConstraintSecurityHandler securityHandler = application.createBasicSecurityHandler(REALM, Arrays.asList("*"));
     assertEquals(securityHandler.getRealmName(), REALM);
     assertTrue(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -128,7 +152,7 @@ public class ApplicationTest {
   @Test
   public void testCreateSecurityHandlerWithSpecificRoles() {
     final List<String> roles = Arrays.asList("roleA", "roleB");
-    ConstraintSecurityHandler securityHandler = Application.createBasicSecurityHandler(REALM, roles);
+    ConstraintSecurityHandler securityHandler = application.createBasicSecurityHandler(REALM, roles);
     assertEquals(securityHandler.getRealmName(), REALM);
     assertFalse(securityHandler.getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
@@ -144,7 +168,7 @@ public class ApplicationTest {
   public void testSetUnsecurePathConstraintsWithMultipleUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
     final List<String> roles = Arrays.asList("roleA", "roleB");
-    ConstraintSecurityHandler securityHandler = Application.createBasicSecurityHandler(REALM, roles);
+    ConstraintSecurityHandler securityHandler = application.createBasicSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 3);
   }
@@ -153,7 +177,7 @@ public class ApplicationTest {
   public void testSetUnsecurePathConstraintsWithSingleUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
     final List<String> roles = Arrays.asList("roleA", "roleB");
-    ConstraintSecurityHandler securityHandler = Application.createBasicSecurityHandler(REALM, roles);
+    ConstraintSecurityHandler securityHandler = application.createBasicSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 1);
   }
@@ -162,7 +186,7 @@ public class ApplicationTest {
   public void testSetUnsecurePathConstraintsWithNoUnSecure(){
     ServletContextHandler servletContextHandler  = new ServletContextHandler();
     final List<String> roles = Arrays.asList("roleA", "roleB");
-    ConstraintSecurityHandler securityHandler = Application.createBasicSecurityHandler(REALM, roles);
+    ConstraintSecurityHandler securityHandler = application.createBasicSecurityHandler(REALM, roles);
     servletContextHandler.setSecurityHandler(securityHandler);
     setAndAssertUnsecureConstraints(servletContextHandler, securityHandler, 0);
   }
