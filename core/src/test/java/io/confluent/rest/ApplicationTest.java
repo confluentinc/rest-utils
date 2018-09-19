@@ -27,6 +27,7 @@ import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,24 +78,16 @@ public class ApplicationTest {
     TestRegistryExtension.CLOSE_CALLED.set(false);
   }
 
-  TestApplication application;
-
-  public class TestApplication extends Application<RestConfig> {
-
-    public TestApplication(RestConfig config) {
-      super(config);
-    }
-
-    @Override
-    public void setupResources(Configurable<?> config, RestConfig appConfig) {
-
-    }
-  }
+  private TestApp application;
 
   @Before
-  public void setup() {
-    Properties props = new Properties();
-    application = new TestApplication(new TestRestConfig(props));
+  public void setup() throws Exception {
+    application = new TestApp();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    application.stop();
   }
 
   @Test
