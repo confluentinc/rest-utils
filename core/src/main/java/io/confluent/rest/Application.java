@@ -53,6 +53,7 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -79,6 +80,7 @@ import io.confluent.common.metrics.MetricsReporter;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import io.confluent.rest.extention.ResourceExtension;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
@@ -98,6 +100,7 @@ public abstract class Application<T extends RestConfig> {
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
+  protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -186,6 +189,7 @@ public abstract class Application<T extends RestConfig> {
     combinedMetricsTags.putAll(configuredTags);
 
     configureBaseApplication(resourceConfig, combinedMetricsTags);
+    configureResourceExtensions(resourceConfig);
     setupResources(resourceConfig, getConfiguration());
 
     // Configure the servlet container
@@ -197,7 +201,7 @@ public abstract class Application<T extends RestConfig> {
       protected void doStop() throws Exception {
         super.doStop();
         Application.this.metrics.close();
-        Application.this.onShutdown();
+        Application.this.doShutdown();
         Application.this.shutdownLatch.countDown();
       }
     };
@@ -368,6 +372,20 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void configureResourceExtensions(final ResourceConfig resourceConfig) {
+    resourceExtensions.addAll(getConfiguration().getConfiguredInstances(
+        RestConfig.RESOURCE_EXTENSION_CLASSES_CONFIG, ResourceExtension.class));
+
+    resourceExtensions.forEach(ext -> {
+      try {
+        ext.register(resourceConfig, this);
+      } catch (Exception e) {
+        throw new RuntimeException("Exception throw by resource extension. ext:" + ext, e);
+      }
+    });
   }
 
   @SuppressWarnings("unchecked")
@@ -627,6 +645,18 @@ public abstract class Application<T extends RestConfig> {
    */
   public void stop() throws Exception {
     server.stop();
+  }
+
+  private void doShutdown() {
+    resourceExtensions.forEach(ext -> {
+      try {
+        ext.close();
+      } catch (final IOException e) {
+        log.error("Error closing the extension resource. ext:" + ext, e);
+      }
+    });
+
+    onShutdown();
   }
 
   /**

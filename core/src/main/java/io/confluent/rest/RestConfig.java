@@ -23,6 +23,7 @@ import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
+import io.confluent.rest.extention.ResourceExtension;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -214,6 +215,11 @@ public class RestConfig extends AbstractConfig {
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
   private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = true;
+
+  public static final String RESOURCE_EXTENSION_CLASSES_CONFIG = "resource.extension.classes";
+  private static final String RESOURCE_EXTENSION_CLASSES_DOC = ""
+      + "Zero or more classes that implement '" + ResourceExtension.class.getName()
+      + "'. Each extension type will be called to add extensions to the rest server on start up.";
 
   public static final String REST_SERVLET_INITIALIZERS_CLASSES_CONFIG =
       "rest.servlet.initializor.classes";
@@ -450,6 +456,12 @@ public class RestConfig extends AbstractConfig {
             "/ws",
             Importance.LOW,
             WEBSOCKET_PATH_PREFIX_DOC
+        ).define(
+            RESOURCE_EXTENSION_CLASSES_CONFIG,
+            Type.LIST,
+            Collections.emptyList(),
+            Importance.LOW,
+            RESOURCE_EXTENSION_CLASSES_DOC
         ).define(
             REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
             Type.LIST,
