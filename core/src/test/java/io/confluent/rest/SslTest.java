@@ -248,10 +248,11 @@ public class SslTest {
       app.start();
       try {
         makeGetRequest(uri + "/test");
-      } catch (SSLHandshakeException she) {
-        // JDK7 will throw the SHE, but JDK8 will throw the SE. This catch allows this code
-        // to run on JDK7 and JDK8.
-        throw new SocketException(she.toString());
+      } catch (SSLException e) {
+        // JDK7 will throw SSLHandshakeException
+        // JDK8 will throw the SocketException
+        // JDK11 will throw the SSLException
+        throw new SocketException(e.toString());
       }
     } finally {
       app.stop();
