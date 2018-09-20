@@ -311,15 +311,19 @@ public abstract class Application<T extends RestConfig> {
 
     if (isCorsEnabled()) {
       String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
-      String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
       filterHolder.setName("cross-origin");
       filterHolder.setInitParameter(
           CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins
 
       );
+      String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
+      String allowedHeaders = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
       if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
         filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
+      }
+      if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
+        filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
       }
       // handle preflight cors requests at the filter level, do not forward down the filter chain
       filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
