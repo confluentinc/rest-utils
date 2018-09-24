@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.confluent.rest.extention;
+package io.confluent.rest.extension;
 
 
 import io.confluent.rest.Application;
