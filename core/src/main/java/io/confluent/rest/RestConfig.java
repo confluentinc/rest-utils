@@ -23,7 +23,7 @@ import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
-import io.confluent.rest.extention.ResourceExtension;
+import io.confluent.rest.extension.ResourceExtension;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;

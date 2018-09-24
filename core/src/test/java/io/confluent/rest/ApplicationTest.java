@@ -43,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.ws.rs.GET;
@@ -53,7 +52,7 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 
 import io.confluent.common.config.ConfigException;
-import io.confluent.rest.extention.ResourceExtension;
+import io.confluent.rest.extension.ResourceExtension;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
