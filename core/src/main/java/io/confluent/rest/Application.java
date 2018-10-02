@@ -19,12 +19,12 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.rest.auth.AuthUtil;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.DefaultIdentityService;
-import org.eclipse.jetty.security.SecurityHandler;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
@@ -42,7 +42,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
-import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
@@ -306,9 +305,6 @@ public abstract class Application<T extends RestConfig> {
 
     configureSecurityHandler(context);
 
-    List<String> unsecurePaths = config.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
-    setUnsecurePathConstraints(context, unsecurePaths);
-
     if (isCorsEnabled()) {
       String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
@@ -380,8 +376,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private boolean isCorsEnabled() {
-    String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
-    return allowedOrigins != null && !allowedOrigins.trim().isEmpty();
+    return AuthUtil.isCorsEnabled(config);
   }
 
   @SuppressWarnings("unchecked")
@@ -417,10 +412,7 @@ public abstract class Application<T extends RestConfig> {
   protected void configureSecurityHandler(ServletContextHandler context) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
-      String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-      List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      final SecurityHandler securityHandler = createBasicSecurityHandler(realm, roles);
-      context.setSecurityHandler(securityHandler);
+      context.setSecurityHandler(createBasicSecurityHandler());
     }
   }
 
@@ -442,54 +434,28 @@ public abstract class Application<T extends RestConfig> {
 
   }
 
-  static void setUnsecurePathConstraints(
-      ServletContextHandler context,
-      List<String> unsecurePaths
-  ) {
-    //we need to set unsecure path only if there is an existing security handler. Otherwise all
-    // paths are by default unsecure
-    if (context.getSecurityHandler() != null && !unsecurePaths.isEmpty()) {
-      for (String path : unsecurePaths) {
-        Constraint constraint = new Constraint();
-        constraint.setAuthenticate(false);
-        ConstraintMapping constraintMapping = new ConstraintMapping();
-        constraintMapping.setConstraint(constraint);
-        constraintMapping.setMethod("*");
-        constraintMapping.setPathSpec(path);
-        ((ConstraintSecurityHandler) context.getSecurityHandler())
-            .addConstraintMapping(constraintMapping);
-      }
-    }
-  }
-
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
-  protected ConstraintSecurityHandler createBasicSecurityHandler(String realm, List<String> roles) {
+  protected ConstraintSecurityHandler createBasicSecurityHandler() {
+    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-    ConstraintMapping constraintMapping = createGlobalAuthConstraint(roles);
-    securityHandler.addConstraintMapping(constraintMapping);
+    securityHandler.addConstraintMapping(createGlobalAuthConstraint());
     securityHandler.setAuthenticator(new BasicAuthenticator());
     securityHandler.setLoginService(new JAASLoginService(realm));
     securityHandler.setIdentityService(new DefaultIdentityService());
     securityHandler.setRealmName(realm);
+
+    AuthUtil.createUnsecuredConstraints(config)
+        .forEach(securityHandler::addConstraintMapping);
+
     return securityHandler;
   }
 
-  protected ConstraintMapping createGlobalAuthConstraint(List<String> roles) {
-    Constraint constraint = new Constraint();
-    constraint.setAuthenticate(true);
-    constraint.setRoles(roles.toArray(new String[0]));
-    ConstraintMapping constraintMapping = new ConstraintMapping();
-    constraintMapping.setConstraint(constraint);
-    constraintMapping.setMethod("*");
-    if (isCorsEnabled()) {
-      // CORS preflight requests must be allowed without authentication
-      constraintMapping.setMethodOmissions(new String[]{"OPTIONS"});
-    }
-    constraintMapping.setPathSpec("/*");
-    return constraintMapping;
+  protected ConstraintMapping createGlobalAuthConstraint() {
+    return AuthUtil.createGlobalAuthConstraint(config);
   }
 
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
