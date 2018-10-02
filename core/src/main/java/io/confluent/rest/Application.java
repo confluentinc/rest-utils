@@ -454,13 +454,6 @@ public abstract class Application<T extends RestConfig> {
     return securityHandler;
   }
 
-  @Deprecated // Use createGlobalAuthConstraint() or AuthUtil.createGlobalAuthConstraint(config)
-  protected ConstraintMapping createGlobalAuthConstraint(List<String> roles) {
-    // CORS preflight requests must be allowed without authentication
-    final boolean omitOptions = isCorsEnabled();
-    return AuthUtil.createGlobalAuthConstraint(roles, omitOptions);
-  }
-
   protected ConstraintMapping createGlobalAuthConstraint() {
     return AuthUtil.createGlobalAuthConstraint(config);
   }

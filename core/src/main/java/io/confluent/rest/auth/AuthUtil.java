@@ -46,24 +46,6 @@ public final class AuthUtil {
   public static ConstraintMapping createGlobalAuthConstraint(final RestConfig restConfig) {
     final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
     final boolean omitOptions = isCorsEnabled(restConfig);
-    return createGlobalAuthConstraint(roles, omitOptions);
-  }
-
-  /**
-   * Build the standard global auth constraint.
-   *
-   * <p>To be authorised a user must below to at least one of the supplied {@code roles}.
-   *
-   * <p>If {@code omitOptions} is {@code true} the HTTP OPTIONS requests are excluded from
-   * auth checks, e.g. as required for CORS preflight checks.
-   *
-   * @param roles the list of valid roles
-   * @param omitOptions if {@code true}, OPTIONS requests are not subject to auth checks.
-   * @return the constraint mapping.
-   */
-  public static ConstraintMapping createGlobalAuthConstraint(
-      final List<String> roles,
-      final boolean omitOptions) {
 
     final Constraint constraint = new Constraint();
     constraint.setAuthenticate(true);
@@ -86,19 +68,7 @@ public final class AuthUtil {
    * @return the list of constraint mappings.
    */
   public static List<ConstraintMapping> createUnsecuredConstraints(final RestConfig restConfig) {
-    List<String> unsecuredPaths = restConfig.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
-    return createUnsecuredConstraints(unsecuredPaths);
-  }
-
-  /**
-   * Build constraints for any unsecured paths.
-   *
-   * @param unsecuredPaths the list of paths that should not be secured.
-   * @return the list of constraint mappings.
-   */
-  @SuppressWarnings("WeakerAccess") // API call.
-  public static List<ConstraintMapping> createUnsecuredConstraints(
-      final List<String> unsecuredPaths) {
+    final List<String> unsecuredPaths = restConfig.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
 
     return unsecuredPaths.stream()
         .map(AuthUtil::toUnsecuredConstraint)
