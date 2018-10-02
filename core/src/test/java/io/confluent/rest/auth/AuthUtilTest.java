@@ -18,7 +18,7 @@ package io.confluent.rest.auth;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.RestConfig;
@@ -108,6 +108,17 @@ public class AuthUtilTest {
 
     // Then:
     assertThat(mapping.getConstraint().getAuthenticate(), is(true));
+  }
+
+  @Test
+  public void shouldDefaultToCreatingGlobalConstraintWithAnyRole() {
+    // When:
+    final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
+
+    // Then:
+    assertThat(mapping.getConstraint().isAnyRole(), is(true));
+    assertThat(mapping.getConstraint().isAnyAuth(), is(false));
+    assertThat(mapping.getConstraint().getRoles(), is(new String[]{"*"}));
   }
 
   @Test
