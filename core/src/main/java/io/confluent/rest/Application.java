@@ -247,9 +247,19 @@ public abstract class Application<T extends RestConfig> {
           sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
         }
 
+        List<String> disabledProtocols = config.getList(RestConfig.SSL_DISABLED_PROTOCOLS_CONFIG);
+        if (!enabledProtocols.isEmpty()) {
+          sslContextFactory.setExcludeProtocols(disabledProtocols.toArray(new String[0]));
+        }
+ 
         List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
         if (!cipherSuites.isEmpty()) {
           sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
+        }
+     
+        List<String> excludedCipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_EXCLUDE_CONFIG);
+        if (!excludedCipherSuites.isEmpty()) {
+          sslContextFactory.setExcludeCipherSuites(cipherSuites.toArray(new String[0]));
         }
 
         if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {

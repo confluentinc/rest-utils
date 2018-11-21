@@ -174,10 +174,19 @@ public class RestConfig extends AbstractConfig {
       "The list of protocols enabled for SSL connections. Comma-separated list. "
       + "Leave blank to use Jetty's defaults.";
   protected static final String SSL_ENABLED_PROTOCOLS_DEFAULT = "";
+  public static final String SSL_DISABLED_PROTOCOLS_CONFIG = "ssl.disabled.protocols";
+  protected static final String SSL_DISABLED_PROTOCOLS_DOC =
+       "The list of protocols disabled for SSL connections. Comma-separated list. "
+       + "Leave blank to use Jetty's defaults.";
+  protected static final String SSL_DISABLED_PROTOCOLS_DEFAULT = "";  
   public static final String SSL_CIPHER_SUITES_CONFIG = "ssl.cipher.suites";
   protected static final String SSL_CIPHER_SUITES_DOC =
       "A list of SSL cipher suites. Leave blank to use Jetty's defaults.";
   protected static final String SSL_CIPHER_SUITES_DEFAULT = "";
+  public static final String SSL_CIPHER_SUITES_EXCLUDE_CONFIG = "ssl.cipher.suites.exclude";
+  protected static final String SSL_CIPHER_SUITES_EXCLUDE_DOC =
+      "A list of excluded SSL cipher suites. Leave blank to use Jetty's defaults.";
+  protected static final String SSL_CIPHER_SUITES_EXCLUDE_DEFAULT = "";
   public static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG =
       "ssl.endpoint.identification.algorithm";
   protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DOC =
@@ -419,11 +428,23 @@ public class RestConfig extends AbstractConfig {
             Importance.MEDIUM,
             SSL_ENABLED_PROTOCOLS_DOC
         ).define(
+            SSL_DISABLED_PROTOCOLS_CONFIG,
+            Type.LIST,
+            SSL_DISABLED_PROTOCOLS_DEFAULT,
+            Importance.MEDIUM,
+            SSL_DISABLED_PROTOCOLS_DOC
+        ).define(
             SSL_CIPHER_SUITES_CONFIG,
             Type.LIST,
             SSL_CIPHER_SUITES_DEFAULT,
             Importance.LOW,
             SSL_CIPHER_SUITES_DOC
+        ).define(
+            SSL_CIPHER_SUITES_EXCLUDE_CONFIG,
+            Type.LIST,
+            SSL_CIPHER_SUITES_EXCLUDE_DEFAULT,
+            Importance.LOW,
+            SSL_CIPHER_SUITES_EXCLUDE_DOC
         ).define(
             SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
             Type.STRING,
