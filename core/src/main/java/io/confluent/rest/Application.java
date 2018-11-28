@@ -92,6 +92,7 @@ public abstract class Application<T extends RestConfig> {
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
+  protected SslContextFactory sslContextFactory;
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -109,6 +110,7 @@ public abstract class Application<T extends RestConfig> {
     this.requestLog = new Slf4jRequestLog();
     this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
     this.requestLog.setLogLatency(true);
+    this.sslContextFactory = createSslContextFactory();
   }
 
   /**
@@ -136,6 +138,13 @@ public abstract class Application<T extends RestConfig> {
    */
   protected ResourceCollection getStaticResources() {
     return null;
+  }
+
+  /**
+   * expose SslContextFactory
+   */
+  protected SslContextFactory getSslContextFactory() {
+    return this.sslContextFactory;
   }
 
   /**
@@ -196,67 +205,6 @@ public abstract class Application<T extends RestConfig> {
       if (listener.getScheme().equals("http")) {
         connector = new NetworkTrafficServerConnector(server);
       } else {
-        SslContextFactory sslContextFactory = new SslContextFactory();
-        if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
-          sslContextFactory.setKeyStorePath(
-              config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
-          );
-          sslContextFactory.setKeyStorePassword(
-              config.getPassword(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG).value()
-          );
-          sslContextFactory.setKeyManagerPassword(
-              config.getPassword(RestConfig.SSL_KEY_PASSWORD_CONFIG).value()
-          );
-          sslContextFactory.setKeyStoreType(
-              config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
-          );
-
-          if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-            sslContextFactory.setKeyManagerFactoryAlgorithm(
-                    config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-          }
-        }
-
-        sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
-
-        List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
-        if (!enabledProtocols.isEmpty()) {
-          sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
-        }
-
-        List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
-        if (!cipherSuites.isEmpty()) {
-          sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
-        }
-
-        if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
-          sslContextFactory.setEndpointIdentificationAlgorithm(
-                  config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
-        }
-
-        if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
-          sslContextFactory.setTrustStorePath(
-              config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
-          );
-          sslContextFactory.setTrustStorePassword(
-              config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
-          );
-          sslContextFactory.setTrustStoreType(
-              config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
-          );
-
-          if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-            sslContextFactory.setTrustManagerFactoryAlgorithm(
-                    config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
-            );
-          }
-        }
-
-        sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
-        if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
-          sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
-        }
-
         connector = new NetworkTrafficServerConnector(server, sslContextFactory);
       }
 
@@ -335,6 +283,71 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  private SslContextFactory createSslContextFactory() {
+    SslContextFactory sslContextFactory = new SslContextFactory();
+    if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
+      sslContextFactory.setKeyStorePath(
+          config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
+      );
+      sslContextFactory.setKeyStorePassword(
+          config.getPassword(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG).value()
+      );
+      sslContextFactory.setKeyManagerPassword(
+          config.getPassword(RestConfig.SSL_KEY_PASSWORD_CONFIG).value()
+      );
+      sslContextFactory.setKeyStoreType(
+          config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
+      );
+
+      if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+        sslContextFactory.setKeyManagerFactoryAlgorithm(
+            config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
+      }
+    }
+
+    sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
+
+    List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
+    if (!enabledProtocols.isEmpty()) {
+      sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
+    }
+
+    List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
+    if (!cipherSuites.isEmpty()) {
+      sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
+    }
+
+    if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
+      sslContextFactory.setEndpointIdentificationAlgorithm(
+          config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
+    }
+
+    if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
+      sslContextFactory.setTrustStorePath(
+          config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
+      );
+      sslContextFactory.setTrustStorePassword(
+          config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
+      );
+      sslContextFactory.setTrustStoreType(
+          config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
+      );
+
+      if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+        sslContextFactory.setTrustManagerFactoryAlgorithm(
+            config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
+        );
+      }
+    }
+
+    sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
+    if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
+      sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
+    }
+
+    return sslContextFactory;
   }
 
   public Handler wrapWithGzipHandler(Handler handler) {
