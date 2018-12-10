@@ -429,6 +429,7 @@ public abstract class Application<T extends RestConfig> {
                                                                  metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
+    config.property(ServerProperties.WADL_FEATURE_DISABLE, true);
   }
 
   /**
