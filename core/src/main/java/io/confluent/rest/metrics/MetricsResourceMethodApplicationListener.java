@@ -59,6 +59,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
+  private static final int PERCENTILE_NUM_BUCKETS = 100;
+  private static final double PERCENTILE_MAX_LATENCY_IN_MS = 10*1000;
+
   private final Metrics metrics;
   private final String metricGrpPrefix;
   private Map<String, String> metricTags;
@@ -220,16 +223,10 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "The maximum request latency in ms", metricTags);
       this.requestLatencySensor.add(metricName, new Max());
 
-      Percentiles percs = new Percentiles(4 * 100,
+      Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
           0.0,
-          100.0,
+          PERCENTILE_MAX_LATENCY_IN_MS,
           Percentiles.BucketSizing.LINEAR,
-          new Percentile(new MetricName(
-              getName(method, annotation, "request-latency-50"), metricGrpName,
-              "The 50th percentile request latency in ms", metricTags), 50),
-          new Percentile(new MetricName(
-              getName(method, annotation, "request-latency-90"), metricGrpName,
-              "The 90th percentile request latency in ms", metricTags), 90),
           new Percentile(new MetricName(
               getName(method, annotation, "request-latency-95"), metricGrpName,
               "The 95th percentile request latency in ms", metricTags), 95),
