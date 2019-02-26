@@ -60,7 +60,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
   private static final int PERCENTILE_NUM_BUCKETS = 100;
-  private static final double PERCENTILE_MAX_LATENCY_IN_MS = 10*1000;
+  private static final double PERCENTILE_MAX_LATENCY_IN_MS = 10 * 1000;
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
