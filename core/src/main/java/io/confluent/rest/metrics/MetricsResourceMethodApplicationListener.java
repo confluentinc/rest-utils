@@ -16,6 +16,8 @@
 
 package io.confluent.rest.metrics;
 
+import io.confluent.common.metrics.stats.Percentile;
+import io.confluent.common.metrics.stats.Percentiles;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -217,6 +219,24 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           getName(method, annotation, "request-latency-max"), metricGrpName,
           "The maximum request latency in ms", metricTags);
       this.requestLatencySensor.add(metricName, new Max());
+
+      Percentiles percs = new Percentiles(4 * 100,
+          0.0,
+          100.0,
+          Percentiles.BucketSizing.LINEAR,
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-50"), metricGrpName,
+              "The 50th percentile request latency in ms", metricTags), 50),
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-90"), metricGrpName,
+              "The 90th percentile request latency in ms", metricTags), 90),
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-95"), metricGrpName,
+              "The 95th percentile request latency in ms", metricTags), 95),
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-99"), metricGrpName,
+              "The 99th percentile request latency in ms", metricTags), 99));
+      this.requestLatencySensor.add(percs);
 
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors"));
       metricName = new MetricName(
