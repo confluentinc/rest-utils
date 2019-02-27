@@ -16,6 +16,8 @@
 
 package io.confluent.rest.metrics;
 
+import io.confluent.common.metrics.stats.Percentile;
+import io.confluent.common.metrics.stats.Percentiles;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -37,6 +39,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import io.confluent.common.metrics.MetricName;
 import io.confluent.common.metrics.Metrics;
@@ -56,6 +59,9 @@ import io.confluent.rest.annotations.PerformanceMetric;
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
+
+  private static final int PERCENTILE_NUM_BUCKETS = 200;
+  private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
@@ -217,6 +223,18 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           getName(method, annotation, "request-latency-max"), metricGrpName,
           "The maximum request latency in ms", metricTags);
       this.requestLatencySensor.add(metricName, new Max());
+
+      Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
+          0.0,
+          PERCENTILE_MAX_LATENCY_IN_MS,
+          Percentiles.BucketSizing.CONSTANT,
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-95"), metricGrpName,
+              "The 95th percentile request latency in ms", metricTags), 95),
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-99"), metricGrpName,
+              "The 99th percentile request latency in ms", metricTags), 99));
+      this.requestLatencySensor.add(percs);
 
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors"));
       metricName = new MetricName(
