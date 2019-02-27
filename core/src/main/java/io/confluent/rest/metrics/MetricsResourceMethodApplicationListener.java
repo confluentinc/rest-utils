@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import io.confluent.common.metrics.MetricName;
 import io.confluent.common.metrics.Metrics;
@@ -60,7 +61,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
   private static final int PERCENTILE_NUM_BUCKETS = 100;
-  private static final double PERCENTILE_MAX_LATENCY_IN_MS = 10 * 1000;
+  private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(5);
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
@@ -226,7 +227,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
           0.0,
           PERCENTILE_MAX_LATENCY_IN_MS,
-          Percentiles.BucketSizing.LINEAR,
+          Percentiles.BucketSizing.CONSTANT,
           new Percentile(new MetricName(
               getName(method, annotation, "request-latency-95"), metricGrpName,
               "The 95th percentile request latency in ms", metricTags), 95),
