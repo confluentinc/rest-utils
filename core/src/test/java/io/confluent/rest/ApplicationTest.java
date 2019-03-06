@@ -22,6 +22,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -53,7 +54,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 
-import io.confluent.common.config.ConfigException;
 import io.confluent.rest.extension.ResourceExtension;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -88,6 +88,35 @@ public class ApplicationTest {
   @After
   public void tearDown() throws Exception {
     application.stop();
+  }
+
+  @Test
+  public void testParseListToMap() {
+    assertEquals(
+        new HashMap(){
+          {
+            put("k1","v1");
+            put("k2","v2");
+          }
+        },
+        Application.parseListToMap(Arrays.asList("k1:v1", "k2:v2"))
+    );
+  }
+
+  @Test
+  public void testParseEmptyListToMap() {
+    assertEquals(
+        new HashMap(),
+        Application.parseListToMap(new ArrayList<>())
+    );
+  }
+
+  @Test(expected = ConfigException.class)
+  public void testParseBadListToMap() {
+    assertEquals(
+        new HashMap(),
+        Application.parseListToMap(Arrays.asList("k1:v1:what", "k2:v2"))
+    );
   }
 
   @Test

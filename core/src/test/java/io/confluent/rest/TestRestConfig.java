@@ -16,9 +16,9 @@
 
 package io.confluent.rest;
 
-import java.util.Map;
+import org.apache.kafka.common.config.ConfigDef;
 
-import io.confluent.common.config.ConfigDef;
+import java.util.Map;
 
 /**
  * Test config class that only uses the built-in properties of RestConfig.

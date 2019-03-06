@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.rest.auth.AuthUtil;
+
+import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -71,7 +73,6 @@ import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
 import javax.ws.rs.core.Configurable;
 
-import io.confluent.common.config.ConfigException;
 import io.confluent.common.metrics.JmxReporter;
 import io.confluent.common.metrics.MetricConfig;
 import io.confluent.common.metrics.Metrics;
@@ -191,7 +192,9 @@ public abstract class Application<T extends RestConfig> {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
-    Map<String, String> configuredTags = getConfiguration().getMap(RestConfig.METRICS_TAGS_CONFIG);
+    Map<String, String> configuredTags = parseListToMap(
+        getConfiguration().getList(RestConfig.METRICS_TAGS_CONFIG)
+    );
 
     Map<String, String> combinedMetricsTags = new HashMap<>(getMetricsTags());
     combinedMetricsTags.putAll(configuredTags);
@@ -322,6 +325,19 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  // This is copied from the old MAP implementation from cp ConfigDef.Type.MAP
+  public static Map<String, String> parseListToMap(List<String> list) {
+    Map<String, String> configuredTags = new HashMap<>();
+    for (String entry : list) {
+      String[] keyValue = entry.split("\\s*:\\s*", -1);
+      if (keyValue.length != 2) {
+        throw new ConfigException("Map entry should be of form <key>:<value");
+      }
+      configuredTags.put(keyValue[0], keyValue[1]);
+    }
+    return configuredTags;
   }
 
   private boolean isCorsEnabled() {

@@ -16,11 +16,12 @@
 
 package io.confluent.rest.examples.helloworld;
 
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.config.ConfigDef.Type;
+
 import java.util.Map;
 
-import io.confluent.common.config.ConfigDef;
-import io.confluent.common.config.ConfigDef.Importance;
-import io.confluent.common.config.ConfigDef.Type;
 import io.confluent.rest.RestConfig;
 
 /**
