@@ -164,7 +164,7 @@ public class CustomInitTest {
   }
 
   public static class CustomRestInitializer
-      implements Consumer<ServletContextHandler>, io.confluent.common.Configurable {
+      implements Consumer<ServletContextHandler>, org.apache.kafka.common.Configurable {
 
     private RestConfig config;
 

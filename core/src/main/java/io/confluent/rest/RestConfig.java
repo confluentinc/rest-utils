@@ -16,10 +16,10 @@
 
 package io.confluent.rest;
 
-import io.confluent.common.config.AbstractConfig;
-import io.confluent.common.config.ConfigDef;
-import io.confluent.common.config.ConfigDef.Type;
-import io.confluent.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.common.config.ConfigDef.Importance;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
@@ -37,6 +37,7 @@ public class RestConfig extends AbstractConfig {
       + "error response entities.";
   protected static final boolean DEBUG_CONFIG_DEFAULT = false;
 
+  @Deprecated
   public static final String PORT_CONFIG = "port";
   protected static final String PORT_CONFIG_DOC =
       "DEPRECATED: port to listen on for new HTTP connections. Use listeners instead.";
@@ -193,12 +194,7 @@ public class RestConfig extends AbstractConfig {
       + "You must supply a valid JAAS config file for the 'java.security.auth.login.config'"
       + " system property for the appropriate authentication provider.";
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
-      ConfigDef.ValidString.in(
-          Arrays.asList(
-              AUTHENTICATION_METHOD_NONE,
-              AUTHENTICATION_METHOD_BASIC
-          )
-      );
+      ConfigDef.ValidString.in(AUTHENTICATION_METHOD_NONE, AUTHENTICATION_METHOD_BASIC);
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
   public static final String AUTHENTICATION_REALM_DOC =
       "Security realm to be used in authentication.";
@@ -249,8 +245,84 @@ public class RestConfig extends AbstractConfig {
           "The number of milliseconds to hold an idle session open for.";
   public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
-  // CHECKSTYLE_RULES.OFF: MethodLength
   public static ConfigDef baseConfigDef() {
+    return baseConfigDef(
+        PORT_CONFIG_DEFAULT,
+        LISTENERS_DEFAULT
+    );
+  }
+
+  public static ConfigDef baseConfigDef(
+      int port,
+      String listeners
+  ) {
+    return baseConfigDef(
+        port,
+        listeners,
+        RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT,
+        RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT,
+        METRICS_JMX_PREFIX_DEFAULT
+    );
+  }
+
+  public static ConfigDef baseConfigDef(
+      int port,
+      String listeners,
+      String responseMediatypePreferred,
+      String responseMediatypeDefault
+  ) {
+    return baseConfigDef(
+        port,
+        listeners,
+        responseMediatypePreferred,
+        responseMediatypeDefault,
+        METRICS_JMX_PREFIX_DEFAULT
+    );
+  }
+
+  public static ConfigDef baseConfigDef(
+      int port,
+      String listeners,
+      String responseMediatypePreferred,
+      String responseMediatypeDefault,
+      String metricsJmxPrefix
+  ) {
+    return incompleteBaseConfigDef()
+        .define(
+            PORT_CONFIG,
+            Type.INT,
+            port,
+            Importance.LOW,
+            PORT_CONFIG_DOC
+        ).define(
+            LISTENERS_CONFIG,
+            Type.LIST,
+            listeners,
+            Importance.HIGH,
+            LISTENERS_DOC
+        ).define(
+            RESPONSE_MEDIATYPE_PREFERRED_CONFIG,
+            Type.LIST,
+            responseMediatypePreferred,
+            Importance.LOW,
+            RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC
+        ).define(
+            RESPONSE_MEDIATYPE_DEFAULT_CONFIG,
+            Type.STRING,
+            responseMediatypeDefault,
+            Importance.LOW,
+            RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC
+        ).define(
+            METRICS_JMX_PREFIX_CONFIG,
+            Type.STRING,
+            metricsJmxPrefix,
+            Importance.LOW,
+            METRICS_JMX_PREFIX_DOC
+        );
+  }
+
+  // CHECKSTYLE_RULES.OFF: MethodLength
+  private static ConfigDef incompleteBaseConfigDef() {
     // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
         .define(
@@ -259,30 +331,6 @@ public class RestConfig extends AbstractConfig {
             DEBUG_CONFIG_DEFAULT,
             Importance.LOW,
             DEBUG_CONFIG_DOC
-        ).define(
-            PORT_CONFIG,
-            Type.INT,
-            PORT_CONFIG_DEFAULT,
-            Importance.LOW,
-            PORT_CONFIG_DOC
-        ).define(
-            LISTENERS_CONFIG,
-            Type.LIST,
-            LISTENERS_DEFAULT,
-            Importance.HIGH,
-            LISTENERS_DOC
-        ).define(
-            RESPONSE_MEDIATYPE_PREFERRED_CONFIG,
-            Type.LIST,
-            RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DEFAULT,
-            Importance.LOW,
-            RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC
-        ).define(
-            RESPONSE_MEDIATYPE_DEFAULT_CONFIG,
-            Type.STRING,
-            RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DEFAULT,
-            Importance.LOW,
-            RESPONSE_MEDIATYPE_DEFAULT_CONFIG_DOC
         ).define(
             SHUTDOWN_GRACEFUL_MS_CONFIG,
             Type.INT,
@@ -314,12 +362,6 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             REQUEST_LOGGER_NAME_DOC
         ).define(
-            METRICS_JMX_PREFIX_CONFIG,
-            Type.STRING,
-            METRICS_JMX_PREFIX_DEFAULT,
-            Importance.LOW,
-            METRICS_JMX_PREFIX_DOC
-        ).define(
             METRICS_REPORTER_CLASSES_CONFIG,
             Type.LIST,
             METRICS_REPORTER_CLASSES_DEFAULT,
@@ -341,7 +383,7 @@ public class RestConfig extends AbstractConfig {
             METRICS_NUM_SAMPLES_DOC
         ).define(
             METRICS_TAGS_CONFIG,
-            Type.MAP,
+            Type.LIST,
             METRICS_TAGS_DEFAULT,
             Importance.LOW,
             METRICS_TAGS_DOC
