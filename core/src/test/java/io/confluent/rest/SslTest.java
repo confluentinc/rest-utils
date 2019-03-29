@@ -17,8 +17,7 @@
 package io.confluent.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.confluent.common.metrics.KafkaMetric;
-import io.confluent.rest.annotations.PerformanceMetric;
+
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -28,20 +27,13 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.common.config.types.Password;
+import org.apache.kafka.test.TestSslUtils;
+import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,6 +44,17 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Configurable;
+
+import io.confluent.common.metrics.KafkaMetric;
+import io.confluent.rest.annotations.PerformanceMetric;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -84,8 +87,9 @@ public class SslTest {
 
   private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
-    // IMPORTANT: CN must be "localhost" because Jetty expects the server CN to be the FQDN.
-    X509Certificate cCert = TestSslUtils.generateCertificate("CN=localhost, O=A client", keypair, 30, "SHA1withRSA");
+    CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
+    X509Certificate cCert = certificateBuilder.sanDnsName("localhost")
+        .generate("CN=mymachine.local, O=A client", keypair);
     TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
   }
@@ -244,10 +248,11 @@ public class SslTest {
       app.start();
       try {
         makeGetRequest(uri + "/test");
-      } catch (SSLHandshakeException she) {
-        // JDK7 will throw the SHE, but JDK8 will throw the SE. This catch allows this code
-        // to run on JDK7 and JDK8.
-        throw new SocketException(she.toString());
+      } catch (SSLException e) {
+        // JDK7 will throw SSLHandshakeException
+        // JDK8 will throw the SocketException
+        // JDK11 will throw the SSLException
+        throw new SocketException(e.toString());
       }
     } finally {
       app.stop();

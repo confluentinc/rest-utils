@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>rest-utils-parent</artifactId>
-        <version>5.0.0</version>
+        <version>5.3.0-SNAPSHOT</version>
     </parent>
 
     <groupId>io.confluent</groupId>
@@ -113,6 +113,23 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <classifier>test</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.asynchttpclient</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>${asynchttpclient.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

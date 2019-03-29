@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>common</artifactId>
-        <version>5.0.0</version>
+        <version>5.3.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>rest-utils-parent</artifactId>
@@ -49,10 +49,11 @@
     <properties>
         <activation.version>1.1.1</activation.version>
         <apache.httpclient.version>4.5.3</apache.httpclient.version>
-        <bouncycastle.bcpkix.version>1.58</bouncycastle.bcpkix.version>
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <jersey.version>2.27</jersey.version>
-        <jetty.version>9.4.11.v20180605</jetty.version>
+        <jetty.version>9.4.14.v20181114</jetty.version>
+        <asynchttpclient.version>2.2.0</asynchttpclient.version>
+        <guava.version>24.0-jre</guava.version>
     </properties>
 
     <repositories>
@@ -171,11 +172,6 @@
             </dependency>
             <!--test-->
             <dependency>
-                <groupId>org.bouncycastle</groupId>
-                <artifactId>bcpkix-jdk15on</artifactId>
-                <version>${bouncycastle.bcpkix.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
                 <version>${apache.httpclient.version}</version>
@@ -210,9 +206,6 @@
                     <execution>
                         <id>validate</id>
                         <phase>validate</phase>
-                        <configuration>
-                            <suppressionsLocation>checkstyle/suppressions.xml</suppressionsLocation>
-                        </configuration>
                         <goals>
                             <goal>check</goal>
                         </goals>

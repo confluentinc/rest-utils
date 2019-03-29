@@ -23,6 +23,7 @@ import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
+import io.confluent.rest.extension.ResourceExtension;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -75,6 +76,11 @@ public class RestConfig extends AbstractConfig {
       "Set value to Jetty Access-Control-Allow-Origin header for specified methods";
   protected static final String ACCESS_CONTROL_ALLOW_METHODS_DEFAULT = "";
 
+  public static final String ACCESS_CONTROL_ALLOW_HEADERS = "access.control.allow.headers";
+  protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DOC =
+      "Set value to Jetty Access-Control-Allow-Origin header for specified headers. "
+      + "Leave blank to use Jetty's default.";
+  protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
 
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
@@ -213,14 +219,39 @@ public class RestConfig extends AbstractConfig {
 
   public static final String ENABLE_GZIP_COMPRESSION_CONFIG = "compression.enable";
   protected static final String ENABLE_GZIP_COMPRESSION_DOC = "Enable gzip compression";
-  private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = false;
+  private static final boolean ENABLE_GZIP_COMPRESSION_DEFAULT = true;
+
+  public static final String RESOURCE_EXTENSION_CLASSES_CONFIG = "resource.extension.classes";
+  private static final String RESOURCE_EXTENSION_CLASSES_DOC = ""
+      + "Zero or more classes that implement '" + ResourceExtension.class.getName()
+      + "'. Each extension type will be called to add extensions to the rest server on start up.";
+
+  public static final String REST_SERVLET_INITIALIZERS_CLASSES_CONFIG =
+      "rest.servlet.initializor.classes";
+  public static final String REST_SERVLET_INITIALIZERS_CLASSES_DOC =
+      "Defines one or more initializer for the rest endpoint's ServletContextHandler. "
+          + "Each initializer must implement Consumer<ServletContextHandler>. "
+          + "It will be called to perform initialization of the handler, in order. "
+          + "This is an internal feature and subject to change, "
+          + "including changes to the Jetty version";
+
+  public static final String WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG =
+      "websocket.servlet.initializor.classes";
+  public static final String WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC =
+      "Defines one or more initializer for the websocket endpoint's ServletContextHandler. "
+          + "Each initializer must implement Consumer<ServletContextHandler>. "
+          + "It will be called to perform custom initialization of the handler, in order. "
+          + "This is an internal feature and subject to change, "
+          + "including changes to the Jetty version";
 
   public static final String IDLE_TIMEOUT_MS_CONFIG = "idle.timeout.ms";
   public static final String IDLE_TIMEOUT_MS_DOC =
           "The number of milliseconds to hold an idle session open for.";
-  public static final long IDLE_TIMEOUT_MS_DEFAULT = 30000;
+  public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
+  // CHECKSTYLE_RULES.OFF: MethodLength
   public static ConfigDef baseConfigDef() {
+    // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
         .define(
             DEBUG_CONFIG,
@@ -270,6 +301,12 @@ public class RestConfig extends AbstractConfig {
             ACCESS_CONTROL_ALLOW_METHODS_DEFAULT,
             Importance.LOW,
             ACCESS_CONTROL_ALLOW_METHODS_DOC
+        ).define(
+            ACCESS_CONTROL_ALLOW_HEADERS,
+            Type.STRING,
+            ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT,
+            Importance.LOW,
+            ACCESS_CONTROL_ALLOW_HEADERS_DOC
         ).define(
             REQUEST_LOGGER_NAME_CONFIG,
             Type.STRING,
@@ -436,6 +473,24 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             WEBSOCKET_PATH_PREFIX_DOC
         ).define(
+            RESOURCE_EXTENSION_CLASSES_CONFIG,
+            Type.LIST,
+            Collections.emptyList(),
+            Importance.LOW,
+            RESOURCE_EXTENSION_CLASSES_DOC
+        ).define(
+            REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
+            Type.LIST,
+            Collections.emptyList(),
+            Importance.LOW,
+            REST_SERVLET_INITIALIZERS_CLASSES_DOC
+        ).define(
+            WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG,
+            Type.LIST,
+            Collections.emptyList(),
+            Importance.LOW,
+            WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC
+        ).define(
             IDLE_TIMEOUT_MS_CONFIG,
             Type.LONG,
             IDLE_TIMEOUT_MS_DEFAULT,
@@ -451,7 +506,7 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestConfig(ConfigDef definition) {
-    super(definition, new TreeMap<Object,Object>());
+    super(definition, new TreeMap<>());
   }
 
   public Time getTime() {

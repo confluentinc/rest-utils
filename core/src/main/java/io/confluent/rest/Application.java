@@ -19,12 +19,12 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.rest.auth.AuthUtil;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.DefaultIdentityService;
-import org.eclipse.jetty.security.SecurityHandler;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
@@ -42,7 +42,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
-import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
@@ -53,6 +52,7 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -65,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
@@ -78,20 +79,28 @@ import io.confluent.common.metrics.MetricsReporter;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+
+import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG;
+import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
  * resources with the JAX-RS server. Use createServer() to get a fully-configured, ready to run
  * Jetty server.
  */
+// CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public abstract class Application<T extends RestConfig> {
+  // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
+  protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
+  protected SslContextFactory sslContextFactory;
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
@@ -109,6 +118,7 @@ public abstract class Application<T extends RestConfig> {
     this.requestLog = new Slf4jRequestLog();
     this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
     this.requestLog.setLogLatency(true);
+    this.sslContextFactory = createSslContextFactory();
   }
 
   /**
@@ -139,10 +149,28 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
+   * add any servlet filters that should be called before resource handling
+   */
+  protected void configurePreResourceHandling(ServletContextHandler context) {}
+
+  /**
+   * expose SslContextFactory
+   */
+  protected SslContextFactory getSslContextFactory() {
+    return this.sslContextFactory;
+  }
+
+  /**
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
   protected void configurePostResourceHandling(ServletContextHandler context) {}
+
+  /**
+   * add any servlet filters that should be called after resource
+   * handling but before falling back to the default servlet
+   */
+  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {}
 
   /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
@@ -156,7 +184,10 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure and create the server.
    */
-  public Server createServer() throws RestConfigException, ServletException {
+  // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
+  public Server createServer() throws ServletException {
+    // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
+
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
@@ -166,6 +197,7 @@ public abstract class Application<T extends RestConfig> {
     combinedMetricsTags.putAll(configuredTags);
 
     configureBaseApplication(resourceConfig, combinedMetricsTags);
+    configureResourceExtensions(resourceConfig);
     setupResources(resourceConfig, getConfiguration());
 
     // Configure the servlet container
@@ -177,7 +209,7 @@ public abstract class Application<T extends RestConfig> {
       protected void doStop() throws Exception {
         super.doStop();
         Application.this.metrics.close();
-        Application.this.onShutdown();
+        Application.this.doShutdown();
         Application.this.shutdownLatch.countDown();
       }
     };
@@ -196,69 +228,6 @@ public abstract class Application<T extends RestConfig> {
       if (listener.getScheme().equals("http")) {
         connector = new NetworkTrafficServerConnector(server);
       } else {
-        SslContextFactory sslContextFactory = new SslContextFactory();
-        // IMPORTANT: the key's CN, stored in the keystore, must match the FQDN.
-        // TODO: investigate this further. Would be better to use SubjectAltNames.
-        if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
-          sslContextFactory.setKeyStorePath(
-              config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
-          );
-          sslContextFactory.setKeyStorePassword(
-              config.getPassword(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG).value()
-          );
-          sslContextFactory.setKeyManagerPassword(
-              config.getPassword(RestConfig.SSL_KEY_PASSWORD_CONFIG).value()
-          );
-          sslContextFactory.setKeyStoreType(
-              config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
-          );
-
-          if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-            sslContextFactory.setKeyManagerFactoryAlgorithm(
-                    config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-          }
-        }
-
-        sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
-
-        List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
-        if (!enabledProtocols.isEmpty()) {
-          sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
-        }
-
-        List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
-        if (!cipherSuites.isEmpty()) {
-          sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
-        }
-
-        if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
-          sslContextFactory.setEndpointIdentificationAlgorithm(
-                  config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
-        }
-
-        if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
-          sslContextFactory.setTrustStorePath(
-              config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
-          );
-          sslContextFactory.setTrustStorePassword(
-              config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
-          );
-          sslContextFactory.setTrustStoreType(
-              config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
-          );
-
-          if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-            sslContextFactory.setTrustManagerFactoryAlgorithm(
-                    config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
-            );
-          }
-        }
-
-        sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
-        if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
-          sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
-        }
-
         connector = new NetworkTrafficServerConnector(server, sslContextFactory);
       }
 
@@ -274,6 +243,7 @@ public abstract class Application<T extends RestConfig> {
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath("/");
 
+
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");
 
@@ -282,36 +252,34 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
-    if (enableBasicAuth(authMethod)) {
-      String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-      List<String> roles = getConfiguration().getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      final SecurityHandler securityHandler = createSecurityHandler(realm, roles);
-      context.setSecurityHandler(securityHandler);
-    }
+    configureSecurityHandler(context);
 
-    List<String> unsecurePaths = config.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
-    setUnsecurePathConstraints(context, unsecurePaths);
-
-    String allowedOrigins = getConfiguration().getString(
-        RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG
-    );
-    if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
+    if (isCorsEnabled()) {
+      String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
       filterHolder.setName("cross-origin");
-      filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins);
-      String allowedMethods = getConfiguration().getString(
-          RestConfig.ACCESS_CONTROL_ALLOW_METHODS
+      filterHolder.setInitParameter(
+          CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins
+
       );
-      if (allowedMethods != null && !allowedOrigins.trim().isEmpty()) {
+      String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
+      String allowedHeaders = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
+      if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
         filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
       }
+      if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
+        filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
+      }
+      // handle preflight cors requests at the filter level, do not forward down the filter chain
+      filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
-
+    configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
+
+    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
@@ -323,22 +291,30 @@ public abstract class Application<T extends RestConfig> {
     StatisticsHandler statsHandler = new StatisticsHandler();
     statsHandler.setHandler(handlers);
 
-    final ServletContextHandler webSocketServletContext =
+    final ServletContextHandler webSocketContext =
         new ServletContextHandler(ServletContextHandler.SESSIONS);
-    webSocketServletContext.setContextPath(
+    webSocketContext.setContextPath(
         config.getString(RestConfig.WEBSOCKET_PATH_PREFIX_CONFIG)
     );
+
+    configureSecurityHandler(webSocketContext);
+
     final ContextHandlerCollection contexts = new ContextHandlerCollection();
     contexts.setHandlers(new Handler[] {
         statsHandler,
-        webSocketServletContext
+        webSocketContext
     });
 
     server.setHandler(wrapWithGzipHandler(contexts));
 
     ServerContainer container =
-        WebSocketServerContainerInitializer.configureContext(webSocketServletContext);
+        WebSocketServerContainerInitializer.configureContext(webSocketContext);
     registerWebSocketEndpoints(container);
+
+    configureWebSocketPostResourceHandling(webSocketContext);
+
+    applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG);
+
     int gracefulShutdownMs = getConfiguration().getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {
       server.setStopTimeout(gracefulShutdownMs);
@@ -346,6 +322,114 @@ public abstract class Application<T extends RestConfig> {
     server.setStopAtShutdown(true);
 
     return server;
+  }
+
+  private boolean isCorsEnabled() {
+    return AuthUtil.isCorsEnabled(config);
+  }
+
+  @SuppressWarnings("unchecked")
+  private void configureResourceExtensions(final ResourceConfig resourceConfig) {
+    resourceExtensions.addAll(getConfiguration().getConfiguredInstances(
+        RestConfig.RESOURCE_EXTENSION_CLASSES_CONFIG, ResourceExtension.class));
+
+    resourceExtensions.forEach(ext -> {
+      try {
+        ext.register(resourceConfig, this);
+      } catch (Exception e) {
+        throw new RuntimeException("Exception throw by resource extension. ext:" + ext, e);
+      }
+    });
+  }
+
+  @SuppressWarnings("unchecked")
+  private void applyCustomConfiguration(
+      ServletContextHandler context,
+      String initializerConfigName) {
+    getConfiguration()
+        .getConfiguredInstances(initializerConfigName, Consumer.class)
+        .forEach(initializer -> {
+          try {
+            initializer.accept(context);
+          } catch (final Exception e) {
+            throw new RuntimeException("Exception from custom initializer. "
+                + "config:" + initializerConfigName + ", initializer" + initializer, e);
+          }
+        });
+  }
+
+  protected void configureSecurityHandler(ServletContextHandler context) {
+    String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(authMethod)) {
+      context.setSecurityHandler(createBasicSecurityHandler());
+    }
+  }
+
+  private SslContextFactory createSslContextFactory() {
+    SslContextFactory sslContextFactory = new SslContextFactory();
+    if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
+      sslContextFactory.setKeyStorePath(
+          config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
+      );
+      sslContextFactory.setKeyStorePassword(
+          config.getPassword(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG).value()
+      );
+      sslContextFactory.setKeyManagerPassword(
+          config.getPassword(RestConfig.SSL_KEY_PASSWORD_CONFIG).value()
+      );
+      sslContextFactory.setKeyStoreType(
+          config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
+      );
+
+      if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+        sslContextFactory.setKeyManagerFactoryAlgorithm(
+            config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
+      }
+    }
+
+    sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
+
+    List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
+    if (!enabledProtocols.isEmpty()) {
+      sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
+    }
+
+    List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
+    if (!cipherSuites.isEmpty()) {
+      sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
+    }
+
+    if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
+      sslContextFactory.setEndpointIdentificationAlgorithm(
+          config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
+    }
+
+    if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
+      sslContextFactory.setTrustStorePath(
+          config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
+      );
+      sslContextFactory.setTrustStorePassword(
+          config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
+      );
+      sslContextFactory.setTrustStoreType(
+          config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
+      );
+
+      if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
+        sslContextFactory.setTrustManagerFactoryAlgorithm(
+            config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
+        );
+      }
+    }
+
+    sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
+    if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
+      sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
+    }
+
+    sslContextFactory.setRenegotiationAllowed(false);
+
+    return sslContextFactory;
   }
 
   public Handler wrapWithGzipHandler(Handler handler) {
@@ -366,46 +450,28 @@ public abstract class Application<T extends RestConfig> {
 
   }
 
-  static void setUnsecurePathConstraints(
-      ServletContextHandler context,
-      List<String> unsecurePaths
-  ) {
-    //we need to set unsecure path only if there is an existing security handler. Otherwise all
-    // paths are by default unsecure
-    if (context.getSecurityHandler() != null && !unsecurePaths.isEmpty()) {
-      for (String path : unsecurePaths) {
-        Constraint constraint = new Constraint();
-        constraint.setAuthenticate(false);
-        ConstraintMapping constraintMapping = new ConstraintMapping();
-        constraintMapping.setConstraint(constraint);
-        constraintMapping.setMethod("*");
-        constraintMapping.setPathSpec(path);
-        ((ConstraintSecurityHandler) context.getSecurityHandler())
-            .addConstraintMapping(constraintMapping);
-      }
-    }
-  }
-
-
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
-  static ConstraintSecurityHandler createSecurityHandler(String realm, List<String> roles) {
+  protected ConstraintSecurityHandler createBasicSecurityHandler() {
+    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-    Constraint constraint = new Constraint();
-    constraint.setAuthenticate(true);
-    constraint.setRoles(roles.toArray(new String[0]));
-    ConstraintMapping constraintMapping = new ConstraintMapping();
-    constraintMapping.setConstraint(constraint);
-    constraintMapping.setMethod("*");
-    constraintMapping.setPathSpec("/*");
-    securityHandler.addConstraintMapping(constraintMapping);
+    securityHandler.addConstraintMapping(createGlobalAuthConstraint());
     securityHandler.setAuthenticator(new BasicAuthenticator());
     securityHandler.setLoginService(new JAASLoginService(realm));
     securityHandler.setIdentityService(new DefaultIdentityService());
     securityHandler.setRealmName(realm);
+
+    AuthUtil.createUnsecuredConstraints(config)
+        .forEach(securityHandler::addConstraintMapping);
+
     return securityHandler;
+  }
+
+  protected ConstraintMapping createGlobalAuthConstraint() {
+    return AuthUtil.createGlobalAuthConstraint(config);
   }
 
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
@@ -489,6 +555,7 @@ public abstract class Application<T extends RestConfig> {
                                                                  metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
+    config.property(ServerProperties.WADL_FEATURE_DISABLE, true);
   }
 
   /**
@@ -573,6 +640,18 @@ public abstract class Application<T extends RestConfig> {
    */
   public void stop() throws Exception {
     server.stop();
+  }
+
+  private void doShutdown() {
+    resourceExtensions.forEach(ext -> {
+      try {
+        ext.close();
+      } catch (final IOException e) {
+        log.error("Error closing the extension resource. ext:" + ext, e);
+      }
+    });
+
+    onShutdown();
   }
 
   /**

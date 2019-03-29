@@ -16,6 +16,8 @@
 
 package io.confluent.rest.metrics;
 
+import io.confluent.common.metrics.stats.Percentile;
+import io.confluent.common.metrics.stats.Percentiles;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -34,6 +36,10 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import io.confluent.common.metrics.MetricName;
 import io.confluent.common.metrics.Metrics;
@@ -51,12 +57,17 @@ import io.confluent.rest.annotations.PerformanceMetric;
  * latency (average, 90th, 99th, etc).
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
+
+  public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
+
+  private static final int PERCENTILE_NUM_BUCKETS = 200;
+  private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
+
   private final Metrics metrics;
   private final String metricGrpPrefix;
   private Map<String, String> metricTags;
   Time time;
-  // This is immutable after it's initial construction
-  private Map<Method, MethodMetrics> methodMetrics = new HashMap<Method, MethodMetrics>();
+  private Map<Method, RequestScopedMetrics> methodMetrics = new HashMap<>();
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
                                            Map<String,String> metricTags, Time time) {
@@ -71,8 +82,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   public void onEvent(ApplicationEvent event) {
     if (event.getType() == ApplicationEvent.Type.INITIALIZATION_FINISHED) {
       // Special null key is used for global stats
-      methodMetrics.put(null,
-                        new MethodMetrics(null, null, this.metrics, metricGrpPrefix, metricTags));
+      MethodMetrics m = new MethodMetrics(null, null, this.metrics, metricGrpPrefix, metricTags);
+      methodMetrics.put(null, new RequestScopedMetrics(m, new ConstructionContext(this)));
 
       for (final Resource resource : event.getResourceModel().getResources()) {
         for (final ResourceMethod method : resource.getAllMethods()) {
@@ -92,15 +103,69 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     final Method definitionMethod = method.getInvocable().getDefinitionMethod();
     if (definitionMethod.isAnnotationPresent(PerformanceMetric.class)) {
       PerformanceMetric annotation = definitionMethod.getAnnotation(PerformanceMetric.class);
-      methodMetrics.put(
-          definitionMethod,
-          new MethodMetrics(method, annotation, this.metrics, metricGrpPrefix, metricTags));
+
+      MethodMetrics m = new MethodMetrics(method, annotation, metrics, metricGrpPrefix, metricTags);
+      ConstructionContext context = new ConstructionContext(method, annotation, this);
+      methodMetrics.put(definitionMethod, new RequestScopedMetrics(m, context));
     }
   }
 
   @Override
   public RequestEventListener onRequest(final RequestEvent event) {
     return new MetricsRequestEventListener(methodMetrics, time);
+  }
+
+  private static class RequestScopedMetrics {
+    private final MethodMetrics methodMetrics;
+    private final ConstructionContext context;
+    private Map<SortedMap<String, String>, MethodMetrics> requestMetrics
+        = new ConcurrentHashMap<>();
+
+    public RequestScopedMetrics(MethodMetrics metrics, ConstructionContext context) {
+      this.methodMetrics = metrics;
+      this.context = context;
+    }
+
+    public MethodMetrics metrics() {
+      return methodMetrics;
+    }
+
+    public MethodMetrics metrics(Map<String, String> requestTags) {
+      TreeMap<String, String> key = new TreeMap<>(requestTags);
+      return requestMetrics.compute(key, (k, v) -> v == null ? create(k) : v);
+    }
+
+    public MethodMetrics create(Map<String, String> requestTags) {
+      Map<String, String> allTags = new HashMap<>();
+      allTags.putAll(context.metricTags);
+      allTags.putAll(requestTags);
+      return new MethodMetrics(context.method, context.performanceMetric,
+          context.metrics, context.metricGrpPrefix, allTags);
+    }
+  }
+
+  private static class ConstructionContext {
+    private ResourceMethod method;
+    private PerformanceMetric performanceMetric;
+    private Map<String, String> metricTags;
+    private String metricGrpPrefix;
+    private Metrics metrics;
+
+    public ConstructionContext(MetricsResourceMethodApplicationListener methodAppListener) {
+      this(null, null, methodAppListener);
+    }
+
+    public ConstructionContext(
+        ResourceMethod method,
+        PerformanceMetric performanceMetric,
+        MetricsResourceMethodApplicationListener methodAppListener
+    ) {
+      this.method = method;
+      this.performanceMetric = performanceMetric;
+      this.metrics = methodAppListener.metrics;
+      this.metricTags = methodAppListener.metricTags;
+      this.metricGrpPrefix = methodAppListener.metricGrpPrefix;
+    }
   }
 
   private static class MethodMetrics {
@@ -159,6 +224,18 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "The maximum request latency in ms", metricTags);
       this.requestLatencySensor.add(metricName, new Max());
 
+      Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
+          0.0,
+          PERCENTILE_MAX_LATENCY_IN_MS,
+          Percentiles.BucketSizing.CONSTANT,
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-95"), metricGrpName,
+              "The 95th percentile request latency in ms", metricTags), 95),
+          new Percentile(new MetricName(
+              getName(method, annotation, "request-latency-99"), metricGrpName,
+              "The 99th percentile request latency in ms", metricTags), 99));
+      this.requestLatencySensor.add(percs);
+
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors"));
       metricName = new MetricName(
           getName(method, annotation, "request-error-rate"), metricGrpName,
@@ -209,12 +286,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   private static class MetricsRequestEventListener implements RequestEventListener {
     private final Time time;
-    private final Map<Method, MethodMetrics> metrics;
+    private final Map<Method, RequestScopedMetrics> metrics;
     private long started;
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
 
-    public MetricsRequestEventListener(final Map<Method, MethodMetrics> metrics, Time time) {
+    public MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time) {
       this.metrics = metrics;
       this.time = time;
     }
@@ -231,7 +308,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
         response.setEntityStream(wrappedResponseStream);
       } else if (event.getType() == RequestEvent.Type.ON_EXCEPTION) {
-        this.metrics.get(null).exception();
+        this.metrics.get(null).metrics().exception();
         final MethodMetrics metrics = getMethodMetrics(event);
         if (metrics != null) {
           metrics.exception();
@@ -247,7 +324,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         } else {
           responseSize = 0;
         }
-        this.metrics.get(null).finished(requestSize, responseSize, elapsed);
+        this.metrics.get(null).metrics().finished(requestSize, responseSize, elapsed);
         final MethodMetrics metrics = getMethodMetrics(event);
         if (metrics != null) {
           metrics.finished(requestSize, responseSize, elapsed);
@@ -260,7 +337,19 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       if (method == null) {
         return null;
       }
-      return this.metrics.get(method.getInvocable().getDefinitionMethod());
+
+      RequestScopedMetrics metrics = this.metrics.get(method.getInvocable().getDefinitionMethod());
+      if (metrics == null) {
+        return null;
+      }
+
+      Map tags = (Map) event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
+      if (tags == null) {
+        return metrics.metrics();
+      }
+
+      // we have additional tags, find the appropriate metrics holder
+      return metrics.metrics(tags);
     }
 
     private static class CountingInputStream extends FilterInputStream {
