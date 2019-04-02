@@ -234,6 +234,9 @@ public abstract class Application<T extends RestConfig> {
       connector.addNetworkTrafficListener(metricsListener);
       connector.setPort(listener.getPort());
       connector.setHost(listener.getHost());
+
+      connector.setIdleTimeout(config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
+
       server.addConnector(connector);
     }
 

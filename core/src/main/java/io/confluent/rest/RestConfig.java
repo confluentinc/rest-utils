@@ -244,6 +244,11 @@ public class RestConfig extends AbstractConfig {
           + "This is an internal feature and subject to change, "
           + "including changes to the Jetty version";
 
+  public static final String IDLE_TIMEOUT_MS_CONFIG = "idle.timeout.ms";
+  public static final String IDLE_TIMEOUT_MS_DOC =
+          "The number of milliseconds to hold an idle session open for.";
+  public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
+
   // CHECKSTYLE_RULES.OFF: MethodLength
   public static ConfigDef baseConfigDef() {
     // CHECKSTYLE_RULES.ON: MethodLength
@@ -485,6 +490,12 @@ public class RestConfig extends AbstractConfig {
             Collections.emptyList(),
             Importance.LOW,
             WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC
+        ).define(
+            IDLE_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            IDLE_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            IDLE_TIMEOUT_MS_DOC
         );
   }
 
