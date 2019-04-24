@@ -21,6 +21,7 @@ import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.rest.auth.AuthUtil;
 
+import io.confluent.rest.contexts.RestSecurityContextBinder;
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.jmx.MBeanContainer;
@@ -202,6 +203,7 @@ public abstract class Application<T extends RestConfig> {
     configureBaseApplication(resourceConfig, combinedMetricsTags);
     configureResourceExtensions(resourceConfig);
     setupResources(resourceConfig, getConfiguration());
+    configureExtraContexts(resourceConfig);
 
     // Configure the servlet container
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
@@ -549,6 +551,14 @@ public abstract class Application<T extends RestConfig> {
     }
 
     return listeners;
+  }
+
+  /**
+   * Register extra context classes that can be injected in the application when using the
+   * {@link javax.ws.rs.core.Context} annotation.
+   */
+  private void configureExtraContexts(Configurable<?> config) {
+    config.register(new RestSecurityContextBinder());
   }
 
   public void configureBaseApplication(Configurable<?> config) {
