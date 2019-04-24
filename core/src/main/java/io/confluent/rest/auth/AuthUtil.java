@@ -27,6 +27,12 @@ public final class AuthUtil {
   private AuthUtil() {
   }
 
+  /**
+   * Checks if {@link RestConfig#ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG} is not empty.
+   *
+   * @param restConfig the rest app's config.
+   * @return true if not empty, false otherwise.
+   */
   public static boolean isCorsEnabled(final RestConfig restConfig) {
     String allowedOrigins = restConfig.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
     return !allowedOrigins.trim().isEmpty();
@@ -41,24 +47,48 @@ public final class AuthUtil {
    * {@link RestConfig#ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG} is not empty.
    *
    * @param restConfig the rest app's config.
-   * @return the constraint mapping
+   * @return the constraint mapping.
    */
   public static ConstraintMapping createGlobalAuthConstraint(final RestConfig restConfig) {
-    final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-    final boolean omitOptions = isCorsEnabled(restConfig);
+    return createConstraint(restConfig, true, "/*");
+  }
 
-    final Constraint constraint = new Constraint();
-    constraint.setAuthenticate(true);
-    constraint.setRoles(roles.toArray(new String[0]));
+  /**
+   * Build a secured auth constraint from standard RestConfig for a path.
+   *
+   * <p>The valid roles is extracted from {@link RestConfig#AUTHENTICATION_ROLES_CONFIG}
+   *
+   * <p>OPTIONS requests will not require auth if
+   * {@link RestConfig#ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG} is not empty.
+   *
+   * @param restConfig the rest app's config.
+   * @param pathSpec path for constraint.
+   * @return the constraint mapping.
+   */
+  public static ConstraintMapping createSecuredConstraint(
+      final RestConfig restConfig,
+      final String pathSpec
+  ) {
+    return createConstraint(restConfig, true, pathSpec);
+  }
 
-    final ConstraintMapping mapping = new ConstraintMapping();
-    mapping.setConstraint(constraint);
-    mapping.setMethod("*");
-    if (omitOptions) {
-      mapping.setMethodOmissions(new String[]{"OPTIONS"});
-    }
-    mapping.setPathSpec("/*");
-    return mapping;
+  /**
+   * Build an unsecured auth constraint from standard RestConfig for a path.
+   *
+   * <p>The valid roles is extracted from {@link RestConfig#AUTHENTICATION_ROLES_CONFIG}
+   *
+   * <p>OPTIONS requests will not require auth if
+   * {@link RestConfig#ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG} is not empty.
+   *
+   * @param restConfig the rest app's config.
+   * @param pathSpec path for constraint.
+   * @return the constraint mapping.
+   */
+  public static ConstraintMapping createUnsecuredConstraint(
+      final RestConfig restConfig,
+      final String pathSpec
+  ) {
+    return createConstraint(restConfig, false, pathSpec);
   }
 
   /**
@@ -71,18 +101,37 @@ public final class AuthUtil {
     final List<String> unsecuredPaths = restConfig.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
 
     return unsecuredPaths.stream()
-        .map(AuthUtil::toUnsecuredConstraint)
+        .map(p -> createConstraint(restConfig, false, p))
         .collect(Collectors.toList());
   }
 
-  private static ConstraintMapping toUnsecuredConstraint(final String unsecuredPath) {
+  /**
+   * Build a secure or unsecure constraint using standard RestConfig for a path.
+   *
+   * @param restConfig the rest app's config.
+   * @param authenticate authentication flag.
+   * @param pathSpec path for constraint.
+   * @return the constraint mapping.
+   */
+  private static ConstraintMapping createConstraint(
+      final RestConfig restConfig,
+      final boolean authenticate,
+      final String pathSpec
+  ) {
     final Constraint constraint = new Constraint();
-    constraint.setAuthenticate(false);
+    constraint.setAuthenticate(authenticate);
+    if (authenticate) {
+      final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+      constraint.setRoles(roles.toArray(new String[0]));
+    }
 
     final ConstraintMapping mapping = new ConstraintMapping();
     mapping.setConstraint(constraint);
     mapping.setMethod("*");
-    mapping.setPathSpec(unsecuredPath);
+    if (authenticate && AuthUtil.isCorsEnabled(restConfig)) {
+      mapping.setMethodOmissions(new String[]{"OPTIONS"});
+    }
+    mapping.setPathSpec(pathSpec);
     return mapping;
   }
 }
