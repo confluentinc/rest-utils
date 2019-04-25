@@ -189,10 +189,16 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_METHOD_CONFIG = "authentication.method";
   public static final String AUTHENTICATION_METHOD_NONE = "NONE";
   public static final String AUTHENTICATION_METHOD_BASIC = "BASIC";
+  public static final String AUTHENTICATION_METHOD_OAUTHBEARER = "OAUTHBEARER";
   public static final String AUTHENTICATION_METHOD_DOC =
-      "Method of authentication. Must be BASIC to enable authentication. "
-      + "You must supply a valid JAAS config file for the 'java.security.auth.login.config'"
-      + " system property for the appropriate authentication provider.";
+      "Method of authentication. Must be BASIC or OAUTHBEARER to enable authentication. "
+      + "For BASIC, you must supply a valid JAAS config file for the "
+      + "'java.security.auth.login.config' system property for the appropriate authentication "
+      + "provider. For OAUTHBEARER, you must supply '"
+      + RestConfig.AUTHENTICATION_OAUTHBEARER_ISSUER + "', '"
+      + RestConfig.AUTHENTICATION_OAUTHBEARER_PUBLIC_KEY_PATH + "', and '"
+      + RestConfig.AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM
+      + "' configs";
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
       ConfigDef.ValidString.in(AUTHENTICATION_METHOD_NONE, AUTHENTICATION_METHOD_BASIC);
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
@@ -208,6 +214,23 @@ public class RestConfig extends AbstractConfig {
                                                              + "can be "
                                                              + "accessed without authentication";
   public static final String AUTHENTICATION_SKIP_PATHS_DEFAULT = "";
+
+  public static final String AUTHENTICATION_OAUTHBEARER_ISSUER =
+      "authentication.oauthbearer.issuer";
+  public static final String AUTHENTICATION_OAUTHBEARER_ISSUER_DOC =
+      "JWT token issuer.";
+  public static final String AUTHENTICATION_OAUTHBEARER_ISSUER_DEFAULT = "Confluent";
+
+  public static final String AUTHENTICATION_OAUTHBEARER_PUBLIC_KEY_PATH =
+      "authentication.oauthbearer.public.key.path";
+  public static final String AUTHENTICATION_OAUTHBEARER_PUBLIC_KEY_PATH_DOC =
+      "Path to public key for authenticating JWT tokens.";
+
+  public static final String AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM =
+      "authentication.oauthbearer.roles.claim";
+  public static final String AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM_DOC =
+      "JWT roles claim.";
+  public static final String AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM_DEFAULT = "clusters";
 
   public static final String WEBSOCKET_PATH_PREFIX_CONFIG = "websocket.path.prefix";
   public static final String WEBSOCKET_PATH_PREFIX_DOC =
@@ -502,6 +525,24 @@ public class RestConfig extends AbstractConfig {
             AUTHENTICATION_SKIP_PATHS_DEFAULT,
             Importance.LOW,
             AUTHENTICATION_SKIP_PATHS_DOC
+        ).define(
+            AUTHENTICATION_OAUTHBEARER_ISSUER,
+            Type.STRING,
+            AUTHENTICATION_OAUTHBEARER_ISSUER_DEFAULT,
+            Importance.LOW,
+            AUTHENTICATION_OAUTHBEARER_ISSUER_DOC
+        ).define(
+            AUTHENTICATION_OAUTHBEARER_PUBLIC_KEY_PATH,
+            Type.STRING,
+            "",
+            Importance.LOW,
+            AUTHENTICATION_OAUTHBEARER_PUBLIC_KEY_PATH_DOC
+        ).define(
+            AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM,
+            Type.STRING,
+            AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM_DEFAULT,
+            Importance.LOW,
+            AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM_DOC
         ).define(
             ENABLE_GZIP_COMPRESSION_CONFIG,
             Type.BOOLEAN,

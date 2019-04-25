@@ -19,6 +19,8 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.common.security.jetty.JwtLoginService;
+import io.confluent.common.security.jetty.OAuthBearerAuthenticator;
 import io.confluent.rest.auth.AuthUtil;
 
 import org.apache.kafka.common.config.ConfigException;
@@ -378,6 +380,8 @@ public abstract class Application<T extends RestConfig> {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
       context.setSecurityHandler(createBasicSecurityHandler());
+    } else if (enableOAuthBearerAuth(authMethod)) {
+      context.setSecurityHandler(createOAuthBearerSecurityHandler());
     }
   }
 
@@ -470,6 +474,10 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
+  static boolean enableOAuthBearerAuth(String authMethod) {
+    return RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER.equals(authMethod);
+  }
+
   protected ConstraintSecurityHandler createBasicSecurityHandler() {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
 
@@ -477,6 +485,29 @@ public abstract class Application<T extends RestConfig> {
     securityHandler.addConstraintMapping(createGlobalAuthConstraint());
     securityHandler.setAuthenticator(new BasicAuthenticator());
     securityHandler.setLoginService(new JAASLoginService(realm));
+    securityHandler.setIdentityService(new DefaultIdentityService());
+    securityHandler.setRealmName(realm);
+
+    AuthUtil.createUnsecuredConstraints(config)
+        .forEach(securityHandler::addConstraintMapping);
+
+    return securityHandler;
+  }
+
+  protected ConstraintSecurityHandler createOAuthBearerSecurityHandler() {
+    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+
+    final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+    securityHandler.addConstraintMapping(createGlobalAuthConstraint());
+    securityHandler.setAuthenticator(new OAuthBearerAuthenticator());
+    securityHandler.setLoginService(
+        new JwtLoginService(
+            realm,
+            config.getString(RestConfig.AUTHENTICATION_OAUTHBEARER_ISSUER),
+            config.getString(RestConfig.AUTHENTICATION_OAUTHBEARER_PUBLIC_KEY_PATH),
+            config.getString(RestConfig.AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM)
+        )
+    );
     securityHandler.setIdentityService(new DefaultIdentityService());
     securityHandler.setRealmName(realm);
 

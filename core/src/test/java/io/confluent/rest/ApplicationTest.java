@@ -182,6 +182,11 @@ public class ApplicationTest {
   }
 
   @Test
+  public void testAuthEnabledOAUTHBEARER() {
+    assertTrue(Application.enableOAuthBearerAuth(RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER));
+  }
+
+  @Test
   public void testCreateSecurityHandlerWithNoRoles() {
     final Map<String, Object> config = ImmutableMap.of(
         RestConfig.AUTHENTICATION_REALM_CONFIG, REALM,
