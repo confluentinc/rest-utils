@@ -181,6 +181,36 @@ public class AuthUtilTest {
     assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false));
   }
 
+  @Test
+  public void shouldCreateUnsecuredPathConstraint() {
+    // Given:
+    config = restConfigWith(ImmutableMap.of());
+
+    // When:
+    final ConstraintMapping mappings =
+        AuthUtil.createUnsecuredConstraint(config, "/path/*");
+
+    // Then:
+    assertThat(mappings.getMethod(), is("*"));
+    assertThat(mappings.getPathSpec(), is("/path/*"));
+    assertThat(mappings.getConstraint().getAuthenticate(), is(false));
+  }
+
+  @Test
+  public void shouldCreateSecuredPathConstraint() {
+    // Given:
+    config = restConfigWith(ImmutableMap.of());
+
+    // When:
+    final ConstraintMapping mappings =
+        AuthUtil.createSecuredConstraint(config, "/path/*");
+
+    // Then:
+    assertThat(mappings.getMethod(), is("*"));
+    assertThat(mappings.getPathSpec(), is("/path/*"));
+    assertThat(mappings.getConstraint().getAuthenticate(), is(true));
+  }
+
   private static RestConfig restConfigWith(final Map<String, Object> config) {
     return new RestConfig(RestConfig.baseConfigDef(), config);
   }
