@@ -81,12 +81,6 @@
 
             <!--our actual deps-->
             <dependency>
-                <groupId>io.confluent</groupId>
-                <artifactId>confluent-security-plugins-common</artifactId>
-                <version>${confluent.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>org.glassfish.jersey.containers</groupId>
                 <artifactId>jersey-container-servlet</artifactId>
                 <version>${jersey.version}</version>
