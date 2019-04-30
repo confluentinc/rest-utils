@@ -189,12 +189,17 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_METHOD_CONFIG = "authentication.method";
   public static final String AUTHENTICATION_METHOD_NONE = "NONE";
   public static final String AUTHENTICATION_METHOD_BASIC = "BASIC";
+  public static final String AUTHENTICATION_METHOD_OAUTHBEARER = "OAUTHBEARER";
   public static final String AUTHENTICATION_METHOD_DOC =
       "Method of authentication. Must be BASIC to enable authentication. "
       + "You must supply a valid JAAS config file for the 'java.security.auth.login.config'"
       + " system property for the appropriate authentication provider.";
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
-      ConfigDef.ValidString.in(AUTHENTICATION_METHOD_NONE, AUTHENTICATION_METHOD_BASIC);
+      ConfigDef.ValidString.in(
+          AUTHENTICATION_METHOD_NONE,
+          AUTHENTICATION_METHOD_BASIC,
+          AUTHENTICATION_METHOD_OAUTHBEARER
+      );
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
   public static final String AUTHENTICATION_REALM_DOC =
       "Security realm to be used in authentication.";
