@@ -25,8 +25,12 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
+import org.eclipse.jetty.jaas.JAASLoginService;
+import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.LoginService;
+import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.security.Constraint;
 import org.junit.After;
@@ -249,6 +253,43 @@ public class ApplicationTest {
     assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false));
     assertThat(mappings.get(2).getPathSpec(), is("/path/2"));
     assertThat(mappings.get(2).getConstraint().getAuthenticate(), is(false));
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testOAuthBearerNoAuthenticator() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER);
+
+    Application app = new TestApp(config) {
+      @Override
+      protected LoginService createLoginService() {
+        return new JAASLoginService("realm");
+      }
+    };
+    app.createOAuthBearerSecurityHandler();
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testOAuthBearerNoLoginService() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER);
+
+    Application app = new TestApp(config) {
+      @Override
+      protected LoginAuthenticator createAuthenticator() {
+        return new BasicAuthenticator();
+      }
+    };
+    app.createOAuthBearerSecurityHandler();
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testOAuthBearerNoAuthenticatorNoLoginService() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER);
+
+    Application app = new TestApp(config);
+    app.createOAuthBearerSecurityHandler();
   }
 
   @Test

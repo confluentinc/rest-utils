@@ -200,7 +200,11 @@ public class RestConfig extends AbstractConfig {
       + RestConfig.AUTHENTICATION_OAUTHBEARER_ROLES_CLAIM
       + "' configs";
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
-      ConfigDef.ValidString.in(AUTHENTICATION_METHOD_NONE, AUTHENTICATION_METHOD_BASIC);
+      ConfigDef.ValidString.in(
+          AUTHENTICATION_METHOD_NONE,
+          AUTHENTICATION_METHOD_BASIC,
+          AUTHENTICATION_METHOD_OAUTHBEARER
+      );
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
   public static final String AUTHENTICATION_REALM_DOC =
       "Security realm to be used in authentication.";
