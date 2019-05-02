@@ -193,6 +193,7 @@ public class ApplicationTest {
   @Test
   public void testCreateSecurityHandlerWithNoRoles() {
     final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BASIC,
         RestConfig.AUTHENTICATION_REALM_CONFIG, REALM,
         RestConfig.AUTHENTICATION_ROLES_CONFIG, "");
 
@@ -208,6 +209,7 @@ public class ApplicationTest {
   @Test
   public void testCreateSecurityHandlerWithAllRoles() {
     final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BASIC,
         RestConfig.AUTHENTICATION_REALM_CONFIG, REALM,
         RestConfig.AUTHENTICATION_ROLES_CONFIG, "*");
 
@@ -223,6 +225,7 @@ public class ApplicationTest {
   @Test
   public void testCreateSecurityHandlerWithSpecificRoles() {
     final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BASIC,
         RestConfig.AUTHENTICATION_REALM_CONFIG, REALM,
         RestConfig.AUTHENTICATION_ROLES_CONFIG, "roleA, roleB");
 

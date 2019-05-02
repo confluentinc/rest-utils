@@ -482,46 +482,37 @@ public abstract class Application<T extends RestConfig> {
 
   protected LoginAuthenticator createAuthenticator() {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-    if (enableBasicAuth(getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG))) {
+    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method)) {
       return new BasicAuthenticator();
-    } else if (enableOAuthBearerAuth(getConfiguration()
-                                     .getString(RestConfig.AUTHENTICATION_METHOD_CONFIG))) {
+    } else if (enableOAuthBearerAuth(method)) {
       throw new UnsupportedOperationException(
           "Must implement Application.createAuthenticator() when using '"
           + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
           + RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER + "'."
       );
-    } else if (realm != null && !realm.isEmpty()) {
-      // default case
-      return new BasicAuthenticator();
     }
     return null;
   }
 
   protected LoginService createLoginService() {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-    if (enableBasicAuth(getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG))) {
+    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method)) {
       return new JAASLoginService(realm);
-    } else if (enableOAuthBearerAuth(getConfiguration()
-                                     .getString(RestConfig.AUTHENTICATION_METHOD_CONFIG))) {
+    } else if (enableOAuthBearerAuth(method)) {
       throw new UnsupportedOperationException(
           "Must implement Application.createLoginService() when using '"
               + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
               + RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER + "'."
       );
-    } else if (realm != null && !realm.isEmpty()) {
-      // default case
-      return new JAASLoginService(realm);
     }
     return null;
   }
 
   protected IdentityService createIdentityService() {
-    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-    if (enableBasicAuth(getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG))
-        || enableOAuthBearerAuth(getConfiguration()
-                                 .getString(RestConfig.AUTHENTICATION_METHOD_CONFIG))
-        || (realm != null && !realm.isEmpty())) {
+    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method) || enableOAuthBearerAuth(method)) {
       return new DefaultIdentityService();
     }
     return null;
