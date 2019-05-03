@@ -27,7 +27,10 @@ import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.DefaultIdentityService;
+import org.eclipse.jetty.security.IdentityService;
+import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
+import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
@@ -378,6 +381,8 @@ public abstract class Application<T extends RestConfig> {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
       context.setSecurityHandler(createBasicSecurityHandler());
+    } else if (enableOAuthBearerAuth(authMethod)) {
+      context.setSecurityHandler(createOAuthBearerSecurityHandler());
     }
   }
 
@@ -470,14 +475,65 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
+  static boolean enableOAuthBearerAuth(String authMethod) {
+    return RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER.equals(authMethod);
+  }
+
+
+  protected LoginAuthenticator createAuthenticator() {
+    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method)) {
+      return new BasicAuthenticator();
+    } else if (enableOAuthBearerAuth(method)) {
+      throw new UnsupportedOperationException(
+          "Must implement Application.createAuthenticator() when using '"
+          + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
+          + RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER + "'."
+      );
+    }
+    return null;
+  }
+
+  protected LoginService createLoginService() {
+    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method)) {
+      return new JAASLoginService(realm);
+    } else if (enableOAuthBearerAuth(method)) {
+      throw new UnsupportedOperationException(
+          "Must implement Application.createLoginService() when using '"
+              + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
+              + RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER + "'."
+      );
+    }
+    return null;
+  }
+
+  protected IdentityService createIdentityService() {
+    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method) || enableOAuthBearerAuth(method)) {
+      return new DefaultIdentityService();
+    }
+    return null;
+  }
+
   protected ConstraintSecurityHandler createBasicSecurityHandler() {
+    return createSecurityHandler();
+  }
+
+  protected ConstraintSecurityHandler createOAuthBearerSecurityHandler() {
+    return createSecurityHandler();
+  }
+
+  protected ConstraintSecurityHandler createSecurityHandler() {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
 
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
     securityHandler.addConstraintMapping(createGlobalAuthConstraint());
-    securityHandler.setAuthenticator(new BasicAuthenticator());
-    securityHandler.setLoginService(new JAASLoginService(realm));
-    securityHandler.setIdentityService(new DefaultIdentityService());
+    securityHandler.setAuthenticator(createAuthenticator());
+    securityHandler.setLoginService(createLoginService());
+    securityHandler.setIdentityService(createIdentityService());
     securityHandler.setRealmName(realm);
 
     AuthUtil.createUnsecuredConstraints(config)
