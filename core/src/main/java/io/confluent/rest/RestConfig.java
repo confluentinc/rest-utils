@@ -170,6 +170,11 @@ public class RestConfig extends AbstractConfig {
   protected static final String SSL_CLIENT_AUTH_DOC =
       "Whether or not to require the https client to authenticate via the server's trust store.";
   protected static final boolean SSL_CLIENT_AUTH_DEFAULT = false;
+  public static final String SSL_CLIENT_AUTH_REQUESTED_CONFIG = "ssl.client.auth.requested";
+  protected static final String SSL_CLIENT_AUTH_REQUESTED_DOC =
+      "Whether or not to request the https client to authenticate via the server's trust store. "
+          + "Will have no effect if " + SSL_CLIENT_AUTH_CONFIG + " is set to true.";
+  protected static final boolean SSL_CLIENT_AUTH_REQUESTED_DEFAULT = false;
   public static final String SSL_ENABLED_PROTOCOLS_CONFIG = "ssl.enabled.protocols";
   protected static final String SSL_ENABLED_PROTOCOLS_DOC =
       "The list of protocols enabled for SSL connections. Comma-separated list. "
@@ -466,6 +471,12 @@ public class RestConfig extends AbstractConfig {
             SSL_CLIENT_AUTH_DEFAULT,
             Importance.MEDIUM,
             SSL_CLIENT_AUTH_DOC
+        ).define(
+            SSL_CLIENT_AUTH_REQUESTED_CONFIG,
+            Type.BOOLEAN,
+            SSL_CLIENT_AUTH_REQUESTED_DEFAULT,
+            Importance.LOW,
+            SSL_CLIENT_AUTH_REQUESTED_DOC
         ).define(
             SSL_ENABLED_PROTOCOLS_CONFIG,
             Type.LIST,

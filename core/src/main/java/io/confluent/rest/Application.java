@@ -408,7 +408,21 @@ public abstract class Application<T extends RestConfig> {
       }
     }
 
-    sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
+    boolean requireClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG);
+    boolean requestClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG);
+    sslContextFactory.setNeedClientAuth(requestClientAuth);
+    if (requestClientAuth) {
+      if (requireClientAuth) {
+        log.warn(
+            "Configurations '{}' and '{}' both set to true; "
+                + "the former only takes effect if the latter is set to false",
+            RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG,
+            RestConfig.SSL_CLIENT_AUTH_CONFIG
+        );
+      } else {
+        sslContextFactory.setWantClientAuth(true);
+      }
+    }
 
     List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
     if (!enabledProtocols.isEmpty()) {
