@@ -408,7 +408,7 @@ public abstract class Application<T extends RestConfig> {
       }
     }
 
-    sslContextFactory.setNeedClientAuth(config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG));
+    configureClientAuth(sslContextFactory);
 
     List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
     if (!enabledProtocols.isEmpty()) {
@@ -451,6 +451,48 @@ public abstract class Application<T extends RestConfig> {
     sslContextFactory.setRenegotiationAllowed(false);
 
     return sslContextFactory;
+  }
+
+  @SuppressWarnings("deprecation")
+  private void configureClientAuth(SslContextFactory sslContextFactory) {
+    String clientAuthentication = config.getString(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG);
+
+    if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTH_CONFIG)) {
+      if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG)) {
+        log.warn(
+            "The {} configuration is deprecated. Since a value has been supplied for the {} "
+                + "configuration, that will be used instead",
+            RestConfig.SSL_CLIENT_AUTH_CONFIG,
+            RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
+        );
+      } else {
+        log.warn(
+            "The configuration {} is deprecated and should be replaced with {}",
+            RestConfig.SSL_CLIENT_AUTH_CONFIG,
+            RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
+        );
+        clientAuthentication = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG)
+            ? RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED
+            : RestConfig.SSL_CLIENT_AUTHENTICATION_NONE;
+      }
+    }
+
+    switch (clientAuthentication) {
+      case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED:
+        sslContextFactory.setNeedClientAuth(true);
+        break;
+      case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUESTED:
+        sslContextFactory.setWantClientAuth(true);
+        break;
+      case RestConfig.SSL_CLIENT_AUTHENTICATION_NONE:
+        break;
+      default:
+        throw new ConfigException(
+            "Unexpected value for {} configuration: {}",
+            RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+            clientAuthentication
+        );
+    }
   }
 
   public Handler wrapWithGzipHandler(Handler handler) {
