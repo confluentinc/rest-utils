@@ -468,7 +468,7 @@ public abstract class Application<T extends RestConfig> {
       } else {
         log.warn(
             "The configuration {} is deprecated and should be replaced with {}",
-            RestConfig.SSL_CLIENT_AUTH_DEFAULT,
+            RestConfig.SSL_CLIENT_AUTH_CONFIG,
             RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
         );
         clientAuthentication = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG)
