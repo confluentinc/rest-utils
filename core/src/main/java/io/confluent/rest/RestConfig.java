@@ -166,15 +166,26 @@ public class RestConfig extends AbstractConfig {
   protected static final String SSL_PROVIDER_DOC =
       "The SSL security provider name. Leave blank to use Jetty's default.";
   protected static final String SSL_PROVIDER_DEFAULT = "";
+  public static final String SSL_CLIENT_AUTHENTICATION_CONFIG = "ssl.client.authentication";
+  public static final String SSL_CLIENT_AUTHENTICATION_NONE = "NONE";
+  public static final String SSL_CLIENT_AUTHENTICATION_REQUESTED = "REQUESTED";
+  public static final String SSL_CLIENT_AUTHENTICATION_REQUIRED = "REQUIRED";
+  protected static final String SSL_CLIENT_AUTHENTICATION_DOC =
+      "SSL mutual auth. Set to NONE to disable SSL client authentication, set to REQUESTED to "
+          + "request but not require SSL client authentication, and set to REQUIRED to require SSL "
+          + "client authentication.";
+  public static final ConfigDef.ValidString SSL_CLIENT_AUTHENTICATION_VALIDATOR =
+      ConfigDef.ValidString.in(
+          SSL_CLIENT_AUTHENTICATION_NONE,
+          SSL_CLIENT_AUTHENTICATION_REQUESTED,
+          SSL_CLIENT_AUTHENTICATION_REQUIRED
+      );
+  @Deprecated
   public static final String SSL_CLIENT_AUTH_CONFIG = "ssl.client.auth";
   protected static final String SSL_CLIENT_AUTH_DOC =
-      "Whether or not to require the https client to authenticate via the server's trust store.";
+      "Whether or not to require the https client to authenticate via the server's trust store. " 
+          + "Deprecated; please use " + SSL_CLIENT_AUTHENTICATION_CONFIG + " instead.";
   protected static final boolean SSL_CLIENT_AUTH_DEFAULT = false;
-  public static final String SSL_CLIENT_AUTH_REQUESTED_CONFIG = "ssl.client.auth.requested";
-  protected static final String SSL_CLIENT_AUTH_REQUESTED_DOC =
-      "Whether or not to request the https client to authenticate via the server's trust store. "
-          + "Will have no effect if " + SSL_CLIENT_AUTH_CONFIG + " is set to true.";
-  protected static final boolean SSL_CLIENT_AUTH_REQUESTED_DEFAULT = false;
   public static final String SSL_ENABLED_PROTOCOLS_CONFIG = "ssl.enabled.protocols";
   protected static final String SSL_ENABLED_PROTOCOLS_DOC =
       "The list of protocols enabled for SSL connections. Comma-separated list. "
@@ -334,6 +345,7 @@ public class RestConfig extends AbstractConfig {
   }
 
   // CHECKSTYLE_RULES.OFF: MethodLength
+  @SuppressWarnings("deprecation")
   private static ConfigDef incompleteBaseConfigDef() {
     // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
@@ -466,17 +478,18 @@ public class RestConfig extends AbstractConfig {
             Importance.MEDIUM,
             SSL_PROVIDER_DOC
         ).define(
+            SSL_CLIENT_AUTHENTICATION_CONFIG,
+            Type.STRING,
+            SSL_CLIENT_AUTHENTICATION_NONE,
+            SSL_CLIENT_AUTHENTICATION_VALIDATOR,
+            Importance.MEDIUM,
+            SSL_CLIENT_AUTHENTICATION_DOC
+        ).define(
             SSL_CLIENT_AUTH_CONFIG,
             Type.BOOLEAN,
             SSL_CLIENT_AUTH_DEFAULT,
             Importance.MEDIUM,
             SSL_CLIENT_AUTH_DOC
-        ).define(
-            SSL_CLIENT_AUTH_REQUESTED_CONFIG,
-            Type.BOOLEAN,
-            SSL_CLIENT_AUTH_REQUESTED_DEFAULT,
-            Importance.LOW,
-            SSL_CLIENT_AUTH_REQUESTED_DOC
         ).define(
             SSL_ENABLED_PROTOCOLS_CONFIG,
             Type.LIST,

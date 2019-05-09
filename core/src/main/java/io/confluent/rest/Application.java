@@ -453,21 +453,45 @@ public abstract class Application<T extends RestConfig> {
     return sslContextFactory;
   }
 
+  @SuppressWarnings("deprecation")
   private void configureClientAuth(SslContextFactory sslContextFactory) {
-    boolean requireClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG);
-    boolean requestClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG);
-    sslContextFactory.setNeedClientAuth(requireClientAuth);
-    if (requestClientAuth) {
-      if (requireClientAuth) {
+    String clientAuthentication = config.getString(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG);
+
+    if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTH_CONFIG)) {
+      if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG)) {
         log.warn(
-            "Configurations '{}' and '{}' both set to true; "
-                + "the former only takes effect if the latter is set to false",
-            RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG,
-            RestConfig.SSL_CLIENT_AUTH_CONFIG
+            "The {} configuration is deprecated. Since a value has been supplied for the {} "
+                + "configuration, that will be used instead",
+            RestConfig.SSL_CLIENT_AUTH_CONFIG,
+            RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
         );
       } else {
-        sslContextFactory.setWantClientAuth(true);
+        log.warn(
+            "The configuration {} is deprecated and should be replaced with {}",
+            RestConfig.SSL_CLIENT_AUTH_DEFAULT,
+            RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
+        );
+        clientAuthentication = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG)
+            ? RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED
+            : RestConfig.SSL_CLIENT_AUTHENTICATION_NONE;
       }
+    }
+
+    switch (clientAuthentication) {
+      case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED:
+        sslContextFactory.setNeedClientAuth(true);
+        break;
+      case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUESTED:
+        sslContextFactory.setWantClientAuth(true);
+        break;
+      case RestConfig.SSL_CLIENT_AUTHENTICATION_NONE:
+        break;
+      default:
+        throw new ConfigException(
+            "Unexpected value for {} configuration: {}",
+            RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+            clientAuthentication
+        );
     }
   }
 
