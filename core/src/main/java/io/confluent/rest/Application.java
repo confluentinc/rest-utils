@@ -408,21 +408,7 @@ public abstract class Application<T extends RestConfig> {
       }
     }
 
-    boolean requireClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG);
-    boolean requestClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG);
-    sslContextFactory.setNeedClientAuth(requestClientAuth);
-    if (requestClientAuth) {
-      if (requireClientAuth) {
-        log.warn(
-            "Configurations '{}' and '{}' both set to true; "
-                + "the former only takes effect if the latter is set to false",
-            RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG,
-            RestConfig.SSL_CLIENT_AUTH_CONFIG
-        );
-      } else {
-        sslContextFactory.setWantClientAuth(true);
-      }
-    }
+    configureClientAuth(sslContextFactory);
 
     List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
     if (!enabledProtocols.isEmpty()) {
@@ -465,6 +451,24 @@ public abstract class Application<T extends RestConfig> {
     sslContextFactory.setRenegotiationAllowed(false);
 
     return sslContextFactory;
+  }
+
+  private void configureClientAuth(SslContextFactory sslContextFactory) {
+    boolean requireClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG);
+    boolean requestClientAuth = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG);
+    sslContextFactory.setNeedClientAuth(requireClientAuth);
+    if (requestClientAuth) {
+      if (requireClientAuth) {
+        log.warn(
+            "Configurations '{}' and '{}' both set to true; "
+                + "the former only takes effect if the latter is set to false",
+            RestConfig.SSL_CLIENT_AUTH_REQUESTED_CONFIG,
+            RestConfig.SSL_CLIENT_AUTH_CONFIG
+        );
+      } else {
+        sslContextFactory.setWantClientAuth(true);
+      }
+    }
   }
 
   public Handler wrapWithGzipHandler(Handler handler) {
