@@ -420,10 +420,8 @@ public abstract class Application<T extends RestConfig> {
       sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
     }
 
-    if (!config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG).isEmpty()) {
-      sslContextFactory.setEndpointIdentificationAlgorithm(
-          config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
-    }
+    sslContextFactory.setEndpointIdentificationAlgorithm(
+        config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
 
     if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
       sslContextFactory.setTrustStorePath(

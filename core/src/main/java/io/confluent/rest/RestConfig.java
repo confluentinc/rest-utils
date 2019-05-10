@@ -199,8 +199,8 @@ public class RestConfig extends AbstractConfig {
       "ssl.endpoint.identification.algorithm";
   protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DOC =
       "The endpoint identification algorithm to validate the server hostname using the "
-      + "server certificate. Leave blank to use Jetty's default.";
-  protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT = "";
+      + "server certificate. Default algorithm is https.";
+  protected static final String SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DEFAULT = "https";
 
   public static final String AUTHENTICATION_METHOD_CONFIG = "authentication.method";
   public static final String AUTHENTICATION_METHOD_NONE = "NONE";
