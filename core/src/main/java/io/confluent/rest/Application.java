@@ -32,6 +32,8 @@ import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLog;
@@ -228,13 +230,21 @@ public abstract class Application<T extends RestConfig> {
 
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
+
+    // Make an HttpConfiguration that turns off the server version header
+    HttpConfiguration httpConfiguration = new HttpConfiguration();
+    httpConfiguration.setSendServerVersion(false);
+
+    HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfiguration);
+
     for (URI listener : listeners) {
       log.info("Adding listener: " + listener.toString());
       NetworkTrafficServerConnector connector;
       if (listener.getScheme().equals("http")) {
-        connector = new NetworkTrafficServerConnector(server);
+        connector = new NetworkTrafficServerConnector(server, httpConnectionFactory);
       } else {
-        connector = new NetworkTrafficServerConnector(server, sslContextFactory);
+        connector = new NetworkTrafficServerConnector(server, httpConnectionFactory,
+            sslContextFactory);
       }
 
       connector.addNetworkTrafficListener(metricsListener);

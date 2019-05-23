@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.http.Header;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -59,6 +60,7 @@ import io.confluent.rest.annotations.PerformanceMetric;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 public class SslTest {
   private static final Logger log = LoggerFactory.getLogger(SslTest.class);
@@ -293,6 +295,11 @@ public class SslTest {
     CloseableHttpResponse response = null;
     try {
       response = httpclient.execute(httpget);
+
+      // Verify that the Jetty Server version header is not returned
+      Header jettyServerVersionHeader = response.getFirstHeader( "Server" );
+      assertNull(jettyServerVersionHeader);
+
       statusCode = response.getStatusLine().getStatusCode();
     } finally {
       if (response != null) {
