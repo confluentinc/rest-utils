@@ -231,11 +231,11 @@ public abstract class Application<T extends RestConfig> {
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
 
-    // Make an HttpConfiguration that turns off the server version header
-    HttpConfiguration httpConfiguration = new HttpConfiguration();
+    final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
-    HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfiguration);
+    final HttpConnectionFactory httpConnectionFactory =
+        new HttpConnectionFactory(httpConfiguration);
 
     for (URI listener : listeners) {
       log.info("Adding listener: " + listener.toString());
