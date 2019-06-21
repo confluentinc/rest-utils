@@ -391,8 +391,8 @@ public abstract class Application<T extends RestConfig> {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
       context.setSecurityHandler(createBasicSecurityHandler());
-    } else if (enableOAuthBearerAuth(authMethod)) {
-      context.setSecurityHandler(createOAuthBearerSecurityHandler());
+    } else if (enableBearerAuth(authMethod)) {
+      context.setSecurityHandler(createBearerSecurityHandler());
     }
   }
 
@@ -525,8 +525,8 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
   }
 
-  static boolean enableOAuthBearerAuth(String authMethod) {
-    return RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER.equals(authMethod);
+  static boolean enableBearerAuth(String authMethod) {
+    return RestConfig.AUTHENTICATION_METHOD_BEARER.equals(authMethod);
   }
 
 
@@ -535,11 +535,11 @@ public abstract class Application<T extends RestConfig> {
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
       return new BasicAuthenticator();
-    } else if (enableOAuthBearerAuth(method)) {
+    } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
           "Must implement Application.createAuthenticator() when using '"
           + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
-          + RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER + "'."
+          + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
       );
     }
     return null;
@@ -550,11 +550,11 @@ public abstract class Application<T extends RestConfig> {
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
       return new JAASLoginService(realm);
-    } else if (enableOAuthBearerAuth(method)) {
+    } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
           "Must implement Application.createLoginService() when using '"
               + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
-              + RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER + "'."
+              + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
       );
     }
     return null;
@@ -562,7 +562,7 @@ public abstract class Application<T extends RestConfig> {
 
   protected IdentityService createIdentityService() {
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
-    if (enableBasicAuth(method) || enableOAuthBearerAuth(method)) {
+    if (enableBasicAuth(method) || enableBearerAuth(method)) {
       return new DefaultIdentityService();
     }
     return null;
@@ -572,7 +572,7 @@ public abstract class Application<T extends RestConfig> {
     return createSecurityHandler();
   }
 
-  protected ConstraintSecurityHandler createOAuthBearerSecurityHandler() {
+  protected ConstraintSecurityHandler createBearerSecurityHandler() {
     return createSecurityHandler();
   }
 

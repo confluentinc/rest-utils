@@ -186,8 +186,8 @@ public class ApplicationTest {
   }
 
   @Test
-  public void testAuthEnabledOAUTHBEARER() {
-    assertTrue(Application.enableOAuthBearerAuth(RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER));
+  public void testAuthEnabledBEARER() {
+    assertTrue(Application.enableBearerAuth(RestConfig.AUTHENTICATION_METHOD_BEARER));
   }
 
   @Test
@@ -259,9 +259,9 @@ public class ApplicationTest {
   }
 
   @Test(expected = UnsupportedOperationException.class)
-  public void testOAuthBearerNoAuthenticator() {
+  public void testBearerNoAuthenticator() {
     final Map<String, Object> config = ImmutableMap.of(
-        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER);
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BEARER);
 
     Application app = new TestApp(config) {
       @Override
@@ -269,13 +269,13 @@ public class ApplicationTest {
         return new JAASLoginService("realm");
       }
     };
-    app.createOAuthBearerSecurityHandler();
+    app.createBearerSecurityHandler();
   }
 
   @Test(expected = UnsupportedOperationException.class)
-  public void testOAuthBearerNoLoginService() {
+  public void testBearerNoLoginService() {
     final Map<String, Object> config = ImmutableMap.of(
-        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER);
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BEARER);
 
     Application app = new TestApp(config) {
       @Override
@@ -283,16 +283,16 @@ public class ApplicationTest {
         return new BasicAuthenticator();
       }
     };
-    app.createOAuthBearerSecurityHandler();
+    app.createBearerSecurityHandler();
   }
 
   @Test(expected = UnsupportedOperationException.class)
-  public void testOAuthBearerNoAuthenticatorNoLoginService() {
+  public void testBearerNoAuthenticatorNoLoginService() {
     final Map<String, Object> config = ImmutableMap.of(
-        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_OAUTHBEARER);
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BEARER);
 
     Application app = new TestApp(config);
-    app.createOAuthBearerSecurityHandler();
+    app.createBearerSecurityHandler();
   }
 
   @Test
