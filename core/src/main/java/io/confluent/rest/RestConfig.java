@@ -207,10 +207,10 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_METHOD_BASIC = "BASIC";
   public static final String AUTHENTICATION_METHOD_BEARER = "BEARER";
   public static final String AUTHENTICATION_METHOD_DOC =
-      "Method of authentication. Must be BASIC or OAUTHBEARER to enable authentication. "
+      "Method of authentication. Must be BASIC or BEARER to enable authentication. "
       + "For BASIC, you must supply a valid JAAS config file for the "
       + "'java.security.auth.login.config' system property for the appropriate authentication "
-      + "provider. For OAUTHBEARER, you must implement your own Application.createAuthenticator() "
+      + "provider. For BEARER, you must implement your own Application.createAuthenticator() "
       + "& Application.createLoginService() methods.";
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
       ConfigDef.ValidString.in(
