@@ -397,7 +397,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private SslContextFactory createSslContextFactory() {
-    SslContextFactory sslContextFactory = new SslContextFactory();
+    SslContextFactory sslContextFactory = new SslContextFactory.Server();
     if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
       sslContextFactory.setKeyStorePath(
           config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
