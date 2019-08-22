@@ -18,7 +18,6 @@ package io.confluent.rest.metrics;
 
 import io.confluent.common.metrics.stats.Percentile;
 import io.confluent.common.metrics.stats.Percentiles;
-import io.confluent.rest.exceptions.RestException;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -175,7 +174,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private Sensor responseSizeSensor;
     private Sensor requestLatencySensor;
     private Sensor errorSensor;
-    private Sensor[] errorSensorByStatus;
+    private Sensor[] errorSensorByStatus = new Sensor[6];
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags) {
@@ -239,7 +238,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
               "The 99th percentile request latency in ms", metricTags), 99));
       this.requestLatencySensor.add(percs);
 
-      errorSensorByStatus = new Sensor[6];
       String code = "unknown";
       for (int i = 0; i < 6; i++) {
         if (i > 0) {
@@ -278,10 +276,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
      * Indicate that a request has failed with an exception.
      */
     public void exception(final RequestEvent event) {
-      int errorCode = -1;
-      if (event.getException() instanceof RestException) {
-        errorCode = ((RestException) event.getException()).getStatus();
-      }
+      int errorCode = event.getContainerResponse() == null ? 0
+          : event.getContainerResponse().getStatus();
       errorSensorByStatus[errorCode / 100].record();
       errorSensor.record();
     }
