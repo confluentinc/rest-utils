@@ -39,18 +39,27 @@ import static org.junit.Assert.assertTrue;
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   TestRestConfig config;
+  ApplicationWithFilter app;
   volatile Throwable handledException = null;
 
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     config = new TestRestConfig(props);
+    app = new ApplicationWithFilter(config);
+    app.start();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    app.stop();
+    app.join();
   }
 
   @Test
-  public void testListenerHandlesDispatchErrorsGracefully() throws Exception {
+  public void testListenerHandlesDispatchErrorsGracefully() {
     // request events do not follow the typical order when an error is raised during dispatch
     // this test ensures we properly handle the case where we might encounter events in the
     // following order.
@@ -59,9 +68,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     //   -> RESOURCE_METHOD_START -> RESOURCE_METHOD_FINISHED -> ON_EXCEPTION -> FINISHED
 
     // RequestEvent.Type.FINISHED before RequestEvent.Type.RESP_FILTERS_START
-    ApplicationWithFilter app = new ApplicationWithFilter(config);
-    app.start();
-
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
         .path("/private/endpoint")
@@ -79,15 +85,10 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
     assertTrue(cause instanceof ProcessingException);
     assertEquals("Resource Java method invocation error.", cause.getMessage());
-    app.stop();
-    app.join();
   }
 
   @Test
-  public void testExceptionMetrics() throws Exception {
-    ApplicationWithFilter app = new ApplicationWithFilter(config);
-    app.start();
-
+  public void testExceptionMetrics() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
         .path("/private/exception")
@@ -104,8 +105,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         }
       }
     }
-    app.stop();
-    app.join();
   }
 
   private class ApplicationWithFilter extends Application<TestRestConfig> {
