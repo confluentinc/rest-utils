@@ -31,7 +31,7 @@ import io.confluent.rest.Application;
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 
-import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.ERROR_CODE_TAG_KEY;
+import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -99,7 +99,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
-        if (metric.metricName().tags().getOrDefault(ERROR_CODE_TAG_KEY, "").equals("4xx")) {
+        if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           assertTrue("Actual: " + metric.value(),
               metric.value() > 0);
         } else if (!metric.metricName().tags().isEmpty()) {

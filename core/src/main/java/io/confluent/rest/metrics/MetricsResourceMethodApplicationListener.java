@@ -62,7 +62,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
-  protected static final String ERROR_CODE_TAG_KEY = "error_code";
+  protected static final String HTTP_STATUS_CODE_TAG = "http_status_code";
+  private static final String[] HTTP_STATUS_CODE_TEXT = {
+      "unknown", "1xx", "2xx", "3xx", "4xx", "5xx"};
   private static final int PERCENTILE_NUM_BUCKETS = 200;
   private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
 
@@ -240,18 +242,15 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
               "The 99th percentile request latency in ms", metricTags), 99));
       this.requestLatencySensor.add(percs);
 
-      String code = "unknown";
       for (int i = 0; i < 6; i++) {
-        if (i > 0) {
-          code = i + "xx";
-        }
         errorSensorByStatus[i] = metrics.sensor(getName(method, annotation, "errors" + i));
         HashMap<String, String> tags = new HashMap<>(metricTags);
-        tags.put(ERROR_CODE_TAG_KEY, code);
+        tags.put(HTTP_STATUS_CODE_TAG, HTTP_STATUS_CODE_TEXT[i]);
         metricName = new MetricName(getName(method, annotation, "request-error-rate"),
             metricGrpName,
             "The average number of requests"
-                + " per second that resulted in HTTP error responses with code " + code,
+                + " per second that resulted in HTTP error responses with code "
+                + HTTP_STATUS_CODE_TEXT[i],
             tags);
         errorSensorByStatus[i].add(metricName, new Rate());
       }
