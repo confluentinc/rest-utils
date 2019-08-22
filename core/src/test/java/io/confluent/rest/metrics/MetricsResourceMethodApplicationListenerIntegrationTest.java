@@ -104,7 +104,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
         if (metric.metricName().tags().getOrDefault(ERROR_CODE_TAG_KEY, "").equals("4xx")) {
-          assertTrue("Actual: "+metric.value(), metric.value() > 0);
+          assertTrue("Actual: " + metric.value() + metric.metricName(), metric.value() > 0);
         } else if (!metric.metricName().tags().isEmpty()) {
           assertTrue("Actual: " + metric.value() + metric.metricName(), metric.value() == 0.0 || Double.isNaN(metric.value()));
         }
