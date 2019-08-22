@@ -51,6 +51,8 @@ import io.confluent.common.metrics.stats.Rate;
 import io.confluent.common.utils.Time;
 import io.confluent.rest.annotations.PerformanceMetric;
 
+import javax.ws.rs.WebApplicationException;
+
 /**
  * Jersey ResourceMethodApplicationListener that records metrics for each endpoint by listening
  * for method start and finish events. It reports some common metrics for each such as rate and
@@ -60,7 +62,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
-  private static final String ERROR_CODE_TAG_KEY = "error_code";
+  protected static final String ERROR_CODE_TAG_KEY = "error_code";
   private static final int PERCENTILE_NUM_BUCKETS = 200;
   private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
 
@@ -243,7 +245,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         if (i > 0) {
           code = i + "xx";
         }
-        errorSensorByStatus[i] = metrics.sensor(getName(method, annotation, "errors"));
+        errorSensorByStatus[i] = metrics.sensor(getName(method, annotation, "errors" + i));
         HashMap<String, String> tags = new HashMap<>(metricTags);
         tags.put(ERROR_CODE_TAG_KEY, code);
         metricName = new MetricName(getName(method, annotation, "request-error-rate"),
@@ -276,11 +278,11 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
      * Indicate that a request has failed with an exception.
      */
     public void exception(final RequestEvent event) {
-      int errorCode = event.getContainerResponse() == null ? 0
-          : event.getContainerResponse().getStatus();
-      int idx = errorCode / 100;
+      final int statusCode = event.getException() instanceof WebApplicationException ?
+        ((WebApplicationException) event.getException()).getResponse().getStatus() : 0;
+      int idx = statusCode / 100;
       // Index 0 means "unknown" status codes.
-      idx = idx < 0 || idx >=6 ? 0 : idx;
+      idx = idx < 0 || idx >= 6 ? 0 : idx;
 
       errorSensorByStatus[idx].record();
       errorSensor.record();

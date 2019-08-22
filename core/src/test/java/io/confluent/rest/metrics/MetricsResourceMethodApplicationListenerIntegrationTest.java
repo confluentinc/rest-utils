@@ -1,5 +1,10 @@
 package io.confluent.rest.metrics;
 
+import io.confluent.common.metrics.KafkaMetric;
+import io.confluent.common.metrics.Metrics;
+import io.confluent.rest.TestMetricsReporter;
+import io.confluent.rest.annotations.PerformanceMetric;
+import io.confluent.rest.exceptions.RestNotFoundException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -8,7 +13,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.Console;
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 import javax.servlet.RequestDispatcher;
@@ -27,6 +34,9 @@ import io.confluent.rest.Application;
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 
+import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.ERROR_CODE_TAG_KEY;
+import static java.lang.Float.NaN;
+import static java.lang.Float.isNaN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -41,6 +51,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     config = new TestRestConfig(props);
     app = new ApplicationWithFilter(config);
     app.start();
@@ -79,6 +90,26 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
     assertTrue(cause instanceof ProcessingException);
     assertEquals("Resource Java method invocation error.", cause.getMessage());
+  }
+
+  @Test
+  public void testExceptionMetrics() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .path("/private/exception")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(404, response.getStatus());
+
+    for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-rate")) {
+        if (metric.metricName().tags().getOrDefault(ERROR_CODE_TAG_KEY, "").equals("4xx")) {
+          assertTrue("Actual: "+metric.value(), metric.value() > 0);
+        } else if (!metric.metricName().tags().isEmpty()) {
+          assertTrue("Actual: " + metric.value() + metric.metricName(), metric.value() == 0.0 || Double.isNaN(metric.value()));
+        }
+      }
+    }
   }
 
   private class ApplicationWithFilter extends Application<TestRestConfig> {
@@ -123,5 +154,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     public Void notAccessible() {
       return null;
     }
+  }
+
+  @GET
+  @PerformanceMetric("error")
+  @Path("/exception")
+  public Void exception() {
+    throw new RestNotFoundException("Rest Not Found", 4040);
   }
 }
