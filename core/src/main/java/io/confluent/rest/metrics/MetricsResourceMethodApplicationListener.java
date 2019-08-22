@@ -278,7 +278,11 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     public void exception(final RequestEvent event) {
       int errorCode = event.getContainerResponse() == null ? 0
           : event.getContainerResponse().getStatus();
-      errorSensorByStatus[errorCode / 100].record();
+      int idx = errorCode / 100;
+      // Index 0 means "unknown" status codes.
+      idx = idx < 0 || idx >=6 ? 0 : idx;
+
+      errorSensorByStatus[idx].record();
       errorSensor.record();
     }
 
