@@ -1,7 +1,6 @@
 package io.confluent.rest.metrics;
 
 import io.confluent.common.metrics.KafkaMetric;
-import io.confluent.common.metrics.Metrics;
 import io.confluent.rest.TestMetricsReporter;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.exceptions.RestNotFoundException;
@@ -13,9 +12,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.Console;
 import java.io.IOException;
-import java.util.List;
 import java.util.Properties;
 
 import javax.servlet.RequestDispatcher;
@@ -35,8 +32,6 @@ import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.ERROR_CODE_TAG_KEY;
-import static java.lang.Float.NaN;
-import static java.lang.Float.isNaN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -44,27 +39,18 @@ import static org.junit.Assert.assertTrue;
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   TestRestConfig config;
-  ApplicationWithFilter app;
   volatile Throwable handledException = null;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     Properties props = new Properties();
     props.setProperty("debug", "false");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     config = new TestRestConfig(props);
-    app = new ApplicationWithFilter(config);
-    app.start();
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    app.stop();
-    app.join();
   }
 
   @Test
-  public void testListenerHandlesDispatchErrorsGracefully() {
+  public void testListenerHandlesDispatchErrorsGracefully() throws Exception {
     // request events do not follow the typical order when an error is raised during dispatch
     // this test ensures we properly handle the case where we might encounter events in the
     // following order.
@@ -73,6 +59,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     //   -> RESOURCE_METHOD_START -> RESOURCE_METHOD_FINISHED -> ON_EXCEPTION -> FINISHED
 
     // RequestEvent.Type.FINISHED before RequestEvent.Type.RESP_FILTERS_START
+    ApplicationWithFilter app = new ApplicationWithFilter(config);
+    app.start();
+
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
         .path("/private/endpoint")
@@ -90,10 +79,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
     assertTrue(cause instanceof ProcessingException);
     assertEquals("Resource Java method invocation error.", cause.getMessage());
+    app.stop();
+    app.join();
   }
 
   @Test
-  public void testExceptionMetrics() {
+  public void testExceptionMetrics() throws Exception {
+    ApplicationWithFilter app = new ApplicationWithFilter(config);
+    app.start();
+
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
         .path("/private/exception")
@@ -110,6 +104,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         }
       }
     }
+    app.stop();
+    app.join();
   }
 
   private class ApplicationWithFilter extends Application<TestRestConfig> {
