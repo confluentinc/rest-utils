@@ -1,5 +1,9 @@
 package io.confluent.rest.metrics;
 
+import io.confluent.common.metrics.KafkaMetric;
+import io.confluent.rest.TestMetricsReporter;
+import io.confluent.rest.annotations.PerformanceMetric;
+import io.confluent.rest.exceptions.RestNotFoundException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -27,6 +31,7 @@ import io.confluent.rest.Application;
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 
+import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -39,8 +44,10 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @Before
   public void setUp() throws Exception {
+    TestMetricsReporter.reset();
     Properties props = new Properties();
     props.setProperty("debug", "false");
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     config = new TestRestConfig(props);
     app = new ApplicationWithFilter(config);
     app.start();
@@ -79,6 +86,28 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
     assertTrue(cause instanceof ProcessingException);
     assertEquals("Resource Java method invocation error.", cause.getMessage());
+  }
+
+  @Test
+  public void testExceptionMetrics() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .path("/private/exception")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(404, response.getStatus());
+
+    for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-rate")) {
+        if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
+          assertTrue("Actual: " + metric.value(),
+              metric.value() > 0);
+        } else if (!metric.metricName().tags().isEmpty()) {
+          assertTrue("Actual: " + metric.value() + metric.metricName(),
+              metric.value() == 0.0 || Double.isNaN(metric.value()));
+        }
+      }
+    }
   }
 
   private class ApplicationWithFilter extends Application<TestRestConfig> {
@@ -123,5 +152,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     public Void notAccessible() {
       return null;
     }
+  }
+
+  @GET
+  @PerformanceMetric("error")
+  @Path("/exception")
+  public Void exception() {
+    throw new RestNotFoundException("Rest Not Found", 4040);
   }
 }

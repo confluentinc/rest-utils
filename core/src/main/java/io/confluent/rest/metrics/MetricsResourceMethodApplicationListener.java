@@ -51,6 +51,8 @@ import io.confluent.common.metrics.stats.Rate;
 import io.confluent.common.utils.Time;
 import io.confluent.rest.annotations.PerformanceMetric;
 
+import javax.ws.rs.WebApplicationException;
+
 /**
  * Jersey ResourceMethodApplicationListener that records metrics for each endpoint by listening
  * for method start and finish events. It reports some common metrics for each such as rate and
@@ -60,6 +62,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
+  protected static final String HTTP_STATUS_CODE_TAG = "http_status_code";
+  private static final String[] HTTP_STATUS_CODE_TEXT = {
+      "unknown", "1xx", "2xx", "3xx", "4xx", "5xx"};
   private static final int PERCENTILE_NUM_BUCKETS = 200;
   private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
 
@@ -173,6 +178,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private Sensor responseSizeSensor;
     private Sensor requestLatencySensor;
     private Sensor errorSensor;
+    private Sensor[] errorSensorByStatus = new Sensor[6];
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags) {
@@ -236,9 +242,23 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
               "The 99th percentile request latency in ms", metricTags), 99));
       this.requestLatencySensor.add(percs);
 
+      for (int i = 0; i < 6; i++) {
+        errorSensorByStatus[i] = metrics.sensor(getName(method, annotation, "errors" + i));
+        HashMap<String, String> tags = new HashMap<>(metricTags);
+        tags.put(HTTP_STATUS_CODE_TAG, HTTP_STATUS_CODE_TEXT[i]);
+        metricName = new MetricName(getName(method, annotation, "request-error-rate"),
+            metricGrpName,
+            "The average number of requests"
+                + " per second that resulted in HTTP error responses with code "
+                + HTTP_STATUS_CODE_TEXT[i],
+            tags);
+        errorSensorByStatus[i].add(metricName, new Rate());
+      }
+
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors"));
       metricName = new MetricName(
-          getName(method, annotation, "request-error-rate"), metricGrpName,
+          getName(method, annotation, "request-error-rate"),
+          metricGrpName,
           "The average number of requests per second that resulted in HTTP error responses",
           metricTags);
       this.errorSensor.add(metricName, new Rate());
@@ -256,7 +276,14 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     /**
      * Indicate that a request has failed with an exception.
      */
-    public void exception() {
+    public void exception(final RequestEvent event) {
+      final int statusCode = event.getException() instanceof WebApplicationException
+          ? ((WebApplicationException) event.getException()).getResponse().getStatus() : 0;
+      int idx = statusCode / 100;
+      // Index 0 means "unknown" status codes.
+      idx = idx < 0 || idx >= 6 ? 0 : idx;
+
+      errorSensorByStatus[idx].record();
       errorSensor.record();
     }
 
@@ -308,10 +335,10 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
         response.setEntityStream(wrappedResponseStream);
       } else if (event.getType() == RequestEvent.Type.ON_EXCEPTION) {
-        this.metrics.get(null).metrics().exception();
+        this.metrics.get(null).metrics().exception(event);
         final MethodMetrics metrics = getMethodMetrics(event);
         if (metrics != null) {
-          metrics.exception();
+          metrics.exception(event);
         }
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         final long elapsed = time.milliseconds() - started;
