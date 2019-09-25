@@ -50,6 +50,9 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.eclipse.jetty.util.BlockingArrayQueue;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -73,6 +76,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.concurrent.BlockingQueue;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
@@ -212,7 +216,10 @@ public abstract class Application<T extends RestConfig> {
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
-    server = new Server() {
+    // Create the thread pool
+    ThreadPool threadPool = createThreadPool();
+
+    server = new Server(threadPool) {
       @Override
       protected void doStop() throws Exception {
         super.doStop();
@@ -782,6 +789,28 @@ public abstract class Application<T extends RestConfig> {
    * point it should be safe to clean up any resources used while processing requests.
    */
   public void onShutdown() {
+  }
+
+  /**
+   * Create the thread pool with request queue.
+   *
+   * @return thread pool used by the server
+   */
+  private ThreadPool createThreadPool() {
+    /* Create blocking queue for the thread pool. */
+    int initialCapacity = RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT;
+    int growBy = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG);
+    int maxCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+    log.info("Initial capacity {}, increased by {}, maximum capacity {}.",
+             initialCapacity, growBy, maxCapacity);
+
+    BlockingQueue<Runnable> requestQueue =
+            new BlockingArrayQueue<>(initialCapacity, growBy, maxCapacity);
+
+    return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
+                                config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
+                                config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG).intValue(),
+                                requestQueue);
   }
 }
 
