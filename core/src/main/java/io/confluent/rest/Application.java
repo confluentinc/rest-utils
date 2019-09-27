@@ -792,13 +792,33 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
+   * For unit testing.
+   *
+   * @return the total number of threads currently in the pool.
+   */
+  public int getThreads() {
+    return server.getThreadPool().getThreads();
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the total number of maximum threads configured in the pool.
+   */
+  public int getMaxThreads() {
+    return config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG);
+  }
+
+  /**
    * Create the thread pool with request queue.
    *
    * @return thread pool used by the server
    */
   private ThreadPool createThreadPool() {
     /* Create blocking queue for the thread pool. */
-    int initialCapacity = RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT;
+    /* The Jetty defsuslt value for idle time out is 60_000 */
+    int idleTimeOutMs = 60_000;
+    int initialCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG);
     int growBy = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG);
     int maxCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
     log.info("Initial capacity {}, increased by {}, maximum capacity {}.",
@@ -809,7 +829,7 @@ public abstract class Application<T extends RestConfig> {
 
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
                                 config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
-                                config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG).intValue(),
+                                idleTimeOutMs,
                                 requestQueue);
   }
 }

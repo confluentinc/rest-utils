@@ -266,7 +266,7 @@ public class RestConfig extends AbstractConfig {
   public static final String IDLE_TIMEOUT_MS_CONFIG = "idle.timeout.ms";
   public static final String IDLE_TIMEOUT_MS_DOC =
           "The number of milliseconds to hold an idle session open for.";
-  public static final long IDLE_TIMEOUT_MS_DEFAULT = 60_000;
+  public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =
@@ -282,6 +282,10 @@ public class RestConfig extends AbstractConfig {
   public static final String REQUEST_QUEUE_CAPACITY_DOC =
           "The capacity of request queue for each thread pool.";
   public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
+
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
+          "The initial capacity of request queue for each thread pool.";
   public static final int REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT = 128;
 
   public static final String REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG = "request.queue.capacity.growby";
@@ -602,6 +606,12 @@ public class RestConfig extends AbstractConfig {
             THREAD_POOL_MAX_DEFAULT,
             Importance.LOW,
             THREAD_POOL_MAX_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DOC
         ).define(
             REQUEST_QUEUE_CAPACITY_CONFIG,
             Type.INT,

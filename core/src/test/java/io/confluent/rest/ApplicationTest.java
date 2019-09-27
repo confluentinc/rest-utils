@@ -51,6 +51,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.Properties;
+import java.util.concurrent.RejectedExecutionException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -69,7 +71,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ApplicationTest {
+
+  private static final Logger log = LoggerFactory.getLogger(ApplicationTest.class);
 
   private static final String REALM = "realm";
 
@@ -340,6 +347,74 @@ public class ApplicationTest {
     }
   }
 
+  @Test
+  public void testThreadPoolLessThreshold()throws Exception {
+    int numOfClients = 3;
+    TestThreadPoolConfigApplication app = new TestThreadPoolConfigApplication();
+    String uri = app.getUri();
+    try {
+      app.start();
+      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients);
+    } catch (Exception e) {
+    } finally {
+      log.info("Current running thread {}, maximum thread {}.", app.getThreads(), app.getMaxThreads());
+      assertTrue("Total number of running threads less than maximum number of threads " + app.getMaxThreads(),
+              app.getThreads() - app.getMaxThreads() < 0);
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testThreadPoolReachThreshold()throws Exception {
+    int numOfClients = 20;
+    TestThreadPoolConfigApplication app = new TestThreadPoolConfigApplication();
+    String uri = app.getUri();
+    try {
+      app.start();
+      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients);
+    } catch (Exception e) {
+    } finally {
+      log.info("Current running thread {}, maximum thread {}.", app.getThreads(), app.getMaxThreads());
+      assertTrue("Total number of running threads reach maximum number of threads " + app.getMaxThreads(),
+              app.getThreads() - app.getMaxThreads() == 0);
+      app.stop();
+    }
+  }
+
+  @SuppressWarnings("SameParameterValue")
+  private void makeConcurrentGetRequests(String uri, int numThread) throws Exception {
+    Thread[] threads = new Thread[numThread];
+    for(int i = 0; i < numThread; i++) {
+      threads[i] = new Thread() {
+        public void run() {
+          HttpGet httpget = new HttpGet(uri);
+          CloseableHttpClient httpclient = HttpClients.createDefault();
+          int statusCode = -1;
+          CloseableHttpResponse response = null;
+          try {
+            response = httpclient.execute(httpget);
+            statusCode = response.getStatusLine().getStatusCode();
+          } catch (Exception e) {
+          } finally {
+            try {
+              if (response != null) {
+                response.close();
+              }
+              httpclient.close();
+            } catch (Exception e) {
+            }
+          }
+        }
+      };
+
+      threads[i].start();
+    }
+
+    for(int i = 0; i < numThread; i++) {
+      threads[i].join();
+    }
+  }
+
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
 
@@ -448,6 +523,34 @@ public class ApplicationTest {
     @Override
     public void close() throws IOException {
       throw new IOException("Boom");
+    }
+  }
+
+  private static class TestThreadPoolConfigApplication extends Application<TestRestConfig> {
+    static Properties props = null;
+    public TestThreadPoolConfigApplication() {
+      super(createConfig());
+    }
+
+    @Override
+    public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
+      config.register(new RestResource());
+    }
+
+    public String getUri() {
+      return (String)props.get(RestConfig.LISTENERS_CONFIG);
+    }
+
+    private static TestRestConfig createConfig() {
+      props = new Properties();
+      String uri = "http://localhost:8080";
+      props.put(RestConfig.LISTENERS_CONFIG, uri);
+      props.put(RestConfig.THREAD_POOL_MIN_CONFIG, "2");
+      props.put(RestConfig.THREAD_POOL_MAX_CONFIG, "20");
+      props.put(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG, "2");
+      props.put(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG, "4");
+      props.put(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG, "1");
+      return new TestRestConfig(props);
     }
   }
 }
