@@ -816,8 +816,6 @@ public abstract class Application<T extends RestConfig> {
    */
   private ThreadPool createThreadPool() {
     /* Create blocking queue for the thread pool. */
-    /* The Jetty defsuslt value for idle time out is 60_000 */
-    int idleTimeOutMs = 60_000;
     int initialCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG);
     int growBy = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG);
     int maxCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
@@ -827,9 +825,10 @@ public abstract class Application<T extends RestConfig> {
     BlockingQueue<Runnable> requestQueue =
             new BlockingArrayQueue<>(initialCapacity, growBy, maxCapacity);
 
+    /* The Jetty default value for idle time out is 60_000 ms */
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
                                 config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
-                                idleTimeOutMs,
+                                60000,
                                 requestQueue);
   }
 }

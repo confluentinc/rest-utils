@@ -364,6 +364,20 @@ public class ApplicationTest {
     }
   }
 
+  /**
+   * This testing will show the number of running threads will increase and reach the maximum threads, finally throw
+   * exceptions in server.
+   * The following similair exception will be seen on console when the number of running thread reach the maximum
+   * threads allowed.
+   * [2019-09-28 08:37:59,504] WARN QueuedThreadPool[qtp527464124]@1f7076bc{STARTED,2<=20<=20,i=0,r=2,q=2}
+   * [ReservedThreadExecutor@1b1f5012{s=0/2,p=0}] rejected org.eclipse.jetty.io.ManagedSelector$Accept@26ac0324
+   * (org.eclipse.jetty.util.thread.QueuedThreadPool:471)
+   * ...
+   * java.util.concurrent.RejectedExecutionException: CEP:NetworkTrafficSelectChannelEndPoint@3a0b8ca7{/127.0.0.1:64929
+   * <->/127.0.0.1:8080,OPEN,fill=FI,flush=-,to=2/30000}{io=1/0,kio=1,kro=1}->HttpConnection@5b06a71d[p=HttpParser
+   * {s=START,0 of -1},g=HttpGenerator@10ef51b0{s=START}]=>HttpChannelOverHttp@42bd59c7{r=0,c=false,c=false/false,
+   * a=IDLE,uri=null,age=0}:runFillable:BLOCKING
+   **/
   @Test
   public void testThreadPoolReachThreshold()throws Exception {
     int numOfClients = 20;
