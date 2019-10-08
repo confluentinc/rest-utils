@@ -810,6 +810,24 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
+   * For unit testing.
+   *
+   * @return the size of the queue in the pool.
+   */
+  public int getQueueSize() {
+    return ((QueuedThreadPool)server.getThreadPool()).getQueueSize();
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the capacity of the queue in the pool.
+   */
+  public int getQueueCapacity() {
+    return config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+  }
+
+  /**
    * Create the thread pool with request queue.
    *
    * @return thread pool used by the server

@@ -51,8 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.Properties;
-import java.util.concurrent.RejectedExecutionException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -71,12 +69,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class ApplicationTest {
-
-  private static final Logger log = LoggerFactory.getLogger(ApplicationTest.class);
 
   private static final String REALM = "realm";
 
@@ -347,88 +340,6 @@ public class ApplicationTest {
     }
   }
 
-  @Test
-  public void testThreadPoolLessThreshold()throws Exception {
-    int numOfClients = 3;
-    TestThreadPoolConfigApplication app = new TestThreadPoolConfigApplication();
-    String uri = app.getUri();
-    try {
-      app.start();
-      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients);
-    } catch (Exception e) {
-    } finally {
-      log.info("Current running thread {}, maximum thread {}.", app.getThreads(), app.getMaxThreads());
-      assertTrue("Total number of running threads less than maximum number of threads " + app.getMaxThreads(),
-              app.getThreads() - app.getMaxThreads() < 0);
-      app.stop();
-    }
-  }
-
-  /**
-   * This testing will show the number of running threads will increase and reach the maximum threads, finally throw
-   * exceptions in server.
-   * The following similair exception will be seen on console when the number of running thread reach the maximum
-   * threads allowed.
-   * [2019-09-28 08:37:59,504] WARN QueuedThreadPool[qtp527464124]@1f7076bc{STARTED,2<=20<=20,i=0,r=2,q=2}
-   * [ReservedThreadExecutor@1b1f5012{s=0/2,p=0}] rejected org.eclipse.jetty.io.ManagedSelector$Accept@26ac0324
-   * (org.eclipse.jetty.util.thread.QueuedThreadPool:471)
-   * ...
-   * java.util.concurrent.RejectedExecutionException: CEP:NetworkTrafficSelectChannelEndPoint@3a0b8ca7{/127.0.0.1:64929
-   * <->/127.0.0.1:8080,OPEN,fill=FI,flush=-,to=2/30000}{io=1/0,kio=1,kro=1}->HttpConnection@5b06a71d[p=HttpParser
-   * {s=START,0 of -1},g=HttpGenerator@10ef51b0{s=START}]=>HttpChannelOverHttp@42bd59c7{r=0,c=false,c=false/false,
-   * a=IDLE,uri=null,age=0}:runFillable:BLOCKING
-   **/
-  @Test
-  public void testThreadPoolReachThreshold()throws Exception {
-    int numOfClients = 20;
-    TestThreadPoolConfigApplication app = new TestThreadPoolConfigApplication();
-    String uri = app.getUri();
-    try {
-      app.start();
-      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients);
-    } catch (Exception e) {
-    } finally {
-      log.info("Current running thread {}, maximum thread {}.", app.getThreads(), app.getMaxThreads());
-      assertTrue("Total number of running threads reach maximum number of threads " + app.getMaxThreads(),
-              app.getThreads() - app.getMaxThreads() == 0);
-      app.stop();
-    }
-  }
-
-  @SuppressWarnings("SameParameterValue")
-  private void makeConcurrentGetRequests(String uri, int numThread) throws Exception {
-    Thread[] threads = new Thread[numThread];
-    for(int i = 0; i < numThread; i++) {
-      threads[i] = new Thread() {
-        public void run() {
-          HttpGet httpget = new HttpGet(uri);
-          CloseableHttpClient httpclient = HttpClients.createDefault();
-          int statusCode = -1;
-          CloseableHttpResponse response = null;
-          try {
-            response = httpclient.execute(httpget);
-            statusCode = response.getStatusLine().getStatusCode();
-          } catch (Exception e) {
-          } finally {
-            try {
-              if (response != null) {
-                response.close();
-              }
-              httpclient.close();
-            } catch (Exception e) {
-            }
-          }
-        }
-      };
-
-      threads[i].start();
-    }
-
-    for(int i = 0; i < numThread; i++) {
-      threads[i].join();
-    }
-  }
-
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
 
@@ -537,34 +448,6 @@ public class ApplicationTest {
     @Override
     public void close() throws IOException {
       throw new IOException("Boom");
-    }
-  }
-
-  private static class TestThreadPoolConfigApplication extends Application<TestRestConfig> {
-    static Properties props = null;
-    public TestThreadPoolConfigApplication() {
-      super(createConfig());
-    }
-
-    @Override
-    public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
-      config.register(new RestResource());
-    }
-
-    public String getUri() {
-      return (String)props.get(RestConfig.LISTENERS_CONFIG);
-    }
-
-    private static TestRestConfig createConfig() {
-      props = new Properties();
-      String uri = "http://localhost:8080";
-      props.put(RestConfig.LISTENERS_CONFIG, uri);
-      props.put(RestConfig.THREAD_POOL_MIN_CONFIG, "2");
-      props.put(RestConfig.THREAD_POOL_MAX_CONFIG, "20");
-      props.put(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG, "2");
-      props.put(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG, "4");
-      props.put(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG, "1");
-      return new TestRestConfig(props);
     }
   }
 }
