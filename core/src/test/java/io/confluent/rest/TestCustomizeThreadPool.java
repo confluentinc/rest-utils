@@ -24,6 +24,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.Test;
 import java.util.Properties;
+import java.util.concurrent.RejectedExecutionException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -45,6 +46,11 @@ public class TestCustomizeThreadPool {
   private static Object locker = new Object();
   private static int waitingTimeSec = 10*1000; //5 seconds
 
+  /**
+   * Good path testing.
+   * Total number of running threads is less than capacity of thread pool configured.
+   * Total number of jobs in queue is less than capacity of queue configured.
+   */
   @Test
   public void testThreadPoolLessThreshold()throws Exception {
     int numOfClients = 3;
@@ -56,26 +62,23 @@ public class TestCustomizeThreadPool {
     } catch (Exception e) {
     } finally {
       log.info("Current running thread {}, maximum thread {}.", app.getThreads(), app.getMaxThreads());
-      assertTrue("Total number of running threads less than maximum number of threads " + app.getMaxThreads(),
+      assertTrue("Total number of running threads is less than maximum number of threads " + app.getMaxThreads(),
               app.getThreads() - app.getMaxThreads() < 0);
+      log.info("Total jobs in queue {}, capacity of queue {}.", app.getQueueSize(), app.getQueueCapacity());
+      assertTrue("Total number of jobs in queue is less than capacity of queue " + app.getQueueCapacity(),
+              app.getQueueSize() - app.getQueueCapacity() < 0);
       app.stop();
     }
   }
 
   /**
-   * This testing will test the number of running threads will be increased and not over the maximum threads, finally
-   * throw exceptions in server.
-   * The following similair exception will be seen on console when the number of running thread reach the maximum
-   * threads allowed.
-   * [2019-09-28 08:37:59,504] WARN QueuedThreadPool[qtp527464124]@1f7076bc{STARTED,2<=20<=20,i=0,r=2,q=2}
+   * This test will test the number of running threads will be increased as more clients request coming in, but
+   * the total number of threads will not over the maximum threads configured even there are more clients requests
+   * coming in. Server will finally throw following exceptions when more http client send requests.
    * [ReservedThreadExecutor@1b1f5012{s=0/2,p=0}] rejected org.eclipse.jetty.io.ManagedSelector$Accept@26ac0324
    * (org.eclipse.jetty.util.thread.QueuedThreadPool:471)
-   * ...
-   * java.util.concurrent.RejectedExecutionException: CEP:NetworkTrafficSelectChannelEndPoint@3a0b8ca7{/127.0.0.1:64929
-   * <->/127.0.0.1:8080,OPEN,fill=FI,flush=-,to=2/30000}{io=1/0,kio=1,kro=1}->HttpConnection@5b06a71d[p=HttpParser
-   * {s=START,0 of -1},g=HttpGenerator@10ef51b0{s=START}]=>HttpChannelOverHttp@42bd59c7{r=0,c=false,c=false/false,
-   * a=IDLE,uri=null,age=0}:runFillable:BLOCKING
-   * Test the size of jobs in queue will not over the capacity of queue confifiured.
+   * java.util.concurrent.RejectedExecutionException:
+   * This test also test the size of jobs in queue will not over the capacity of queue configured.
    **/
   @Test
   public void testThreadPoolReachThreshold()throws Exception {
@@ -95,8 +98,32 @@ public class TestCustomizeThreadPool {
   }
 
   /**
-   * Simualte numebr of HTTP clients sending HTTP request. Each client will send one HTTP request. The requests will be
-   * put in queue if number of clients are more than the working threads.
+   * Simulate the case that the queue of thread pool is full. Http server will reject request if the queue is full and
+   * throw RejectedExecutionException.
+   **/
+  @Test(expected = RejectedExecutionException.class)
+  public void testQueueFull() throws Exception {
+    int numOfClients = 1;
+    Properties props = new Properties();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
+    props.put(RestConfig.THREAD_POOL_MIN_CONFIG, "2");
+    props.put(RestConfig.THREAD_POOL_MAX_CONFIG, "10");
+    props.put(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG, "0");
+    props.put(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG, "0");
+    props.put(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG, "2");
+    TestCustomizeThreadPoolApplication app = new TestCustomizeThreadPoolApplication(props);
+    String uri = app.getUri();
+    try {
+      app.start();
+      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients, app);
+    } finally {
+      app.stop();
+    }
+  }
+
+  /**
+   * Simualate multiple HTTP clients sending HTTP requests samt time. Each client will send one HTTP request.
+   * The requests will be put in queue if the number of clients are more than the working threads.
    * */
   @SuppressWarnings("SameParameterValue")
   private void makeConcurrentGetRequests(String uri, int numThread, TestCustomizeThreadPoolApplication app) throws Exception {
@@ -141,7 +168,6 @@ public class TestCustomizeThreadPool {
       threads[i].join();
     }
     log.info("End queue size {}, queue capacity {} ", app.getQueueSize(), app.getQueueCapacity());
-    assertTrue("Queue is empty ", app.getQueueSize() == 0);
   }
 
   @Path("/custom")
@@ -163,8 +189,13 @@ public class TestCustomizeThreadPool {
 
   private static class TestCustomizeThreadPoolApplication extends Application<TestRestConfig> {
     static Properties props = null;
+
     public TestCustomizeThreadPoolApplication() {
       super(createConfig());
+    }
+    public TestCustomizeThreadPoolApplication(Properties props) {
+      super(new TestRestConfig(props));
+      this.props = props;
     }
 
     @Override
