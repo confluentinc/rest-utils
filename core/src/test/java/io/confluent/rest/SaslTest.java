@@ -163,14 +163,14 @@ public class SaslTest {
   @Test
   public void testBadLoginAttempt() throws Exception {
     try (CloseableHttpResponse response =
-        makeGetRequest("/test", "this shouldnt work")) {
+        makeGetRequest("/test", "dGVzdA==")) {
       assertEquals(UNAUTHORIZED.getStatusCode(), response.getStatusLine().getStatusCode());
     }
   }
 
   @Test
   public void testBadLoginAttemptOnWs() throws Exception {
-    int statusCode = makeWsGetRequest("this shouldnt work");
+    int statusCode = makeWsGetRequest("dGVzdA==");
     assertEquals(UNAUTHORIZED.getStatusCode(), statusCode);
   }
 
@@ -272,7 +272,7 @@ public class SaslTest {
     }
 
     WebSocket ws = requestBuilder
-        .setRequestTimeout(5000)
+        .setRequestTimeout(10000)
         .execute(wsHandler)
         .get();
 
