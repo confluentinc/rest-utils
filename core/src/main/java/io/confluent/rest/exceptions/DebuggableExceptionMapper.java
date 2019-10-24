@@ -59,7 +59,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
    */
   public Response.ResponseBuilder createResponse(Throwable exc, int errorCode,
                                                  Response.Status status, String msg) {
-    log.error("Debuggable Exception Response " + exc);
+    log.error("Request Failed with exception " ,  exc);
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
       readableMessage += " " + exc.getClass().getName() + ": " + exc.getMessage();
