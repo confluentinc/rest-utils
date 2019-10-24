@@ -29,6 +29,8 @@ import javax.ws.rs.ext.Provider;
 
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.entities.ErrorMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract exception mapper that checks the debug flag and generates an error message including the
@@ -38,6 +40,7 @@ import io.confluent.rest.entities.ErrorMessage;
 public abstract class DebuggableExceptionMapper<E extends Throwable> implements ExceptionMapper<E> {
 
   RestConfig restConfig;
+  private static final Logger log = LoggerFactory.getLogger(DebuggableExceptionMapper.class);
 
   @Context
   HttpHeaders headers;
@@ -56,6 +59,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
    */
   public Response.ResponseBuilder createResponse(Throwable exc, int errorCode,
                                                  Response.Status status, String msg) {
+    log.error("Request Failed with exception " ,  exc);
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
       readableMessage += " " + exc.getClass().getName() + ": " + exc.getMessage();
