@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,6 @@ import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
@@ -47,7 +46,6 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
@@ -105,6 +103,7 @@ public abstract class Application<T extends RestConfig> {
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
+  protected final List<ApplicationContext> appCtx = new ArrayList<>();
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
   protected SslContextFactory sslContextFactory;
 
@@ -187,6 +186,10 @@ public abstract class Application<T extends RestConfig> {
     return new LinkedHashMap<String, String>();
   }
 
+  public void registerContextHandler(ApplicationContext context) {
+    this.appCtx.add(context);
+  }
+
   /**
    * Configure and create the server.
    */
@@ -197,20 +200,18 @@ public abstract class Application<T extends RestConfig> {
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
 
+    Map<String, String> combinedMetricsTags = new HashMap<>();
+    for (ApplicationContext ctx : appCtx) {
+      combinedMetricsTags.putAll(ctx.getMetricsTags());
+    }
+
     Map<String, String> configuredTags = parseListToMap(
-        getConfiguration().getList(RestConfig.METRICS_TAGS_CONFIG)
+            getConfiguration().getList(RestConfig.METRICS_TAGS_CONFIG)
     );
 
-    Map<String, String> combinedMetricsTags = new HashMap<>(getMetricsTags());
     combinedMetricsTags.putAll(configuredTags);
 
     configureBaseApplication(resourceConfig, combinedMetricsTags);
-    configureResourceExtensions(resourceConfig);
-    setupResources(resourceConfig, getConfiguration());
-
-    // Configure the servlet container
-    ServletContainer servletContainer = new ServletContainer(resourceConfig);
-    final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
     server = new Server() {
       @Override
@@ -256,52 +257,42 @@ public abstract class Application<T extends RestConfig> {
       server.addConnector(connector);
     }
 
-    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    context.setContextPath("/");
+    configureResourceExtensions(resourceConfig);
 
-
-    ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
-    defaultHolder.setInitParameter("dirAllowed", "false");
-
-    ResourceCollection staticResources = getStaticResources();
-    if (staticResources != null) {
-      context.setBaseResource(staticResources);
+    // Support mono context setup
+    if (appCtx.size() == 0) {
+      appCtx.add(new DefaultContext(resourceConfig));
     }
 
-    configureSecurityHandler(context);
+    HandlerCollection handlers = new HandlerCollection();
+    for (ApplicationContext ctx : appCtx) {
 
-    if (isCorsEnabled()) {
-      String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
-      FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
-      filterHolder.setName("cross-origin");
-      filterHolder.setInitParameter(
-          CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins
+      // Isolate contexts by making a defensive copy of the application config
+      ResourceConfig ctxConfig = new ResourceConfig();
 
-      );
-      String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
-      String allowedHeaders = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
-      if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
-        filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
-      }
-      if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
-        filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
-      }
-      // handle preflight cors requests at the filter level, do not forward down the filter chain
-      filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
-      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+      ctx.setBaseResource(ctx.getStaticResources());
+
+      ctx.setupResources(ctxConfig, ctx.getConfiguration());
+      ctx.configureSecurityHandler();
+      ctx.enableCors();
+
+      ctx.configurePreResourceHandling();
+      ServletContainer servletContainer = new ServletContainer(ctxConfig);
+      FilterHolder servletHolder = new FilterHolder(servletContainer);
+      ctx.addFilter(servletHolder, "/*", null);
+
+      ctx.configurePostResourceHandling();
+      ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
+      defaultHolder.setInitParameter("dirAllowed", "false");
+      ctx.addServlet(defaultHolder, "/*");
+
+      applyCustomConfiguration(ctx, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
+      handlers.addHandler(ctx);
     }
-    configurePreResourceHandling(context);
-    context.addFilter(servletHolder, "/*", null);
-    configurePostResourceHandling(context);
-    context.addServlet(defaultHolder, "/*");
-
-    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
-
-    HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
+    handlers.addHandler(requestLogHandler);
 
     /* Needed for graceful shutdown as per `setStopTimeout` documentation */
     StatisticsHandler statsHandler = new StatisticsHandler();
@@ -351,10 +342,6 @@ public abstract class Application<T extends RestConfig> {
       configuredTags.put(keyValue[0], keyValue[1]);
     }
     return configuredTags;
-  }
-
-  private boolean isCorsEnabled() {
-    return AuthUtil.isCorsEnabled(config);
   }
 
   @SuppressWarnings("unchecked")
@@ -782,6 +769,51 @@ public abstract class Application<T extends RestConfig> {
    * point it should be safe to clean up any resources used while processing requests.
    */
   public void onShutdown() {
+  }
+
+  /**
+   * By default the RestUtils will expose one context the DefaultContext
+   */
+  class DefaultContext extends ApplicationContext<T> {
+    private ResourceConfig ctxConfig;
+
+    DefaultContext(ResourceConfig ctxConfig) {
+      super(Application.this.config);
+      this.ctxConfig = ctxConfig;
+    }
+
+    @Override
+    public void setupResources(Configurable<?> config, T appConfig) {
+      Application.this.setupResources(ctxConfig, appConfig);
+    }
+
+    @Override
+    protected ResourceCollection getStaticResources() {
+      return Application.this.getStaticResources();
+    }
+
+    @Override
+    protected void configureSecurityHandler() {
+      Application.this.configureSecurityHandler(this);
+    }
+
+    @Override
+    protected void configurePreResourceHandling() {
+      Application.this.configurePreResourceHandling(this);
+    }
+
+    @Override
+    protected void configurePostResourceHandling() {
+      Application.this.configurePostResourceHandling(this);
+    }
+
+    public void addFilter(FilterHolder holder, String pathSpec,
+                          EnumSet<DispatcherType> dispatches) {
+      ServletContainer servletContainer = new ServletContainer(ctxConfig);
+      FilterHolder servletHolder = new FilterHolder(servletContainer);
+      super.addFilter(servletHolder, "/*", null);
+    }
+
   }
 }
 
