@@ -32,8 +32,8 @@ import java.util.Map;
 
 public abstract class ApplicationContext<T extends AbstractConfig> extends ServletContextHandler {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
-  protected T config;
-  private ResourceConfig ctxConfig;
+  T config;
+  ResourceConfig ctxConfig;
 
   public ApplicationContext(T config) {
     this(config, "/");
@@ -42,6 +42,7 @@ public abstract class ApplicationContext<T extends AbstractConfig> extends Servl
   public ApplicationContext(T config, String path) {
     super(ServletContextHandler.SESSIONS);
     super.setContextPath(path);
+    ctxConfig = new ResourceConfig();
     this.config = config;
   }
 

@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,7 +63,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,8 +71,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletException;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.metrics.JmxReporter;
@@ -194,15 +191,18 @@ public abstract class Application<T extends RestConfig> {
    * Configure and create the server.
    */
   // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
-  public Server createServer() throws ServletException {
+  public Server createServer() throws Exception {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
-
-    // The configuration for the JAX-RS REST service
-    ResourceConfig resourceConfig = new ResourceConfig();
 
     Map<String, String> combinedMetricsTags = new HashMap<>();
     for (ApplicationContext ctx : appCtx) {
-      combinedMetricsTags.putAll(ctx.getMetricsTags());
+      Map<String, String> metrics = ctx.getMetricsTags();
+      metrics.forEach((key, value) -> {
+        String found = combinedMetricsTags.put(key, value);
+        if (found != null) {
+          log.warn("Found duplicate metric tag {}, ignoring", found);
+        }
+      });
     }
 
     Map<String, String> configuredTags = parseListToMap(
@@ -211,7 +211,6 @@ public abstract class Application<T extends RestConfig> {
 
     combinedMetricsTags.putAll(configuredTags);
 
-    configureBaseApplication(resourceConfig, combinedMetricsTags);
 
     server = new Server() {
       @Override
@@ -257,7 +256,11 @@ public abstract class Application<T extends RestConfig> {
       server.addConnector(connector);
     }
 
+    // The configuration for the JAX-RS REST service
+    ResourceConfig resourceConfig = new ResourceConfig();
+
     configureResourceExtensions(resourceConfig);
+    configureBaseApplication(resourceConfig, combinedMetricsTags);
 
     // Support mono context setup
     if (appCtx.size() == 0) {
@@ -268,7 +271,8 @@ public abstract class Application<T extends RestConfig> {
     for (ApplicationContext ctx : appCtx) {
 
       // Isolate contexts by making a defensive copy of the application config
-      ResourceConfig ctxConfig = new ResourceConfig();
+      ResourceConfig ctxConfig = ctx.ctxConfig;
+
 
       ctx.setBaseResource(ctx.getStaticResources());
 
@@ -774,8 +778,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * By default the RestUtils will expose one context the DefaultContext
    */
-  class DefaultContext extends ApplicationContext<T> {
-    private ResourceConfig ctxConfig;
+  private class DefaultContext extends ApplicationContext<T> {
 
     DefaultContext(ResourceConfig ctxConfig) {
       super(Application.this.config);
@@ -784,7 +787,7 @@ public abstract class Application<T extends RestConfig> {
 
     @Override
     public void setupResources(Configurable<?> config, T appConfig) {
-      Application.this.setupResources(ctxConfig, appConfig);
+      Application.this.setupResources(config, appConfig);
     }
 
     @Override
@@ -806,14 +809,6 @@ public abstract class Application<T extends RestConfig> {
     protected void configurePostResourceHandling() {
       Application.this.configurePostResourceHandling(this);
     }
-
-    public void addFilter(FilterHolder holder, String pathSpec,
-                          EnumSet<DispatcherType> dispatches) {
-      ServletContainer servletContainer = new ServletContainer(ctxConfig);
-      FilterHolder servletHolder = new FilterHolder(servletContainer);
-      super.addFilter(servletHolder, "/*", null);
-    }
-
   }
 }
 
