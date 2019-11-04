@@ -16,24 +16,23 @@
 
 package io.confluent.rest;
 
-import org.apache.kafka.common.config.AbstractConfig;
-import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import javax.servlet.DispatcherType;
 import javax.ws.rs.core.Configurable;
-import java.util.EnumSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
-public abstract class ApplicationContext<T extends AbstractConfig> extends ServletContextHandler {
+public abstract class ApplicationContext<T extends RestConfig> extends ServletContextHandler {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
-  T config;
-  ResourceConfig ctxConfig;
+  protected T config;
+  ResourceConfig contextConfig;
+
+  private Map<String, String> metricsTags;
+  private static final AtomicInteger instance = new AtomicInteger();
+
 
   public ApplicationContext(T config) {
     this(config, "/");
@@ -42,8 +41,13 @@ public abstract class ApplicationContext<T extends AbstractConfig> extends Servl
   public ApplicationContext(T config, String path) {
     super(ServletContextHandler.SESSIONS);
     super.setContextPath(path);
-    ctxConfig = new ResourceConfig();
+    contextConfig = new ResourceConfig();
     this.config = config;
+
+    this.metricsTags = Application.parseListToMap(
+            getConfiguration().getList(RestConfig.METRICS_TAGS_CONFIG)
+    );
+    this.metricsTags.put(path.replace("/", "-"), String.valueOf(instance.incrementAndGet()));
   }
 
   public T getConfiguration() {
@@ -66,7 +70,7 @@ public abstract class ApplicationContext<T extends AbstractConfig> extends Servl
    * }
    *
    * <p>For those resources to get served, it is necessary to add a static resources property to the
-   * config in @link{{@link #setupResources(Configurable, AbstractConfig)}},
+   * config in @link{{@link #setupResources(Configurable, RestConfig)}},
    * e.g. using something like{@code
    * config.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");
    * }
@@ -78,9 +82,11 @@ public abstract class ApplicationContext<T extends AbstractConfig> extends Servl
   }
 
   /*
-   * add a security handler to the context to enable authentication
+   * Add a security handler to the context to enable authentication
    */
-  protected void configureSecurityHandler() {}
+  protected void configureSecurityHandler() {
+    Application.configureSecurityHandler(this, this.config);
+  }
 
   /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
@@ -88,7 +94,7 @@ public abstract class ApplicationContext<T extends AbstractConfig> extends Servl
    * @return a Map of tags and values
    */
   public Map<String,String> getMetricsTags() {
-    return new LinkedHashMap<String, String>();
+    return metricsTags;
   }
 
   /**
@@ -102,33 +108,4 @@ public abstract class ApplicationContext<T extends AbstractConfig> extends Servl
    */
   protected void configurePostResourceHandling() {}
 
-  public void enableCors() {
-    if (config == null) {
-      return;
-    }
-
-    String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
-    if (allowedOrigins.isEmpty()) {
-      return;
-    }
-
-    FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
-    filterHolder.setName("cross-origin");
-    filterHolder.setInitParameter(
-            CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins
-    );
-
-    String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
-    if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
-      filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
-    }
-
-    String allowedHeaders = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
-    if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
-      filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
-    }
-    // handle preflight cors requests at the filter level, do not forward down the filter chain
-    filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
-    this.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-  }
 }

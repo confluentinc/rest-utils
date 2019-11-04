@@ -46,6 +46,7 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
@@ -63,6 +64,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,6 +73,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import javax.servlet.DispatcherType;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.metrics.JmxReporter;
@@ -200,7 +203,8 @@ public abstract class Application<T extends RestConfig> {
       metrics.forEach((key, value) -> {
         String found = combinedMetricsTags.put(key, value);
         if (found != null) {
-          log.warn("Found duplicate metric tag {}, ignoring", found);
+          throw new IllegalArgumentException("A metric named '" + found + "' already exists, "
+                  + "can't register another one.");
         }
       });
     }
@@ -258,27 +262,48 @@ public abstract class Application<T extends RestConfig> {
 
     // The configuration for the JAX-RS REST service
     ResourceConfig resourceConfig = new ResourceConfig();
-
     configureResourceExtensions(resourceConfig);
-    configureBaseApplication(resourceConfig, combinedMetricsTags);
 
     // Support mono context setup
     if (appCtx.size() == 0) {
       appCtx.add(new DefaultContext(resourceConfig));
     }
 
+    FilterHolder corsFilterHolder = null;
+    if (AuthUtil.isCorsEnabled(config)) {
+      String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
+      corsFilterHolder = new FilterHolder(CrossOriginFilter.class);
+      corsFilterHolder.setName("cross-origin");
+      corsFilterHolder.setInitParameter(
+              CrossOriginFilter.ALLOWED_ORIGINS_PARAM, allowedOrigins
+
+      );
+      String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
+      String allowedHeaders = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
+      if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
+        corsFilterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
+      }
+      if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
+        corsFilterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
+      }
+      // handle preflight cors requests at the filter level, do not forward down the filter chain
+      corsFilterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
+    }
+
     HandlerCollection handlers = new HandlerCollection();
     for (ApplicationContext ctx : appCtx) {
 
       // Isolate contexts by making a defensive copy of the application config
-      ResourceConfig ctxConfig = ctx.ctxConfig;
+      ResourceConfig ctxConfig = ctx.contextConfig;
 
-
+      configureBaseApplication(ctxConfig, ctx.getMetricsTags());
       ctx.setBaseResource(ctx.getStaticResources());
 
       ctx.setupResources(ctxConfig, ctx.getConfiguration());
       ctx.configureSecurityHandler();
-      ctx.enableCors();
+      if (AuthUtil.isCorsEnabled(config)) {
+        ctx.addFilter(corsFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+      }
 
       ctx.configurePreResourceHandling();
       ServletContainer servletContainer = new ServletContainer(ctxConfig);
@@ -378,13 +403,17 @@ public abstract class Application<T extends RestConfig> {
         });
   }
 
-  protected void configureSecurityHandler(ServletContextHandler context) {
+  static void configureSecurityHandler(ServletContextHandler context, RestConfig config) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
-      context.setSecurityHandler(createBasicSecurityHandler());
+      context.setSecurityHandler(createBasicSecurityHandler(config));
     } else if (enableBearerAuth(authMethod)) {
-      context.setSecurityHandler(createBearerSecurityHandler());
+      context.setSecurityHandler(createBearerSecurityHandler(config));
     }
+  }
+
+  protected void configureSecurityHandler(ServletContextHandler context) {
+    configureSecurityHandler(context, this.config);
   }
 
   private SslContextFactory createSslContextFactory() {
@@ -520,71 +549,96 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BEARER.equals(authMethod);
   }
 
-
-  protected LoginAuthenticator createAuthenticator() {
-    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+  static LoginAuthenticator createAuthenticator(RestConfig config) {
+    final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
       return new BasicAuthenticator();
     } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
-          "Must implement Application.createAuthenticator() when using '"
-          + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
-          + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
+              "Must implement Application.createAuthenticator() when using '"
+                      + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
+                      + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
+      );
+    }
+    return null;
+  }
+
+  protected LoginAuthenticator createAuthenticator() {
+    return createAuthenticator(this.config);
+  }
+
+  static LoginService createLoginService(RestConfig config) {
+    final String realm = config.getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+    final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+    if (enableBasicAuth(method)) {
+      return new JAASLoginService(realm);
+    } else if (enableBearerAuth(method)) {
+      throw new UnsupportedOperationException(
+              "Must implement Application.createLoginService() when using '"
+                      + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
+                      + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
       );
     }
     return null;
   }
 
   protected LoginService createLoginService() {
-    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
-    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
-    if (enableBasicAuth(method)) {
-      return new JAASLoginService(realm);
-    } else if (enableBearerAuth(method)) {
-      throw new UnsupportedOperationException(
-          "Must implement Application.createLoginService() when using '"
-              + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
-              + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
-      );
-    }
-    return null;
+    return createLoginService(this.config);
   }
 
-  protected IdentityService createIdentityService() {
-    final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
+  static IdentityService createIdentityService(RestConfig config) {
+    final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method) || enableBearerAuth(method)) {
       return new DefaultIdentityService();
     }
     return null;
   }
 
+  protected IdentityService createIdentityService() {
+    return createIdentityService(this.config);
+  }
+
+  static ConstraintSecurityHandler createBasicSecurityHandler(RestConfig config) {
+    return createSecurityHandler(config);
+  }
+
   protected ConstraintSecurityHandler createBasicSecurityHandler() {
-    return createSecurityHandler();
+    return createBasicSecurityHandler(this.config);
+  }
+
+  static ConstraintSecurityHandler createBearerSecurityHandler(RestConfig config) {
+    return createSecurityHandler(config);
   }
 
   protected ConstraintSecurityHandler createBearerSecurityHandler() {
-    return createSecurityHandler();
+    return createSecurityHandler(this.config);
   }
 
-  protected ConstraintSecurityHandler createSecurityHandler() {
-    final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
+  static ConstraintSecurityHandler createSecurityHandler(RestConfig config) {
+    final String realm = config.getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
 
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-    securityHandler.addConstraintMapping(createGlobalAuthConstraint());
-    securityHandler.setAuthenticator(createAuthenticator());
-    securityHandler.setLoginService(createLoginService());
-    securityHandler.setIdentityService(createIdentityService());
+    securityHandler.addConstraintMapping(createGlobalAuthConstraint(config));
+    securityHandler.setAuthenticator(createAuthenticator(config));
+    securityHandler.setLoginService(createLoginService(config));
+    securityHandler.setIdentityService(createIdentityService(config));
     securityHandler.setRealmName(realm);
-
     AuthUtil.createUnsecuredConstraints(config)
-        .forEach(securityHandler::addConstraintMapping);
+            .forEach(securityHandler::addConstraintMapping);
 
     return securityHandler;
   }
 
-  protected ConstraintMapping createGlobalAuthConstraint() {
+  protected ConstraintSecurityHandler createSecurityHandler() {
+    return createSecurityHandler(this.config);
+  }
+
+  static ConstraintMapping createGlobalAuthConstraint(RestConfig config) {
     return AuthUtil.createGlobalAuthConstraint(config);
+  }
+
+  protected ConstraintMapping createGlobalAuthConstraint() {
+    return createGlobalAuthConstraint(this.config);
   }
 
   // TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
@@ -782,7 +836,7 @@ public abstract class Application<T extends RestConfig> {
 
     DefaultContext(ResourceConfig ctxConfig) {
       super(Application.this.config);
-      this.ctxConfig = ctxConfig;
+      this.contextConfig = ctxConfig;
     }
 
     @Override
@@ -808,6 +862,11 @@ public abstract class Application<T extends RestConfig> {
     @Override
     protected void configurePostResourceHandling() {
       Application.this.configurePostResourceHandling(this);
+    }
+
+    @Override
+    public Map<String,String> getMetricsTags() {
+      return Application.this.getMetricsTags();
     }
   }
 }

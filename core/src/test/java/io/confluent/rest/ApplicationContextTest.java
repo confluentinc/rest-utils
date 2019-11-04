@@ -1,17 +1,12 @@
 package io.confluent.rest;
 
 
-import io.confluent.rest.auth.AuthUtil;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
-import org.eclipse.jetty.jaas.JAASLoginService;
-import org.eclipse.jetty.security.DefaultIdentityService;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
@@ -210,21 +205,6 @@ public class ApplicationContextTest {
 
     public void setupResources(final Configurable<?> config, TestRestConfig appConfig) {
       config.register(new RestResource());
-    }
-
-    @Override
-    protected void configureSecurityHandler() {
-      if (config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG).equals(RestConfig.AUTHENTICATION_METHOD_BASIC)) {
-        final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-
-        securityHandler.addConstraintMapping(AuthUtil.createGlobalAuthConstraint(config));
-        securityHandler.setAuthenticator(new BasicAuthenticator());
-        securityHandler.setLoginService(new JAASLoginService(REALM));
-        securityHandler.setIdentityService(new DefaultIdentityService());
-        securityHandler.setRealmName(REALM);
-
-        this.setSecurityHandler(securityHandler);
-      }
     }
   }
 
