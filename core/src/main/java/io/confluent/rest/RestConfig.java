@@ -122,7 +122,7 @@ public class RestConfig extends AbstractConfig {
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
-      "Enable auto reload of ssl key";
+      "Enable auto reload of ssl keystore";
   protected static final boolean SSL_KEYSTORE_RELOAD_DEFAULT = false;
   public static final String SSL_KEYSTORE_LOCATION_CONFIG = "ssl.keystore.location";
   protected static final String SSL_KEYSTORE_LOCATION_DOC =

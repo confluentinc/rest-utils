@@ -134,6 +134,28 @@ public class SslTest {
     }
   }
 
+  @Test
+  public void testHttpsWithAutoReload() throws Exception {
+    TestMetricsReporter.reset();
+    Properties props = new Properties();
+    String httpsUri = "https://localhost:8081";
+    props.put(RestConfig.LISTENERS_CONFIG, httpsUri);
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    props.put(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
+    configServerKeystore(props);
+    TestRestConfig config = new TestRestConfig(props);
+    SslTestApplication app = new SslTestApplication(config);
+    try {
+      app.start();
+      int statusCode = makeGetRequest(httpsUri + "/test",
+                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      //assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
   @Test(expected = ClientProtocolException.class)
   public void testHttpsOnly() throws Exception {
     TestMetricsReporter.reset();
