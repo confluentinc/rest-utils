@@ -42,10 +42,8 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
-import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -54,7 +52,6 @@ import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainer
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
-import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,16 +61,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import javax.servlet.DispatcherType;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.metrics.JmxReporter;
@@ -103,7 +99,7 @@ public abstract class Application<T extends RestConfig> {
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
-  protected final List<ApplicationContext> appCtx = new ArrayList<>();
+  protected final List<ApplicationContext> contexts = new ArrayList<>();
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
   protected SslContextFactory sslContextFactory;
 
@@ -187,7 +183,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   public void registerContextHandler(ApplicationContext context) {
-    this.appCtx.add(context);
+    this.contexts.add(Objects.requireNonNull(context));
   }
 
   /**
@@ -198,13 +194,13 @@ public abstract class Application<T extends RestConfig> {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
 
     Map<String, String> combinedMetricsTags = new HashMap<>();
-    for (ApplicationContext ctx : appCtx) {
-      Map<String, String> metrics = ctx.getMetricsTags();
+    for (ApplicationContext context : contexts) {
+      Map<String, String> metrics = context.getMetricsTags();
       metrics.forEach((key, value) -> {
         String found = combinedMetricsTags.put(key, value);
         if (found != null) {
-          throw new IllegalArgumentException("A metric named '" + found + "' already exists, "
-                  + "can't register another one.");
+          throw new IllegalArgumentException("A metric named %s=%s already exists, "
+                  + "can't register another one.".format(key, value));
         }
       });
     }
@@ -260,13 +256,12 @@ public abstract class Application<T extends RestConfig> {
       server.addConnector(connector);
     }
 
-    // The configuration for the JAX-RS REST service
-    ResourceConfig resourceConfig = new ResourceConfig();
-    configureResourceExtensions(resourceConfig);
-
     // Support mono context setup
-    if (appCtx.size() == 0) {
-      appCtx.add(new DefaultContext(resourceConfig));
+    if (contexts.size() == 0) {
+      ApplicationContext defaultContext = new DefaultContext();
+      contexts.add(defaultContext);
+      configureResourceExtensions(defaultContext.getResourceConfig());
+      applyCustomConfiguration(defaultContext, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
     }
 
     FilterHolder corsFilterHolder = null;
@@ -291,32 +286,9 @@ public abstract class Application<T extends RestConfig> {
     }
 
     HandlerCollection handlers = new HandlerCollection();
-    for (ApplicationContext ctx : appCtx) {
-
-      // Isolate contexts by making a defensive copy of the application config
-      ResourceConfig ctxConfig = ctx.contextConfig;
-
-      configureBaseApplication(ctxConfig, ctx.getMetricsTags());
-      ctx.setBaseResource(ctx.getStaticResources());
-
-      ctx.setupResources(ctxConfig, ctx.getConfiguration());
-      ctx.configureSecurityHandler();
-      if (AuthUtil.isCorsEnabled(config)) {
-        ctx.addFilter(corsFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-      }
-
-      ctx.configurePreResourceHandling();
-      ServletContainer servletContainer = new ServletContainer(ctxConfig);
-      FilterHolder servletHolder = new FilterHolder(servletContainer);
-      ctx.addFilter(servletHolder, "/*", null);
-
-      ctx.configurePostResourceHandling();
-      ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
-      defaultHolder.setInitParameter("dirAllowed", "false");
-      ctx.addServlet(defaultHolder, "/*");
-
-      applyCustomConfiguration(ctx, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
-      handlers.addHandler(ctx);
+    for (ApplicationContext context : contexts) {
+      configureBaseApplication(context.getResourceConfig(), context.getMetricsTags());
+      handlers.addHandler(context.configure(corsFilterHolder));
     }
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
@@ -832,11 +804,10 @@ public abstract class Application<T extends RestConfig> {
   /**
    * By default the RestUtils will expose one context the DefaultContext
    */
-  private class DefaultContext extends ApplicationContext<T> {
+  private final class DefaultContext extends ApplicationContext<T> {
 
-    DefaultContext(ResourceConfig ctxConfig) {
+    DefaultContext() {
       super(Application.this.config);
-      this.contextConfig = ctxConfig;
     }
 
     @Override

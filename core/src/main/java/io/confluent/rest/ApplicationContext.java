@@ -16,21 +16,38 @@
 
 package io.confluent.rest;
 
+import org.eclipse.jetty.servlet.DefaultServlet;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 
+import javax.servlet.DispatcherType;
 import javax.ws.rs.core.Configurable;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
+/**
+ * Application Servlet Context.
+ * This extension to the ServletContextHandler allows for encapsulation of a REST application
+ * into an ServletContexts with it's own session, security handlers, object mappers,
+ * exception handler, et. This context must be registered with a greater {@link Application}
+ * where it and other servlet contexts will be served by a shared http server.
+ * <pre>
+ *   new ApplicationContext(config, "/myApp");
+ * </pre>
+ */
 public abstract class ApplicationContext<T extends RestConfig> extends ServletContextHandler {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
-  protected T config;
-  ResourceConfig contextConfig;
+  private final T config;
 
   private Map<String, String> metricsTags;
+  private final ResourceConfig contextConfig = new ResourceConfig();
   private static final AtomicInteger instance = new AtomicInteger();
 
 
@@ -41,8 +58,7 @@ public abstract class ApplicationContext<T extends RestConfig> extends ServletCo
   public ApplicationContext(T config, String path) {
     super(ServletContextHandler.SESSIONS);
     super.setContextPath(path);
-    contextConfig = new ResourceConfig();
-    this.config = config;
+    this.config = Objects.requireNonNull(config);
 
     this.metricsTags = Application.parseListToMap(
             getConfiguration().getList(RestConfig.METRICS_TAGS_CONFIG)
@@ -52,6 +68,10 @@ public abstract class ApplicationContext<T extends RestConfig> extends ServletCo
 
   public T getConfiguration() {
     return this.config;
+  }
+
+  public ResourceConfig getResourceConfig() {
+    return this.contextConfig;
   }
 
   /**
@@ -65,15 +85,15 @@ public abstract class ApplicationContext<T extends RestConfig> extends ServletCo
    * Returns a list of static resources to serve using the default servlet.
    *
    * <p>For example, static files can be served from class loader resources by returning
-   * {@code
+   * <pre>{@code
    * new ResourceCollection(Resource.newClassPathResource("static"));
-   * }
+   * }</pre>
    *
    * <p>For those resources to get served, it is necessary to add a static resources property to the
    * config in @link{{@link #setupResources(Configurable, RestConfig)}},
-   * e.g. using something like{@code
+   * e.g. using something like <pre>{@code
    * config.property(ServletProperties.FILTER_STATIC_CONTENT_REGEX, "/(static/.*|.*\\.html|)");
-   * }
+   * }</pre>
    *
    * @return static resource collection
    */
@@ -108,4 +128,25 @@ public abstract class ApplicationContext<T extends RestConfig> extends ServletCo
    */
   protected void configurePostResourceHandling() {}
 
+  ServletContextHandler configure(FilterHolder corsFilter) {
+    setBaseResource(getStaticResources());
+
+    setupResources(getResourceConfig(), getConfiguration());
+    configureSecurityHandler();
+    if (corsFilter != null) {
+      super.addFilter(corsFilter, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
+
+    configurePreResourceHandling();
+    ServletContainer servletContainer = new ServletContainer(getResourceConfig());
+    FilterHolder servletHolder = new FilterHolder(servletContainer);
+    super.addFilter(servletHolder, "/*", null);
+
+    configurePostResourceHandling();
+    ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
+    defaultHolder.setInitParameter("dirAllowed", "false");
+    addServlet(defaultHolder, "/*");
+
+    return this;
+  }
 }
