@@ -117,6 +117,15 @@ public abstract class ApplicationContext<T extends RestConfig> extends ServletCo
     return metricsTags;
   }
 
+  public void registerServerMetricTags(Map<String, String> tags) {
+    getMetricsTags().forEach((key, value) -> {
+      if (tags.put(key, value) != null) {
+        throw new IllegalArgumentException("A metric named %s=%s already exists, "
+                + "can't register another one.".format(key, value));
+      }
+    });
+  }
+
   /**
    * add any servlet filters that should be called before resource handling
    */

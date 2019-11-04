@@ -195,14 +195,7 @@ public abstract class Application<T extends RestConfig> {
 
     Map<String, String> combinedMetricsTags = new HashMap<>();
     for (ApplicationContext context : contexts) {
-      Map<String, String> metrics = context.getMetricsTags();
-      metrics.forEach((key, value) -> {
-        String found = combinedMetricsTags.put(key, value);
-        if (found != null) {
-          throw new IllegalArgumentException("A metric named %s=%s already exists, "
-                  + "can't register another one.".format(key, value));
-        }
-      });
+      context.registerServerMetricTags(combinedMetricsTags);
     }
 
     Map<String, String> configuredTags = parseListToMap(
@@ -210,7 +203,6 @@ public abstract class Application<T extends RestConfig> {
     );
 
     combinedMetricsTags.putAll(configuredTags);
-
 
     server = new Server() {
       @Override
