@@ -71,6 +71,7 @@ public class SslTest {
 
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
+  public static final int CERT_RELOAD_WAIT_TIME = 20000;
 
   @Before
   public void setUp() throws Exception {
@@ -177,7 +178,7 @@ public class SslTest {
       createWrongKeystoreWithCert(serverKeystoreNew, "server", certs);
       Files.copy(serverKeystoreNew.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-      Thread.sleep(10000); // 5s is too short for auto reload
+      Thread.sleep(CERT_RELOAD_WAIT_TIME);
       boolean hitError = false;
       try {
         makeGetRequest(httpsUri + "/test",
@@ -188,7 +189,7 @@ public class SslTest {
       }
 
       Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(10000); // 5s is too short for auto reload
+      Thread.sleep(CERT_RELOAD_WAIT_TIME);
       statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode); 

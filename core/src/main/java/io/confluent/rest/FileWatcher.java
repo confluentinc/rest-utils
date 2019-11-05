@@ -94,7 +94,6 @@ public class FileWatcher implements Runnable {
               }          
               break;
             }
-            continue;
           } catch (java.io.IOException e) {
             log.info("Hit error process the change event", e);
           }
