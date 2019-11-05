@@ -68,43 +68,44 @@ public class FileWatcher implements Runnable {
   public void run() {
     try {
       for (;;) {
-        log.info("Watching file change: " + file);
+        log.debug("Watching file change: " + file);
         // wait for key to be signalled
         WatchKey key = watchService.take();
         if (this.key != key) {
-          log.info("WatchKey not recognized");
+          log.debug("WatchKey not recognized");
           continue;
         }
         log.info("Watch Key notified");
         for (WatchEvent<?> event : key.pollEvents()) {
           WatchEvent.Kind<?> kind = event.kind();
-          if (kind != StandardWatchEventKinds.ENTRY_MODIFY) {
-            log.info("Watch event is not modified.");
+          if (kind == StandardWatchEventKinds.OVERFLOW) {
+            log.debug("Watch event is OVERFLOW");
             continue;
           }
           WatchEvent<Path> ev = (WatchEvent<Path>)event;
           Path changed = this.file.getParent().resolve(ev.context());
           try {
             if (Files.isSameFile(changed, this.file)) {
-              log.info("Watch found file: " + file);
+              log.debug("Watch found matching file: " + file);
               try {
                 callback.run();
               } catch (Exception e) {
-                log.error("Error while reloading cert", e);
+                log.warn("Hit error callback on file change", e);
               }          
               break;
             }
           } catch (java.io.IOException e) {
-            log.info("Hit error process the change event", e);
+            log.warn("Hit error process the change event", e);
           }
         }
         // reset key
         if (!key.reset()) {
+          log.warn("Ending watch due to key reset error");
           break;
         }
       }
     } catch (InterruptedException e) {
-      log.info("Ending my watch");
+      log.info("Ending watch due to interrupt");
     }
   }
 }
