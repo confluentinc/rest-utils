@@ -28,15 +28,28 @@ import java.nio.file.WatchService;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchEvent;
 
-// reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
-public class FileWatcher {
-  private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-  private Thread thread;
-  private WatchService watchService;
+// reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
+public class FileWatcher implements Runnable {
+  private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
 
   public interface Callback {
     void run() throws Exception;
+  }
+
+  private final WatchService watchService;
+  private final Path file;
+  private final WatchKey key;
+  private final Callback callback;
+
+  public FileWatcher(Path file, Callback callback) throws IOException {
+    this.file = file;
+    this.watchService = FileSystems.getDefault().newWatchService();
+    this.key = file.getParent().register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
+    this.callback = callback;
   }
 
   /**
@@ -45,53 +58,54 @@ public class FileWatcher {
     * instance and use the start/stop methods.
   */
   public static void onFileChange(Path file, Callback callback) throws IOException {
-    FileWatcher fileWatcher = new FileWatcher();
-    fileWatcher.start(file, callback);
-    Runtime.getRuntime().addShutdownHook(new Thread(fileWatcher::stop));
+    log.info("Configure watch file change: " + file);
+    FileWatcher fileWatcher = new FileWatcher(file, callback);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Future<?> future = executor.submit(fileWatcher);
+    Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
   }
 
-  public void start(Path file, Callback callback) throws IOException {
-    watchService = FileSystems.getDefault().newWatchService();
-    Path parent = file.getParent();
-    parent.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
-    log.info("Going to watch " + file);
-
-    thread = new Thread(() -> {
-      while (true) {
-        WatchKey wk = null;
-        try {
-          wk = watchService.take();
-          Thread.sleep(500); // give a chance for duplicate events to pile up
-          for (WatchEvent<?> event : wk.pollEvents()) {
-            Path changed = parent.resolve((Path) event.context());
-            if (Files.exists(changed) && Files.isSameFile(changed, file)) {
-              log.info("File change event: " + changed);
-              callback.run();
+  public void run() {
+    try {
+      for (;;) {
+        log.info("Watching file change: " + file);
+        // wait for key to be signalled
+        WatchKey key = watchService.take();
+        if (this.key != key) {
+          log.info("WatchKey not recognized");
+          continue;
+        }
+        log.info("Watch Key notified");
+        for (WatchEvent<?> event : key.pollEvents()) {
+          WatchEvent.Kind<?> kind = event.kind();
+          if (kind != StandardWatchEventKinds.ENTRY_MODIFY) {
+            log.info("Watch event is not modified.");
+            continue;
+          }
+          WatchEvent<Path> ev = (WatchEvent<Path>)event;
+          Path changed = this.file.getParent().resolve(ev.context());
+          try {
+            if (Files.isSameFile(changed, this.file)) {
+              log.info("Watch found file: " + file);
+              try {
+                callback.run();
+              } catch (Exception e) {
+                log.error("Error while reloading cert", e);
+              }          
               break;
             }
-          }
-        } catch (InterruptedException e) {
-          log.info("Ending my watch");
-          Thread.currentThread().interrupt();
-          break;
-        } catch (Exception e) {
-          log.error("Error while reloading cert", e);
-        } finally {
-          if (wk != null) {
-            wk.reset();
+            continue;
+          } catch (java.io.IOException e) {
+            log.info("Hit error process the change event", e);
           }
         }
+        // reset key
+        if (!key.reset()) {
+          break;
+        }
       }
-    });
-    thread.start();
-  }
-
-  public void stop() {
-    thread.interrupt();
-    try {
-      watchService.close();
-    } catch (IOException e) {
-      log.info("Error closing watch service", e);
+    } catch (InterruptedException e) {
+      log.info("Ending my watch");
     }
   }
 }

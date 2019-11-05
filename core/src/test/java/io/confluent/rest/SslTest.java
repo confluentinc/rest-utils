@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.net.SocketException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
@@ -109,6 +111,16 @@ public class SslTest {
     props.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, true);
   }
 
+  private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
+    KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
+    CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
+    X509Certificate cCert = certificateBuilder.sanDnsName("fail")
+        .generate("CN=mymachine.local, O=A client", keypair);
+    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
+    certs.put(alias, cCert);
+  }
+
+
   @Test
   public void testHttpAndHttps() throws Exception {
     TestMetricsReporter.reset();
@@ -138,7 +150,7 @@ public class SslTest {
   public void testHttpsWithAutoReload() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
-    String httpsUri = "https://localhost:8081";
+    String httpsUri = "https://localhost:8082";
     props.put(RestConfig.LISTENERS_CONFIG, httpsUri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     props.put(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
@@ -150,7 +162,37 @@ public class SslTest {
       int statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
-      //assertMetricsCollected();
+      assertMetricsCollected();
+
+      // verify reload -- override the server keystore with a new one
+      File serverKeystoreBak = File.createTempFile("SslTest-server-keystore", ".jks.bak");
+      Files.copy(serverKeystore.toPath(), serverKeystoreBak.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      File serverKeystoreNew;
+      try {
+        serverKeystoreNew = File.createTempFile("SslTest-server-keystore", ".jks.new");
+      } catch (IOException ioe) {
+        throw new RuntimeException("Unable to create temporary files for trust stores and keystores.");
+      }
+      Map<String, X509Certificate> certs = new HashMap<>();
+      createWrongKeystoreWithCert(serverKeystoreNew, "server", certs);
+      Files.copy(serverKeystoreNew.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+      Thread.sleep(10000); // 5s is too short for auto reload
+      boolean hitError = false;
+      try {
+        makeGetRequest(httpsUri + "/test",
+                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      } catch (Exception e) {
+        System.out.println(e);
+        hitError = true;
+      }
+
+      Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      Thread.sleep(10000); // 5s is too short for auto reload
+      statusCode = makeGetRequest(httpsUri + "/test",
+                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_200_MSG, 200, statusCode); 
+      assertEquals("expect hit error with new server cert", true, hitError); 
     } finally {
       app.stop();
     }
