@@ -68,6 +68,8 @@ public class SslTest {
   private File trustStore;
   private File clientKeystore;
   private File serverKeystore;
+  private File serverKeystoreBak;
+  private File serverKeystoreErr;
 
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
@@ -79,6 +81,8 @@ public class SslTest {
       trustStore = File.createTempFile("SslTest-truststore", ".jks");
       clientKeystore = File.createTempFile("SslTest-client-keystore", ".jks");
       serverKeystore = File.createTempFile("SslTest-server-keystore", ".jks");
+      serverKeystoreBak = File.createTempFile("SslTest-server-keystore", ".jks.bak");
+      serverKeystoreErr = File.createTempFile("SslTest-server-keystore", ".jks.err");
     } catch (IOException ioe) {
       throw new RuntimeException("Unable to create temporary files for trust stores and keystores.");
     }
@@ -86,6 +90,10 @@ public class SslTest {
     createKeystoreWithCert(clientKeystore, "client", certs);
     createKeystoreWithCert(serverKeystore, "server", certs);
     TestSslUtils.createTrustStore(trustStore.getAbsolutePath(), new Password(SSL_PASSWORD), certs);
+
+    Files.copy(serverKeystore.toPath(), serverKeystoreBak.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    certs = new HashMap<>();
+    createWrongKeystoreWithCert(serverKeystoreErr, "server", certs);
   }
 
   private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
@@ -165,19 +173,8 @@ public class SslTest {
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
       assertMetricsCollected();
 
-      // verify reload -- override the server keystore with a new one
-      File serverKeystoreBak = File.createTempFile("SslTest-server-keystore", ".jks.bak");
-      Files.copy(serverKeystore.toPath(), serverKeystoreBak.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      File serverKeystoreNew;
-      try {
-        serverKeystoreNew = File.createTempFile("SslTest-server-keystore", ".jks.new");
-      } catch (IOException ioe) {
-        throw new RuntimeException("Unable to create temporary files for trust stores and keystores.");
-      }
-      Map<String, X509Certificate> certs = new HashMap<>();
-      createWrongKeystoreWithCert(serverKeystoreNew, "server", certs);
-      Files.copy(serverKeystoreNew.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
+      // verify reload -- override the server keystore with a wrong one
+      Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
       Thread.sleep(CERT_RELOAD_WAIT_TIME);
       boolean hitError = false;
       try {
@@ -188,6 +185,7 @@ public class SslTest {
         hitError = true;
       }
 
+      // verify reload -- override the server keystore with a correct one
       Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
       Thread.sleep(CERT_RELOAD_WAIT_TIME);
       statusCode = makeGetRequest(httpsUri + "/test",
