@@ -58,8 +58,7 @@ public class FileWatcher implements Runnable {
 
   /**
     * Starts watching a file calls the callback when it is changed.
-    * A shutdown hook is registered to stop watching. To control this yourself, create an
-    * instance and use the start/stop methods.
+    * A shutdown hook is registered to stop watching.
   */
   public static void onFileChange(Path file, Callback callback) throws IOException {
     log.info("Configure watch file change: " + file);
