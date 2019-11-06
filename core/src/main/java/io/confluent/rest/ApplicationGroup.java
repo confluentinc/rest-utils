@@ -24,7 +24,7 @@ import java.util.List;
 
 public class ApplicationGroup<T extends RestConfig> {
   private final T config;
-  private Server server;
+  private Server server = null;
   private final List<Application> applications = new ArrayList<>();
 
   ApplicationGroup(T config, Application ...applications) {
@@ -45,12 +45,18 @@ public class ApplicationGroup<T extends RestConfig> {
     return this.config;
   }
 
+  /* Visible for testing */
+  Server getServer() {
+    return this.server;
+  }
+
   /**
    * Start the server (creating it if necessary).
    * @throws Exception If the application fails to start
    */
   public void start() throws Exception {
     this.server = new ApplicationServer(this);
+    server.start();
   }
 
   /**

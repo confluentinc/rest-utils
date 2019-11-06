@@ -26,6 +26,7 @@ import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
@@ -129,6 +130,9 @@ public class ApplicationServer extends Server {
   }
 
   private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
+    /* DefaultHandler must come last eo ensure all contexts
+     * have a chance to handle a request first */
+    handlers.addHandler(new DefaultHandler());
     /* Needed for graceful shutdown as per `setStopTimeout` documentation */
     StatisticsHandler statsHandler = new StatisticsHandler();
     statsHandler.setHandler(handlers);

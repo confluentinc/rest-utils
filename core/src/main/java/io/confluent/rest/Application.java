@@ -33,7 +33,6 @@ import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLog;
-import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
@@ -253,7 +252,7 @@ public abstract class Application<T extends RestConfig> {
     requestLogHandler.setRequestLog(requestLog);
 
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
+    handlers.setHandlers(new Handler[]{context, requestLogHandler});
 
     return handlers;
   }
