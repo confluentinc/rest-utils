@@ -49,7 +49,10 @@ public class FileWatcher implements Runnable {
   public FileWatcher(Path file, Callback callback) throws IOException {
     this.file = file;
     this.watchService = FileSystems.getDefault().newWatchService();
-    this.key = file.getParent().register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
+    // Listen to both CREATE and MODIFY to reload, so taking care of delete then create.
+    this.key = file.getParent().register(watchService,
+        StandardWatchEventKinds.ENTRY_CREATE,
+        StandardWatchEventKinds.ENTRY_MODIFY);
     this.callback = callback;
   }
 
