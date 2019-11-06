@@ -40,6 +40,7 @@ public class FileWatcher implements Runnable {
     void run() throws Exception;
   }
 
+  private volatile boolean shutdown;
   private final WatchService watchService;
   private final Path file;
   private final WatchKey key;
@@ -53,7 +54,7 @@ public class FileWatcher implements Runnable {
   }
 
   /**
-    * Starts watching a file and the given path and calls the callback when it is changed.
+    * Starts watching a file calls the callback when it is changed.
     * A shutdown hook is registered to stop watching. To control this yourself, create an
     * instance and use the start/stop methods.
   */
@@ -62,12 +63,12 @@ public class FileWatcher implements Runnable {
     FileWatcher fileWatcher = new FileWatcher(file, callback);
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> future = executor.submit(fileWatcher);
-    Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
+    Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdownNow));
   }
 
   public void run() {
     try {
-      for (;;) {
+      while (!shutdown) {
         log.debug("Watching file change: " + file);
         // wait for key to be signalled
         WatchKey key = watchService.take();
@@ -108,4 +109,14 @@ public class FileWatcher implements Runnable {
       log.info("Ending watch due to interrupt");
     }
   }
+
+  public void shutdown() {
+    shutdown = true;
+    try {
+      watchService.close();
+    } catch (IOException e) {
+      log.info("Error closing watch service", e);
+    }
+  }
+
 }
