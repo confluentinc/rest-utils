@@ -191,8 +191,11 @@ public abstract class Application<T extends RestConfig> {
 
   /**
    * Configure and create the server.
+   *
+   * @deprecated Use {@link ApplicationServer#registerApplication(Application)} instead.
    */
   // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
+  @Deprecated
   public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
@@ -525,7 +528,10 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Start the server (creating it if necessary).
    * @throws Exception If the application fails to start
+   *
+   * @deprecated Use {@link ApplicationServer#start()} instead.
    */
+  @Deprecated
   public void start() throws Exception {
     createServer();
     server.start();
@@ -535,7 +541,10 @@ public abstract class Application<T extends RestConfig> {
    * Wait for the server to exit, allowing existing requests to complete if graceful shutdown is
    * enabled and invoking the shutdown hook before returning.
    * @throws InterruptedException If the internal threadpool fails to stop
+   *
+   * @deprecated Use {@link ApplicationServer#join()} instead.
    */
+  @Deprecated
   public void join() throws InterruptedException {
     server.join();
     shutdownLatch.await();
@@ -544,7 +553,10 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Request that the server shutdown.
    * @throws Exception If the application fails to stop
+   *
+   * @deprecated Use {@link ApplicationServer#stop()} instead.
    */
+  @Deprecated
   public void stop() throws Exception {
     server.stop();
   }
