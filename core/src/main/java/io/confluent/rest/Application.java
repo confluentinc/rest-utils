@@ -19,8 +19,6 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
-import io.confluent.rest.auth.AuthUtil;
-
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -59,6 +57,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -71,6 +70,7 @@ import io.confluent.common.metrics.JmxReporter;
 import io.confluent.common.metrics.MetricConfig;
 import io.confluent.common.metrics.Metrics;
 import io.confluent.common.metrics.MetricsReporter;
+import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
@@ -107,7 +107,7 @@ public abstract class Application<T extends RestConfig> {
 
   public Application(T config, String path) {
     this.config = config;
-    this.path = path;
+    this.path = Objects.requireNonNull(path);;
 
     MetricConfig metricConfig = new MetricConfig()
         .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
@@ -205,11 +205,11 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
-  void setServer(ApplicationServer server) {
-    this.server = server;
+  final void setServer(ApplicationServer server) {
+    this.server = Objects.requireNonNull(server);
   }
 
-  Server getServer() {
+  final ApplicationServer getServer() {
     return server;
   }
 
@@ -224,7 +224,7 @@ public abstract class Application<T extends RestConfig> {
     final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    context.setContextPath(this.path);
+    context.setContextPath(path);
 
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");

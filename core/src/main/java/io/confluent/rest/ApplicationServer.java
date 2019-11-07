@@ -35,7 +35,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -48,7 +47,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
-public class ApplicationServer<T extends RestConfig> extends Server {
+public final class ApplicationServer<T extends RestConfig> extends Server {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   private final T config;
   private final ApplicationGroup applications;
@@ -58,7 +57,7 @@ public class ApplicationServer<T extends RestConfig> extends Server {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
-  ApplicationServer(T config) throws ServletException {
+  public ApplicationServer(T config) {
     super();
     this.config = config;
     this.applications = new ApplicationGroup(this);
@@ -84,7 +83,7 @@ public class ApplicationServer<T extends RestConfig> extends Server {
    * @deprecated This function will be removed with {@link RestConfig#PORT_CONFIG}
    */
   @Deprecated
-  public static List<URI> parseListeners(
+  static List<URI> parseListeners(
           List<String> listenersConfig,
           int deprecatedPort,
           List<String> supportedSchemes,
@@ -148,7 +147,7 @@ public class ApplicationServer<T extends RestConfig> extends Server {
     applications.addApplication(application);
   }
 
-  void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
+  private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
     MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
     for (NetworkTrafficServerConnector connector : connectors) {
       connector.addNetworkTrafficListener(metricsListener);
@@ -331,7 +330,8 @@ public class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
-  public  List<URL>  getListeners() {
+  // for testing
+  List<URL> getListeners() {
     return Arrays.stream(getServer().getConnectors())
             .filter(connector -> connector instanceof ServerConnector)
             .map(ServerConnector.class::cast)

@@ -9,12 +9,10 @@ import org.eclipse.jetty.http.HttpStatus.Code;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.glassfish.jersey.servlet.ServletProperties;
-import org.junit.*;
-import org.junit.rules.ExpectedException;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,24 +25,13 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 
-
-import org.junit.rules.TemporaryFolder;
-
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class ApplicationGroupTest {
 
-  private static final String REALM = "REALM";
-  private static String staticContent;
   static TestRestConfig testConfig;
   private static ApplicationServer server;
-
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
-
-  @Rule
-  public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Before
   public void setup() throws Exception {
@@ -58,16 +45,6 @@ public class ApplicationGroupTest {
   @After
   public void tearDown() throws Exception {
     server.stop();
-  }
-
-  @BeforeClass
-  public static void setupStatic() throws Exception {
-    try (
-            InputStreamReader isr = new InputStreamReader(ClassLoader.getSystemResourceAsStream("static/index.html"), StandardCharsets.UTF_8);
-            BufferedReader br = new BufferedReader(isr)
-    ) {
-      staticContent = br.readLine() + System.lineSeparator();
-    }
   }
 
   private TestRestConfig configBasic() {
@@ -152,19 +129,11 @@ public class ApplicationGroupTest {
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
 
-    public TestApp() {
-      this(testConfig);
-    }
-
-    public TestApp(String path) {
+    TestApp(String path) {
       this(testConfig, path);
     }
 
-    public TestApp(TestRestConfig config) {
-      super(config);
-    }
-
-    public TestApp(TestRestConfig config, String path) {
+    TestApp(TestRestConfig config, String path) {
       super(config, path);
     }
 

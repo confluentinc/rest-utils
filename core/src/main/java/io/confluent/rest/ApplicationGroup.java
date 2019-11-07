@@ -26,12 +26,12 @@ final class ApplicationGroup {
   private final List<Application> applications = new ArrayList<>();
 
   ApplicationGroup(ApplicationServer server) {
-    this.server = server;
+    this.server = Objects.requireNonNull(server);
   }
 
   void addApplication(Application application) {
     application.setServer(server);
-    this.applications.add(Objects.requireNonNull(application));
+    applications.add(application);
   }
 
   List<Application> getApplications() {
@@ -39,10 +39,10 @@ final class ApplicationGroup {
   }
 
   void doStop() {
-    for (Application app: applications) {
-      app.metrics.close();
-      app.doShutdown();
-      app.shutdownLatch.countDown();
+    for (Application application: applications) {
+      application.metrics.close();
+      application.doShutdown();
+      application.shutdownLatch.countDown();
     }
   }
 }
