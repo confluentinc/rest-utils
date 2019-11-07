@@ -226,7 +226,7 @@ public class SslTest {
       try {
         makeGetRequest(uri + "/test",
                 untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (SSLHandshakeException she) { // handle a transient failure.
+      } catch (SSLException she) { // handle a transient failure.
         throw new SocketException(she.getMessage());
       }
     } finally {
