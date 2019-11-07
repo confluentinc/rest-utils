@@ -16,64 +16,26 @@
 
 package io.confluent.rest;
 
-import org.eclipse.jetty.server.Server;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
-public class ApplicationGroup<T extends RestConfig> {
-  private final T config;
-  private Server server = null;
+final class ApplicationGroup {
+  private final ApplicationServer server;
+
   private final List<Application> applications = new ArrayList<>();
 
-  ApplicationGroup(T config, Application ...applications) {
-    this.config = config;
-    this.applications.addAll(Arrays.asList(applications));
-    System.out.println(applications.toString());
+  ApplicationGroup(ApplicationServer server) {
+    this.server = server;
   }
 
-  public void addApplication(Application application) {
-    this.applications.add(application);
+  void addApplication(Application application) {
+    application.setServer(server);
+    this.applications.add(Objects.requireNonNull(application));
   }
 
-  public List<Application> getApplications() {
+  List<Application> getApplications() {
     return applications;
-  }
-
-  public RestConfig getConfiguration() {
-    return this.config;
-  }
-
-  /* Visible for testing */
-  Server getServer() {
-    return this.server;
-  }
-
-  /**
-   * Start the server (creating it if necessary).
-   * @throws Exception If the application fails to start
-   */
-  public void start() throws Exception {
-    this.server = new ApplicationServer(this);
-    server.start();
-  }
-
-  /**
-   * Wait for the server to exit, allowing existing requests to complete if graceful shutdown is
-   * enabled and invoking the shutdown hook before returning.
-   * @throws InterruptedException If the internal threadpool fails to stop
-   */
-  public void join() throws InterruptedException {
-    server.join();
-  }
-
-  /**
-   * Request that the server shutdown.
-   * @throws Exception If the application fails to stop
-   */
-  public void stop() throws Exception {
-    server.stop();
   }
 
   void doStop() {

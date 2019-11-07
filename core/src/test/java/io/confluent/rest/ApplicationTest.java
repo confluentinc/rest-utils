@@ -369,7 +369,7 @@ public class ApplicationTest {
     }
 
     private List<URL> getListeners() {
-      return Arrays.stream(server.getConnectors())
+      return Arrays.stream(getServer().getConnectors())
           .filter(connector -> connector instanceof ServerConnector)
           .map(ServerConnector.class::cast)
           .map(connector -> {

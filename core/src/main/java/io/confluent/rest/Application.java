@@ -64,6 +64,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import javax.servlet.DispatcherType;
+import javax.servlet.ServletException;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.common.metrics.JmxReporter;
@@ -89,8 +90,9 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
-  private String path;
-  protected ApplicationServer server;
+  private final String path;
+
+  private ApplicationServer server;
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
 
@@ -159,7 +161,9 @@ public abstract class Application<T extends RestConfig> {
 
   /**
    * expose SslContextFactory
+   * @deprecated Use {@link ApplicationServer#getSslContextFactory} instead.
    */
+  @Deprecated
   protected SslContextFactory getSslContextFactory() {
     return server.getSslContextFactory();
   }
@@ -189,15 +193,24 @@ public abstract class Application<T extends RestConfig> {
    * Configure and create the server.
    */
   // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
-  public Server createServer() throws Exception {
+  public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
-      new ApplicationServer(new ApplicationGroup(config,this));
+      server = new ApplicationServer(config);
+      server.registerApplication(this);
     }
     return server;
   }
 
-  Handler configureHandler() {
+  void setServer(ApplicationServer server) {
+    this.server = server;
+  }
+
+  Server getServer() {
+    return server;
+  }
+
+  final Handler configureHandler() {
     ResourceConfig resourceConfig = new ResourceConfig();
     configureBaseApplication(resourceConfig, getMetricsTags());
     configureResourceExtensions(resourceConfig);
@@ -257,7 +270,7 @@ public abstract class Application<T extends RestConfig> {
     return handlers;
   }
 
-  Handler configureWsHandler() throws Exception {
+  final Handler configureWebSocketHandler() throws ServletException {
     final ServletContextHandler webSocketContext =
             new ServletContextHandler(ServletContextHandler.SESSIONS);
     webSocketContext.setContextPath(
@@ -323,19 +336,26 @@ public abstract class Application<T extends RestConfig> {
         });
   }
 
-  static void configureSecurityHandler(ServletContextHandler context, RestConfig config) {
+  protected void configureSecurityHandler(ServletContextHandler context) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
-      context.setSecurityHandler(createBasicSecurityHandler(config));
+      context.setSecurityHandler(createBasicSecurityHandler());
     } else if (enableBearerAuth(authMethod)) {
-      context.setSecurityHandler(createBearerSecurityHandler(config));
+      context.setSecurityHandler(createBearerSecurityHandler());
     }
   }
 
-  protected void configureSecurityHandler(ServletContextHandler context) {
-    configureSecurityHandler(context, this.config);
+  public Handler wrapWithGzipHandler(Handler handler) {
+    return ApplicationServer.wrapWithGzipHandler(config, handler);
   }
 
+  /**
+   * TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
+   * Helper function used to support the deprecated configuration.
+   *
+   * @deprecated This function will be removed with {@link RestConfig#PORT_CONFIG}
+   */
+  @Deprecated
   public static List<URI> parseListeners(
           List<String> listenersConfig,
           int deprecatedPort,
@@ -360,7 +380,7 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BEARER.equals(authMethod);
   }
 
-  static LoginAuthenticator createAuthenticator(RestConfig config) {
+  protected LoginAuthenticator createAuthenticator() {
     final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
       return new BasicAuthenticator();
@@ -374,11 +394,7 @@ public abstract class Application<T extends RestConfig> {
     return null;
   }
 
-  protected LoginAuthenticator createAuthenticator() {
-    return createAuthenticator(this.config);
-  }
-
-  static LoginService createLoginService(RestConfig config) {
+  protected LoginService createLoginService() {
     final String realm = config.getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
     final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
@@ -393,11 +409,7 @@ public abstract class Application<T extends RestConfig> {
     return null;
   }
 
-  protected LoginService createLoginService() {
-    return createLoginService(this.config);
-  }
-
-  static IdentityService createIdentityService(RestConfig config) {
+  protected IdentityService createIdentityService() {
     final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method) || enableBearerAuth(method)) {
       return new DefaultIdentityService();
@@ -405,34 +417,22 @@ public abstract class Application<T extends RestConfig> {
     return null;
   }
 
-  protected IdentityService createIdentityService() {
-    return createIdentityService(this.config);
-  }
-
-  static ConstraintSecurityHandler createBasicSecurityHandler(RestConfig config) {
-    return createSecurityHandler(config);
-  }
-
   protected ConstraintSecurityHandler createBasicSecurityHandler() {
-    return createBasicSecurityHandler(this.config);
-  }
-
-  static ConstraintSecurityHandler createBearerSecurityHandler(RestConfig config) {
-    return createSecurityHandler(config);
+    return createSecurityHandler();
   }
 
   protected ConstraintSecurityHandler createBearerSecurityHandler() {
-    return createSecurityHandler(this.config);
+    return createSecurityHandler();
   }
 
-  static ConstraintSecurityHandler createSecurityHandler(RestConfig config) {
+  protected ConstraintSecurityHandler createSecurityHandler() {
     final String realm = config.getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
 
     final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-    securityHandler.addConstraintMapping(createGlobalAuthConstraint(config));
-    securityHandler.setAuthenticator(createAuthenticator(config));
-    securityHandler.setLoginService(createLoginService(config));
-    securityHandler.setIdentityService(createIdentityService(config));
+    securityHandler.addConstraintMapping(createGlobalAuthConstraint());
+    securityHandler.setAuthenticator(createAuthenticator());
+    securityHandler.setLoginService(createLoginService());
+    securityHandler.setIdentityService(createIdentityService());
     securityHandler.setRealmName(realm);
     AuthUtil.createUnsecuredConstraints(config)
             .forEach(securityHandler::addConstraintMapping);
@@ -440,16 +440,8 @@ public abstract class Application<T extends RestConfig> {
     return securityHandler;
   }
 
-  protected ConstraintSecurityHandler createSecurityHandler() {
-    return createSecurityHandler(this.config);
-  }
-
-  static ConstraintMapping createGlobalAuthConstraint(RestConfig config) {
-    return AuthUtil.createGlobalAuthConstraint(config);
-  }
-
   protected ConstraintMapping createGlobalAuthConstraint() {
-    return createGlobalAuthConstraint(this.config);
+    return AuthUtil.createGlobalAuthConstraint(config);
   }
 
   public void configureBaseApplication(Configurable<?> config) {
@@ -557,7 +549,7 @@ public abstract class Application<T extends RestConfig> {
     server.stop();
   }
 
-  void doShutdown() {
+  final void doShutdown() {
     resourceExtensions.forEach(ext -> {
       try {
         ext.close();
@@ -574,5 +566,5 @@ public abstract class Application<T extends RestConfig> {
    * stopped accepting new connections, and tried to gracefully finish existing requests. At this
    * point it should be safe to clean up any resources used while processing requests.
    */
-  public void onShutdown() { }
+  public void onShutdown() {}
 }
