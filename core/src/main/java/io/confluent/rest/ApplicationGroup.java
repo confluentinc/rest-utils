@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,7 +36,7 @@ final class ApplicationGroup {
   }
 
   List<Application> getApplications() {
-    return applications;
+    return Collections.unmodifiableList(applications);
   }
 
   void doStop() {
