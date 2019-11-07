@@ -120,6 +120,10 @@ public class RestConfig extends AbstractConfig {
       + "details, etc.";
   protected static final String METRICS_TAGS_DEFAULT = "";
 
+  public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
+  protected static final String SSL_KEYSTORE_RELOAD_DOC =
+      "Enable auto reload of ssl key";
+  protected static final boolean SSL_KEYSTORE_RELOAD_DEFAULT = false;
   public static final String SSL_KEYSTORE_LOCATION_CONFIG = "ssl.keystore.location";
   protected static final String SSL_KEYSTORE_LOCATION_DOC =
       "Location of the keystore file to use for SSL. This is required for HTTPS.";
@@ -411,6 +415,12 @@ public class RestConfig extends AbstractConfig {
             METRICS_TAGS_DEFAULT,
             Importance.LOW,
             METRICS_TAGS_DOC
+        ).define(
+            SSL_KEYSTORE_RELOAD_CONFIG,
+            Type.BOOLEAN,
+            SSL_KEYSTORE_RELOAD_DEFAULT,
+            Importance.LOW,
+            SSL_KEYSTORE_RELOAD_DOC
         ).define(
             SSL_KEYSTORE_LOCATION_CONFIG,
             Type.STRING,
