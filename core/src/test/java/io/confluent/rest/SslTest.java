@@ -274,7 +274,7 @@ public class SslTest {
   @Test(expected = SocketException.class)
   public void testHttpsWithAuthAndBadClientCert() throws Exception {
     Properties props = new Properties();
-    String uri = "https://localhost:8084";
+    String uri = "https://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     configServerTruststore(props);
