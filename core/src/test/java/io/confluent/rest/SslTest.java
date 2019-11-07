@@ -193,7 +193,9 @@ public class SslTest {
       assertEquals(EXPECTED_200_MSG, 200, statusCode); 
       assertEquals("expect hit error with new server cert", true, hitError); 
     } finally {
-      app.stop();
+      if (app != null) {
+        app.stop();
+      }
     }
   }
 

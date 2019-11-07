@@ -87,9 +87,10 @@ public class FileWatcher implements Runnable {
           }
           WatchEvent<Path> ev = (WatchEvent<Path>)event;
           Path changed = this.file.getParent().resolve(ev.context());
+          log.debug("Watch file change: " + changed);
           try {
             if (Files.isSameFile(changed, this.file)) {
-              log.debug("Watch found matching file: " + file);
+              log.debug("Watch matching file: " + file);
               try {
                 callback.run();
               } catch (Exception e) {

@@ -254,7 +254,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       }
 
       if (config.getBoolean(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG)) {
-        Path keystorePath = Paths.get(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG);
+        Path keystorePath = Paths.get(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
         try {
           FileWatcher.onFileChange(keystorePath, () -> 
               sslContextFactory.reload(scf -> log.info("Reloaded SSL cert")));
