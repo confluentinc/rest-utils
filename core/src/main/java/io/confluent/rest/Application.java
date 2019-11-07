@@ -92,7 +92,7 @@ public abstract class Application<T extends RestConfig> {
   protected T config;
   private final String path;
 
-  private ApplicationServer server;
+  protected ApplicationServer server;
   protected Metrics metrics;
   protected final Slf4jRequestLog requestLog;
 
