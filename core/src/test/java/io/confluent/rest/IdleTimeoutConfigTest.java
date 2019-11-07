@@ -24,10 +24,10 @@ public class IdleTimeoutConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
 
     Server server = new TestApp(config).createServer();
-
+    server.start();
     // then
     Assert.assertEquals(expectedIdleTimeout, server.getConnectors()[0].getIdleTimeout());
-
+    server.stop();
   }
 
 
