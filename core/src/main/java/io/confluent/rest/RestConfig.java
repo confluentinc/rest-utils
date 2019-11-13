@@ -128,6 +128,10 @@ public class RestConfig extends AbstractConfig {
   protected static final String SSL_KEYSTORE_LOCATION_DOC =
       "Location of the keystore file to use for SSL. This is required for HTTPS.";
   protected static final String SSL_KEYSTORE_LOCATION_DEFAULT = "";
+  public static final String SSL_KEYSTORE_WATCH_LOCATION_CONFIG = "ssl.keystore.watch.location";
+  protected static final String SSL_KEYSTORE_WATCH_LOCATION_DOC =
+      "Location to watch keystore file change if it is different from keystore location ";
+  protected static final String SSL_KEYSTORE_WATCH_LOCATION_DEFAULT = "";
   public static final String SSL_KEYSTORE_PASSWORD_CONFIG = "ssl.keystore.password";
   protected static final String SSL_KEYSTORE_PASSWORD_DOC =
       "The store password for the keystore file.";
@@ -427,6 +431,12 @@ public class RestConfig extends AbstractConfig {
             SSL_KEYSTORE_LOCATION_DEFAULT,
             Importance.HIGH,
             SSL_KEYSTORE_LOCATION_DOC
+        ).define(
+            SSL_KEYSTORE_WATCH_LOCATION_CONFIG,
+            Type.STRING,
+            SSL_KEYSTORE_WATCH_LOCATION_DEFAULT,
+            Importance.LOW,
+            SSL_KEYSTORE_WATCH_LOCATION_DOC
         ).define(
             SSL_KEYSTORE_PASSWORD_CONFIG,
             Type.PASSWORD,

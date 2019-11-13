@@ -43,14 +43,13 @@ public class FileWatcher implements Runnable {
   private volatile boolean shutdown;
   private final WatchService watchService;
   private final Path file;
-  private final WatchKey key;
   private final Callback callback;
 
   public FileWatcher(Path file, Callback callback) throws IOException {
     this.file = file;
     this.watchService = FileSystems.getDefault().newWatchService();
     // Listen to both CREATE and MODIFY to reload, so taking care of delete then create.
-    this.key = file.getParent().register(watchService,
+    file.getParent().register(watchService,
         StandardWatchEventKinds.ENTRY_CREATE,
         StandardWatchEventKinds.ENTRY_MODIFY);
     this.callback = callback;
@@ -74,10 +73,6 @@ public class FileWatcher implements Runnable {
         log.debug("Watching file change: " + file);
         // wait for key to be signalled
         WatchKey key = watchService.take();
-        if (this.key != key) {
-          log.debug("WatchKey not recognized");
-          continue;
-        }
         log.info("Watch Key notified");
         for (WatchEvent<?> event : key.pollEvents()) {
           WatchEvent.Kind<?> kind = event.kind();
@@ -87,26 +82,20 @@ public class FileWatcher implements Runnable {
           }
           WatchEvent<Path> ev = (WatchEvent<Path>)event;
           Path changed = this.file.getParent().resolve(ev.context());
-          log.debug("Watch file change: " + changed);
-          try {
-            if (Files.isSameFile(changed, this.file)) {
-              log.debug("Watch matching file: " + file);
-              try {
-                callback.run();
-              } catch (Exception e) {
-                log.warn("Hit error callback on file change", e);
-              }          
-              break;
+          log.info("Watch file change: " + ev.context() + "=>" + changed);
+          // Need to use path equals than isSameFile
+          if (Files.exists(changed) && changed.equals(this.file)) {
+            log.debug("Watch matching file: " + file);
+            try {
+              callback.run();
+            } catch (Exception e) {
+              log.warn("Hit error callback on file change", e);
             }
-          } catch (java.io.IOException e) {
-            log.warn("Hit error process the change event", e);
+            break;
           }
         }
         // reset key
-        if (!key.reset()) {
-          log.warn("Ending watch due to key reset error");
-          break;
-        }
+        key.reset();
       }
     } catch (InterruptedException e) {
       log.info("Ending watch due to interrupt");
