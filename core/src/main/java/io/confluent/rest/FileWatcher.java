@@ -30,11 +30,19 @@ import java.nio.file.WatchEvent;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 // reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
 public class FileWatcher implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
+  private static final ExecutorService executor = Executors.newFixedThreadPool(1,
+        new ThreadFactory() {
+          public Thread newThread(Runnable r) {
+            Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setDaemon(true);
+            return t;
+          }
+        });
 
   public interface Callback {
     void run() throws Exception;
@@ -62,44 +70,52 @@ public class FileWatcher implements Runnable {
   public static void onFileChange(Path file, Callback callback) throws IOException {
     log.info("Configure watch file change: " + file);
     FileWatcher fileWatcher = new FileWatcher(file, callback);
-    ExecutorService executor = Executors.newSingleThreadExecutor();
-    Future<?> future = executor.submit(fileWatcher);
-    Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdownNow));
+    executor.submit(fileWatcher);
   }
 
   public void run() {
     try {
       while (!shutdown) {
         log.debug("Watching file change: " + file);
-        // wait for key to be signalled
-        WatchKey key = watchService.take();
-        log.info("Watch Key notified");
-        for (WatchEvent<?> event : key.pollEvents()) {
-          WatchEvent.Kind<?> kind = event.kind();
-          if (kind == StandardWatchEventKinds.OVERFLOW) {
-            log.debug("Watch event is OVERFLOW");
-            continue;
-          }
-          WatchEvent<Path> ev = (WatchEvent<Path>)event;
-          Path changed = this.file.getParent().resolve(ev.context());
-          log.info("Watch file change: " + ev.context() + "=>" + changed);
-          // Need to use path equals than isSameFile
-          if (Files.exists(changed) && changed.equals(this.file)) {
-            log.debug("Watch matching file: " + file);
-            try {
-              callback.run();
-            } catch (Exception e) {
-              log.warn("Hit error callback on file change", e);
-            }
-            break;
-          }
+        try {
+          handleNextWatchNotification();
+        } catch (InterruptedException e) {
+          throw e;
+        } catch (Exception e) {
+          log.info("Watch service caught exeption, will continue:" + e);
         }
-        // reset key
-        key.reset();
       }
     } catch (InterruptedException e) {
       log.info("Ending watch due to interrupt");
     }
+  }
+
+  private void handleNextWatchNotification() throws InterruptedException {
+    log.debug("Watching file change: " + file);
+    // wait for key to be signalled
+    WatchKey key = watchService.take();
+    log.info("Watch Key notified");
+    for (WatchEvent<?> event : key.pollEvents()) {
+      WatchEvent.Kind<?> kind = event.kind();
+      if (kind == StandardWatchEventKinds.OVERFLOW) {
+        log.debug("Watch event is OVERFLOW");
+        continue;
+      }
+      WatchEvent<Path> ev = (WatchEvent<Path>)event;
+      Path changed = this.file.getParent().resolve(ev.context());
+      log.info("Watch file change: " + ev.context() + "=>" + changed);
+      // Need to use path equals than isSameFile
+      if (Files.exists(changed) && changed.equals(this.file)) {
+        log.debug("Watch matching file: " + file);
+        try {
+          callback.run();
+        } catch (Exception e) {
+          log.warn("Hit error callback on file change", e);
+        }
+        break;
+      }
+    }
+    key.reset();
   }
 
   public void shutdown() {
