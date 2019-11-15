@@ -193,6 +193,8 @@ public abstract class Application<T extends RestConfig> {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
 
     // The configuration for the JAX-RS REST service
+
+    log.info("DEBUG: creating server");
     ResourceConfig resourceConfig = new ResourceConfig();
 
     Map<String, String> configuredTags = parseListToMap(
@@ -371,6 +373,7 @@ public abstract class Application<T extends RestConfig> {
           try {
             initializer.accept(context);
           } catch (final Exception e) {
+            log.info("DEBUG: error {}", e.getMessage());
             throw new RuntimeException("Exception from custom initializer. "
                 + "config:" + initializerConfigName + ", initializer" + initializer, e);
           }
@@ -458,6 +461,7 @@ public abstract class Application<T extends RestConfig> {
   private void configureClientAuth(SslContextFactory sslContextFactory) {
     String clientAuthentication = config.getString(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG);
 
+    log.info("DEBUG: configure client auth with SSL");
     if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTH_CONFIG)) {
       if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG)) {
         log.warn(
