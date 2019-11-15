@@ -30,7 +30,8 @@ import org.slf4j.LoggerFactory;
 public class ConstraintViolationExceptionMapper
     implements ExceptionMapper<ConstraintViolationException> {
 
-  private static final Logger log = LoggerFactory.getLogger(ConstraintViolationExceptionMapper.class);
+  private static final Logger log = LoggerFactory
+          .getLogger(ConstraintViolationExceptionMapper.class);
 
   public static final int UNPROCESSABLE_ENTITY_CODE = 422;
   public static final Response.StatusType UNPROCESSABLE_ENTITY = new Response.StatusType() {
