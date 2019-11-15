@@ -76,7 +76,6 @@ public class FileWatcher implements Runnable {
   public void run() {
     try {
       while (!shutdown) {
-        log.debug("Watching file change: " + file);
         try {
           handleNextWatchNotification();
         } catch (InterruptedException e) {
