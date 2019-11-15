@@ -543,7 +543,7 @@ public abstract class Application<T extends RestConfig> {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
-      log.info("DEBUG: return JAASLoginService")
+      log.info("DEBUG: return JAASLoginService");
       return new JAASLoginService(realm);
     } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
