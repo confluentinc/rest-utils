@@ -23,10 +23,14 @@ import javax.ws.rs.ext.Provider;
 
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.validation.ConstraintViolations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Provider
 public class ConstraintViolationExceptionMapper
     implements ExceptionMapper<ConstraintViolationException> {
+
+  private static final Logger log = LoggerFactory.getLogger(ConstraintViolationExceptionMapper.class);
 
   public static final int UNPROCESSABLE_ENTITY_CODE = 422;
   public static final Response.StatusType UNPROCESSABLE_ENTITY = new Response.StatusType() {
@@ -52,6 +56,7 @@ public class ConstraintViolationExceptionMapper
     if (exception instanceof RestConstraintViolationException) {
       RestConstraintViolationException restException = (RestConstraintViolationException)exception;
       message = new ErrorMessage(restException.getErrorCode(), restException.getMessage());
+      log.info("DEBUG: error message in toResponse {}", message.getMessage());
     } else {
       String violationMessage = ConstraintViolations.formatUntyped(
           exception.getConstraintViolations()
@@ -63,6 +68,7 @@ public class ConstraintViolationExceptionMapper
           UNPROCESSABLE_ENTITY_CODE,
           violationMessage
       );
+      log.info("DEBUG: error message in toResponse {}", message.getMessage());
     }
 
     return Response.status(UNPROCESSABLE_ENTITY_CODE)

@@ -17,6 +17,8 @@
 package io.confluent.rest.exceptions;
 
 import io.confluent.rest.RestConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
@@ -28,6 +30,8 @@ import java.util.List;
 
 public class WebApplicationExceptionMapper
     extends DebuggableExceptionMapper<WebApplicationException> {
+
+  private static final Logger log = LoggerFactory.getLogger(WebApplicationExceptionMapper.class);
 
   @Context
   HttpHeaders headers;
@@ -41,6 +45,8 @@ public class WebApplicationExceptionMapper
     // WebApplicationException unfortunately doesn't expose the status, or even status code,
     // directly.
     Response.Status status = Response.Status.fromStatusCode(exc.getResponse().getStatus());
+
+    log.info("DEBUG: WebApplicationException in toResponse {}", exc.getMessage());
     // The human-readable message for these can use the exception message directly. Since
     // WebApplicationExceptions are expected to be passed back to users, it will either contain a
     // situation-specific message or the HTTP status message

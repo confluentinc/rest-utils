@@ -29,6 +29,8 @@ import javax.ws.rs.ext.Provider;
 
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.entities.ErrorMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract exception mapper that checks the debug flag and generates an error message including the
@@ -36,6 +38,8 @@ import io.confluent.rest.entities.ErrorMessage;
  */
 @Provider
 public abstract class DebuggableExceptionMapper<E extends Throwable> implements ExceptionMapper<E> {
+
+  private static final Logger log = LoggerFactory.getLogger(DebuggableExceptionMapper.class);
 
   RestConfig restConfig;
 
@@ -66,6 +70,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
         stream.close();
         os.close();
         readableMessage += System.lineSeparator() + os.toString(StandardCharsets.UTF_8.name());
+        log.info("DEBUG: readable message in createResponse {}", readableMessage);
       } catch (IOException e) {
         // Ignore
       }
