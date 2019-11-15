@@ -380,13 +380,16 @@ public abstract class Application<T extends RestConfig> {
   protected void configureSecurityHandler(ServletContextHandler context) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
+      log.info("DEBUG: basic auth is enabled");
       context.setSecurityHandler(createBasicSecurityHandler());
     } else if (enableBearerAuth(authMethod)) {
+      log.info("DEBUG: bearer auth is enabled");
       context.setSecurityHandler(createBearerSecurityHandler());
     }
   }
 
   private SslContextFactory createSslContextFactory() {
+    log.info("DEBUG: create SSL context factory");
     SslContextFactory sslContextFactory = new SslContextFactory.Server();
     if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
       sslContextFactory.setKeyStorePath(
@@ -524,6 +527,7 @@ public abstract class Application<T extends RestConfig> {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
+      log.info("DEBUG: returning basic authenticator");
       return new BasicAuthenticator();
     } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
@@ -539,6 +543,7 @@ public abstract class Application<T extends RestConfig> {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
+      log.info("DEBUG: return JAASLoginService")
       return new JAASLoginService(realm);
     } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
