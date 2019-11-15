@@ -81,7 +81,7 @@ public class FileWatcher implements Runnable {
         } catch (InterruptedException e) {
           throw e;
         } catch (Exception e) {
-          log.info("Watch service caught exeption, will continue:" + e);
+          log.info("Watch service caught exception, will continue:" + e);
         }
       }
     } catch (InterruptedException e) {
