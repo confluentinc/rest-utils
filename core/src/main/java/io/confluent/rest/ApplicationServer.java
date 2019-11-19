@@ -144,6 +144,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     applications.addApplication(application);
   }
 
+  public List<Application<?>> getApplications() {
+    return applications.getApplications();
+  }
+
   private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
     MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
     for (NetworkTrafficServerConnector connector : connectors) {
@@ -177,7 +181,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     super.doStart();
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
-    for (Application app : (List<Application>) applications.getApplications()) {
+    for (Application app : applications.getApplications()) {
       attachMetricsListener(app.metrics, app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());

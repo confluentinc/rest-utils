@@ -22,25 +22,25 @@ import java.util.List;
 import java.util.Objects;
 
 final class ApplicationGroup {
-  private final ApplicationServer server;
+  private final ApplicationServer<?> server;
 
-  private final List<Application> applications = new ArrayList<>();
+  private final List<Application<?>> applications = new ArrayList<>();
 
-  ApplicationGroup(ApplicationServer server) {
+  ApplicationGroup(ApplicationServer<?> server) {
     this.server = Objects.requireNonNull(server);
   }
 
-  void addApplication(Application application) {
+  void addApplication(Application<?> application) {
     application.setServer(server);
     applications.add(application);
   }
 
-  List<Application> getApplications() {
+  List<Application<?>> getApplications() {
     return Collections.unmodifiableList(applications);
   }
 
   void doStop() {
-    for (Application application: applications) {
+    for (Application<?> application: applications) {
       application.metrics.close();
       application.doShutdown();
       application.shutdownLatch.countDown();
