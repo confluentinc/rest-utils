@@ -127,6 +127,10 @@ public abstract class Application<T extends RestConfig> {
     this.requestLog.setLogLatency(true);
   }
 
+  public final String getPath() {
+    return path;
+  }
+
   /**
    * Register resources or additional Providers, ExceptionMappers, and other JAX-RS components with
    * the Jersey application. This, combined with your Configuration class, is where you can
