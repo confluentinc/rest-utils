@@ -39,8 +39,6 @@ import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -232,15 +230,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
-  private Path getWatchLocation(RestConfig config) {
-    Path keystorePath = Paths.get(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
-    String watchLocation = config.getString(RestConfig.SSL_KEYSTORE_WATCH_LOCATION_CONFIG);
-    if (!watchLocation.isEmpty()) {
-      keystorePath = Paths.get(watchLocation);
-    }
-    return keystorePath;
-  }
-  
   private SslContextFactory createSslContextFactory(RestConfig config) {
     SslContextFactory sslContextFactory = new SslContextFactory.Server();
     if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
@@ -260,23 +249,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
         sslContextFactory.setKeyManagerFactoryAlgorithm(
                 config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-      }
-
-      if (config.getBoolean(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG)) {
-        Path watchLocation = getWatchLocation(config);
-        try {
-          FileWatcher.onFileChange(watchLocation, () -> {
-                // Need to reset the key store path for symbolic link case
-                sslContextFactory.setKeyStorePath(
-                    config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
-                );
-                sslContextFactory.reload(scf -> log.info("Reloaded SSL cert"));
-              }
-          );
-          log.info("Enabled SSL cert auto reload for: " + watchLocation);
-        } catch (java.io.IOException e) {
-          log.error("Can not enabled SSL cert auto reload", e);
-        }
       }
     }
 
