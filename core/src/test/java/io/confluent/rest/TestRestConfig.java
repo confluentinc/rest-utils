@@ -19,6 +19,7 @@ package io.confluent.rest;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * Test config class that only uses the built-in properties of RestConfig.
@@ -28,8 +29,11 @@ public class TestRestConfig extends RestConfig {
   static {
     config = baseConfigDef();
   }
+  public TestRestConfig() {
+    this(new Properties());
+  }
+
   public TestRestConfig(Map<?,?> originals) {
     super(config, originals);
   }
 }
-
