@@ -79,10 +79,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   /**
    * TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
    * It's only used to support the deprecated configuration.
-   *
-   * @deprecated This function will be removed with {@link RestConfig#PORT_CONFIG}
    */
-  @Deprecated
   static List<URI> parseListeners(
           List<String> listenersConfig,
           int deprecatedPort,
