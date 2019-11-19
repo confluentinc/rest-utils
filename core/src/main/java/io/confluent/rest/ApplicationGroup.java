@@ -43,6 +43,7 @@ final class ApplicationGroup {
     for (Application application: applications) {
       application.metrics.close();
       application.doShutdown();
+      application.shutdownLatch.countDown();
     }
   }
 }
