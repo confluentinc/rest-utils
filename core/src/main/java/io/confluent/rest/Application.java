@@ -127,6 +127,10 @@ public abstract class Application<T extends RestConfig> {
     this.requestLog.setLogLatency(true);
   }
 
+  public final String getPath() {
+    return path;
+  }
+
   /**
    * Register resources or additional Providers, ExceptionMappers, and other JAX-RS components with
    * the Jersey application. This, combined with your Configuration class, is where you can
@@ -161,9 +165,7 @@ public abstract class Application<T extends RestConfig> {
 
   /**
    * expose SslContextFactory
-   * @deprecated Use {@link ApplicationServer#getSslContextFactory} instead.
    */
-  @Deprecated
   protected SslContextFactory getSslContextFactory() {
     return server.getSslContextFactory();
   }
@@ -191,11 +193,8 @@ public abstract class Application<T extends RestConfig> {
 
   /**
    * Configure and create the server.
-   *
-   * @deprecated Use {@link ApplicationServer#registerApplication(Application)} instead.
    */
   // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
-  @Deprecated
   public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
@@ -355,10 +354,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
    * Helper function used to support the deprecated configuration.
-   *
-   * @deprecated This function will be removed with {@link RestConfig#PORT_CONFIG}
    */
-  @Deprecated
   public static List<URI> parseListeners(
           List<String> listenersConfig,
           int deprecatedPort,
@@ -528,10 +524,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Start the server (creating it if necessary).
    * @throws Exception If the application fails to start
-   *
-   * @deprecated Use {@link ApplicationServer#start()} instead.
    */
-  @Deprecated
   public void start() throws Exception {
     createServer();
     server.start();
@@ -541,10 +534,7 @@ public abstract class Application<T extends RestConfig> {
    * Wait for the server to exit, allowing existing requests to complete if graceful shutdown is
    * enabled and invoking the shutdown hook before returning.
    * @throws InterruptedException If the internal threadpool fails to stop
-   *
-   * @deprecated Use {@link ApplicationServer#join()} instead.
    */
-  @Deprecated
   public void join() throws InterruptedException {
     server.join();
     shutdownLatch.await();
@@ -553,10 +543,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Request that the server shutdown.
    * @throws Exception If the application fails to stop
-   *
-   * @deprecated Use {@link ApplicationServer#stop()} instead.
    */
-  @Deprecated
   public void stop() throws Exception {
     server.stop();
   }
