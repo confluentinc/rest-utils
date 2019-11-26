@@ -112,7 +112,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
     } else if (HANDLED.containsKey(exception.getClass())) {
       return getResponse(exception);
     } else if (exception instanceof RetriableException) {
-      log.error("Kafka retriable exception", exception);
+      log.debug("Kafka retriable exception", exception);
       return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
           KAFKA_RETRIABLE_ERROR_ERROR_CODE);
     } else if (exception instanceof KafkaException) {
