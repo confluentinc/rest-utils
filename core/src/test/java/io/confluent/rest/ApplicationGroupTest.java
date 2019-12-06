@@ -116,6 +116,20 @@ public class ApplicationGroupTest {
     assertThat(makeGetRequest("/app2/index.html"), is(Code.OK));
   }
 
+  /* Test Dynamic App Loading */
+  @Test
+  public void testDynamicAppLoading() throws Exception {
+    TestApp app1 = new TestApp("/app1");
+    TestApp app2 = new TestApp("/app2");
+
+    server.registerApplication(app1);
+    server.start();
+    server.registerApplication(app2);
+
+    assertThat(makeGetRequest("/app1/resource"), is(Code.OK));
+    assertThat(makeGetRequest("/app2/resource"), is(Code.OK));
+  }
+
   @SuppressWarnings("SameParameterValue")
   private HttpStatus.Code makeGetRequest(final String path) throws Exception {
     final HttpGet httpget = new HttpGet(server.getListeners().get(0).toString() + path);

@@ -29,6 +29,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -55,6 +56,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final ApplicationGroup applications;
   private final SslContextFactory sslContextFactory;
 
+  private WrappedHandler wrappedHandler;
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
@@ -144,6 +146,17 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   public void registerApplication(Application application) {
     applications.addApplication(application);
+    //dynamic registration
+    if (isStarted()) {
+      try {
+        attachMetricsListener(application.metrics, application.getMetricsTags());
+        Handler handler = application.configureHandler();
+        wrappedHandler.addApplicationHandlers(handler, application.configureWebSocketHandler());
+        handler.start();
+      } catch (Exception e) {
+        throw new ConfigException("Unable to register application");
+      }
+    }
   }
 
   public List<Application<?>> getApplications() {
@@ -157,37 +170,21 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
-  private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
-    /* DefaultHandler must come last eo ensure all contexts
-     * have a chance to handle a request first */
-    handlers.addHandler(new DefaultHandler());
-    /* Needed for graceful shutdown as per `setStopTimeout` documentation */
-    StatisticsHandler statsHandler = new StatisticsHandler();
-    statsHandler.setHandler(handlers);
-
-    ContextHandlerCollection contexts = new ContextHandlerCollection();
-    contexts.setHandlers(new Handler[]{
-        statsHandler,
-        wsHandlers
-    });
-
-    super.setHandler(wrapWithGzipHandler(contexts));
-  }
-
   protected void doStop() throws Exception {
     super.doStop();
     applications.doStop();
   }
 
   protected final void doStart() throws Exception {
-    HandlerCollection handlers = new HandlerCollection();
-    HandlerCollection wsHandlers = new HandlerCollection();
+    HandlerCollection handlers = new HandlerCollection(true);
+    HandlerCollection wsHandlers = new HandlerCollection(true);
     for (Application app : applications.getApplications()) {
       attachMetricsListener(app.metrics, app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
     }
-    finalizeHandlerCollection(handlers, wsHandlers);
+    wrappedHandler = new WrappedHandler(handlers, wsHandlers);
+    super.setHandler(wrappedHandler);
     // Call super.doStart last to ensure that handlers are ready for incoming requests
     super.doStart();
   }
@@ -394,5 +391,45 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private Handler wrapWithGzipHandler(Handler handler) {
     return wrapWithGzipHandler(config, handler);
+  }
+
+  // Helper class to allow dynamic registration of applications after Jetty starts
+  private class WrappedHandler extends HandlerWrapper implements Handler {
+
+    private HandlerCollection handlerCollection;
+    private HandlerCollection wsHandlers;
+    private Handler defaultHandler;
+    private ContextHandlerCollection contexts;
+
+    WrappedHandler(HandlerCollection handlers, HandlerCollection wsHandlers) {
+      this.handlerCollection = handlers;
+      this.wsHandlers = wsHandlers;
+      this.defaultHandler = new DefaultHandler();
+
+      /* DefaultHandler must come last eo ensure all contexts
+       * have a chance to handle a request first */
+      handlerCollection.addHandler(defaultHandler);
+
+      /* Needed for graceful shutdown as per `setStopTimeout` documentation */
+      StatisticsHandler statsHandler = new StatisticsHandler();
+      statsHandler.setHandler(handlers);
+
+      contexts = new ContextHandlerCollection();
+      contexts.setHandlers(new Handler[]{
+          statsHandler,
+          wsHandlers
+      });
+      this.setHandler(wrapWithGzipHandler(contexts));
+    }
+
+    public void addApplicationHandlers(Handler handler, Handler wsHandler) {
+      //move default handler to the back of the list
+      handlerCollection.removeHandler(defaultHandler);
+      handlerCollection.addHandler(handler);
+      handlerCollection.addHandler(defaultHandler);
+
+      wsHandlers.addHandler(wsHandler);
+      contexts.mapContexts();
+    }
   }
 }
