@@ -178,7 +178,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   protected final void doStart() throws Exception {
-    super.doStart();
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application app : applications.getApplications()) {
@@ -187,6 +186,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       wsHandlers.addHandler(app.configureWebSocketHandler());
     }
     finalizeHandlerCollection(handlers, wsHandlers);
+    // Call super.doStart last to ensure that handlers are ready for incoming requests
+    super.doStart();
   }
 
   @SuppressWarnings("deprecation")
