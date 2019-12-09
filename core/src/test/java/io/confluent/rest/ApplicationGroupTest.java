@@ -124,8 +124,15 @@ public class ApplicationGroupTest {
 
     server.registerApplication(app1);
     server.start();
+
+    // only app1 is registered
+    assertThat(makeGetRequest("/app1/resource"), is(Code.OK));
+    assertThat(makeGetRequest("/app2/resource"), is(Code.NOT_FOUND));
+
+    // register app2
     server.registerApplication(app2);
 
+    // verify both apps are running
     assertThat(makeGetRequest("/app1/resource"), is(Code.OK));
     assertThat(makeGetRequest("/app2/resource"), is(Code.OK));
   }

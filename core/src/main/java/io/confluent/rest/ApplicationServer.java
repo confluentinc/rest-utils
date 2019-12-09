@@ -147,7 +147,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   public void registerApplication(Application application) {
     applications.addApplication(application);
     //dynamic registration
-    if (isStarted()) {
+    if (isStarted() && wrappedHandler != null) {
       try {
         attachMetricsListener(application.metrics, application.getMetricsTags());
         Handler handler = application.configureHandler();
