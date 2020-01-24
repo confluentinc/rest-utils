@@ -1,5 +1,5 @@
 /**
- * Copyright 2014 Confluent Inc.
+ * Copyright 2020 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.rest.auth.OpenIdConnectConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jaas.JAASLoginService;
+import org.eclipse.jetty.security.Authenticator;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.DefaultIdentityService;
@@ -28,6 +30,9 @@ import org.eclipse.jetty.security.IdentityService;
 import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.security.authentication.LoginAuthenticator;
+import org.eclipse.jetty.security.openid.OpenIdAuthenticator;
+import org.eclipse.jetty.security.openid.OpenIdConfiguration;
+import org.eclipse.jetty.security.openid.OpenIdLoginService;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLog;
@@ -340,10 +345,19 @@ public abstract class Application<T extends RestConfig> {
 
   protected void configureSecurityHandler(ServletContextHandler context) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
-    if (enableBasicAuth(authMethod)) {
-      context.setSecurityHandler(createBasicSecurityHandler());
-    } else if (enableBearerAuth(authMethod)) {
-      context.setSecurityHandler(createBearerSecurityHandler());
+
+    switch (authMethod) {
+      case RestConfig.AUTHENTICATION_METHOD_BASIC:
+        context.setSecurityHandler(createBasicSecurityHandler());
+        break;
+      case RestConfig.AUTHENTICATION_METHOD_BEARER:
+        context.setSecurityHandler(createBearerSecurityHandler());
+        break;
+      case RestConfig.AUTHENTICATION_METHOD_OIDC:
+        context.setSecurityHandler(createOpenIdSecurityHandler());
+        break;
+      default:
+        break;
     }
   }
 
@@ -422,6 +436,27 @@ public abstract class Application<T extends RestConfig> {
 
   protected ConstraintSecurityHandler createBearerSecurityHandler() {
     return createSecurityHandler();
+  }
+
+  protected ConstraintSecurityHandler createOpenIdSecurityHandler() {
+    OpenIdConnectConfig conf = new OpenIdConnectConfig(config.originals());
+
+    OpenIdConfiguration configuration = new OpenIdConfiguration(
+            conf.getString(OpenIdConnectConfig.AUTHENTICATION_OIDC_PROVIDER),
+            conf.getString(OpenIdConnectConfig.AUTHENTICATION_OIDC_CLIENT_ID),
+            conf.getPassword(OpenIdConnectConfig.AUTHENTICATION_OIDC_CLIENT_SECRET).value());
+
+    Authenticator authenticator = new OpenIdAuthenticator(configuration,
+            conf.getString(OpenIdConnectConfig.AUTHENTICATION_ERROR_PATH));
+    LoginService loginService = new OpenIdLoginService(configuration);
+
+    final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+    securityHandler.setIdentityService(new DefaultIdentityService());
+    securityHandler.addConstraintMapping(createGlobalAuthConstraint());
+    securityHandler.setLoginService(loginService);
+    securityHandler.setAuthenticator(authenticator);
+
+    return securityHandler;
   }
 
   protected ConstraintSecurityHandler createSecurityHandler() {
