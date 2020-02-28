@@ -34,6 +34,7 @@ import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,6 +120,9 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
       log.error("Kafka exception", exception);
       return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
           KAFKA_ERROR_ERROR_CODE);
+    } else if (exception instanceof InvalidFormatException) {
+      return getResponse(exception, Status.BAD_REQUEST,
+          KAFKA_BAD_REQUEST_ERROR_CODE);
     } else {
       log.error("Unhandled exception", exception);
       return super.toResponse(exception);
