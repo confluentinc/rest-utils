@@ -1,5 +1,3 @@
-
-
 /**
  * Copyright 2019 Confluent Inc.
  *
@@ -39,12 +37,12 @@ import org.slf4j.LoggerFactory;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 public class TestCustomizeThreadPool {
 
   private static final Logger log = LoggerFactory.getLogger(TestCustomizeThreadPool.class);
   private static Object locker = new Object();
-  private static int waitingTimeSec = 10*1000; //5 seconds
 
   /**
    * Good path testing.
@@ -91,8 +89,8 @@ public class TestCustomizeThreadPool {
     } catch (Exception e) {
     } finally {
       log.info("Current running thread {}, maximum thread {}.", app.getServer().getThreads(), app.getServer().getMaxThreads());
-      assertTrue("Total number of running threads reach maximum number of threads " + app.getServer().getMaxThreads(),
-              app.getServer().getThreads() - app.getServer().getMaxThreads() == 0);
+      assertEquals("Total number of running threads reach maximum number of threads.", app.getServer().getMaxThreads(),
+              app.getServer().getThreads());
       app.stop();
     }
   }
@@ -122,7 +120,7 @@ public class TestCustomizeThreadPool {
   }
 
   /**
-   * Simualate multiple HTTP clients sending HTTP requests samt time. Each client will send one HTTP request.
+   * Simulate multiple HTTP clients sending HTTP requests same time. Each client will send one HTTP request.
    * The requests will be put in queue if the number of clients are more than the working threads.
    * */
   @SuppressWarnings("SameParameterValue")
@@ -178,7 +176,7 @@ public class TestCustomizeThreadPool {
     public String get() {
       synchronized(locker) {
         try {
-          locker.wait(waitingTimeSec);
+          locker.wait(10000);
         } catch (Exception e) {
           log.info(e.getMessage());
         }

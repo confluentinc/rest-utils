@@ -456,11 +456,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     BlockingQueue<Runnable> requestQueue =
             new BlockingArrayQueue<>(initialCapacity, growBy, maxCapacity);
-
-    /* The Jetty default value for idle time out is 60_000 ms */
+    
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
-            60000,
             requestQueue);
   }
 }
