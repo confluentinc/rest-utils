@@ -18,7 +18,6 @@ package io.confluent.rest;
 
 import io.confluent.common.metrics.Metrics;
 
-import java.util.Locale;
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Handler;
@@ -220,31 +219,25 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                 RestConfig.SSL_CLIENT_AUTH_CONFIG,
                 RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
         );
-        clientAuthentication = config.getString(RestConfig.SSL_CLIENT_AUTH_CONFIG);
+        clientAuthentication = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG)
+                ? RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED
+                : RestConfig.SSL_CLIENT_AUTHENTICATION_NONE;
       }
     }
 
-    switch (clientAuthentication.toLowerCase(Locale.ROOT)) {
-      case "true":
-        log.warn("Config value 'true' is deprecated for {}, use 'required' instead.",
-            RestConfig.SSL_CLIENT_AUTH_CONFIG);
-        // fall through
+    switch (clientAuthentication) {
       case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED:
         sslContextFactory.setNeedClientAuth(true);
         break;
       case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUESTED:
         sslContextFactory.setWantClientAuth(true);
         break;
-      case "false":
-        log.warn("Config value 'false' is deprecated for {}, use 'none' instead.",
-            RestConfig.SSL_CLIENT_AUTH_CONFIG);
-        // fall through
       case RestConfig.SSL_CLIENT_AUTHENTICATION_NONE:
         break;
       default:
         throw new ConfigException(
                 "Unexpected value for {} configuration: {}",
-                RestConfig.SSL_CLIENT_AUTH_CONFIG,
+                RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
                 clientAuthentication
         );
     }

@@ -174,44 +174,26 @@ public class RestConfig extends AbstractConfig {
   protected static final String SSL_PROVIDER_DOC =
       "The SSL security provider name. Leave blank to use Jetty's default.";
   protected static final String SSL_PROVIDER_DEFAULT = "";
-  @Deprecated
   public static final String SSL_CLIENT_AUTHENTICATION_CONFIG = "ssl.client.authentication";
-  public static final String SSL_CLIENT_AUTHENTICATION_NONE = "none";
-  public static final String SSL_CLIENT_AUTHENTICATION_REQUESTED = "requested" ;
-  public static final String SSL_CLIENT_AUTHENTICATION_REQUIRED = "required";
-  // This was released as upper-case Strings for REST services. But Kafka uses lower-case, so
-  // making this case-insensitive. Deprecating in favour of Kafka's ssl.client.auth.
+  public static final String SSL_CLIENT_AUTHENTICATION_NONE = "NONE";
+  public static final String SSL_CLIENT_AUTHENTICATION_REQUESTED = "REQUESTED";
+  public static final String SSL_CLIENT_AUTHENTICATION_REQUIRED = "REQUIRED";
   protected static final String SSL_CLIENT_AUTHENTICATION_DOC =
       "SSL mutual auth. Set to NONE to disable SSL client authentication, set to REQUESTED to "
           + "request but not require SSL client authentication, and set to REQUIRED to require SSL "
-          + "client authentication. Deprecated; please use 'ssl.client.auth' instead."
-          + "Note that this option overrides 'ssl.client.auth' if configured.";
-  public static final ConfigDef.CaseInsensitiveValidString SSL_CLIENT_AUTHENTICATION_VALIDATOR =
-      ConfigDef.CaseInsensitiveValidString.in(
+          + "client authentication.";
+  public static final ConfigDef.ValidString SSL_CLIENT_AUTHENTICATION_VALIDATOR =
+      ConfigDef.ValidString.in(
           SSL_CLIENT_AUTHENTICATION_NONE,
           SSL_CLIENT_AUTHENTICATION_REQUESTED,
           SSL_CLIENT_AUTHENTICATION_REQUIRED
       );
+  @Deprecated
   public static final String SSL_CLIENT_AUTH_CONFIG = "ssl.client.auth";
   protected static final String SSL_CLIENT_AUTH_DOC =
-      "Whether or not to require the https client to authenticate via the server's trust store. "
-          + "Set to 'none' to disable SSL client authentication, set to 'requested' to request "
-          + "but not require SSL client authentication and set to 'required' to require SSL client "
-          + "authentication. The boolean values 'true' and 'false` are deprecated, but still "
-          + "supported. These are equivalent to 'required' and 'none' respectively. Note that this "
-          + "option is overriden by " + SSL_CLIENT_AUTHENTICATION_CONFIG + " if configured.";
-  // This was a boolean, but the same config is a String value required/requested/none in Kafka
-  // brokers. Accept the Kafka values as well for consistency. Is case-insensitive to be consistent
-  // with `ssl.client.authentication` values.
-  public static final ConfigDef.CaseInsensitiveValidString SSL_CLIENT_AUTH_VALIDATOR =
-      ConfigDef.CaseInsensitiveValidString.in(
-          "true",
-          "false",
-          SSL_CLIENT_AUTHENTICATION_NONE,
-          SSL_CLIENT_AUTHENTICATION_REQUESTED,
-          SSL_CLIENT_AUTHENTICATION_REQUIRED
-      );
-  protected static final String SSL_CLIENT_AUTH_DEFAULT = SSL_CLIENT_AUTHENTICATION_NONE;
+      "Whether or not to require the https client to authenticate via the server's trust store. " 
+          + "Deprecated; please use " + SSL_CLIENT_AUTHENTICATION_CONFIG + " instead.";
+  protected static final boolean SSL_CLIENT_AUTH_DEFAULT = false;
   public static final String SSL_ENABLED_PROTOCOLS_CONFIG = "ssl.enabled.protocols";
   protected static final String SSL_ENABLED_PROTOCOLS_DOC =
       "The list of protocols enabled for SSL connections. Comma-separated list. "
@@ -549,9 +531,8 @@ public class RestConfig extends AbstractConfig {
             SSL_CLIENT_AUTHENTICATION_DOC
         ).define(
             SSL_CLIENT_AUTH_CONFIG,
-            Type.STRING,
+            Type.BOOLEAN,
             SSL_CLIENT_AUTH_DEFAULT,
-            SSL_CLIENT_AUTH_VALIDATOR,
             Importance.MEDIUM,
             SSL_CLIENT_AUTH_DOC
         ).define(
