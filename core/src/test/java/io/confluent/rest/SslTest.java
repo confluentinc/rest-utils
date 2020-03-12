@@ -117,7 +117,7 @@ public class SslTest {
   }
 
   private void enableSslClientAuth(Properties props) {
-    props.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, true);
+    props.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, "true");
   }
 
   private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
@@ -321,6 +321,59 @@ public class SslTest {
       }
     } finally {
       app.stop();
+    }
+  }
+
+  @Test
+  public void testClientAuthConfig() throws Exception {
+    Properties overrideProps = new Properties();
+    // Verify valid values for ssl.client.auth
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "required", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "requested", false, true, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "none", false, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "true", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "false", false, false, overrideProps);
+
+    // Verify that ssl.client.auth is case-insensitive
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "REQUIRED", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "REQUESTED", false, true, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "NONE", false, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "TRUE", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTH_CONFIG, "FALSE", false, false, overrideProps);
+
+    // Verify valid values for ssl.client.authentication
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "required", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "requested", false, true, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "none", false, false, overrideProps);
+
+    // Verify that ssl.client.authentication is case-insensitive
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "REQUIRED", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "REQUESTED", false, true, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "NONE", false, false, overrideProps);
+
+    // Verify that ssl.client.authentication overrides ssl.client.auth
+    overrideProps.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, "none");
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "required", true, false, overrideProps);
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "requested", false, true, overrideProps);
+    overrideProps.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, "required");
+    verifyClientAuth(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "none", false, false, overrideProps);
+  }
+
+  @SuppressWarnings("deprecation")
+  private void verifyClientAuth(String configName, String configValue, boolean needAuth, boolean wantAuth, Properties overrideProps) throws Exception {
+    TestMetricsReporter.reset();
+    Properties props = new Properties();
+    String httpsUri = "https://localhost:8081";
+    props.put(RestConfig.LISTENERS_CONFIG, httpsUri);
+    props.put(configName, configValue);
+    props.putAll(overrideProps);
+    TestRestConfig config = new TestRestConfig(props);
+    ApplicationServer server = new ApplicationServer<RestConfig>(config);
+    try {
+      assertEquals(needAuth, server.getSslContextFactory().getNeedClientAuth());
+      assertEquals(wantAuth, server.getSslContextFactory().getWantClientAuth());
+    } finally {
+      server.stop();
     }
   }
 
