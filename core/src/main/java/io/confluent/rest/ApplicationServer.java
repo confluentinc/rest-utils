@@ -32,6 +32,9 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.eclipse.jetty.util.BlockingArrayQueue;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +48,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.BlockingQueue;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class ApplicationServer<T extends RestConfig> extends Server {
@@ -58,7 +62,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
   public ApplicationServer(T config) {
-    super();
+    this(config, createThreadPool(config));
+  }
+
+  public ApplicationServer(T config, ThreadPool threadPool) {
+    super(threadPool);
+
     this.config = config;
     this.applications = new ApplicationGroup(this);
 
@@ -354,6 +363,42 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             .collect(Collectors.toList());
   }
 
+  /**
+   * For unit testing.
+   *
+   * @return the total number of threads currently in the pool.
+   */
+  public int getThreads() {
+    return getThreadPool().getThreads();
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the total number of maximum threads configured in the pool.
+   */
+  public int getMaxThreads() {
+    return config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG);
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the size of the queue in the pool.
+   */
+  public int getQueueSize() {
+    return ((QueuedThreadPool)getThreadPool()).getQueueSize();
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the capacity of the queue in the pool.
+   */
+  public int getQueueCapacity() {
+    return config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+  }
+
   static Handler wrapWithGzipHandler(RestConfig config, Handler handler) {
     if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
       GzipHandler gzip = new GzipHandler();
@@ -366,5 +411,26 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private Handler wrapWithGzipHandler(Handler handler) {
     return wrapWithGzipHandler(config, handler);
+  }
+
+  /**
+   * Create the thread pool with request queue.
+   *
+   * @return thread pool used by the server
+   */
+  private static ThreadPool createThreadPool(RestConfig config) {
+    /* Create blocking queue for the thread pool. */
+    int initialCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG);
+    int growBy = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG);
+    int maxCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+    log.info("Initial capacity {}, increased by {}, maximum capacity {}.",
+            initialCapacity, growBy, maxCapacity);
+
+    BlockingQueue<Runnable> requestQueue =
+            new BlockingArrayQueue<>(initialCapacity, growBy, maxCapacity);
+    
+    return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
+            config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
+            requestQueue);
   }
 }
