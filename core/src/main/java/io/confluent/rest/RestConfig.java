@@ -20,6 +20,7 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.config.ConfigException;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
 
@@ -29,6 +30,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 public class RestConfig extends AbstractConfig {
   public static final String DEBUG_CONFIG = "debug";
@@ -36,6 +41,12 @@ public class RestConfig extends AbstractConfig {
       "Boolean indicating whether extra debugging information is generated in some "
       + "error response entities.";
   protected static final boolean DEBUG_CONFIG_DEFAULT = false;
+
+  public static final Set<String> HEADER_FILTER_INIT_PARAMETERS =
+          initializedHeaderFilterInitParameters();
+
+  public static final Set<String> HEADER_CONFIG_ACTIONS =
+          initializedHeaderConfigActions();
 
   @Deprecated
   public static final String PORT_CONFIG = "port";
@@ -300,6 +311,54 @@ public class RestConfig extends AbstractConfig {
   public static final String REQUEST_QUEUE_CAPACITY_GROWBY_DOC =
           "The size of request queue will be increased by.";
   public static final int REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT = 64;
+
+  public static final String RESPONSE_HTTP_HEADERS_PREFIX_CONFIG = "response.http.headers.";
+  public static final String RESPONSE_HTTP_HEADERS_PREFIX_DOC =
+          "Prefix to apply to a seet of http response header configs.";
+
+  public static final String RESPONSE_HTTP_HEADERS_CONFIG = "response.http.headers";
+  public static final String RESPONSE_HTTP_HEADERS_DOC =
+          "It is comma separated values of http response header.";
+  public static final String RESPONSE_HTTP_HEADERS_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_CONFIG = "header.config";
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_DOC =
+          "Set values for Jetty HTTP response headers";
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_CONFIG = "included.paths";
+  public static final String RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_DOC =
+          "It is comma separated values of included path specs applied to header.config.";
+  public static final String RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_CONFIG = "excluded.paths";
+  public static final String RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_DOC =
+          "It is a comma separated values of excluded path specs applied to header.config.";
+  public static final String RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_CONFIG =
+          "included.mime.types";
+  public static final String RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_DOC =
+          "It is a comma separated values of included mime types applied to header.config.";
+  public static final String RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_CONFIG =
+          "excluded.mime.types";
+  public static final String RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_DOC =
+          "It is a comma separated values of excluded mime types applied to header.config.";
+  public static final String RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_CONFIG =
+          "included.http.methods";
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_DOC =
+          "Is a comma separated values of included http methods applied to header.config";
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_DEFAULT = "";
+
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_CONFIG =
+          "excluded.http.methods";
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_DOC =
+          "Is a comma separated values of excluded http methods applied to header.config";
+  public static final String RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_DEFAULT = "";
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -644,7 +703,80 @@ public class RestConfig extends AbstractConfig {
             REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT,
             Importance.LOW,
             REQUEST_QUEUE_CAPACITY_GROWBY_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_CONFIG,
+            Type.LIST,
+            RESPONSE_HTTP_HEADERS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_HEADER_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_HEADER_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_HEADER_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_DOC
         );
+  }
+
+  private static Set<String> initializedHeaderFilterInitParameters() {
+    /**
+     * The following init parameters are defined following link.
+     * {@link https://www.eclipse.org/jetty/documentation/current/header-filter.html}
+     **/
+    return Stream.of(
+            RESPONSE_HTTP_HEADERS_HEADER_CONFIG,
+            RESPONSE_HTTP_HEADERS_INCLUDED_PATHS_CONFIG,
+            RESPONSE_HTTP_HEADERS_EXCLUDED_PATHS_CONFIG,
+            RESPONSE_HTTP_HEADERS_INCLUDED_MIME_TYPES_CONFIG,
+            RESPONSE_HTTP_HEADERS_EXCLUDED_MIME_TYPES_CONFIG,
+            RESPONSE_HTTP_HEADERS_HEADER_INCLUDED_HTTP_METHODS_CONFIG,
+            RESPONSE_HTTP_HEADERS_HEADER_EXCLUDED_HTTP_METHODS_CONFIG)
+            .collect(Collectors.toCollection(HashSet::new));
+  }
+
+  private static Set<String> initializedHeaderConfigActions() {
+    /**
+     * The following actions are defined following link.
+     * {@link https://www.eclipse.org/jetty/documentation/current/header-filter.html}
+     **/
+    return Stream.of("set", "add", "setDate", "addDate")
+            .collect(Collectors.toCollection(HashSet::new));
   }
 
   private static Time defaultTime = new SystemTime();
@@ -659,5 +791,27 @@ public class RestConfig extends AbstractConfig {
 
   public Time getTime() {
     return defaultTime;
+  }
+
+  public static void validateHeaderInitParameter(String parameter) {
+    if (!HEADER_FILTER_INIT_PARAMETERS.contains(parameter.toLowerCase())) {
+      String msg = String.format("Invalid header config parameter: %s. "
+              + "The parameter need be one of %s ", parameter,
+              HEADER_FILTER_INIT_PARAMETERS);
+      throw new ConfigException(msg);
+    }
+  }
+
+  public static void validateHeaderConfigAction(String action) {
+    if (!HEADER_CONFIG_ACTIONS.stream().anyMatch(action::equalsIgnoreCase)) {
+      String msg = String.format("Invalid header config action: %s. The action need be one of %s ",
+              action, HEADER_CONFIG_ACTIONS);
+      throw new ConfigException(msg);
+    }
+  }
+
+  public static void throwInvalidHttpResponseHeaderConfigException(String message,
+                                                                   Object exception) {
+    throw new ConfigException("Invalid header config:" + message, exception);
   }
 }
