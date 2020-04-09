@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.util.security.Constraint;
-import org.eclipse.jetty.util.StringUtil;
 
 public final class AuthUtil {
 
@@ -93,17 +92,6 @@ public final class AuthUtil {
   }
 
   /**
-   * Checks if {@link RestConfig#RESPONSE_HTTP_HEADERS_CONFIG} is not empty.
-   *
-   * @param restConfig the rest app's config.
-   * @return true if not empty, false otherwise.
-   */
-  public static boolean isHttpResponseHeadersConfigured(final RestConfig restConfig) {
-    List<String> headers = restConfig.getList(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
-    return !headers.isEmpty();
-  }
-
-  /**
    * Build constraints for any unsecured paths defined in standard RestConfig.
    *
    * @param restConfig the rest app's config.
@@ -115,35 +103,6 @@ public final class AuthUtil {
     return unsecuredPaths.stream()
         .map(p -> createConstraint(restConfig, false, p))
         .collect(Collectors.toList());
-  }
-
-  /**
-   * Validate Http response headers config.
-   *
-   * @param headerConfig the header config which is in format of [action] [name]:[value]
-   *        which use same foramt defined in Jetty HeaderFilter defined in following link
-   * @link https://www.eclipse.org/jetty/javadoc/9.4.27.v20200227/org/eclipse/jetty/servlets/HeaderFilter.html
-   * @return void
-   */
-  public static void validateHttpResponseHeadersConfigs(String headerConfig) {
-    String[] configs = StringUtil.csvSplit(headerConfig);
-    for (String config : configs) {
-      validateHeaderConfig(config);
-    }
-  }
-
-  private static void validateHeaderConfig(String config) {
-    try {
-      String[] configTokens = config.trim().split(" ", 2);
-      String method = configTokens[0].trim();
-      RestConfig.validateHeaderConfigAction(method.toLowerCase());
-      String header = configTokens[1];
-      String[] headerTokens = header.trim().split(":", 2);
-      String headerName = headerTokens[0].trim();
-      String headerValue = headerTokens[1].trim();
-    } catch (ArrayIndexOutOfBoundsException e) {
-      RestConfig.throwInvalidHttpResponseHeaderConfigException(config, e);
-    }
   }
 
   /**

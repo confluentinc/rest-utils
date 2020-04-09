@@ -24,6 +24,10 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.kafka.common.config.ConfigException;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+import org.junit.runners.Parameterized.Parameter;
 import java.util.Properties;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -41,9 +45,27 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+@RunWith(Parameterized.class)
 public class TestCustomizedHttpResponseHeaders {
 
   private static final Logger log = LoggerFactory.getLogger(TestCustomizeThreadPool.class);
+
+  @Parameter
+  public String headerConfig;
+
+  @Parameters(name = "{0}")
+  public static Object[] data() {
+    return new Object[]{
+            "set",
+            "set add X-XSS-Protection:1",
+            "addX-XSS-Protection",
+            "add X-XSS-Protection:",
+            "X-XSS-Protection:",
+            "add set X-XSS-Protection:",
+            "add X-XSS-Protection:1 X-XSS-Protection:1 ",
+            "set X-Frame-Options:DENY, add  :no-cache, no-store, must-revalidate "
+    };
+  }
 
   @Test
   public void testNoCustomizedHeaderConfigs()throws Exception {
@@ -87,9 +109,6 @@ public class TestCustomizedHttpResponseHeaders {
       assertEquals("no-cache, no-store, must-revalidate", headerValue);
       headerValue = getResponseHeader(response, "X-Custom-Value");
       assertNull(headerValue);
-      response = makeGetRequest(app, "/custom/resource2");
-      headerValue = getResponseHeader(response, "X-Custom-Value");
-      assertEquals("1", headerValue);
     } finally {
       try {
         if (response != null) {
@@ -102,19 +121,8 @@ public class TestCustomizedHttpResponseHeaders {
   }
 
   @Test(expected = ConfigException.class)
-  public void testMissedHeaderConfigs()throws Exception {
-    Properties props = createMissedHeaderConfigProperties();
-    TestApp app = new TestApp(props);
-    try {
-      app.start();
-    } finally {
-      app.stop();
-    }
-  }
-
-  @Test(expected = ConfigException.class)
   public void testInvalidHeaderConfigFormat()throws Exception {
-    Properties props = createInvalidHeaderConfigFormatProperties();
+    Properties props = createInvalidHeaderConfigFormatProperties(headerConfig);
     TestApp app = new TestApp(props);
     CloseableHttpResponse response = null;
     try {
@@ -150,174 +158,6 @@ public class TestCustomizedHttpResponseHeaders {
     }
   }
 
-  @Test
-  public void testIncludedPathNoMatch()throws Exception {
-    Properties props = createIncludedPathNoMatchProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource2");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertNull(headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testExcludedPathNoMatch()throws Exception {
-    Properties props = createExcludedPathNoMatchProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource1");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertEquals("DENY", headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testExcludeOverridesInclude()throws Exception {
-    Properties props = createExcludeOverridesIncludeProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource1");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertNull(headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testIncludeMethodMatch()throws Exception {
-    Properties props = createIncludeMethodMatchProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource1");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertEquals("DENY", headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testExcludeMethodMatch()throws Exception {
-    Properties props = createExcludedMethodMatchProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makePostRequest(app, "/custom/resource3");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertNull(headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testExcludeOverridesIncludeMethodMatch()throws Exception {
-    Properties props = createExcludeOverridesIncludeMethodProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource1");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertNull(headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testIncludeMimeTypeMatch()throws Exception {
-    Properties props = createIncludeMimeTypeMatchProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource1/test.txt");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertEquals("DENY", headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
-  @Test
-  public void testExcludeOverridesIncludeMimeType()throws Exception {
-    Properties props = createExcludeOverridesIncludeMimeTypeProperties();
-    TestApp app = new TestApp(props);
-    CloseableHttpResponse response = null;
-    try {
-      app.start();
-      response = makeGetRequest(app, "/custom/resource1/test.txt");
-      String headerValue = getResponseHeader(response, "X-Frame-Options");
-      assertNull(headerValue);
-    } finally {
-      try {
-        if (response != null) {
-          response.close();
-        }
-      } catch (Exception e) {
-      }
-      app.stop();
-    }
-  }
-
   @Path("/custom")
   @Produces(MediaType.TEXT_PLAIN)
   public static class RestResource {
@@ -326,15 +166,10 @@ public class TestCustomizedHttpResponseHeaders {
     public String get1() {
       return "testing resource1";
     }
-    @GET
+    @POST
     @Path("/resource2")
     public String get2() {
       return "testing resource2";
-    }
-    @POST
-    @Path("/resource3")
-    public String post() {
-      return "testing resource3";
     }
   }
 
@@ -416,15 +251,6 @@ public class TestCustomizedHttpResponseHeaders {
     Properties props = new Properties();
     String uri = "http://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    return props;
-  }
-
-  private Properties createMissedHeaderConfigProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
     return props;
   }
 
@@ -432,22 +258,16 @@ public class TestCustomizedHttpResponseHeaders {
     Properties props = new Properties();
     String uri = "http://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1,header2");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY, \"add Cache-Control: no-cache, no-store, must-revalidate\" ");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1");
-    props.put("response.http.headers.header2.header.config", "add X-Custom-Value:1");
-    props.put("response.http.headers.header2.included.paths", "/custom/resource2");
+    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG,
+            "  set    X-Frame-Options: DENY,   ,\"  add     Cache-Control:   no-cache, no-store, must-revalidate\" ");
     return props;
   }
 
-
-  private Properties createInvalidHeaderConfigFormatProperties() {
+  private Properties createInvalidHeaderConfigFormatProperties(String config) {
     Properties props = new Properties();
     String uri = "http://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1");
+    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, config);
     return props;
   }
 
@@ -455,99 +275,7 @@ public class TestCustomizedHttpResponseHeaders {
     Properties props = new Properties();
     String uri = "http://localhost:8080";
     props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "badaction X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1");
-    return props;
-  }
-
-  private Properties createIncludedPathNoMatchProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1");
-    return props;
-  }
-
-  private Properties createExcludedPathNoMatchProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1");
-    props.put("response.http.headers.header1.excluded.paths", "/custom/resource2");
-    return props;
-  }
-
-  private Properties createExcludeOverridesIncludeProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1");
-    props.put("response.http.headers.header1.excluded.paths", "/custom/resource1");
-    return props;
-  }
-
-  private Properties createIncludeMethodMatchProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/*");
-    props.put("response.http.headers.header1.included.http.methods", "GET");
-    //props.put("response.http.headers.header1.excluded.http.methods", "POST");
-    return props;
-  }
-
-  private Properties createExcludedMethodMatchProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/*");
-    props.put("response.http.headers.header1.excluded.http.methods", "POST");
-    return props;
-  }
-
-  private Properties createExcludeOverridesIncludeMethodProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/*");
-    props.put("response.http.headers.header1.included.http.methods", "GET");
-    props.put("response.http.headers.header1.excluded.http.methods", "GET");
-    return props;
-  }
-
-  private Properties createIncludeMimeTypeMatchProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1/*");
-    props.put("response.http.headers.header1.included.mime.types", MediaType.TEXT_PLAIN);
-    return props;
-  }
-
-  private Properties createExcludeOverridesIncludeMimeTypeProperties() {
-    Properties props = new Properties();
-    String uri = "http://localhost:8080";
-    props.put(RestConfig.LISTENERS_CONFIG, uri);
-    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "header1");
-    props.put("response.http.headers.header1.header.config", "set X-Frame-Options:DENY");
-    props.put("response.http.headers.header1.included.paths", "/custom/resource1/*");
-    props.put("response.http.headers.header1.included.mime.types", MediaType.TEXT_PLAIN);
-    props.put("response.http.headers.header1.excluded.mime.types", MediaType.TEXT_PLAIN);
+    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, "badaction X-Frame-Options:DENY");
     return props;
   }
 }

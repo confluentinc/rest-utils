@@ -41,6 +41,7 @@ import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -53,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -62,6 +64,7 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
@@ -257,8 +260,8 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
-    if (isHttpResponseHeaderConfigured()) {
-      configureHttpResponsHeaderFilters(context);
+    if (isHttpResponseHeadersConfigured()) {
+      configureHttpResponsHeaderFilter(context);
     }
 
     configurePreResourceHandling(context);
@@ -313,44 +316,9 @@ public abstract class Application<T extends RestConfig> {
     return AuthUtil.isCorsEnabled(config);
   }
 
-  private boolean isHttpResponseHeaderConfigured() {
-    return AuthUtil.isHttpResponseHeadersConfigured(config);
-  }
-
-  private static void validateHttpResponseHeadersConfigs(String headerCofnig) {
-    AuthUtil.validateHttpResponseHeadersConfigs(headerCofnig);
-  }
-
-  // Map the name of header to a map of header configs corresponding to the header.
-  private Map<String, Map<String, Object>> extractHttpResponseHeaderConfig() {
-    Map<String, Map<String, Object>> headersConfigsMap = new HashMap<>();
-    List<String> headers = config.getList(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
-    for (String headerName : headers) {
-      //Format of each header config: response.http.headers.{name}.*
-      //Get each header configs starting with "response.http.headers.{header}"
-      //and strip "response.http.headers.{header}."
-      //Map the name of header to a map of header configs corresponding to the header.
-      Map<String, Object> headerConfigs =
-              config.originalsWithPrefix(RestConfig.RESPONSE_HTTP_HEADERS_PREFIX_CONFIG
-                      + headerName.trim().toLowerCase() + ".", true);
-      //response.http.headers.{header}.header.config is madatory
-      if (headerConfigs.get(RestConfig.RESPONSE_HTTP_HEADERS_HEADER_CONFIG) == null) {
-        throw new ConfigException("Missed config for header: "
-                + RestConfig.RESPONSE_HTTP_HEADERS_PREFIX_CONFIG
-                + headerName.trim()
-                + "."
-                + RestConfig.RESPONSE_HTTP_HEADERS_HEADER_CONFIG);
-      }
-
-      //validate format of header.config is [action] [name]:[value]
-      validateHttpResponseHeadersConfigs(headerConfigs
-              .get(RestConfig.RESPONSE_HTTP_HEADERS_HEADER_CONFIG).toString());
-      headerConfigs.keySet()
-              .forEach(parameter -> RestConfig.validateHeaderInitParameter(parameter));
-      headersConfigsMap.put(headerName, headerConfigs);
-    }
-
-    return headersConfigsMap;
+  private boolean isHttpResponseHeadersConfigured() {
+    String headers = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
+    return !headers.isEmpty();
   }
 
   @SuppressWarnings("unchecked")
@@ -553,51 +521,24 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
-   * Register all header filters to ServletContextHandler.
+   * Register header filter to ServletContextHandler.
    * @param context The serverlet context handler
    */
-  protected void configureHttpResponsHeaderFilters(ServletContextHandler context) {
-    Map<String, Map<String, Object>> headersConfigs = extractHttpResponseHeaderConfig();
-    FilterHolder headerFilterHolder = null;
-    for (Map.Entry<String, Map<String, Object>> entry : headersConfigs.entrySet()) {
-      headerFilterHolder = new FilterHolder(HeaderFilter.class);
-      headerFilterHolder.setName(entry.getKey());
-      Map<String, Object> oneHeaderConfig = entry.getValue();
-      log.debug("header name={}", entry.getKey());
-      for (Map.Entry<String, Object> oneHeader : oneHeaderConfig.entrySet()) {
-        log.debug("init parameter: {}, value: {}",
-                oneHeader.getKey().toUpperCase(), oneHeader.getValue().toString());
-        switch (oneHeader.getKey().toUpperCase()) {
-          case "HEADER.CONFIG":
-            headerFilterHolder.setInitParameter("headerConfig", oneHeader.getValue().toString());
-            break;
-          case "INCLUDED.PATHS":
-            headerFilterHolder.setInitParameter("includedPaths", oneHeader.getValue().toString());
-            break;
-          case "EXCLUDED.PATHS":
-            headerFilterHolder.setInitParameter("excludedPaths", oneHeader.getValue().toString());
-            break;
-          case "INCLUDED.MIME.TYPES":
-            headerFilterHolder
-                    .setInitParameter("includedMimeTypes", oneHeader.getValue().toString());
-            break;
-          case "EXCLUDED.MIME.TYPES":
-            headerFilterHolder
-                    .setInitParameter("excludedMimeTypes", oneHeader.getValue().toString());
-            break;
-          case "INCLUDED.HTTP.METHODS":
-            headerFilterHolder
-                    .setInitParameter("includedHttpMethods", oneHeader.getValue().toString());
-            break;
-          case "EXCLUDED.HTTP.METHODS":
-            headerFilterHolder
-                    .setInitParameter("excludedHttpMethods", oneHeader.getValue().toString());
-            break;
-          default:
-        }
-      }
-      context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-    }
+  protected void configureHttpResponsHeaderFilter(ServletContextHandler context) {
+    String headerConfig = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
+    log.debug(headerConfig);
+    String[] configs = StringUtil.csvSplit(headerConfig);
+    Arrays.stream(configs)
+            .filter(config -> !config.trim().isEmpty())
+            .forEach(config -> RestConfig.validateHttpResponseHeaderConfig(config));
+    headerConfig = Arrays.stream(configs)
+            .filter(config -> !config.trim().isEmpty())
+            .map(config -> "\"" + config + "\"")
+            .collect(Collectors.joining(", "));
+    log.debug(headerConfig);
+    FilterHolder headerFilterHolder = new FilterHolder(HeaderFilter.class);
+    headerFilterHolder.setInitParameter("headerConfig", headerConfig);
+    context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   public T getConfiguration() {
