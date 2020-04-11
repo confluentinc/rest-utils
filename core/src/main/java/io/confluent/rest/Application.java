@@ -64,7 +64,6 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
@@ -260,7 +259,7 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
-    if (isHttpResponseHeadersConfigured()) {
+    if (!config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
       configureHttpResponsHeaderFilter(context);
     }
 
@@ -314,11 +313,6 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCorsEnabled() {
     return AuthUtil.isCorsEnabled(config);
-  }
-
-  private boolean isHttpResponseHeadersConfigured() {
-    String headers = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
-    return !headers.isEmpty();
   }
 
   @SuppressWarnings("unchecked")
@@ -526,16 +520,10 @@ public abstract class Application<T extends RestConfig> {
    */
   protected void configureHttpResponsHeaderFilter(ServletContextHandler context) {
     String headerConfig = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
-    log.debug(headerConfig);
+    log.debug("headerConfig : " + headerConfig);
     String[] configs = StringUtil.csvSplit(headerConfig);
     Arrays.stream(configs)
-            .filter(config -> !config.trim().isEmpty())
-            .forEach(config -> RestConfig.validateHttpResponseHeaderConfig(config));
-    headerConfig = Arrays.stream(configs)
-            .filter(config -> !config.trim().isEmpty())
-            .map(config -> "\"" + config + "\"")
-            .collect(Collectors.joining(", "));
-    log.debug(headerConfig);
+            .forEach(RestConfig::validateHttpResponseHeaderConfig);
     FilterHolder headerFilterHolder = new FilterHolder(HeaderFilter.class);
     headerFilterHolder.setInitParameter("headerConfig", headerConfig);
     context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));

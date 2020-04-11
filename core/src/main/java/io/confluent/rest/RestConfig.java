@@ -30,10 +30,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.stream.Stream;
-import java.util.stream.Collectors;
 
 public class RestConfig extends AbstractConfig {
   public static final String DEBUG_CONFIG = "debug";
@@ -41,9 +37,6 @@ public class RestConfig extends AbstractConfig {
       "Boolean indicating whether extra debugging information is generated in some "
       + "error response entities.";
   protected static final boolean DEBUG_CONFIG_DEFAULT = false;
-
-  public static final Set<String> HEADER_CONFIG_ACTIONS =
-          initializedHeaderConfigActions();
 
   @Deprecated
   public static final String PORT_CONFIG = "port";
@@ -309,6 +302,10 @@ public class RestConfig extends AbstractConfig {
           "The size of request queue will be increased by.";
   public static final int REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT = 64;
 
+  /**
+   * @link "https://www.eclipse.org/jetty/documentation/current/header-filter.html"
+   * @link "https://www.eclipse.org/jetty/javadoc/9.4.28.v20200408/org/eclipse/jetty/servlets/HeaderFilter.html"
+   **/
   public static final String RESPONSE_HTTP_HEADERS_CONFIG = "response.http.headers.config";
   public static final String RESPONSE_HTTP_HEADERS_DOC =
           "Set values for Jetty HTTP response headers";
@@ -667,16 +664,6 @@ public class RestConfig extends AbstractConfig {
         );
   }
 
-
-  private static Set<String> initializedHeaderConfigActions() {
-    /**
-     * The following actions are defined following link.
-     * {@link https://www.eclipse.org/jetty/documentation/current/header-filter.html}
-     **/
-    return Stream.of("set", "add", "setDate", "addDate")
-            .collect(Collectors.toCollection(HashSet::new));
-  }
-
   private static Time defaultTime = new SystemTime();
 
   public RestConfig(ConfigDef definition, Map<?, ?> originals) {
@@ -696,8 +683,8 @@ public class RestConfig extends AbstractConfig {
       // validate format
       String[] configTokens = config.trim().split("\\s+", 2);
       if (configTokens.length != 2) {
-        throw new ConfigException(String.format("Invalid format of header config for %s "
-                + "The format must be in [ation] [header name]:[header value]", config));
+        throw new ConfigException(String.format("Invalid format of header config \"%s\". "
+                + "Expected: \"[ation] [header name]:[header value]\"", config));
       }
 
       // validate action
@@ -708,26 +695,32 @@ public class RestConfig extends AbstractConfig {
       String header = configTokens[1];
       String[] headerTokens = header.trim().split(":");
       if (headerTokens.length > 2) {
-        throw new ConfigException(String.format("Invalid format of header name and header value"
-                + "in %s . The format must be in [header name]:[header value]", header));
+        throw new ConfigException(
+                String.format("Invalid format of header name and header value pair \"%s\". "
+                + "Expected: \"[header name]:[header value]\"", header));
       }
 
       // validate header name
       String headerName = headerTokens[0].trim();
       if (headerName.contains(" ")) {
-        throw new ConfigException(String.format("Invalid header name %s ."
-                + "The [header name] cannot contain whitespaces", headerName));
+        throw new ConfigException(String.format("Invalid header name \"%s\". "
+                + "The \"[header name]\" cannot contain whitespace", headerName));
       }
-      String headerValue = headerTokens[1].trim();
     } catch (ArrayIndexOutOfBoundsException e) {
-      throw new ConfigException("Invalid header config:" + config, e);
+      throw new ConfigException(String.format("Invalid header config \"%s\".", config), e);
     }
   }
 
   private static void validateHeaderConfigAction(String action) {
-    if (!HEADER_CONFIG_ACTIONS.stream().anyMatch(action::equalsIgnoreCase)) {
-      throw new ConfigException(String.format("Invalid header config action: %s. "
-                      + "The action need be one of %s ", action, HEADER_CONFIG_ACTIONS));
+    /**
+     * The following actions are defined following link.
+     * {@link https://www.eclipse.org/jetty/documentation/current/header-filter.html}
+     **/
+    if (!Arrays.asList("set", "add", "setDate", "addDate")
+            .stream()
+            .anyMatch(action::equalsIgnoreCase)) {
+      throw new ConfigException(String.format("Invalid header config action: \"%s\". "
+              + "The action need be one of [\"set\", \"add\", \"setDate\", \"addDate\"]", action));
     }
   }
 }
