@@ -259,7 +259,8 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
-    if (!config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
+    if (config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG) != null
+            && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
       configureHttpResponsHeaderFilter(context);
     }
 
