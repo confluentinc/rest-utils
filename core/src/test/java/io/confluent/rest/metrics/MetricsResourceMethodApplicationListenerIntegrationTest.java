@@ -1,6 +1,6 @@
 package io.confluent.rest.metrics;
 
-import io.confluent.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.TestMetricsReporter;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.exceptions.RestNotFoundException;
