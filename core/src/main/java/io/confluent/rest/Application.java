@@ -38,8 +38,10 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -52,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -254,6 +257,11 @@ public abstract class Application<T extends RestConfig> {
       // handle preflight cors requests at the filter level, do not forward down the filter chain
       filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
+
+    if (config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG) != null
+            && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
+      configureHttpResponsHeaderFilter(context);
     }
 
     configurePreResourceHandling(context);
@@ -505,6 +513,21 @@ public abstract class Application<T extends RestConfig> {
     config.register(ConstraintViolationExceptionMapper.class);
     config.register(new WebApplicationExceptionMapper(restConfig));
     config.register(new GenericExceptionMapper(restConfig));
+  }
+
+  /**
+   * Register header filter to ServletContextHandler.
+   * @param context The serverlet context handler
+   */
+  protected void configureHttpResponsHeaderFilter(ServletContextHandler context) {
+    String headerConfig = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
+    log.debug("headerConfig : " + headerConfig);
+    String[] configs = StringUtil.csvSplit(headerConfig);
+    Arrays.stream(configs)
+            .forEach(RestConfig::validateHttpResponseHeaderConfig);
+    FilterHolder headerFilterHolder = new FilterHolder(HeaderFilter.class);
+    headerFilterHolder.setInitParameter("headerConfig", headerConfig);
+    context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   public T getConfiguration() {
