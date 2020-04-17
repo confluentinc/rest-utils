@@ -16,7 +16,7 @@
 
 package io.confluent.rest;
 
-import io.confluent.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.Metrics;
 
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jmx.MBeanContainer;

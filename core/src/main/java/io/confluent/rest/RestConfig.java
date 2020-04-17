@@ -17,14 +17,14 @@
 package io.confluent.rest;
 
 import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
-import org.apache.kafka.common.config.ConfigException;
-import io.confluent.common.utils.SystemTime;
-import io.confluent.common.utils.Time;
+import org.apache.kafka.common.utils.Time;
 
 import io.confluent.rest.extension.ResourceExtension;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -310,7 +310,6 @@ public class RestConfig extends AbstractConfig {
   public static final String RESPONSE_HTTP_HEADERS_DOC =
           "Set values for Jetty HTTP response headers";
   public static final String RESPONSE_HTTP_HEADERS_DEFAULT = "";
-
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -664,7 +663,7 @@ public class RestConfig extends AbstractConfig {
         );
   }
 
-  private static Time defaultTime = new SystemTime();
+  private static Time defaultTime = Time.SYSTEM;
 
   public RestConfig(ConfigDef definition, Map<?, ?> originals) {
     super(definition, originals);
