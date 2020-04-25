@@ -10,7 +10,6 @@
         <version>6.0.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>io.confluent</groupId>
     <artifactId>rest-utils</artifactId>
     <packaging>jar</packaging>
     <name>rest-utils</name>
@@ -19,15 +18,6 @@
         <dependency>
             <groupId>org.eclipse.jetty.websocket</groupId>
             <artifactId>javax-websocket-server-impl</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>common-config</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>common-metrics</artifactId>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
