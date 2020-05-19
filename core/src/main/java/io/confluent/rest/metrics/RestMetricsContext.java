@@ -34,12 +34,12 @@ public class RestMetricsContext  implements MetricsContext {
    * @param config RestConfig instance
    */
   public RestMetricsContext(RestConfig config) {
-    metadata.put(MetricsContext.NAMESPACE,
-            config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
-
     /* Copy all configuration properties prefixed into metadata instance. */
-    config.originalsWithPrefix(METRICS_CONTEXT_PREFIX)
-            .forEach((key, value) -> metadata.put(key, (String) value));
+    this(config.originalsWithPrefix(METRICS_CONTEXT_PREFIX));
+
+    /* JMX_PREFIX is synonymous with MetricsContext.NAMESPACE */
+    metadata.putIfAbsent(MetricsContext.NAMESPACE,
+            config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
 
     /*
      * RestApplication are most likely to be top-level compositions.
@@ -48,12 +48,23 @@ public class RestMetricsContext  implements MetricsContext {
     metadata.putIfAbsent(METRICS_RESOURCE_NAME, metadata.get(MetricsContext.NAMESPACE));
   }
 
+  public RestMetricsContext(Map<String, Object> config) {
+    config.forEach((key, value) -> metadata.put(key, (String) value));
+  }
+  
   public String getResourceName() {
     return metadata.get(METRICS_RESOURCE_NAME);
   }
 
   public String getNameSpace() {
     return metadata.get(MetricsContext.NAMESPACE);
+  }
+
+  public MetricsContext newNamespace(String namespace) {
+    Map<String, Object> child = new HashMap<>(this.metadata);
+    child.put(MetricsContext.NAMESPACE, namespace);
+
+    return new RestMetricsContext(child);
   }
 
   /**
