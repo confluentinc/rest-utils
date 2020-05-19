@@ -94,6 +94,7 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
+  protected RestMetricsContext metricsContext;
   private final String path;
 
   protected ApplicationServer server;
@@ -113,6 +114,9 @@ public abstract class Application<T extends RestConfig> {
     this.config = config;
     this.path = Objects.requireNonNull(path);;
 
+    this.metricsContext = new RestMetricsContext(config);
+    this.setupMetricsContext(metricsContext, config);
+
     MetricConfig metricConfig = new MetricConfig()
         .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
         .timeWindow(config.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
@@ -122,12 +126,7 @@ public abstract class Application<T extends RestConfig> {
                                       MetricsReporter.class);
     reporters.add(new JmxReporter());
 
-    RestMetricsContext metricsContext = new RestMetricsContext(config);
-
-    this.setupMetricsContext(metricsContext, config);
-
     this.metrics = new Metrics(metricConfig, reporters, config.getTime(), metricsContext);
-
     this.getMetricsTags().putAll(
             parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
 

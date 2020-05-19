@@ -394,7 +394,6 @@ public class ApplicationTest {
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
-    public RestMetricsContext metricsContext;
 
     @SafeVarargs
     private TestApp(final Class<? extends ResourceExtension>... extensions) throws Exception {
