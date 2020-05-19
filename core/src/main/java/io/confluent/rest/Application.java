@@ -19,7 +19,12 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -69,10 +74,6 @@ import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
 import javax.ws.rs.core.Configurable;
 
-import org.apache.kafka.common.metrics.JmxReporter;
-import org.apache.kafka.common.metrics.MetricConfig;
-import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.common.metrics.MetricsReporter;
 import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
@@ -119,8 +120,13 @@ public abstract class Application<T extends RestConfig> {
     List<MetricsReporter> reporters =
         config.getConfiguredInstances(RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
                                       MetricsReporter.class);
-    reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
-    this.metrics = new Metrics(metricConfig, reporters, config.getTime());
+    reporters.add(new JmxReporter());
+
+    RestMetricsContext metricsContext = new RestMetricsContext(config);
+
+    this.setupMetricsContext(metricsContext, config);
+
+    this.metrics = new Metrics(metricConfig, reporters, config.getTime(), metricsContext);
 
     this.getMetricsTags().putAll(
             parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
@@ -133,6 +139,12 @@ public abstract class Application<T extends RestConfig> {
   public final String getPath() {
     return path;
   }
+
+
+  /**
+   * Register metadata with this Application's MetricsContext.
+   */
+  public void setupMetricsContext(RestMetricsContext context, T appConfig) {}
 
   /**
    * Returns {@link Metrics} object

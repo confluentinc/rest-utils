@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.google.common.collect.ImmutableMap;
 
+import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -40,6 +41,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -52,6 +54,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -324,6 +328,54 @@ public class ApplicationTest {
     assertThat("shutdown called", TestApp.SHUTDOWN_CALLED.get(), is(true));
   }
 
+  @Test
+  public void testDefaultMetricsContext() throws Exception {
+    TestApp testApp = new TestApp();
+
+    assertEquals(testApp.metricsContext.getResourceName(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getNameSpace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+  }
+
+  @Test
+  public void testMetricsContextResourceOverride() throws Exception  {
+    Map<String, Object> props = new HashMap<>();
+    props.put("metrics.context.resource.type", "FooApp");
+
+    TestApp testApp = new TestApp(props);
+
+    assertEquals(testApp.metricsContext.getResourceName(), "FooApp");
+    assertEquals(testApp.metricsContext.getNameSpace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+
+    /* Only NameSpace should be propagated to JMX */
+    String jmx_domain =  RestConfig.METRICS_JMX_PREFIX_DEFAULT;
+    String mbean_name = String.format("%s:type=kafka-metrics-count", jmx_domain);
+
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    assertNotNull(server.getObjectInstance(new ObjectName(mbean_name)));
+  }
+
+  @Test
+  public void testMetricsContextJMXPrefixPropagation() throws Exception  {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp");
+
+    TestApp testApp = new TestApp(props);
+
+    assertEquals(testApp.metricsContext.getResourceName(), "FooApp");
+    assertEquals(testApp.metricsContext.getNameSpace(), "FooApp");
+  }
+
+  @Test
+  public void testMetricsContextJMXBeanRegistration() throws Exception  {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp");
+
+    new TestApp(props);
+
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    assertNotNull(server.getObjectInstance(new ObjectName("FooApp:type=kafka-metrics-count")));
+  }
+
   private void assertExpectedUri(URI uri, String scheme, String host, int port) {
     assertEquals("Scheme should be " + scheme, scheme, uri.getScheme());
     assertEquals("Host should be " + host, host, uri.getHost());
@@ -342,6 +394,7 @@ public class ApplicationTest {
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
+    public RestMetricsContext metricsContext;
 
     @SafeVarargs
     private TestApp(final Class<? extends ResourceExtension>... extensions) throws Exception {
@@ -352,6 +405,11 @@ public class ApplicationTest {
 
     public TestApp(final Map<String, Object> config) {
       super(createConfig(config));
+    }
+
+    @Override
+    public void setupMetricsContext(RestMetricsContext metricsContext, TestRestConfig appConfig) {
+      this.metricsContext = metricsContext;
     }
 
     @Override
