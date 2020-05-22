@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.common.metrics.MetricsContext;
 
-public class RestMetricsContext<T> implements MetricsContext {
+public class RestMetricsContext implements MetricsContext {
   /**
    * MetricsContext Label's for use by Confluent's TelemetryReporter
    */
@@ -52,7 +52,7 @@ public class RestMetricsContext<T> implements MetricsContext {
   }
 
   private RestMetricsContext(Map<String, Object> config) {
-    this.metadata = new HashMap<>();
+    metadata = new HashMap<>();
     config.forEach((key, value) -> metadata.put(key, value.toString()));
   }
 

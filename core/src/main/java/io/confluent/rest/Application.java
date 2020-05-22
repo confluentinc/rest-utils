@@ -94,7 +94,7 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
-  protected RestMetricsContext<?> metricsContext;
+  protected RestMetricsContext metricsContext;
   private final String path;
 
   protected ApplicationServer server;
@@ -143,7 +143,7 @@ public abstract class Application<T extends RestConfig> {
    * Set MetricsContext labels.
    */
   protected void setupMetricsContext(T appConfig) {
-    this.metricsContext = new RestMetricsContext<>(appConfig);
+    this.metricsContext = new RestMetricsContext(appConfig);
   }
 
   /**

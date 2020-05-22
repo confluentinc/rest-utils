@@ -407,11 +407,6 @@ public class ApplicationTest {
     }
 
     @Override
-    protected void setupMetricsContext(TestRestConfig appConfig) {
-      this.metricsContext = new RestMetricsContext<>(appConfig);
-    }
-
-    @Override
     public void setupResources(final Configurable<?> config, final TestRestConfig appConfig) {
     }
 
