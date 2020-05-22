@@ -135,6 +135,13 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
+   * Returns {@link Metrics} object
+   */
+  public final Metrics getMetrics() {
+    return this.metrics;
+  }
+
+  /**
    * Register resources or additional Providers, ExceptionMappers, and other JAX-RS components with
    * the Jersey application. This, combined with your Configuration class, is where you can
    * customize the behavior of the application.
