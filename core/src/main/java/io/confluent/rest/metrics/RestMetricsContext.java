@@ -43,7 +43,7 @@ public class RestMetricsContext<T> implements MetricsContext {
     this(config.originalsWithPrefix(METRICS_CONTEXT_PREFIX));
 
     /* JMX_PREFIX is synonymous with MetricsContext.NAMESPACE */
-    this.putNamespaceLabel(MetricsContext.NAMESPACE,
+    this.putLabel(MetricsContext.NAMESPACE,
             config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
 
     /* Never overwrite preexisting resource labels */
@@ -57,9 +57,9 @@ public class RestMetricsContext<T> implements MetricsContext {
   }
 
   /**
-   * Sets {@link MetricsContext} namespace label.
+   * Sets a {@link MetricsContext} key, value pair.
    */
-  protected void putNamespaceLabel(String labelKey, String labelValue) {
+  protected void putLabel(String labelKey, String labelValue) {
     /* Remove resource label if present */
     this.metadata.put(labelKey.replace(RESOURCE_LABEL_PREFIX, ""),
             labelValue);

@@ -22,7 +22,7 @@ import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.kafka.common.metrics.MetricsContext;
+
 import org.junit.Test;
 
 public class TestRestMetricsContext {
@@ -70,7 +70,7 @@ public class TestRestMetricsContext {
         TestRestConfig config = new TestRestConfig(props);
         RestMetricsContext context = new RestMetricsContext(config);
 
-        context.putNamespaceLabel(RestMetricsContext.RESOURCE_LABEL_TYPE,
+        context.putLabel(RestMetricsContext.RESOURCE_LABEL_TYPE,
                 "rest-utils-resource");
 
         assertEquals(context.getResourceType(), "root");
