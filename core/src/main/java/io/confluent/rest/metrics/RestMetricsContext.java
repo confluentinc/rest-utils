@@ -51,9 +51,9 @@ public class RestMetricsContext<T> implements MetricsContext {
             config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
-  public RestMetricsContext(Map<String, Object> config) {
+  private RestMetricsContext(Map<String, Object> config) {
     this.metadata = new HashMap<>();
-    config.forEach((key, value) -> metadata.put(key, (String) value));
+    config.forEach((key, value) -> metadata.put(key, value.toString()));
   }
 
   /**

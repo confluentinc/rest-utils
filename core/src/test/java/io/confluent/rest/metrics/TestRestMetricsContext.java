@@ -113,4 +113,21 @@ public class TestRestMetricsContext {
         assertEquals(context.getNamespace(), "rest-utils");
         assertEquals(context.metadata().get(RESOURCE_CLUSTER_ID), "rest-utils-bootstrap");
     }
+
+    @Test
+    public void testMetricsContextResourceNonStringValue() throws Exception  {
+        Map<String, Object> props = new HashMap<>();
+        props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX
+                + RestMetricsContext.RESOURCE_LABEL_TYPE, "root");
+        props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX + "notString",
+                this.getClass());
+
+        TestRestConfig config = new TestRestConfig(props);
+        RestMetricsContext context = new RestMetricsContext(config);
+
+
+        assertEquals(context.getResourceType(), "root");
+        assertEquals(context.getNamespace(), "rest-utils");
+        assertEquals(context.metadata().get("notString"), this.getClass().toString());
+    }
 }
