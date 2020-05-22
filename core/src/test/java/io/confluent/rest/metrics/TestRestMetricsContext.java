@@ -60,4 +60,57 @@ public class TestRestMetricsContext {
         assertEquals(context.getResourceType(), "FooApp");
         assertEquals(context.getNamespace(), "FooApp");
     }
+
+    @Test
+    public void testMetricsContextPutNamespaceLabelStripResourcePrefix() throws Exception  {
+        Map<String, Object> props = new HashMap<>();
+        props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX
+                + RestMetricsContext.RESOURCE_LABEL_TYPE, "root");
+
+        TestRestConfig config = new TestRestConfig(props);
+        RestMetricsContext context = new RestMetricsContext(config);
+
+        context.putNamespaceLabel(RestMetricsContext.RESOURCE_LABEL_TYPE,
+                "rest-utils-resource");
+
+        assertEquals(context.getResourceType(), "root");
+        assertEquals(context.getNamespace(), "rest-utils");
+    }
+
+    @Test
+    public void testMetricsContextResourceLabelSetIfAbsent() throws Exception  {
+        Map<String, Object> props = new HashMap<>();
+        props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX
+                + RestMetricsContext.RESOURCE_LABEL_TYPE, "root");
+
+        TestRestConfig config = new TestRestConfig(props);
+        RestMetricsContext context = new RestMetricsContext(config);
+
+        context.putResourceLabel(RestMetricsContext.RESOURCE_LABEL_TYPE,
+                "rest-utils-resource");
+
+        assertEquals(context.getResourceType(), "root");
+        assertEquals(context.getNamespace(), "rest-utils");
+    }
+
+    @Test
+    public void testMetricsContextResourceLabelNew() throws Exception  {
+        Map<String, Object> props = new HashMap<>();
+        props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX
+                + RestMetricsContext.RESOURCE_LABEL_TYPE, "root");
+
+        TestRestConfig config = new TestRestConfig(props);
+        RestMetricsContext context = new RestMetricsContext(config);
+
+        String RESOURCE_CLUSTER_ID =
+                RestMetricsContext.RESOURCE_LABEL_PREFIX + "cluster.id";
+
+        context.putResourceLabel(
+                RESOURCE_CLUSTER_ID,
+                "rest-utils-bootstrap");
+
+        assertEquals(context.getResourceType(), "root");
+        assertEquals(context.getNamespace(), "rest-utils");
+        assertEquals(context.metadata().get(RESOURCE_CLUSTER_ID), "rest-utils-bootstrap");
+    }
 }

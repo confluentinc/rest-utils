@@ -64,7 +64,7 @@ public class RestMetricsContext  implements MetricsContext {
    * Sets {@link MetricsContext} namespace label.
    */
   protected void putNamespaceLabel(String labelKey, String labelValue) {
-    /* Remove resource label if present*/
+    /* Remove resource label if present */
     this.metadata.put(labelKey.replace(RESOURCE_LABEL_PREFIX, ""),
             labelValue);
   }
