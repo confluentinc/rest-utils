@@ -21,10 +21,7 @@ import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.metrics.JmxReporter;
-import org.apache.kafka.common.metrics.MetricConfig;
-import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.common.metrics.MetricsReporter;
+import org.apache.kafka.common.metrics.*;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -94,7 +91,7 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
-  protected RestMetricsContext metricsContext;
+  protected RestMetricsContext<?> metricsContext;
   private final String path;
 
   protected ApplicationServer server;
@@ -114,8 +111,7 @@ public abstract class Application<T extends RestConfig> {
     this.config = config;
     this.path = Objects.requireNonNull(path);;
 
-    this.metricsContext = new RestMetricsContext(config);
-    this.setupMetricsContext(metricsContext, config);
+    setupMetricsContext(config);
 
     MetricConfig metricConfig = new MetricConfig()
         .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
@@ -141,9 +137,11 @@ public abstract class Application<T extends RestConfig> {
 
 
   /**
-   * Update MetricsContext labels.
+   * Set MetricsContext labels.
    */
-  public void setupMetricsContext(RestMetricsContext context, T appConfig) {}
+  protected void setupMetricsContext(T appConfig) {
+    this.metricsContext = new RestMetricsContext<>(appConfig);
+  }
 
   /**
    * Returns {@link Metrics} object

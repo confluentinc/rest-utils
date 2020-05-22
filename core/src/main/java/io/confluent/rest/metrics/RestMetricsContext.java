@@ -21,16 +21,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.common.metrics.MetricsContext;
-import org.apache.kafka.common.utils.AppInfoParser;
 
-public class RestMetricsContext  implements MetricsContext {
+public class RestMetricsContext<T> implements MetricsContext {
   /**
    * MetricsContext Label's for use by Confluent's TelemetryReporter
    */
   public static final String METRICS_CONTEXT_PREFIX = "metrics.context.";
   public static final String RESOURCE_LABEL_PREFIX = "resource.";
   public static final String RESOURCE_LABEL_TYPE = RESOURCE_LABEL_PREFIX + "type";
-  public static final String RESOURCE_LABEL_VERSION = RESOURCE_LABEL_PREFIX + "version";
 
   /**
    * Client or Service's metadata map.
@@ -51,8 +49,6 @@ public class RestMetricsContext  implements MetricsContext {
     /* Never overwrite preexisting resource labels */
     this.putResourceLabel(RESOURCE_LABEL_TYPE,
             config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
-    this.putResourceLabel(RESOURCE_LABEL_VERSION,
-            AppInfoParser.getVersion());
   }
 
   public RestMetricsContext(Map<String, Object> config) {
