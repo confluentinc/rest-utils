@@ -17,62 +17,85 @@
 package io.confluent.rest.metrics;
 
 import io.confluent.rest.RestConfig;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.common.metrics.MetricsContext;
+import org.apache.kafka.common.utils.AppInfoParser;
 
 public class RestMetricsContext  implements MetricsContext {
+  /**
+   * MetricsContext Label's for use by Confluent's TelemetryReporter
+   */
   public static final String METRICS_CONTEXT_PREFIX = "metrics.context.";
-  public static final String METRICS_RESOURCE_NAME = "resource.type";
+  public static final String RESOURCE_LABEL_PREFIX = "resource.";
+  public static final String RESOURCE_LABEL_TYPE = RESOURCE_LABEL_PREFIX + "type";
+  public static final String RESOURCE_LABEL_VERSION = RESOURCE_LABEL_PREFIX + "version";
 
   /**
    * Client or Service's metadata map.
    */
-  private final Map<String, String> metadata = new HashMap<>();
+  private final Map<String, String> metadata;
 
   /**
-   * @param config RestConfig instance
+   * {@link io.confluent.rest.Application} {@link MetricsContext} configuration.
    */
   public RestMetricsContext(RestConfig config) {
     /* Copy all configuration properties prefixed into metadata instance. */
     this(config.originalsWithPrefix(METRICS_CONTEXT_PREFIX));
 
     /* JMX_PREFIX is synonymous with MetricsContext.NAMESPACE */
-    metadata.putIfAbsent(MetricsContext.NAMESPACE,
+    this.putNamespaceLabel(MetricsContext.NAMESPACE,
             config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
 
-    /*
-     * RestApplication are most likely to be top-level compositions.
-     * Use JMX_PREFIX if METRICS_RESOURCE_NAME is not explicitly set.
-     */
-    metadata.putIfAbsent(METRICS_RESOURCE_NAME, metadata.get(MetricsContext.NAMESPACE));
+    /* Never overwrite preexisting resource labels */
+    this.putResourceLabel(RESOURCE_LABEL_TYPE,
+            config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
+    this.putResourceLabel(RESOURCE_LABEL_VERSION,
+            AppInfoParser.getVersion());
   }
 
   public RestMetricsContext(Map<String, Object> config) {
+    this.metadata = new HashMap<>();
     config.forEach((key, value) -> metadata.put(key, (String) value));
-  }
-  
-  public String getResourceName() {
-    return metadata.get(METRICS_RESOURCE_NAME);
-  }
-
-  public String getNameSpace() {
-    return metadata.get(MetricsContext.NAMESPACE);
-  }
-
-  public MetricsContext newNamespace(String namespace) {
-    Map<String, Object> child = new HashMap<>(this.metadata);
-    child.put(MetricsContext.NAMESPACE, namespace);
-
-    return new RestMetricsContext(child);
   }
 
   /**
-   * Returns client's metadata map.
-   *
-   * @return metadata fields
+   * Sets {@link MetricsContext} namespace label.
+   */
+  protected void putNamespaceLabel(String labelKey, String labelValue) {
+    /* Remove resource label if present*/
+    this.metadata.put(labelKey.replace(RESOURCE_LABEL_PREFIX, ""),
+            labelValue);
+  }
+
+  /**
+   * Sets {@link MetricsContext} resource label if not previously set.
+   * Returns null if the resource value was not previously set else
+   * returns the current value.
+   */
+  protected String putResourceLabel(String resource, String value) {
+    return this.metadata.putIfAbsent(resource, value);
+  }
+
+  /**
+   * Returns {@link MetricsContext} Resource type.
+   */
+  public String getResourceType() {
+    return metadata.get(RESOURCE_LABEL_TYPE);
+  }
+
+  /**
+   * Returns {@link MetricsContext} namespace.
+   */
+  public String getNamespace() {
+    return metadata.get(MetricsContext.NAMESPACE);
+  }
+
+  /**
+   * Returns {@link MetricsContext} as an immutable Map.
    */
   public Map<String, String> metadata() {
-    return metadata;
+    return Collections.unmodifiableMap(metadata);
   }
 }

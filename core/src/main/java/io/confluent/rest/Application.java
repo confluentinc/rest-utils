@@ -141,7 +141,7 @@ public abstract class Application<T extends RestConfig> {
 
 
   /**
-   * Register metadata with this Application's MetricsContext.
+   * Update MetricsContext labels.
    */
   public void setupMetricsContext(RestMetricsContext context, T appConfig) {}
 

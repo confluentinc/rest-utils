@@ -332,8 +332,8 @@ public class ApplicationTest {
   public void testDefaultMetricsContext() throws Exception {
     TestApp testApp = new TestApp();
 
-    assertEquals(testApp.metricsContext.getResourceName(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
-    assertEquals(testApp.metricsContext.getNameSpace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getResourceType(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getNamespace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
   }
 
   @Test
@@ -343,8 +343,8 @@ public class ApplicationTest {
 
     TestApp testApp = new TestApp(props);
 
-    assertEquals(testApp.metricsContext.getResourceName(), "FooApp");
-    assertEquals(testApp.metricsContext.getNameSpace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getResourceType(), "FooApp");
+    assertEquals(testApp.metricsContext.getNamespace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
 
     /* Only NameSpace should be propagated to JMX */
     String jmx_domain =  RestConfig.METRICS_JMX_PREFIX_DEFAULT;
@@ -361,8 +361,8 @@ public class ApplicationTest {
 
     TestApp testApp = new TestApp(props);
 
-    assertEquals(testApp.metricsContext.getResourceName(), "FooApp");
-    assertEquals(testApp.metricsContext.getNameSpace(), "FooApp");
+    assertEquals(testApp.metricsContext.getResourceType(), "FooApp");
+    assertEquals(testApp.metricsContext.getNamespace(), "FooApp");
   }
 
   @Test

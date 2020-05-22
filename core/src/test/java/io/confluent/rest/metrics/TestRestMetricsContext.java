@@ -28,41 +28,25 @@ import org.junit.Test;
 public class TestRestMetricsContext {
 
     @Test
-    public void testMetricsContextNewNameSpace() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX
-                + RestMetricsContext.METRICS_RESOURCE_NAME, "root");
-
-        TestRestConfig config = new TestRestConfig(props);
-        RestMetricsContext context = new RestMetricsContext(config);
-
-        System.out.println(context.metadata());
-
-        MetricsContext context2 = context.newNamespace("kafka-consumer");
-
-        System.out.println(context2.metadata());
-    }
-
-    @Test
     public void testDefaultMetricsContext() throws Exception {
         TestRestConfig config = new TestRestConfig();
         RestMetricsContext context = new RestMetricsContext(config);
 
-        assertEquals(context.getResourceName(), "rest-utils");
-        assertEquals(context.getNameSpace(), "rest-utils");
+        assertEquals(context.getResourceType(), "rest-utils");
+        assertEquals(context.getNamespace(), "rest-utils");
     }
 
     @Test
     public void testMetricsContextResourceOverride() throws Exception  {
         Map<String, Object> props = new HashMap<>();
         props.put(RestMetricsContext.METRICS_CONTEXT_PREFIX
-                + RestMetricsContext.METRICS_RESOURCE_NAME, "root");
+                + RestMetricsContext.RESOURCE_LABEL_TYPE, "root");
 
         TestRestConfig config = new TestRestConfig(props);
         RestMetricsContext context = new RestMetricsContext(config);
 
-        assertEquals(context.getResourceName(), "root");
-        assertEquals(context.getNameSpace(), "rest-utils");
+        assertEquals(context.getResourceType(), "root");
+        assertEquals(context.getNamespace(), "rest-utils");
     }
 
     @Test
@@ -73,7 +57,7 @@ public class TestRestMetricsContext {
         TestRestConfig config = new TestRestConfig(props);
         RestMetricsContext context = new RestMetricsContext(config);
 
-        assertEquals(context.getResourceName(), "FooApp");
-        assertEquals(context.getNameSpace(), "FooApp");
+        assertEquals(context.getResourceType(), "FooApp");
+        assertEquals(context.getNamespace(), "FooApp");
     }
 }
