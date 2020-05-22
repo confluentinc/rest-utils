@@ -21,7 +21,10 @@ import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.metrics.*;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
