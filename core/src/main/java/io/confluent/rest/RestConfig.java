@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -677,6 +678,9 @@ public class RestConfig extends AbstractConfig {
     return defaultTime;
   }
 
+  public RestMetricsContext getMetricsContext(){
+    return new RestMetricsContext(this);
+  }
   public static void validateHttpResponseHeaderConfig(String config) {
     try {
       // validate format
