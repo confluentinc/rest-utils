@@ -16,21 +16,19 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.metrics.RestMetricsContext;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.utils.Time;
-
-import io.confluent.rest.extension.ResourceExtension;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 public class RestConfig extends AbstractConfig {
   public static final String DEBUG_CONFIG = "debug";
@@ -671,16 +669,17 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestConfig(ConfigDef definition) {
-    super(definition, new TreeMap<>());
+    this(definition, new TreeMap<>());
   }
 
   public Time getTime() {
     return defaultTime;
   }
 
-  public RestMetricsContext getMetricsContext(){
+  public RestMetricsContext getMetricsContext() {
     return new RestMetricsContext(this);
   }
+
   public static void validateHttpResponseHeaderConfig(String config) {
     try {
       // validate format

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,8 @@
 
 package io.confluent.rest.metrics;
 
+import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
+
 import io.confluent.rest.RestConfig;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,16 +26,9 @@ import org.apache.kafka.common.metrics.MetricsContext;
 
 public class RestMetricsContext implements MetricsContext {
   /**
-   * MetricsContext Label's for use by Confluent's TelemetryReporter
-   */
-  public static final String METRICS_CONTEXT_PREFIX = "metrics.context.";
-  public static final String RESOURCE_LABEL_PREFIX = "resource.";
-  public static final String RESOURCE_LABEL_TYPE = RESOURCE_LABEL_PREFIX + "type";
-
-  /**
    * Client or Service's metadata map.
    */
-  private final Map<String, String> metadata;
+  protected final Map<String, String> contextLabels;
 
   /**
    * {@link io.confluent.rest.Application} {@link MetricsContext} configuration.
@@ -43,55 +38,35 @@ public class RestMetricsContext implements MetricsContext {
     this(config.originalsWithPrefix(METRICS_CONTEXT_PREFIX));
 
     /* JMX_PREFIX is synonymous with MetricsContext.NAMESPACE */
-    this.putLabel(MetricsContext.NAMESPACE,
-            config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
-
-    /* Never overwrite preexisting resource labels */
-    this.putResourceLabel(RESOURCE_LABEL_TYPE,
+    this.setLabel(MetricsContext.NAMESPACE,
             config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
   private RestMetricsContext(Map<String, Object> config) {
-    metadata = new HashMap<>();
-    config.forEach((key, value) -> metadata.put(key, value.toString()));
+    contextLabels = new HashMap<>();
+    config.forEach((key, value) -> contextLabels.put(key, value.toString()));
   }
 
   /**
    * Sets a {@link MetricsContext} key, value pair.
    */
-  protected void putLabel(String labelKey, String labelValue) {
-    /* Remove resource label if present */
-    this.metadata.put(labelKey.replace(RESOURCE_LABEL_PREFIX, ""),
-            labelValue);
+  protected void setLabel(String labelKey, String labelValue) {
+    this.contextLabels.put(labelKey, labelValue);
   }
 
   /**
-   * Sets {@link MetricsContext} resource label if not previously set.
-   * Returns null if the resource value was not previously set else
-   * returns the current value.
+   * Returns the value associated with  the specified label else
+   * {@code null}.
    */
-  protected String putResourceLabel(String resource, String value) {
-    return this.metadata.putIfAbsent(resource, value);
+  public String getLabel(String label) {
+    return contextLabels.get(label);
   }
 
   /**
-   * Returns {@link MetricsContext} Resource type.
+   * Returns {@link MetricsContext} as an unmodifiable Map.
    */
-  public String getResourceType() {
-    return metadata.get(RESOURCE_LABEL_TYPE);
-  }
-
-  /**
-   * Returns {@link MetricsContext} namespace.
-   */
-  public String getNamespace() {
-    return metadata.get(MetricsContext.NAMESPACE);
-  }
-
-  /**
-   * Returns {@link MetricsContext} as an immutable Map.
-   */
-  public Map<String, String> metadata() {
-    return Collections.unmodifiableMap(metadata);
+  @Override
+  public Map<String, String> contextLabels() {
+    return Collections.unmodifiableMap(contextLabels);
   }
 }

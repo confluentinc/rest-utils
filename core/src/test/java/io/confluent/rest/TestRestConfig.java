@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.metrics.RestMetricsContext;
+import io.confluent.rest.metrics.TestRestMetricsContext;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;
@@ -35,5 +37,10 @@ public class TestRestConfig extends RestConfig {
 
   public TestRestConfig(Map<?,?> originals) {
     super(config, originals);
+  }
+
+  @Override
+  public RestMetricsContext getMetricsContext() {
+    return new TestRestMetricsContext(this);
   }
 }

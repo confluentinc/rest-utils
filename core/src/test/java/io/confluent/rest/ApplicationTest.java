@@ -16,9 +16,39 @@
 
 package io.confluent.rest;
 
-import com.google.common.collect.ImmutableMap;
+import static io.confluent.rest.metrics.TestRestMetricsContext.RESOURCE_LABEL_TYPE;
+import static org.apache.kafka.common.metrics.MetricsContext.NAMESPACE;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
-import io.confluent.rest.metrics.RestMetricsContext;
+import com.google.common.collect.ImmutableMap;
+import io.confluent.rest.extension.ResourceExtension;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Configurable;
+import javax.ws.rs.core.MediaType;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -39,39 +69,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.net.URI;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
-
-import io.confluent.rest.extension.ResourceExtension;
-
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class ApplicationTest {
 
@@ -332,8 +329,10 @@ public class ApplicationTest {
   public void testDefaultMetricsContext() throws Exception {
     TestApp testApp = new TestApp();
 
-    assertEquals(testApp.metricsContext.getResourceType(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
-    assertEquals(testApp.metricsContext.getNamespace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getLabel(RESOURCE_LABEL_TYPE),
+            RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getLabel(NAMESPACE),
+            RestConfig.METRICS_JMX_PREFIX_DEFAULT);
   }
 
   @Test
@@ -343,8 +342,8 @@ public class ApplicationTest {
 
     TestApp testApp = new TestApp(props);
 
-    assertEquals(testApp.metricsContext.getResourceType(), "FooApp");
-    assertEquals(testApp.metricsContext.getNamespace(), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext.getLabel(RESOURCE_LABEL_TYPE), "FooApp");
+    assertEquals(testApp.metricsContext.getLabel(NAMESPACE), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
 
     /* Only NameSpace should be propagated to JMX */
     String jmx_domain =  RestConfig.METRICS_JMX_PREFIX_DEFAULT;
@@ -361,8 +360,8 @@ public class ApplicationTest {
 
     TestApp testApp = new TestApp(props);
 
-    assertEquals(testApp.metricsContext.getResourceType(), "FooApp");
-    assertEquals(testApp.metricsContext.getNamespace(), "FooApp");
+    assertEquals(testApp.metricsContext.getLabel(RESOURCE_LABEL_TYPE), "FooApp");
+    assertEquals(testApp.metricsContext.getLabel(NAMESPACE), "FooApp");
   }
 
   @Test
