@@ -16,8 +16,9 @@
 
 package io.confluent.rest.metrics;
 
-import io.confluent.rest.TestRestConfig;
 import org.apache.kafka.common.metrics.MetricsContext;
+
+import java.util.Map;
 
 public class TestRestMetricsContext extends RestMetricsContext {
     /**
@@ -25,18 +26,12 @@ public class TestRestMetricsContext extends RestMetricsContext {
      */
     public static final String RESOURCE_LABEL_PREFIX = "resource.";
     public static final String RESOURCE_LABEL_TYPE = RESOURCE_LABEL_PREFIX + "type";
-    public static final String RESOURCE_LABEL_COMMIT_ID = RESOURCE_LABEL_PREFIX + "commit.id";
 
-    /**
-     * {@link io.confluent.rest.Application} {@link MetricsContext} configuration.
-     */
-    public TestRestMetricsContext(TestRestConfig config) {
-        /* Copy all configuration properties prefixed into metadata instance. */
-        super(config);
+    public TestRestMetricsContext(String namespace, Map<String, Object> config) {
+        super(namespace, config);
 
-        /* Never overwrite preexisting resource labels */
         this.setResourceLabel(RESOURCE_LABEL_TYPE,
-                config.getString(TestRestConfig.METRICS_JMX_PREFIX_CONFIG));
+                namespace);
     }
 
     /**

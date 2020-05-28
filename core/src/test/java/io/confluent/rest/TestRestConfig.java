@@ -16,7 +16,8 @@
 
 package io.confluent.rest;
 
-import io.confluent.rest.metrics.RestMetricsContext;
+import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
+
 import io.confluent.rest.metrics.TestRestMetricsContext;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -40,7 +41,9 @@ public class TestRestConfig extends RestConfig {
   }
 
   @Override
-  public RestMetricsContext getMetricsContext() {
-    return new TestRestMetricsContext(this);
+  public TestRestMetricsContext getMetricsContext() {
+    return new TestRestMetricsContext(
+            getString(METRICS_JMX_PREFIX_CONFIG),
+            originalsWithPrefix(METRICS_CONTEXT_PREFIX));
   }
 }

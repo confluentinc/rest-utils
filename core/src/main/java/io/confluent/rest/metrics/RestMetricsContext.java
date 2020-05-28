@@ -16,9 +16,6 @@
 
 package io.confluent.rest.metrics;
 
-import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
-
-import io.confluent.rest.RestConfig;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,21 +27,15 @@ public class RestMetricsContext implements MetricsContext {
    */
   protected final Map<String, String> contextLabels;
 
-  /**
-   * {@link io.confluent.rest.Application} {@link MetricsContext} configuration.
-   */
-  public RestMetricsContext(RestConfig config) {
-    /* Copy all configuration properties prefixed into metadata instance. */
-    this(config.originalsWithPrefix(METRICS_CONTEXT_PREFIX));
-
-    /* JMX_PREFIX is synonymous with MetricsContext.NAMESPACE */
-    this.setLabel(MetricsContext.NAMESPACE,
-            config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
+  public RestMetricsContext(String namespace,
+                            Map<String, Object> config) {
+    contextLabels = new HashMap<>();
+    contextLabels.put(MetricsContext.NAMESPACE, namespace);
+    config.forEach((key, value) -> contextLabels.put(key, value.toString()));
   }
 
-  private RestMetricsContext(Map<String, Object> config) {
-    contextLabels = new HashMap<>();
-    config.forEach((key, value) -> contextLabels.put(key, value.toString()));
+  protected void setContextLabels(Map<String, String> labels) {
+    labels.forEach(this::setLabel);
   }
 
   /**

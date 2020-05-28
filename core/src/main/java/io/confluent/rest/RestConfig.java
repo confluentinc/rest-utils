@@ -30,7 +30,12 @@ import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.utils.Time;
 
+import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
+
 public class RestConfig extends AbstractConfig {
+
+  private final RestMetricsContext metricsContext;
+
   public static final String DEBUG_CONFIG = "debug";
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some "
@@ -666,6 +671,9 @@ public class RestConfig extends AbstractConfig {
 
   public RestConfig(ConfigDef definition, Map<?, ?> originals) {
     super(definition, originals);
+    metricsContext = new RestMetricsContext(
+            this.getString(METRICS_JMX_PREFIX_CONFIG),
+            originalsWithPrefix(METRICS_CONTEXT_PREFIX));
   }
 
   public RestConfig(ConfigDef definition) {
@@ -677,7 +685,7 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestMetricsContext getMetricsContext() {
-    return new RestMetricsContext(this);
+    return metricsContext;
   }
 
   public static void validateHttpResponseHeaderConfig(String config) {
