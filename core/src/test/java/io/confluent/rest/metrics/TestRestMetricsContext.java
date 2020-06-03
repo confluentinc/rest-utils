@@ -20,7 +20,7 @@ import java.util.Map;
 import org.apache.kafka.common.metrics.MetricsContext;
 
 
-public class TestRestMetricsContext {
+public final class TestRestMetricsContext {
     /**
      * MetricsContext Label's for use by Confluent's TelemetryReporter
      */
@@ -38,7 +38,7 @@ public class TestRestMetricsContext {
     /**
      * Sets a {@link MetricsContext} key, value pair.
      */
-    protected void setLabel(String labelKey, String labelValue) {
+    public void setLabel(String labelKey, String labelValue) {
         /* Remove resource label if present */
         if (labelKey.startsWith(RESOURCE_LABEL_PREFIX))
                 setResourceLabel(labelKey, labelValue);

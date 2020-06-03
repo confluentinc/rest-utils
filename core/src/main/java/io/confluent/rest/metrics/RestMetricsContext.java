@@ -25,7 +25,7 @@ public final class RestMetricsContext implements MetricsContext {
   /**
    * Client or Service's metadata map.
    */
-  protected final Map<String, String> contextLabels;
+  private final Map<String, String> contextLabels;
 
   public RestMetricsContext(String namespace,
                             Map<String, Object> config) {
@@ -34,15 +34,15 @@ public final class RestMetricsContext implements MetricsContext {
     config.forEach((key, value) -> contextLabels.put(key, value.toString()));
   }
 
-  protected void setContextLabels(Map<String, String> labels) {
-    labels.forEach(this::setLabel);
-  }
-
   /**
    * Sets a {@link MetricsContext} key, value pair.
    */
-  protected void setLabel(String labelKey, String labelValue) {
+  public void setLabel(String labelKey, String labelValue) {
     this.contextLabels.put(labelKey, labelValue);
+  }
+
+  public void setLabels(Map<String, String> labels) {
+    labels.forEach(this::setLabel);
   }
 
   /**
