@@ -16,6 +16,13 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.metrics.RestMetricsContext;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -23,15 +30,12 @@ import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.utils.Time;
 
-import io.confluent.rest.extension.ResourceExtension;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
 
 public class RestConfig extends AbstractConfig {
+
+  private final RestMetricsContext metricsContext;
+
   public static final String DEBUG_CONFIG = "debug";
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some "
@@ -667,14 +671,21 @@ public class RestConfig extends AbstractConfig {
 
   public RestConfig(ConfigDef definition, Map<?, ?> originals) {
     super(definition, originals);
+    metricsContext = new RestMetricsContext(
+            this.getString(METRICS_JMX_PREFIX_CONFIG),
+            originalsWithPrefix(METRICS_CONTEXT_PREFIX));
   }
 
   public RestConfig(ConfigDef definition) {
-    super(definition, new TreeMap<>());
+    this(definition, new TreeMap<>());
   }
 
   public Time getTime() {
     return defaultTime;
+  }
+
+  public RestMetricsContext getMetricsContext() {
+    return metricsContext;
   }
 
   public static void validateHttpResponseHeaderConfig(String config) {
