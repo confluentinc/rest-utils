@@ -16,19 +16,20 @@
 
 package io.confluent.rest.metrics;
 
+import java.util.Map;
 import org.apache.kafka.common.metrics.MetricsContext;
 
-import java.util.Map;
 
-public class TestRestMetricsContext extends RestMetricsContext {
+public class TestRestMetricsContext {
     /**
      * MetricsContext Label's for use by Confluent's TelemetryReporter
      */
+    private final RestMetricsContext metricsContext;
     public static final String RESOURCE_LABEL_PREFIX = "resource.";
     public static final String RESOURCE_LABEL_TYPE = RESOURCE_LABEL_PREFIX + "type";
 
     public TestRestMetricsContext(String namespace, Map<String, Object> config) {
-        super(namespace, config);
+        metricsContext = new RestMetricsContext(namespace, config);
 
         this.setResourceLabel(RESOURCE_LABEL_TYPE,
                 namespace);
@@ -37,20 +38,25 @@ public class TestRestMetricsContext extends RestMetricsContext {
     /**
      * Sets a {@link MetricsContext} key, value pair.
      */
-    @Override
     protected void setLabel(String labelKey, String labelValue) {
         /* Remove resource label if present */
         if (labelKey.startsWith(RESOURCE_LABEL_PREFIX))
                 setResourceLabel(labelKey, labelValue);
 
-        super.setLabel(labelKey, labelValue);
+        metricsContext.setLabel(labelKey, labelValue);
     }
 
     /**
      * Sets {@link MetricsContext} resource label if not previously set.
      */
-    protected void setResourceLabel(String resource, String value) {
-        contextLabels.putIfAbsent(resource, value);
+    private void setResourceLabel(String resource, String value) {
+        if (metricsContext.getLabel(resource) == null) {
+            metricsContext.setLabel(resource, value);
+        }
+    }
+
+    public RestMetricsContext metricsContext() {
+        return metricsContext;
     }
 
 }

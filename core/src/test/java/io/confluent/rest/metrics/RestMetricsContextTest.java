@@ -33,7 +33,7 @@ public class RestMetricsContextTest {
     @Test
     public void testDefaultMetricsContext() throws Exception {
         TestRestConfig config = new TestRestConfig();
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
         assertEquals(context.getLabel(RESOURCE_LABEL_TYPE), "rest-utils");
         assertEquals(context.getLabel(NAMESPACE), "rest-utils");
@@ -46,7 +46,7 @@ public class RestMetricsContextTest {
                 + RESOURCE_LABEL_TYPE, "root");
 
         TestRestConfig config = new TestRestConfig(props);
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
         assertEquals(context.getLabel(RESOURCE_LABEL_TYPE), "root");
         assertEquals(context.getLabel(NAMESPACE), "rest-utils");
@@ -58,7 +58,7 @@ public class RestMetricsContextTest {
         props.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp");
 
         TestRestConfig config = new TestRestConfig(props);
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
         assertEquals(context.getLabel(NAMESPACE), "FooApp");
     }
@@ -68,7 +68,7 @@ public class RestMetricsContextTest {
         Map<String, Object> props = new HashMap<>();
 
         TestRestConfig config = new TestRestConfig(props);
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
         assertEquals("rest-utils", context.getLabel(NAMESPACE));
     }
@@ -80,9 +80,9 @@ public class RestMetricsContextTest {
                 + RESOURCE_LABEL_TYPE, "root");
 
         TestRestConfig config = new TestRestConfig(props);
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
-        context.setResourceLabel(RESOURCE_LABEL_TYPE,
+        context.setLabel(RESOURCE_LABEL_TYPE,
                 "rest-utils-resource");
 
         assertEquals(context.getLabel(RESOURCE_LABEL_TYPE), "root");
@@ -96,12 +96,12 @@ public class RestMetricsContextTest {
                 + RESOURCE_LABEL_TYPE, "root");
 
         TestRestConfig config = new TestRestConfig(props);
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
         String RESOURCE_CLUSTER_ID =
                 TestRestMetricsContext.RESOURCE_LABEL_PREFIX + "cluster.id";
 
-        context.setResourceLabel(
+        context.setLabel(
                 RESOURCE_CLUSTER_ID,
                 "rest-utils-bootstrap");
 
@@ -119,7 +119,7 @@ public class RestMetricsContextTest {
                 this.getClass());
 
         TestRestConfig config = new TestRestConfig(props);
-        TestRestMetricsContext context = config.getMetricsContext();
+        RestMetricsContext context = config.getMetricsContext();
 
         assertEquals(context.getLabel(RESOURCE_LABEL_TYPE), "root");
         assertEquals(context.getLabel(NAMESPACE), "rest-utils");

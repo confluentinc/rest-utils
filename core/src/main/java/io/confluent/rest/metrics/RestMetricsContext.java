@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.common.metrics.MetricsContext;
 
-public class RestMetricsContext implements MetricsContext {
+public final class RestMetricsContext implements MetricsContext {
   /**
    * Client or Service's metadata map.
    */
