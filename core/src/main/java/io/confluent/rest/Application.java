@@ -139,13 +139,6 @@ public abstract class Application<T extends RestConfig> {
 
 
   /**
-   * Set MetricsContext labels.
-   */
-  protected void setupMetricsContext(T appConfig) {
-    this.metricsContext = new RestMetricsContext(appConfig);
-  }
-
-  /**
    * Returns {@link Metrics} object
    */
   public final Metrics getMetrics() {
