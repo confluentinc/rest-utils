@@ -74,22 +74,6 @@ public class RestMetricsContextTest {
     }
 
     @Test
-    public void testMetricsContextResourceLabelSetIfAbsent() throws Exception  {
-        Map<String, Object> props = new HashMap<>();
-        props.put(METRICS_CONTEXT_PREFIX
-                + RESOURCE_LABEL_TYPE, "root");
-
-        TestRestConfig config = new TestRestConfig(props);
-        RestMetricsContext context = config.getMetricsContext();
-
-        context.setLabel(RESOURCE_LABEL_TYPE,
-                "rest-utils-resource");
-
-        assertEquals(context.getLabel(RESOURCE_LABEL_TYPE), "root");
-        assertEquals(context.getLabel(NAMESPACE), "rest-utils");
-    }
-
-    @Test
     public void testMetricsContextResourceLabelNew() throws Exception  {
         Map<String, Object> props = new HashMap<>();
         props.put(METRICS_CONTEXT_PREFIX
