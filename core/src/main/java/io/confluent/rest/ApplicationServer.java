@@ -192,7 +192,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application app : applications.getApplications()) {
-      attachMetricsListener(app.metrics, app.getMetricsTags());
+      attachMetricsListener(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
     }
