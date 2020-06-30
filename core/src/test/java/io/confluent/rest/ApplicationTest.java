@@ -49,6 +49,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
+
+import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -329,9 +331,9 @@ public class ApplicationTest {
   public void testDefaultMetricsContext() throws Exception {
     TestApp testApp = new TestApp();
 
-    assertEquals(testApp.metricsContext.getLabel(RESOURCE_LABEL_TYPE),
+    assertEquals(testApp.metricsContext().getLabel(RESOURCE_LABEL_TYPE),
             RestConfig.METRICS_JMX_PREFIX_DEFAULT);
-    assertEquals(testApp.metricsContext.getLabel(NAMESPACE),
+    assertEquals(testApp.metricsContext().getLabel(NAMESPACE),
             RestConfig.METRICS_JMX_PREFIX_DEFAULT);
   }
 
@@ -342,8 +344,8 @@ public class ApplicationTest {
 
     TestApp testApp = new TestApp(props);
 
-    assertEquals(testApp.metricsContext.getLabel(RESOURCE_LABEL_TYPE), "FooApp");
-    assertEquals(testApp.metricsContext.getLabel(NAMESPACE), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext().getLabel(RESOURCE_LABEL_TYPE), "FooApp");
+    assertEquals(testApp.metricsContext().getLabel(NAMESPACE), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
 
     /* Only NameSpace should be propagated to JMX */
     String jmx_domain =  RestConfig.METRICS_JMX_PREFIX_DEFAULT;
@@ -360,8 +362,8 @@ public class ApplicationTest {
 
     TestApp testApp = new TestApp(props);
 
-    assertEquals(testApp.metricsContext.getLabel(RESOURCE_LABEL_TYPE), "FooApp");
-    assertEquals(testApp.metricsContext.getLabel(NAMESPACE), "FooApp");
+    assertEquals(testApp.metricsContext().getLabel(RESOURCE_LABEL_TYPE), "FooApp");
+    assertEquals(testApp.metricsContext().getLabel(NAMESPACE), "FooApp");
   }
 
   @Test
@@ -403,6 +405,10 @@ public class ApplicationTest {
 
     public TestApp(final Map<String, Object> config) {
       super(createConfig(config));
+    }
+
+    public RestMetricsContext metricsContext() {
+      return getConfiguration().getMetricsContext();
     }
 
     @Override
