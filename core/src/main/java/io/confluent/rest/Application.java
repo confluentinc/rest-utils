@@ -19,7 +19,6 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
-import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -94,7 +93,6 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
-  protected final RestMetricsContext metricsContext;
   private final String path;
 
   protected ApplicationServer server;
@@ -114,17 +112,7 @@ public abstract class Application<T extends RestConfig> {
     this.config = config;
     this.path = Objects.requireNonNull(path);;
 
-    MetricConfig metricConfig = new MetricConfig()
-        .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
-        .timeWindow(config.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
-                    TimeUnit.MILLISECONDS);
-    List<MetricsReporter> reporters =
-        config.getConfiguredInstances(RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
-                                      MetricsReporter.class);
-    reporters.add(new JmxReporter());
-
-    metricsContext = config.getMetricsContext();
-    this.metrics = new Metrics(metricConfig, reporters, config.getTime(), metricsContext);
+    this.metrics = configureMetrics();
     this.getMetricsTags().putAll(
             parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
 
@@ -137,6 +125,37 @@ public abstract class Application<T extends RestConfig> {
     return path;
   }
 
+  /**
+   * Configure Application MetricReport instances.
+   */
+  private List<MetricsReporter> configureMetricsReporters(T appConfig) {
+    List<MetricsReporter> reporters =
+            appConfig.getConfiguredInstances(
+                    RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
+                    MetricsReporter.class);
+    reporters.add(new JmxReporter());
+
+    reporters.forEach(r -> r.configure(appConfig.originals()));
+    return reporters;
+  }
+
+
+  /**
+   * Configure Application Metrics instance.
+   */
+  protected Metrics configureMetrics() {
+    T appConfig = getConfiguration();
+
+    MetricConfig metricConfig = new MetricConfig()
+            .samples(appConfig.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
+            .timeWindow(appConfig.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
+                    TimeUnit.MILLISECONDS);
+
+    return new Metrics(metricConfig,
+            configureMetricsReporters(appConfig),
+            appConfig.getTime(),
+            appConfig.getMetricsContext());
+  }
 
   /**
    * Returns {@link Metrics} object
@@ -478,7 +497,7 @@ public abstract class Application<T extends RestConfig> {
     registerFeatures(config, restConfig);
     registerExceptionMappers(config, restConfig);
 
-    config.register(new MetricsResourceMethodApplicationListener(metrics, "jersey",
+    config.register(new MetricsResourceMethodApplicationListener(getMetrics(), "jersey",
                                                                  metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
