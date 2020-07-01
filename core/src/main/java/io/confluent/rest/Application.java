@@ -16,9 +16,34 @@
 
 package io.confluent.rest;
 
+import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG;
+import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
-
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.servlet.DispatcherType;
+import javax.servlet.ServletException;
+import javax.ws.rs.core.Configurable;
+import io.confluent.rest.auth.AuthUtil;
+import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
+import io.confluent.rest.exceptions.GenericExceptionMapper;
+import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
+import io.confluent.rest.validation.JacksonMessageBodyProvider;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -55,35 +80,6 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletException;
-import javax.ws.rs.core.Configurable;
-
-import io.confluent.rest.auth.AuthUtil;
-import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
-import io.confluent.rest.exceptions.GenericExceptionMapper;
-import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
-import io.confluent.rest.extension.ResourceExtension;
-import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
-import io.confluent.rest.validation.JacksonMessageBodyProvider;
-
-import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG;
-import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
-
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
  * resources with the JAX-RS server. Use createServer() to get a fully-configured, ready to run
@@ -110,12 +106,7 @@ public abstract class Application<T extends RestConfig> {
 
   public Application(T config, String path) {
     this.config = config;
-    this.path = Objects.requireNonNull(path);;
-
-    this.metrics = configureMetrics();
-    this.getMetricsTags().putAll(
-            parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
-
+    this.path = Objects.requireNonNull(path);
     this.requestLog = new Slf4jRequestLog();
     this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
     this.requestLog.setLogLatency(true);
@@ -128,14 +119,17 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure Application MetricReport instances.
    */
-  private List<MetricsReporter> configureMetricsReporters(T appConfig) {
+  private List<MetricsReporter> configureMetricsReporters() {
     List<MetricsReporter> reporters =
-            appConfig.getConfiguredInstances(
+            config.getConfiguredInstances(
                     RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
                     MetricsReporter.class);
+
     reporters.add(new JmxReporter());
 
-    reporters.forEach(r -> r.configure(appConfig.originals()));
+    reporters.forEach(r -> r.configure(
+            config.metricsReporterConfig()));
+
     return reporters;
   }
 
@@ -143,25 +137,27 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure Application Metrics instance.
    */
-  protected Metrics configureMetrics() {
-    T appConfig = getConfiguration();
-
+  private void configureMetrics() {
     MetricConfig metricConfig = new MetricConfig()
-            .samples(appConfig.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
-            .timeWindow(appConfig.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
+            .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
+            .timeWindow(config.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
                     TimeUnit.MILLISECONDS);
 
-    return new Metrics(metricConfig,
-            configureMetricsReporters(appConfig),
-            appConfig.getTime(),
-            appConfig.getMetricsContext());
+    metrics = new Metrics(metricConfig,
+            configureMetricsReporters(),
+            config.getTime(),
+            config.getMetricsContext());
   }
 
   /**
    * Returns {@link Metrics} object
    */
   public final Metrics getMetrics() {
-    return this.metrics;
+    if (this.metrics == null) {
+      configureMetrics();
+    }
+
+    return metrics;
   }
 
   /**
@@ -225,6 +221,18 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
+   * Returns metrics tags; both configured and Application instance supplied.
+   */
+  public Map<String, String> configuredMetricTags() {
+    // Combine metric tags without modifying original map.
+    Map<String,String> metricsTags =
+            parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG));
+    metricsTags.putAll(getMetricsTags());
+
+    return metricsTags;
+  }
+
+  /**
    * Configure and create the server.
    */
   // CHECKSTYLE_RULES.OFF: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
@@ -247,7 +255,8 @@ public abstract class Application<T extends RestConfig> {
 
   final Handler configureHandler() {
     ResourceConfig resourceConfig = new ResourceConfig();
-    configureBaseApplication(resourceConfig, getMetricsTags());
+    configureBaseApplication(resourceConfig, configuredMetricTags());
+
     configureResourceExtensions(resourceConfig);
     setupResources(resourceConfig, getConfiguration());
 
