@@ -29,11 +29,9 @@ import java.util.Properties;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import javax.ws.rs.core.Configurable;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
 
 
 public class ApplicationMetricsContextTest {
@@ -66,7 +64,7 @@ public class ApplicationMetricsContextTest {
   }
 
   @Test
-  public void testMetricsContextResourceOverride() throws Exception  {
+  public void testMetricsContextResourceOverride() throws Exception {
     Map<String, Object> props = new HashMap<>();
     props.put("metrics.context.resource.type", "FooApp");
 
@@ -75,19 +73,19 @@ public class ApplicationMetricsContextTest {
     server.start();
 
     assertEquals(testApp.metricsContext().getLabel(RESOURCE_LABEL_TYPE), "FooApp");
-      assertEquals(testApp.metricsContext().getLabel(NAMESPACE), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
+    assertEquals(testApp.metricsContext().getLabel(NAMESPACE), RestConfig.METRICS_JMX_PREFIX_DEFAULT);
 
-      /* Only NameSpace should be propagated to JMX */
-      String jmx_domain = RestConfig.METRICS_JMX_PREFIX_DEFAULT;
-      String mbean_name = String.format("%s:type=kafka-metrics-count", jmx_domain);
+    /* Only NameSpace should be propagated to JMX */
+    String jmx_domain = RestConfig.METRICS_JMX_PREFIX_DEFAULT;
+    String mbean_name = String.format("%s:type=kafka-metrics-count", jmx_domain);
 
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      assertNotNull(server.getObjectInstance(new ObjectName(mbean_name)));
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    assertNotNull(server.getObjectInstance(new ObjectName(mbean_name)));
 
   }
 
   @Test
-  public void testMetricsContextJMXPrefixPropagation() throws Exception  {
+  public void testMetricsContextJMXPrefixPropagation() throws Exception {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp");
 
@@ -100,7 +98,7 @@ public class ApplicationMetricsContextTest {
   }
 
   @Test
-  public void testMetricsReporterPrefixPropagation() throws Exception  {
+  public void testMetricsReporterPrefixPropagation() throws Exception {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "fooreporter.bootstrap.server",
             "bar:9092");
@@ -112,7 +110,7 @@ public class ApplicationMetricsContextTest {
   }
 
   @Test
-  public void testMetricsContextJMXBeanRegistration() throws Exception  {
+  public void testMetricsContextJMXBeanRegistration() throws Exception {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp");
 
@@ -126,7 +124,7 @@ public class ApplicationMetricsContextTest {
   }
 
   @Test
-  public void testMetricsContextJMXBeanRegistration_ApplicationGroup() throws Exception  {
+  public void testMetricsContextJMXBeanRegistration_ApplicationGroup() throws Exception {
     Map<String, Object> appProps1 = new HashMap<>();
     appProps1.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp1");
 
@@ -160,7 +158,8 @@ public class ApplicationMetricsContextTest {
     }
 
     @Override
-    public void setupResources(final Configurable<?> config, final TestRestConfig appConfig) { }
+    public void setupResources(final Configurable<?> config, final TestRestConfig appConfig) {
+    }
 
     @Override
     public void close() throws Exception {
