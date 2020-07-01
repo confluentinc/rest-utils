@@ -119,16 +119,16 @@ public abstract class Application<T extends RestConfig> {
   /**
    * Configure Application MetricReport instances.
    */
-  private List<MetricsReporter> configureMetricsReporters() {
+  private List<MetricsReporter> configureMetricsReporters(RestConfig appConfig) {
     List<MetricsReporter> reporters =
-            config.getConfiguredInstances(
+            appConfig.getConfiguredInstances(
                     RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
                     MetricsReporter.class);
 
     reporters.add(new JmxReporter());
 
     reporters.forEach(r -> r.configure(
-            config.metricsReporterConfig()));
+            appConfig.metricsReporterConfig()));
 
     return reporters;
   }
@@ -138,21 +138,23 @@ public abstract class Application<T extends RestConfig> {
    * Configure Application Metrics instance.
    */
   private void configureMetrics() {
+    RestConfig appConfig = getConfiguration();
+
     MetricConfig metricConfig = new MetricConfig()
-            .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
-            .timeWindow(config.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
+            .samples(appConfig.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
+            .timeWindow(appConfig.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
                     TimeUnit.MILLISECONDS);
 
     metrics = new Metrics(metricConfig,
-            configureMetricsReporters(),
-            config.getTime(),
-            config.getMetricsContext());
+            configureMetricsReporters(appConfig),
+            appConfig.getTime(),
+            appConfig.getMetricsContext());
   }
 
   /**
    * Returns {@link Metrics} object
    */
-  public final Metrics getMetrics() {
+  public Metrics getMetrics() {
     if (this.metrics == null) {
       configureMetrics();
     }
@@ -226,7 +228,7 @@ public abstract class Application<T extends RestConfig> {
   public Map<String, String> configuredMetricTags() {
     // Combine metric tags without modifying original map.
     Map<String,String> metricsTags =
-            parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG));
+            parseListToMap(getConfiguration().getList(RestConfig.METRICS_TAGS_CONFIG));
     metricsTags.putAll(getMetricsTags());
 
     return metricsTags;
