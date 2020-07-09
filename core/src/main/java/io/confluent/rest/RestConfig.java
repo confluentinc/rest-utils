@@ -36,6 +36,8 @@ public class RestConfig extends AbstractConfig {
 
   private final RestMetricsContext metricsContext;
 
+  public static final String METRICS_REPORTER_CONFIG_PREFIX = "metric.reporters.";
+
   public static final String DEBUG_CONFIG = "debug";
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some "
@@ -682,6 +684,10 @@ public class RestConfig extends AbstractConfig {
 
   public Time getTime() {
     return defaultTime;
+  }
+
+  public Map<String, Object> metricsReporterConfig() {
+    return originalsWithPrefix(METRICS_REPORTER_CONFIG_PREFIX);
   }
 
   public RestMetricsContext getMetricsContext() {

@@ -27,6 +27,8 @@ public class TestMetricsReporter implements MetricsReporter {
 
   private static List<KafkaMetric> metricTimeseries = new LinkedList<KafkaMetric>();
 
+  private Map<String, ?> configs;
+
   public void metricChange(KafkaMetric metric) {
     metricTimeseries.add(metric);
   }
@@ -49,6 +51,11 @@ public class TestMetricsReporter implements MetricsReporter {
   }
 
   public void configure(Map<String, ?> configs) {
+    this.configs = configs;
+  }
+
+  public Map<String, ?> getConfigs() {
+    return this.configs;
   }
 
   public void init(List<KafkaMetric> metrics) {

@@ -135,7 +135,7 @@ public abstract class Application<T extends RestConfig> {
                     MetricsReporter.class);
     reporters.add(new JmxReporter());
 
-    reporters.forEach(r -> r.configure(appConfig.originals()));
+    reporters.forEach(r -> r.configure(appConfig.metricsReporterConfig()));
     return reporters;
   }
 
