@@ -118,6 +118,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop1", "val1");
     props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop2", "val2");
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop3", "override");
+    props.put("prop3", "original");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     props.put("not.prefixed.config", "val3");
 
@@ -127,6 +129,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertTrue(reporter.getConfigs().containsKey("not.prefixed.config"));
     assertTrue(reporter.getConfigs().containsKey("prop1"));
     assertTrue(reporter.getConfigs().containsKey("prop2"));
+    assertEquals(reporter.getConfigs().get("prop3"), "override");
   }
 
 
