@@ -135,7 +135,11 @@ public abstract class Application<T extends RestConfig> {
                     MetricsReporter.class);
     reporters.add(new JmxReporter());
 
-    reporters.forEach(r -> r.configure(appConfig.metricsReporterConfig()));
+    // Treat prefixed configs as overrides to originals
+    Map<String, Object> reporterConfigs = appConfig.originals();
+    reporterConfigs.putAll(appConfig.metricsReporterConfig());
+
+    reporters.forEach(r -> r.configure(reporterConfigs));
     return reporters;
   }
 
