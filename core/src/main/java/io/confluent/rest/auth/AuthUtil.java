@@ -128,9 +128,6 @@ public final class AuthUtil {
     final ConstraintMapping mapping = new ConstraintMapping();
     mapping.setConstraint(constraint);
     mapping.setMethod("*");
-    if (authenticate && AuthUtil.isCorsEnabled(restConfig)) {
-      mapping.setMethodOmissions(new String[]{"OPTIONS"});
-    }
     mapping.setPathSpec(pathSpec);
     return mapping;
   }
