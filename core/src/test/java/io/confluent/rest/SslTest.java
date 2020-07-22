@@ -99,7 +99,7 @@ public class SslTest {
   private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
-    X509Certificate cCert = certificateBuilder.sanDnsName("localhost")
+    X509Certificate cCert = certificateBuilder.sanDnsNames("localhost")
         .generate("CN=mymachine.local, O=A client", keypair);
     TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
@@ -123,7 +123,7 @@ public class SslTest {
   private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
-    X509Certificate cCert = certificateBuilder.sanDnsName("fail")
+    X509Certificate cCert = certificateBuilder.sanDnsNames("fail")
         .generate("CN=mymachine.local, O=A client", keypair);
     TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
