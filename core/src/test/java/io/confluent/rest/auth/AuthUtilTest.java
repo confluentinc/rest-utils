@@ -76,6 +76,33 @@ public class AuthUtilTest {
   }
 
   @Test
+  public void shouldCreateGlobalConstraintWithNoMethodsOmittedForNonCor() {
+    // Given:
+    config = restConfigWith(ImmutableMap.of(
+            RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, ""));
+
+    // When:
+    final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
+
+    // Then:
+    assertThat(mapping.getMethodOmissions(), is(nullValue()));
+  }
+
+  @Test
+  public void shouldCreateGlobalConstraintWithOptionsOmittedForCor() {
+    // Given:
+    config = restConfigWith(ImmutableMap.of(
+        RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, "something",
+            RestConfig.ACCESS_CONTROL_SKIP_OPTION, true));
+
+    // When:
+    final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
+
+    // Then:
+    assertThat(mapping.getMethodOmissions(), is(new String[]{"OPTIONS"}));
+  }
+
+  @Test
   public void shouldCreateGlobalConstraintWithAuthRequired() {
     // When:
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
