@@ -39,13 +39,13 @@ public final class AuthUtil {
   }
 
   /**
-   * Checks if {@link RestConfig#ACCESS_CONTROL_SKIP_OPTION} is set.
+   * Checks if {@link RestConfig#ACCESS_CONTROL_SKIP_OPTIONS} is set.
    *
    * @param restConfig the rest app's config.
    * @return true if not empty, false otherwise.
    */
-  public static boolean isSkipOptionAuth(final RestConfig restConfig) {
-    boolean skipOption = restConfig.getBoolean(RestConfig.ACCESS_CONTROL_SKIP_OPTION);
+  public static boolean isSkipOptionsAuth(final RestConfig restConfig) {
+    boolean skipOption = restConfig.getBoolean(RestConfig.ACCESS_CONTROL_SKIP_OPTIONS);
     return skipOption;
   }
 
@@ -140,7 +140,7 @@ public final class AuthUtil {
     mapping.setConstraint(constraint);
     mapping.setMethod("*");
 
-    if (authenticate && AuthUtil.isCorsEnabled(restConfig) && isSkipOptionAuth(restConfig)) {
+    if (authenticate && AuthUtil.isCorsEnabled(restConfig) && isSkipOptionsAuth(restConfig)) {
       mapping.setMethodOmissions(new String[]{"OPTIONS"});
     }
     mapping.setPathSpec(pathSpec);

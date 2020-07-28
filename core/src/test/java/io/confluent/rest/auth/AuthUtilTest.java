@@ -93,7 +93,7 @@ public class AuthUtilTest {
     // Given:
     config = restConfigWith(ImmutableMap.of(
         RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, "something",
-            RestConfig.ACCESS_CONTROL_SKIP_OPTION, true));
+            RestConfig.ACCESS_CONTROL_SKIP_OPTIONS, true));
 
     // When:
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
