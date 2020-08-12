@@ -53,7 +53,6 @@
         <jersey.version>2.30</jersey.version>
         <jetty.version>9.4.24.v20191120</jetty.version>
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
-        <guava.version>24.0-jre</guava.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
     </properties>
 
