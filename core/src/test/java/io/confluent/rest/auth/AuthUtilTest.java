@@ -92,14 +92,27 @@ public class AuthUtilTest {
   public void shouldCreateGlobalConstraintWithOptionsOmittedForCor() {
     // Given:
     config = restConfigWith(ImmutableMap.of(
-        RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, "something",
-            RestConfig.ACCESS_CONTROL_SKIP_OPTIONS, true));
+            RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, "something"));
 
     // When:
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
     assertThat(mapping.getMethodOmissions(), is(new String[]{"OPTIONS"}));
+  }
+
+  @Test
+  public void shouldCreateGlobalConstraintWithoutOptionsOmittedForCor() {
+    // Given:
+    config = restConfigWith(ImmutableMap.of(
+        RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG, "something",
+            RestConfig.ACCESS_CONTROL_SKIP_OPTIONS, false));
+
+    // When:
+    final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
+
+    // Then:
+    assertThat(mapping.getMethodOmissions(), is(nullValue()));
   }
 
   @Test
