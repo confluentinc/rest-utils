@@ -75,7 +75,7 @@ public class RestConfig extends AbstractConfig {
   public static final String ACCESS_CONTROL_SKIP_OPTIONS = "access.control.skip.options";
   protected static final String ACCESS_CONTROL_SKIP_OPTIONS_DOC =
           "Whether to skip authentication for OPTIONS requests";
-  protected static final boolean ACCESS_CONTROL_SKIP_OPTIONS_DEFAULT = false;
+  protected static final boolean ACCESS_CONTROL_SKIP_OPTIONS_DEFAULT = true;
 
   public static final String ACCESS_CONTROL_ALLOW_METHODS = "access.control.allow.methods";
   protected static final String ACCESS_CONTROL_ALLOW_METHODS_DOC =
