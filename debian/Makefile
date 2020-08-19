@@ -78,9 +78,9 @@ endif
 
 build: apply-patches
 ifeq ($(SKIP_TESTS),yes)
-	mvn -Dmaven.test.skip=true install
+	mvn -B -Dmaven.test.skip=true install
 else
-	mvn install
+	mvn -B install
 endif
 
 install: build
