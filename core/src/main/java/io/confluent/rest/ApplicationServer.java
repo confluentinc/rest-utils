@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
 
 import org.apache.kafka.common.config.ConfigException;
@@ -46,6 +48,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -166,6 +169,33 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
+  private void addJettyThreadPoolMetrics(Metrics metrics, Map<String, String> tags) {
+    //add metric for jetty thread pool queue size
+    String requestQueueSizeName = "request-queue-size";
+    String metricGroupName = "jetty-metrics";
+
+    MetricName requestQueueSizeMetricName = metrics.metricName(requestQueueSizeName,
+        metricGroupName, "The number of requests in the jetty thread pool queue.", tags);
+    Gauge<Integer> queueSize = (config, now) ->  getQueueSize();
+    metrics.addMetric(requestQueueSizeMetricName, queueSize);
+
+    //add metric for thread pool busy thread count
+    String busyThreadCountName = "busy-thread-count";
+    MetricName busyThreadCountMetricName = metrics.metricName(busyThreadCountName,
+        metricGroupName, "jetty thread pool busy thread count.",
+        tags);
+    Gauge<Integer> busyThreadCount = (config, now) -> getBusyThreads();
+    metrics.addMetric(busyThreadCountMetricName, busyThreadCount);
+
+    //add metric for thread pool usage
+    String threadPoolUsageName = "thread-pool-usage";
+    final MetricName threadPoolUsageMetricName = metrics.metricName(threadPoolUsageName,
+        metricGroupName,  " jetty thread pool usage.",
+        Collections.emptyMap());
+    Gauge<Double> threadPoolUsage = (config, now) -> (getBusyThreads() / (double) getMaxThreads());
+    metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
+  }
+
   private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
     /* DefaultHandler must come last eo ensure all contexts
      * have a chance to handle a request first */
@@ -193,6 +223,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application app : applications.getApplications()) {
       attachMetricsListener(app.getMetrics(), app.getMetricsTags());
+      addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
     }
@@ -401,6 +432,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   /**
+   * @return number of busy threads in the pool.
+   */
+  public int getBusyThreads() {
+    return ((QueuedThreadPool)getThreadPool()).getBusyThreads();
+  }
+
+  /**
    * For unit testing.
    *
    * @return the total number of maximum threads configured in the pool.
@@ -410,8 +448,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   /**
-   * For unit testing.
-   *
    * @return the size of the queue in the pool.
    */
   public int getQueueSize() {
