@@ -134,13 +134,15 @@ public class TestCustomizeThreadPool {
     String uri = app.getUri();
     try {
       app.start();
+      assertEquals(0, getIntMetricValue(app.metrics, "request-queue-size"));
 
       //send 18 requests:  queueSize (8) + threads (10)
       int numThread = 18;
       Thread[] threads = sendRequests(uri + "/custom/resource", numThread);
       TestUtils.waitForCondition(() -> app.server.getQueueSize() == 8, "Queue is not full");
-      assertEquals(8, getIntMetricValue(app.metrics, "thread-pool-queue-size"));
+      assertEquals(8, getIntMetricValue(app.metrics, "request-queue-size"));
       assertEquals(10, getIntMetricValue(app.metrics, "busy-thread-count"));
+      assertEquals(1.0, getDoubleMetricValue(app.metrics, "thread-pool-usage"), 0.0);
 
       RestResource.latch.countDown();
       for(int i = 0; i < numThread; i++) {
@@ -148,10 +150,9 @@ public class TestCustomizeThreadPool {
       }
 
       TestUtils.waitForCondition(() -> app.server.getQueueSize() == 0, "Queue is not empty");
-      assertEquals(0, getIntMetricValue(app.metrics, "thread-pool-queue-size"));
-      //some reason busy thread count value returning as 2 or 3. disabling below assert statement
-      //I was expecting 2 as it default min thread count
-      //assertEquals(2, getIntMetricValue(app.metrics, "busy-thread-count"));
+      assertEquals(0, getIntMetricValue(app.metrics, "request-queue-size"));
+      assertTrue(getDoubleMetricValue(app.metrics, "thread-pool-usage") > 0);
+      assertTrue(getDoubleMetricValue(app.metrics, "thread-pool-usage") < 1);
     } finally {
       RestResource.latch = null;
       app.stop();
@@ -164,6 +165,14 @@ public class TestCustomizeThreadPool {
       return m.getKey().name().equals(attribute);
     }).map(Map.Entry::getValue).findFirst();
     return metric.isPresent() ? (Integer) metric.get().metricValue() : -1;
+  }
+
+  public static double getDoubleMetricValue(Metrics metrics, String attribute) {
+    Map<MetricName, KafkaMetric> allMetrics = metrics.metrics();
+    Optional<KafkaMetric> metric = allMetrics.entrySet().stream().filter((m) -> {
+      return m.getKey().name().equals(attribute);
+    }).map(Map.Entry::getValue).findFirst();
+    return metric.isPresent() ? (Double) metric.get().metricValue() : -1;
   }
 
   /**

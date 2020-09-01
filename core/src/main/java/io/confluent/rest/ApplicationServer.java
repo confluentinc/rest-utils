@@ -48,6 +48,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -170,7 +171,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private void addJettyThreadPoolMetrics(Metrics metrics, Map<String, String> tags) {
     //add metric for jetty thread pool queue size
-    String requestQueueSizeName = "thread-pool-queue-size";
+    String requestQueueSizeName = "request-queue-size";
     String metricGroupName = "jetty-metrics";
 
     MetricName requestQueueSizeMetricName = metrics.metricName(requestQueueSizeName,
@@ -181,10 +182,18 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     //add metric for thread pool busy thread count
     String busyThreadCountName = "busy-thread-count";
     MetricName busyThreadCountMetricName = metrics.metricName(busyThreadCountName,
-        metricGroupName, " jetty thread pool busy thread count.",
+        metricGroupName, "jetty thread pool busy thread count.",
         tags);
     Gauge<Integer> busyThreadCount = (config, now) -> getBusyThreads();
     metrics.addMetric(busyThreadCountMetricName, busyThreadCount);
+
+    //add metric for thread pool usage
+    String threadPoolUsageName = "thread-pool-usage";
+    final MetricName threadPoolUsageMetricName = metrics.metricName(threadPoolUsageName,
+        metricGroupName,  " jetty thread pool usage.",
+        Collections.emptyMap());
+    Gauge<Double> threadPoolUsage = (config, now) -> (getBusyThreads() / (double) getMaxThreads());
+    metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
   }
 
   private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
