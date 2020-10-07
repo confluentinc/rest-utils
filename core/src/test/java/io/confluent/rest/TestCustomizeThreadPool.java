@@ -24,6 +24,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.test.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Map;
@@ -128,6 +129,7 @@ public class TestCustomizeThreadPool {
   }
 
   @Test
+  @Ignore
   public void testJettyThreadPoolMetrics() throws Exception {
     RestResource.latch = new CountDownLatch(1);
     TestCustomizeThreadPoolApplication app = new TestCustomizeThreadPoolApplication();
