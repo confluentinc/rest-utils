@@ -49,7 +49,6 @@ import java.util.Properties;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -73,7 +72,7 @@ public class SslTest {
 
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
-  public static final int CERT_RELOAD_WAIT_TIME = 20000;
+  public static final int CERT_RELOAD_WAIT_TIME = 30000;
 
   @Before
   public void setUp() throws Exception {
@@ -114,6 +113,15 @@ public class SslTest {
   private void configServerTruststore(Properties props) {
     props.put(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStore.getAbsolutePath());
     props.put(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG, SSL_PASSWORD);
+  }
+
+  private void configServerTruststore(Properties props, String password) {
+    props.put(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStore.getAbsolutePath());
+    props.put(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG, password);
+  }
+
+  private void configServerNoTruststorePassword(Properties props) {
+    props.put(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStore.getAbsolutePath());
   }
 
   private void enableSslClientAuth(Properties props) {
@@ -262,6 +270,45 @@ public class SslTest {
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
     try {
+      app.start();
+
+      int statusCode = makeGetRequest(uri + "/test");
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test(expected = IOException.class)
+  public void testHttpsWithEmptyStringTruststorePassword() throws Exception {
+    Properties props = new Properties();
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
+    configServerKeystore(props);
+    configServerTruststore(props, "");
+    TestRestConfig config = new TestRestConfig(props);
+    SslTestApplication app = new SslTestApplication(config);
+    try {
+      // Empty string is a valid password, but it's not the password the truststore uses
+      // The app should fail at startup with:
+      // java.io.IOException: Keystore was tampered with, or password was incorrect
+      app.start();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testHttpsWithNoTruststorePassword() throws Exception {
+    Properties props = new Properties();
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
+    configServerKeystore(props);
+    configServerNoTruststorePassword(props);
+    TestRestConfig config = new TestRestConfig(props);
+    SslTestApplication app = new SslTestApplication(config);
+    try {
+      // With no password set (null), verification of the truststore is disabled
       app.start();
 
       int statusCode = makeGetRequest(uri + "/test");

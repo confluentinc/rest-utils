@@ -545,7 +545,9 @@ public abstract class Application<T extends RestConfig> {
    * @throws Exception If the application fails to stop
    */
   public void stop() throws Exception {
-    server.stop();
+    if (server != null) {
+      server.stop();
+    }
   }
 
   final void doShutdown() {

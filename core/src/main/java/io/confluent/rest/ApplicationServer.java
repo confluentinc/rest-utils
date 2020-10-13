@@ -243,7 +243,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return keystorePath;
   }
 
+  // CHECKSTYLE_RULES.OFF: CyclomaticComplexity|NPathComplexity
   private SslContextFactory createSslContextFactory(RestConfig config) {
+    // CHECKSTYLE_RULES.ON: CyclomaticComplexity|NPathComplexity
     SslContextFactory sslContextFactory = new SslContextFactory.Server();
     if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
       sslContextFactory.setKeyStorePath(
@@ -301,9 +303,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       sslContextFactory.setTrustStorePath(
               config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
       );
-      sslContextFactory.setTrustStorePassword(
-              config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
-      );
+      if (config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG) != null) {
+        sslContextFactory.setTrustStorePassword(
+            config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
+        );
+      }
       sslContextFactory.setTrustStoreType(
               config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
       );

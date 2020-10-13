@@ -161,7 +161,7 @@ public class RestConfig extends AbstractConfig {
   public static final String SSL_TRUSTSTORE_PASSWORD_CONFIG = "ssl.truststore.password";
   protected static final String SSL_TRUSTSTORE_PASSWORD_DOC =
       "The store password for the trust store file.";
-  protected static final String SSL_TRUSTSTORE_PASSWORD_DEFAULT = "";
+  protected static final String SSL_TRUSTSTORE_PASSWORD_DEFAULT = null;
   public static final String SSL_TRUSTSTORE_TYPE_CONFIG = "ssl.truststore.type";
   protected static final String SSL_TRUSTSTORE_TYPE_DOC =
       "The type of trust store file.";
