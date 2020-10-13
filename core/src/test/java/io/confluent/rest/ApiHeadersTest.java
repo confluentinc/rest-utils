@@ -130,7 +130,7 @@ public class ApiHeadersTest {
     final X509Certificate cert = new CertificateBuilder(30, "SHA1withRSA")
         .sanDnsNames("localhost").generate("CN=mymachine.local, O=A client", keypair);
 
-    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias,
+    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD), alias,
         keypair.getPrivate(), cert);
     certs.put(alias, cert);
   }
