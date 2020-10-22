@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -30,8 +31,10 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,28 +63,49 @@ import io.confluent.rest.annotations.PerformanceMetric;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.fail;
 
 public class SslTest {
   private static final Logger log = LoggerFactory.getLogger(SslTest.class);
 
-  private File trustStore;
-  private File clientKeystore;
-  private File serverKeystore;
-  private File serverKeystoreBak;
-  private File serverKeystoreErr;
+  private static File trustStore;
+  private static File clientKeystore;
+  private static File serverKeystore;
+  private static File serverKeystoreBak;
+  private static File serverKeystoreErr;
 
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
-  public static final int CERT_RELOAD_WAIT_TIME = 30000;
+  public static final int CERT_RELOAD_WAIT_TIME = 20000;
 
-  @Before
-  public void setUp() throws Exception {
+  private static TemporaryFolder tempFolder;
+
+  @BeforeClass
+  public static void setUp() throws Exception {
+
+    /*
+     * To make this test less flakey
+     *  - 1 don't create keystore files for every test method
+     *  - 2 cleanup keystore files on test exist so they don't have to be considerd by the FileWatcher
+     *  - 3 updated the FileWatcher and Application class to not have a single shared threadpool to
+     *      watch for changed files.
+     *
+     * By default temp files are not cleaned when up.  Which isn't normally a problem unless you are
+     * testing the ability of rest-utils apps to notice and reload updated ssl keystore files.
+     *
+     * Turns out the temp dir that Java+MacOs was continually using on my local machine had 1500
+     * files in it.  Also the Java "FileWatcher" for Mac works via polling a directory,
+     * this seems to have added to the flakeyness.
+     */
+    tempFolder = new TemporaryFolder();
+    tempFolder.create();
     try {
-      trustStore = File.createTempFile("SslTest-truststore", ".jks");
-      clientKeystore = File.createTempFile("SslTest-client-keystore", ".jks");
-      serverKeystore = File.createTempFile("SslTest-server-keystore", ".jks");
-      serverKeystoreBak = File.createTempFile("SslTest-server-keystore", ".jks.bak");
-      serverKeystoreErr = File.createTempFile("SslTest-server-keystore", ".jks.err");
+      trustStore = File.createTempFile("SslTest-truststore", ".jks", tempFolder.getRoot());
+      clientKeystore = File.createTempFile("SslTest-client-keystore", ".jks", tempFolder.getRoot());
+      serverKeystore = File.createTempFile("SslTest-server-keystore", ".jks", tempFolder.getRoot());
+      serverKeystoreBak = File.createTempFile("SslTest-server-keystore", ".jks.bak", tempFolder.getRoot());
+      serverKeystoreErr = File.createTempFile("SslTest-server-keystore", ".jks.err", tempFolder.getRoot());
     } catch (IOException ioe) {
       throw new RuntimeException("Unable to create temporary files for trust stores and keystores.");
     }
@@ -95,7 +119,12 @@ public class SslTest {
     createWrongKeystoreWithCert(serverKeystoreErr, "server", certs);
   }
 
-  private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
+  @AfterClass
+  public static void teardown() {
+    tempFolder.delete();
+  }
+
+  private static void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
     X509Certificate cCert = certificateBuilder.sanDnsName("localhost")
@@ -128,7 +157,7 @@ public class SslTest {
     props.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, true);
   }
 
-  private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
+  private static void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
     X509Certificate cCert = certificateBuilder.sanDnsName("fail")
@@ -176,30 +205,44 @@ public class SslTest {
     SslTestApplication app = new SslTestApplication(config);
     try {
       app.start();
-      int statusCode = makeGetRequest(httpsUri + "/test",
+      int startingCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(EXPECTED_200_MSG, 200, startingCode);
       assertMetricsCollected();
 
       // verify reload -- override the server keystore with a wrong one
       Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      boolean hitError = false;
-      try {
-        makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (Exception e) {
-        System.out.println(e);
-        hitError = true;
-      }
+      log.info("\tKeystore reload test : Applied bad keystore file");
+
+      await().pollInterval(2, TimeUnit.SECONDS).atMost(30, TimeUnit.SECONDS).untilAsserted( () -> {
+        boolean hitError = false;
+        try {
+          log.info("\tKeystore reload test : Awaiting failed https connection");
+          makeGetRequest(httpsUri + "/test", clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        } catch (Exception e) {
+          System.out.println(e);
+          hitError = true;
+        }
+        assertTrue("Expecting to hit an error with new server cert", hitError);
+      });
 
       // verify reload -- override the server keystore with a correct one
       Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      statusCode = makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode); 
-      assertEquals("expect hit error with new server cert", true, hitError); 
+      log.info("\tKeystore reload test : keystore set back to good value");
+
+      await().pollInterval(2, TimeUnit.SECONDS).atMost(30, TimeUnit.SECONDS).untilAsserted( () -> {
+        try {
+          log.info("\tKeystore reload test : Awaiting a valid https connection");
+          int statusCode = makeGetRequest(httpsUri + "/test", clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+          assertEquals(EXPECTED_200_MSG, 200, statusCode);
+          log.info("\tKeystore reload test : Valid connection found");
+        }
+        catch (Exception e) {
+          fail();
+          // we have to wait for the good key to take affect
+        }
+      });
+
     } finally {
       if (app != null) {
         app.stop();
@@ -332,7 +375,7 @@ public class SslTest {
       app.start();
 
       // create a new client cert that isn't in the server's trust store.
-      File untrustedClient = File.createTempFile("SslTest-client-keystore", ".jks");
+      File untrustedClient = File.createTempFile("SslTest-client-keystore", ".jks", tempFolder.getRoot());
       Map<String, X509Certificate> certs = new HashMap<>();
       createKeystoreWithCert(untrustedClient, "client", certs);
       try {

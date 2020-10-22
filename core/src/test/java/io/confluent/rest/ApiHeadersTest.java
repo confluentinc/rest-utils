@@ -45,6 +45,7 @@ import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class ApiHeadersTest {
 
@@ -56,11 +57,16 @@ public class ApiHeadersTest {
   private static String clientKeystoreLocation;
   private static TestApplication app;
 
+  // Use a temporary folder so that .jks files created by this test are isolated
+  //  and deleted when the test is done
+  public static TemporaryFolder tempFolder = new TemporaryFolder();
+
   @BeforeClass
   public static void setUp() throws Exception {
-    final File trustStore = File.createTempFile("ApiHeadersTest-truststore", ".jks");
-    final File clientKeystore = File.createTempFile("ApiHeadersTest-client-keystore", ".jks");
-    final File serverKeystore = File.createTempFile("ApiHeadersTest-server-keystore", ".jks");
+    tempFolder.create();
+    final File trustStore = File.createTempFile("ApiHeadersTest-truststore", ".jks", tempFolder.getRoot());
+    final File clientKeystore = File.createTempFile("ApiHeadersTest-client-keystore", ".jks", tempFolder.getRoot());
+    final File serverKeystore = File.createTempFile("ApiHeadersTest-server-keystore", ".jks", tempFolder.getRoot());
 
     clientKeystoreLocation = clientKeystore.getAbsolutePath();
 
@@ -84,6 +90,7 @@ public class ApiHeadersTest {
     if (app != null) {
       app.stop();
     }
+    tempFolder.delete();
   }
 
   @Test
