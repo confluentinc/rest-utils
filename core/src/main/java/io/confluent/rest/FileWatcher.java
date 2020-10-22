@@ -35,7 +35,9 @@ import java.util.concurrent.ThreadFactory;
 // reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
 public class FileWatcher implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
-  private static final ExecutorService executor = Executors.newFixedThreadPool(1,
+
+  // don't have static shared threadpool for all FileWatchers in the JVM
+  private final ExecutorService executor = Executors.newFixedThreadPool(1,
         new ThreadFactory() {
           public Thread newThread(Runnable r) {
             Thread t = Executors.defaultThreadFactory().newThread(r);
@@ -67,10 +69,11 @@ public class FileWatcher implements Runnable {
     * Starts watching a file calls the callback when it is changed.
     * A shutdown hook is registered to stop watching.
   */
-  public static void onFileChange(Path file, Callback callback) throws IOException {
+  public static FileWatcher onFileChange(Path file, Callback callback) throws IOException {
     log.info("Configure watch file change: " + file);
     FileWatcher fileWatcher = new FileWatcher(file, callback);
-    executor.submit(fileWatcher);
+    fileWatcher.executor.submit(fileWatcher);
+    return fileWatcher;
   }
 
   public void run() {
