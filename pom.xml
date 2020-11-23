@@ -14,7 +14,7 @@
     <artifactId>rest-utils-parent</artifactId>
     <packaging>pom</packaging>
     <name>rest-utils-parent</name>
-    <version>6.2.0-beta201122193350</version>
+    <version>6.2.0-beta201122193350-cp2</version>
     <organization>
         <name>Confluent, Inc.</name>
         <url>http://confluent.io</url>
@@ -55,7 +55,7 @@
         <jetty.version>9.4.30.v20200611</jetty.version>
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
-        <io.confluent.rest-utils.version>6.2.0-beta201122193350</io.confluent.rest-utils.version>
+        <io.confluent.rest-utils.version>6.2.0-beta201122193350-cp2</io.confluent.rest-utils.version>
     </properties>
 
     <repositories>
