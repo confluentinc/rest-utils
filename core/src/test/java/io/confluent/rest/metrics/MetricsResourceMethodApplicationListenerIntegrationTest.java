@@ -4,6 +4,7 @@ import io.confluent.common.metrics.KafkaMetric;
 import io.confluent.rest.TestMetricsReporter;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.exceptions.RestNotFoundException;
+import javax.servlet.ServletException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -138,7 +139,14 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
             HttpServletResponse response
         ) throws IOException {
           handledException = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
-          super.handle(target, baseRequest, request, response);
+          try {
+            super.handle(target, baseRequest, request, response);
+          } catch (ServletException e) {
+            // Silently ignore ServletException -- because this will never be thrown, at least
+            // for jetty 9.4.33.v20201020. Notice that in the code here, doError() only throws
+            // IOException, and not ServletException.
+            // https://github.com/eclipse/jetty.project/blob/jetty-9.4.33.v20201020/jetty-server/src/main/java/org/eclipse/jetty/server/handler/ErrorHandler.java#L91
+          }
         }
       });
     }
