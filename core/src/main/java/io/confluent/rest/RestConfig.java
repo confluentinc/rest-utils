@@ -281,6 +281,31 @@ public class RestConfig extends AbstractConfig {
           "The number of milliseconds to hold an idle session open for.";
   public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
+  public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
+  public static final String THREAD_POOL_MIN_DOC =
+          "The minimum number of threads will be startred for HTTP Servlet server.";
+  public static final int THREAD_POOL_MIN_DEFAULT = 8;
+
+  public static final String THREAD_POOL_MAX_CONFIG = "thread.pool.max";
+  public static final String THREAD_POOL_MAX_DOC =
+          "The maxinum number of threads will be startred for HTTP Servlet server.";
+  public static final int THREAD_POOL_MAX_DEFAULT = 200;
+
+  public static final String REQUEST_QUEUE_CAPACITY_CONFIG = "request.queue.capacity";
+  public static final String REQUEST_QUEUE_CAPACITY_DOC =
+          "The capacity of request queue for each thread pool.";
+  public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
+
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
+          "The initial capacity of request queue for each thread pool.";
+  public static final int REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT = 128;
+
+  public static final String REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG = "request.queue.capacity.growby";
+  public static final String REQUEST_QUEUE_CAPACITY_GROWBY_DOC =
+          "The size of request queue will be increased by.";
+  public static final int REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT = 64;
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -600,6 +625,36 @@ public class RestConfig extends AbstractConfig {
             IDLE_TIMEOUT_MS_DEFAULT,
             Importance.LOW,
             IDLE_TIMEOUT_MS_DOC
+        ).define(
+            THREAD_POOL_MIN_CONFIG,
+            Type.INT,
+            THREAD_POOL_MIN_DEFAULT,
+            Importance.LOW,
+            THREAD_POOL_MIN_DOC
+        ).define(
+            THREAD_POOL_MAX_CONFIG,
+            Type.INT,
+            THREAD_POOL_MAX_DEFAULT,
+            Importance.LOW,
+            THREAD_POOL_MAX_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_GROWBY_DOC
         );
   }
 
