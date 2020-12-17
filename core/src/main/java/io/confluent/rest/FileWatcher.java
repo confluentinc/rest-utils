@@ -16,6 +16,7 @@
  
 package io.confluent.rest;
 
+import java.nio.file.ClosedWatchServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,7 @@ public class FileWatcher implements Runnable {
         new ThreadFactory() {
           public Thread newThread(Runnable r) {
             Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setName("file-watcher");
             t.setDaemon(true);
             return t;
           }
@@ -80,8 +82,10 @@ public class FileWatcher implements Runnable {
           handleNextWatchNotification();
         } catch (InterruptedException e) {
           throw e;
+        } catch (ClosedWatchServiceException cwe) {
+          log.info("Watch service closed:" + cwe);
         } catch (Exception e) {
-          log.info("Watch service caught exception, will continue:" + e);
+          log.warn("Watch service caught exception, will continue:" + e);
         }
       }
     } catch (InterruptedException e) {
