@@ -55,6 +55,7 @@
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <guava.version>24.1.1-jre</guava.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
+        <awaitility.version>4.0.3</awaitility.version>
     </properties>
 
     <repositories>
@@ -181,6 +182,12 @@
                 <groupId>org.glassfish.jersey.test-framework.providers</groupId>
                 <artifactId>jersey-test-framework-provider-jetty</artifactId>
                 <version>${jersey.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${awaitility.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

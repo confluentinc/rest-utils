@@ -58,6 +58,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final T config;
   private final ApplicationGroup applications;
   private final SslContextFactory sslContextFactory;
+  private FileWatcher sslKeystoreFileWatcher;
 
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
 
@@ -186,6 +187,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   protected void doStop() throws Exception {
     super.doStop();
     applications.doStop();
+    if (sslKeystoreFileWatcher != null) {
+      sslKeystoreFileWatcher.shutdown();
+    }
   }
 
   protected final void doStart() throws Exception {
@@ -252,7 +256,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return keystorePath;
   }
 
+  // CHECKSTYLE_RULES.OFF: CyclomaticComplexity|NPathComplexity
   private SslContextFactory createSslContextFactory(RestConfig config) {
+    // CHECKSTYLE_RULES.ON: CyclomaticComplexity|NPathComplexity
     SslContextFactory sslContextFactory = new SslContextFactory.Server();
     if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
       sslContextFactory.setKeyStorePath(
@@ -276,7 +282,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       if (config.getBoolean(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG)) {
         Path watchLocation = getWatchLocation(config);
         try {
-          FileWatcher.onFileChange(watchLocation, () -> {
+          // create and shutdown a sslKeystoreFileWatcher for each Application, so that
+          //  all Applications in the same JVM don't use the same shared threadpool
+          sslKeystoreFileWatcher = FileWatcher.onFileChange(watchLocation, () -> {
                 // Need to reset the key store path for symbolic link case
                 sslContextFactory.setKeyStorePath(
                     config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
@@ -310,9 +318,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       sslContextFactory.setTrustStorePath(
               config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
       );
-      sslContextFactory.setTrustStorePassword(
-              config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
-      );
+      if (config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG) != null) {
+        sslContextFactory.setTrustStorePassword(
+            config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
+        );
+      }
       sslContextFactory.setTrustStoreType(
               config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
       );
