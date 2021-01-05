@@ -75,6 +75,7 @@ import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
@@ -256,6 +257,24 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
+    if (isCsrfProtectionEnabled()) {
+      String csrfEndpoint = config.getString(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT);
+      int csrfTokenExpiration =
+          config.getInt(RestConfig.CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES);
+      int csrfTokenMaxEntries =
+          config.getInt(RestConfig.CSRF_PREVENTION_TOKEN_MAX_ENTRIES);
+
+      FilterHolder filterHolder = new FilterHolder(CsrfTokenProtectionFilter.class);
+      filterHolder.setName("cross-site-request-forgery-prevention");
+      filterHolder.setInitParameter(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT, csrfEndpoint);
+      filterHolder.setInitParameter(
+          RestConfig.CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES, String.valueOf(csrfTokenExpiration));
+      filterHolder.setInitParameter(
+          RestConfig.CSRF_PREVENTION_TOKEN_MAX_ENTRIES, String.valueOf(csrfTokenMaxEntries));
+
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
+
     configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
@@ -306,6 +325,10 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCorsEnabled() {
     return AuthUtil.isCorsEnabled(config);
+  }
+
+  private boolean isCsrfProtectionEnabled() {
+    return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
   }
 
   @SuppressWarnings("unchecked")
