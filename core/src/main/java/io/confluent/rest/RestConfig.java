@@ -298,6 +298,28 @@ public class RestConfig extends AbstractConfig {
           "The size of request queue will be increased by.";
   public static final int REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT = 64;
 
+  public static final String CSRF_PREVENTION_ENABLED = "csrf.prevention.enable";
+  public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
+  protected static final String CSRF_PREVENTION_ENABLED_DOC = "Enable token based CSRF prevention";
+
+  public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT =
+      "csrf.prevention.token.endpoint";
+  public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT = "/csrf";
+  protected static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DOC =
+      "Endpoint to fetch the CSRF token. Token will be set in the Response header";
+
+  public static final String CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES =
+      "csrf.prevention.token.expiration.minutes";
+  public static final int CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DEFAULT = 30;
+  protected static final String CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DOC =
+      "CSRF Token expiration period in minutes";
+
+  public static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES =
+      "csrf.prevention.token.max.entries";
+  public static final int CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT = 10000;
+  protected static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC =
+      "Specifies the maximum number of entries the token cache may contain";
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -635,6 +657,30 @@ public class RestConfig extends AbstractConfig {
             REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT,
             Importance.LOW,
             REQUEST_QUEUE_CAPACITY_GROWBY_DOC
+        ).define(
+            CSRF_PREVENTION_ENABLED,
+            Type.BOOLEAN,
+            CSRF_PREVENTION_ENABLED_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_ENABLED_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT,
+            Type.STRING,
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES,
+            Type.INT,
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES,
+            Type.INT,
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC
         );
   }
 
