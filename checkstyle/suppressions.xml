@@ -8,4 +8,6 @@
 
     <suppress checks="ClassDataAbstractionCoupling"
               files="MetricsResourceMethodApplicationListener.java"/>
+    <suppress checks="(CyclomaticComplexity|CyclomaticComplexity|NPathComplexity|JavaNCSS)"
+              files="Application.java"/>
 </suppressions>
