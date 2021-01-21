@@ -32,6 +32,45 @@ public class WebApplicationExceptionMapper
   @Context
   HttpHeaders headers;
 
+  public static enum Status implements Response.StatusType {
+    UNPROCESSABLE_ENTITY(422, "Unprocessable Entity");
+
+    private final int code;
+    private final String reason;
+    private final Response.Status.Family family;
+
+    private Status(int statusCode, String reasonPhrase) {
+      this.code = statusCode;
+      this.reason = reasonPhrase;
+      this.family = Response.Status.Family.familyOf(statusCode);
+    }
+
+    public Response.Status.Family getFamily() {
+      return this.family;
+    }
+
+    public int getStatusCode() {
+      return this.code;
+    }
+
+    public String getReasonPhrase() {
+      return this.toString();
+    }
+
+    public String toString() {
+      return this.reason;
+    }
+
+    public static Status fromStatusCode(int statusCode) {
+      for (Status s: values()) {
+        if (s.code == statusCode) {
+          return s;
+        }
+      }
+      return null;
+    }
+  }
+
   public WebApplicationExceptionMapper(RestConfig restConfig) {
     super(restConfig);
   }
@@ -40,7 +79,17 @@ public class WebApplicationExceptionMapper
   public Response toResponse(WebApplicationException exc) {
     // WebApplicationException unfortunately doesn't expose the status, or even status code,
     // directly.
-    Response.Status status = Response.Status.fromStatusCode(exc.getResponse().getStatus());
+    Response.StatusType status = Response.Status.fromStatusCode(exc.getResponse().getStatus());
+
+    // Response.Status does not contain all http status. This results in
+    // status to be null above for the cases of some valid 4xx status i.e 422.
+    // Below we are trying to replace the null with a valid status listed in
+    // WebApplicationExceptionMapper.Status
+
+    if (status == null) {
+      status = Status.fromStatusCode(exc.getResponse().getStatus());
+    }
+
     // The human-readable message for these can use the exception message directly. Since
     // WebApplicationExceptions are expected to be passed back to users, it will either contain a
     // situation-specific message or the HTTP status message

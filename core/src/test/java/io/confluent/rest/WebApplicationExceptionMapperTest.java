@@ -59,4 +59,19 @@ public class WebApplicationExceptionMapperTest {
     assertEquals("msg", out.getMessage());
     assertEquals(400, out.getErrorCode());
   }
+
+  @Test
+  public void testRestException4xx() {
+    Response response = mapper.toResponse(new RestException("msg", 422, 1000));
+    assertEquals(422, response.getStatus());
+    ErrorMessage out = (ErrorMessage)response.getEntity();
+    assertEquals("msg", out.getMessage());
+    assertEquals(1000, out.getErrorCode());
+
+    response = mapper.toResponse(new RestException("msg", 417, 1000));
+    assertEquals(417, response.getStatus());
+    out = (ErrorMessage)response.getEntity();
+    assertEquals("msg", out.getMessage());
+    assertEquals(1000, out.getErrorCode());
+  }
 }
