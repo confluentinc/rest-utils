@@ -99,7 +99,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
    * @param status HTTP response status
    */
   public Response.ResponseBuilder createResponse(Throwable exc, int errorCode,
-                                                 HttpStatus status, String msg) {
+                                                 Response.StatusType status, String msg) {
     log.error("Request Failed with exception " ,  exc);
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
