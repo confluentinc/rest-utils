@@ -73,5 +73,12 @@ public class WebApplicationExceptionMapperTest {
     out = (ErrorMessage)response.getEntity();
     assertEquals("msg", out.getMessage());
     assertEquals(1000, out.getErrorCode());
+
+    try {
+      response = mapper.toResponse(new RestException("msg", 1000, 1000));
+      fail("Illegal http status code should have failed");
+    } catch(IllegalArgumentException e) {
+
+    }
   }
 }

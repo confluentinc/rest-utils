@@ -51,6 +51,13 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
     private final Response.Status.Family family;
 
     public HttpStatus(int statusCode, String reasonPhrase) {
+
+      // Sanity check to make sure status code is within valid range
+      if (statusCode < 0 || statusCode > 599) {
+        throw new IllegalArgumentException("Http status code is not within valid range:"
+                + "statusCode: " + Integer.toString(statusCode));
+      }
+
       this.code = statusCode;
       this.reason = reasonPhrase;
       this.family = Response.Status.Family.familyOf(statusCode);
