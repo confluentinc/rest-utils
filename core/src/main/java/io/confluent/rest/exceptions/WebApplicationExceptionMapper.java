@@ -32,7 +32,6 @@ public class WebApplicationExceptionMapper
   @Context
   HttpHeaders headers;
 
-
   public WebApplicationExceptionMapper(RestConfig restConfig) {
     super(restConfig);
   }
