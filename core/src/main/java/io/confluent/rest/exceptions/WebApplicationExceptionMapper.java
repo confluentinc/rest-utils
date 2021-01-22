@@ -40,13 +40,24 @@ public class WebApplicationExceptionMapper
   public Response toResponse(WebApplicationException exc) {
     // WebApplicationException unfortunately doesn't expose the status, or even status code,
     // directly.
-    Response.Status status = Response.Status.fromStatusCode(exc.getResponse().getStatus());
+    Response.StatusType status = Response.Status.fromStatusCode(exc.getResponse().getStatus());
+
+
+
     // The human-readable message for these can use the exception message directly. Since
     // WebApplicationExceptions are expected to be passed back to users, it will either contain a
     // situation-specific message or the HTTP status message
     int errorCode = (exc instanceof RestException) ? ((RestException)exc).getErrorCode()
                                                    : status.getStatusCode();
-    Response.ResponseBuilder response = createResponse(exc, errorCode, status, exc.getMessage());
+
+    // Response.Status does not contain all http status. This results in
+    // status to be null above for the cases of some valid 4xx status i.e 422.
+    // Below we are trying to replace the null with the status passed in the exception itself
+
+    Response.ResponseBuilder response = createResponse(exc, errorCode,
+            status != null ? status :
+                    new HttpStatus(exc.getResponse().getStatus(), exc.getMessage()),
+            exc.getMessage());
 
     // Apparently, 415 Unsupported Media Type errors disable content negotiation in Jersey, which
     // causes use to return data without a content type. Work around this by detecting that specific
