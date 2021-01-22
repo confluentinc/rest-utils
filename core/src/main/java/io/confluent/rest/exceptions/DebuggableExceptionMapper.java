@@ -45,6 +45,40 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
   @Context
   HttpHeaders headers;
 
+  public static class HttpStatus implements Response.StatusType {
+    private final int code;
+    private final String reason;
+    private final Response.Status.Family family;
+
+    public HttpStatus(int statusCode, String reasonPhrase) {
+      this.code = statusCode;
+      this.reason = reasonPhrase;
+      this.family = Response.Status.Family.familyOf(statusCode);
+    }
+
+    public HttpStatus(Response.StatusType status) {
+      this.code = status.getStatusCode();
+      this.reason = status.getReasonPhrase();
+      this.family = status.getFamily();
+    }
+
+    public Response.Status.Family getFamily() {
+      return this.family;
+    }
+
+    public int getStatusCode() {
+      return this.code;
+    }
+
+    public String getReasonPhrase() {
+      return this.toString();
+    }
+
+    public String toString() {
+      return this.reason;
+    }
+  }
+
   public DebuggableExceptionMapper(RestConfig restConfig) {
     this.restConfig = restConfig;
   }
@@ -58,7 +92,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
    * @param status HTTP response status
    */
   public Response.ResponseBuilder createResponse(Throwable exc, int errorCode,
-                                                 Response.StatusType status, String msg) {
+                                                 HttpStatus status, String msg) {
     log.error("Request Failed with exception " ,  exc);
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {

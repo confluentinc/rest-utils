@@ -32,44 +32,6 @@ public class WebApplicationExceptionMapper
   @Context
   HttpHeaders headers;
 
-  public static enum Status implements Response.StatusType {
-    UNPROCESSABLE_ENTITY(422, "Unprocessable Entity");
-
-    private final int code;
-    private final String reason;
-    private final Response.Status.Family family;
-
-    private Status(int statusCode, String reasonPhrase) {
-      this.code = statusCode;
-      this.reason = reasonPhrase;
-      this.family = Response.Status.Family.familyOf(statusCode);
-    }
-
-    public Response.Status.Family getFamily() {
-      return this.family;
-    }
-
-    public int getStatusCode() {
-      return this.code;
-    }
-
-    public String getReasonPhrase() {
-      return this.toString();
-    }
-
-    public String toString() {
-      return this.reason;
-    }
-
-    public static Status fromStatusCode(int statusCode) {
-      for (Status s: values()) {
-        if (s.code == statusCode) {
-          return s;
-        }
-      }
-      return null;
-    }
-  }
 
   public WebApplicationExceptionMapper(RestConfig restConfig) {
     super(restConfig);
@@ -83,11 +45,13 @@ public class WebApplicationExceptionMapper
 
     // Response.Status does not contain all http status. This results in
     // status to be null above for the cases of some valid 4xx status i.e 422.
-    // Below we are trying to replace the null with a valid status listed in
-    // WebApplicationExceptionMapper.Status
+    // Below we are trying to replace the null with the status passed in the exception
 
-    if (status == null) {
-      status = Status.fromStatusCode(exc.getResponse().getStatus());
+    HttpStatus internalStatus;
+    if (status != null) {
+      internalStatus = new HttpStatus(status);
+    } else {
+      internalStatus = new HttpStatus(exc.getResponse().getStatus(), exc.getMessage());
     }
 
     // The human-readable message for these can use the exception message directly. Since
@@ -95,7 +59,8 @@ public class WebApplicationExceptionMapper
     // situation-specific message or the HTTP status message
     int errorCode = (exc instanceof RestException) ? ((RestException)exc).getErrorCode()
                                                    : status.getStatusCode();
-    Response.ResponseBuilder response = createResponse(exc, errorCode, status, exc.getMessage());
+    Response.ResponseBuilder response = createResponse(exc, errorCode,
+            internalStatus, exc.getMessage());
 
     // Apparently, 415 Unsupported Media Type errors disable content negotiation in Jersey, which
     // causes use to return data without a content type. Work around this by detecting that specific
