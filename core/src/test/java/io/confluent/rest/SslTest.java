@@ -55,7 +55,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 
-import io.confluent.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
 import static org.junit.Assert.assertEquals;
@@ -99,9 +99,9 @@ public class SslTest {
   private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
-    X509Certificate cCert = certificateBuilder.sanDnsName("localhost")
+    X509Certificate cCert = certificateBuilder.sanDnsNames("localhost")
         .generate("CN=mymachine.local, O=A client", keypair);
-    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
+    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD),alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
   }
 
@@ -123,9 +123,9 @@ public class SslTest {
   private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
-    X509Certificate cCert = certificateBuilder.sanDnsName("fail")
+    X509Certificate cCert = certificateBuilder.sanDnsNames("fail")
         .generate("CN=mymachine.local, O=A client", keypair);
-    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
+    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
   }
 

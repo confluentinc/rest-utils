@@ -16,21 +16,28 @@
 
 package io.confluent.rest;
 
-import org.apache.kafka.common.config.AbstractConfig;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigDef.Type;
-import org.apache.kafka.common.config.ConfigDef.Importance;
-import io.confluent.common.utils.SystemTime;
-import io.confluent.common.utils.Time;
-
 import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.metrics.RestMetricsContext;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.utils.Time;
+
+import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
 
 public class RestConfig extends AbstractConfig {
+
+  private final RestMetricsContext metricsContext;
+
+  public static final String METRICS_REPORTER_CONFIG_PREFIX = "metric.reporters.";
+
   public static final String DEBUG_CONFIG = "debug";
   protected static final String DEBUG_CONFIG_DOC =
       "Boolean indicating whether extra debugging information is generated in some "
@@ -71,6 +78,11 @@ public class RestConfig extends AbstractConfig {
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DOC =
       "Set value for Jetty Access-Control-Allow-Origin header";
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DEFAULT = "";
+
+  public static final String ACCESS_CONTROL_SKIP_OPTIONS = "access.control.skip.options";
+  protected static final String ACCESS_CONTROL_SKIP_OPTIONS_DOC =
+          "Whether to skip authentication for OPTIONS requests";
+  protected static final boolean ACCESS_CONTROL_SKIP_OPTIONS_DEFAULT = true;
 
   public static final String ACCESS_CONTROL_ALLOW_METHODS = "access.control.allow.methods";
   protected static final String ACCESS_CONTROL_ALLOW_METHODS_DOC =
@@ -278,6 +290,62 @@ public class RestConfig extends AbstractConfig {
           "The number of milliseconds to hold an idle session open for.";
   public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
+  public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
+  public static final String THREAD_POOL_MIN_DOC =
+          "The minimum number of threads will be startred for HTTP Servlet server.";
+  public static final int THREAD_POOL_MIN_DEFAULT = 8;
+
+  public static final String THREAD_POOL_MAX_CONFIG = "thread.pool.max";
+  public static final String THREAD_POOL_MAX_DOC =
+          "The maxinum number of threads will be startred for HTTP Servlet server.";
+  public static final int THREAD_POOL_MAX_DEFAULT = 200;
+
+  public static final String REQUEST_QUEUE_CAPACITY_CONFIG = "request.queue.capacity";
+  public static final String REQUEST_QUEUE_CAPACITY_DOC =
+          "The capacity of request queue for each thread pool.";
+  public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
+
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
+          "The initial capacity of request queue for each thread pool.";
+  public static final int REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT = 128;
+
+  public static final String REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG = "request.queue.capacity.growby";
+  public static final String REQUEST_QUEUE_CAPACITY_GROWBY_DOC =
+          "The size of request queue will be increased by.";
+  public static final int REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT = 64;
+
+  /**
+   * @link "https://www.eclipse.org/jetty/documentation/current/header-filter.html"
+   * @link "https://www.eclipse.org/jetty/javadoc/9.4.28.v20200408/org/eclipse/jetty/servlets/HeaderFilter.html"
+   **/
+  public static final String RESPONSE_HTTP_HEADERS_CONFIG = "response.http.headers.config";
+  public static final String RESPONSE_HTTP_HEADERS_DOC =
+          "Set values for Jetty HTTP response headers";
+  public static final String RESPONSE_HTTP_HEADERS_DEFAULT = "";
+
+  public static final String CSRF_PREVENTION_ENABLED = "csrf.prevention.enable";
+  public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
+  protected static final String CSRF_PREVENTION_ENABLED_DOC = "Enable token based CSRF prevention";
+
+  public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT =
+      "csrf.prevention.token.endpoint";
+  public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT = "/csrf";
+  protected static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DOC =
+      "Endpoint to fetch the CSRF token. Token will be set in the Response header";
+
+  public static final String CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES =
+      "csrf.prevention.token.expiration.minutes";
+  public static final int CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DEFAULT = 30;
+  protected static final String CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DOC =
+      "CSRF Token expiration period in minutes";
+
+  public static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES =
+      "csrf.prevention.token.max.entries";
+  public static final int CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT = 10000;
+  protected static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC =
+      "Specifies the maximum number of entries the token cache may contain";
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -389,6 +457,12 @@ public class RestConfig extends AbstractConfig {
             ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT,
             Importance.LOW,
             ACCESS_CONTROL_ALLOW_HEADERS_DOC
+        ).define(
+            ACCESS_CONTROL_SKIP_OPTIONS,
+            Type.BOOLEAN,
+            ACCESS_CONTROL_SKIP_OPTIONS_DEFAULT,
+            Importance.LOW,
+            ACCESS_CONTROL_SKIP_OPTIONS_DOC
         ).define(
             REQUEST_LOGGER_NAME_CONFIG,
             Type.STRING,
@@ -591,20 +665,137 @@ public class RestConfig extends AbstractConfig {
             IDLE_TIMEOUT_MS_DEFAULT,
             Importance.LOW,
             IDLE_TIMEOUT_MS_DOC
+        ).define(
+            THREAD_POOL_MIN_CONFIG,
+            Type.INT,
+            THREAD_POOL_MIN_DEFAULT,
+            Importance.LOW,
+            THREAD_POOL_MIN_DOC
+        ).define(
+            THREAD_POOL_MAX_CONFIG,
+            Type.INT,
+            THREAD_POOL_MAX_DEFAULT,
+            Importance.LOW,
+            THREAD_POOL_MAX_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_GROWBY_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_DOC
+        ).define(
+            CSRF_PREVENTION_ENABLED,
+            Type.BOOLEAN,
+            CSRF_PREVENTION_ENABLED_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_ENABLED_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT,
+            Type.STRING,
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES,
+            Type.INT,
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES,
+            Type.INT,
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC
         );
   }
 
-  private static Time defaultTime = new SystemTime();
+  private static Time defaultTime = Time.SYSTEM;
 
   public RestConfig(ConfigDef definition, Map<?, ?> originals) {
     super(definition, originals);
+    metricsContext = new RestMetricsContext(
+            this.getString(METRICS_JMX_PREFIX_CONFIG),
+            originalsWithPrefix(METRICS_CONTEXT_PREFIX));
   }
 
   public RestConfig(ConfigDef definition) {
-    super(definition, new TreeMap<>());
+    this(definition, new TreeMap<>());
   }
 
   public Time getTime() {
     return defaultTime;
+  }
+
+  public Map<String, Object> metricsReporterConfig() {
+    return originalsWithPrefix(METRICS_REPORTER_CONFIG_PREFIX);
+  }
+
+  public RestMetricsContext getMetricsContext() {
+    return metricsContext;
+  }
+
+  public static void validateHttpResponseHeaderConfig(String config) {
+    try {
+      // validate format
+      String[] configTokens = config.trim().split("\\s+", 2);
+      if (configTokens.length != 2) {
+        throw new ConfigException(String.format("Invalid format of header config \"%s\". "
+                + "Expected: \"[ation] [header name]:[header value]\"", config));
+      }
+
+      // validate action
+      String method = configTokens[0].trim();
+      validateHeaderConfigAction(method.toLowerCase());
+
+      // validate header name and header value pair
+      String header = configTokens[1];
+      String[] headerTokens = header.trim().split(":");
+      if (headerTokens.length > 2) {
+        throw new ConfigException(
+                String.format("Invalid format of header name and header value pair \"%s\". "
+                + "Expected: \"[header name]:[header value]\"", header));
+      }
+
+      // validate header name
+      String headerName = headerTokens[0].trim();
+      if (headerName.contains(" ")) {
+        throw new ConfigException(String.format("Invalid header name \"%s\". "
+                + "The \"[header name]\" cannot contain whitespace", headerName));
+      }
+    } catch (ArrayIndexOutOfBoundsException e) {
+      throw new ConfigException(String.format("Invalid header config \"%s\".", config), e);
+    }
+  }
+
+  private static void validateHeaderConfigAction(String action) {
+    /**
+     * The following actions are defined following link.
+     * {@link https://www.eclipse.org/jetty/documentation/current/header-filter.html}
+     **/
+    if (!Arrays.asList("set", "add", "setDate", "addDate")
+            .stream()
+            .anyMatch(action::equalsIgnoreCase)) {
+      throw new ConfigException(String.format("Invalid header config action: \"%s\". "
+              + "The action need be one of [\"set\", \"add\", \"setDate\", \"addDate\"]", action));
+    }
   }
 }

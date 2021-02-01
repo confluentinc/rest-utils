@@ -7,10 +7,9 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>rest-utils-parent</artifactId>
-        <version>5.5.0-SNAPSHOT</version>
+        <version>6.2.0-0</version>
     </parent>
 
-    <groupId>io.confluent</groupId>
     <artifactId>rest-utils-package</artifactId>
     <packaging>pom</packaging>
     <name>rest-utils-package</name>
@@ -20,6 +19,7 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>rest-utils</artifactId>
+            <version>${io.confluent.rest-utils.version}</version>
         </dependency>
     </dependencies>
 

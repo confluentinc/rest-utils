@@ -30,8 +30,6 @@
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <excludes>
                 <exclude>io.confluent:common-utils</exclude>
-                <exclude>io.confluent:common-config</exclude>
-                <exclude>io.confluent:common-metrics</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>

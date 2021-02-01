@@ -16,7 +16,9 @@
 
 package io.confluent.rest;
 
-import io.confluent.common.metrics.Metrics;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.Gauge;
+import org.apache.kafka.common.metrics.Metrics;
 
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jmx.MBeanContainer;
@@ -32,6 +34,9 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.eclipse.jetty.util.BlockingArrayQueue;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,10 +48,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.BlockingQueue;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class ApplicationServer<T extends RestConfig> extends Server {
@@ -60,7 +67,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
   public ApplicationServer(T config) {
-    super();
+    this(config, createThreadPool(config));
+  }
+
+  public ApplicationServer(T config, ThreadPool threadPool) {
+    super(threadPool);
+
     this.config = config;
     this.applications = new ApplicationGroup(this);
 
@@ -157,6 +169,33 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
+  private void addJettyThreadPoolMetrics(Metrics metrics, Map<String, String> tags) {
+    //add metric for jetty thread pool queue size
+    String requestQueueSizeName = "request-queue-size";
+    String metricGroupName = "jetty-metrics";
+
+    MetricName requestQueueSizeMetricName = metrics.metricName(requestQueueSizeName,
+        metricGroupName, "The number of requests in the jetty thread pool queue.", tags);
+    Gauge<Integer> queueSize = (config, now) ->  getQueueSize();
+    metrics.addMetric(requestQueueSizeMetricName, queueSize);
+
+    //add metric for thread pool busy thread count
+    String busyThreadCountName = "busy-thread-count";
+    MetricName busyThreadCountMetricName = metrics.metricName(busyThreadCountName,
+        metricGroupName, "jetty thread pool busy thread count.",
+        tags);
+    Gauge<Integer> busyThreadCount = (config, now) -> getBusyThreads();
+    metrics.addMetric(busyThreadCountMetricName, busyThreadCount);
+
+    //add metric for thread pool usage
+    String threadPoolUsageName = "thread-pool-usage";
+    final MetricName threadPoolUsageMetricName = metrics.metricName(threadPoolUsageName,
+        metricGroupName,  " jetty thread pool usage.",
+        Collections.emptyMap());
+    Gauge<Double> threadPoolUsage = (config, now) -> (getBusyThreads() / (double) getMaxThreads());
+    metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
+  }
+
   private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
     /* DefaultHandler must come last eo ensure all contexts
      * have a chance to handle a request first */
@@ -183,7 +222,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application app : applications.getApplications()) {
-      attachMetricsListener(app.metrics, app.getMetricsTags());
+      attachMetricsListener(app.getMetrics(), app.getMetricsTags());
+      addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
     }
@@ -382,6 +422,47 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             .collect(Collectors.toList());
   }
 
+  /**
+   * For unit testing.
+   *
+   * @return the total number of threads currently in the pool.
+   */
+  public int getThreads() {
+    return getThreadPool().getThreads();
+  }
+
+  /**
+   * @return number of busy threads in the pool.
+   */
+  public int getBusyThreads() {
+    return ((QueuedThreadPool)getThreadPool()).getBusyThreads();
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the total number of maximum threads configured in the pool.
+   */
+  public int getMaxThreads() {
+    return config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG);
+  }
+
+  /**
+   * @return the size of the queue in the pool.
+   */
+  public int getQueueSize() {
+    return ((QueuedThreadPool)getThreadPool()).getQueueSize();
+  }
+
+  /**
+   * For unit testing.
+   *
+   * @return the capacity of the queue in the pool.
+   */
+  public int getQueueCapacity() {
+    return config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+  }
+
   static Handler wrapWithGzipHandler(RestConfig config, Handler handler) {
     if (config.getBoolean(RestConfig.ENABLE_GZIP_COMPRESSION_CONFIG)) {
       GzipHandler gzip = new GzipHandler();
@@ -394,5 +475,26 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private Handler wrapWithGzipHandler(Handler handler) {
     return wrapWithGzipHandler(config, handler);
+  }
+
+  /**
+   * Create the thread pool with request queue.
+   *
+   * @return thread pool used by the server
+   */
+  private static ThreadPool createThreadPool(RestConfig config) {
+    /* Create blocking queue for the thread pool. */
+    int initialCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG);
+    int growBy = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG);
+    int maxCapacity = config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+    log.info("Initial capacity {}, increased by {}, maximum capacity {}.",
+            initialCapacity, growBy, maxCapacity);
+
+    BlockingQueue<Runnable> requestQueue =
+            new BlockingArrayQueue<>(initialCapacity, growBy, maxCapacity);
+    
+    return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
+            config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
+            requestQueue);
   }
 }

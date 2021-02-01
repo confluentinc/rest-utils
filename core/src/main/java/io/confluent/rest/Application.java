@@ -21,6 +21,10 @@ import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import io.confluent.rest.auth.OpenIdConnectConfig;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.metrics.JmxReporter;
+import org.apache.kafka.common.metrics.MetricConfig;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.MetricsReporter;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.security.Authenticator;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -43,8 +47,10 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -57,6 +63,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -71,15 +78,12 @@ import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
 import javax.ws.rs.core.Configurable;
 
-import io.confluent.common.metrics.JmxReporter;
-import io.confluent.common.metrics.MetricConfig;
-import io.confluent.common.metrics.Metrics;
-import io.confluent.common.metrics.MetricsReporter;
 import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 
@@ -114,16 +118,7 @@ public abstract class Application<T extends RestConfig> {
     this.config = config;
     this.path = Objects.requireNonNull(path);;
 
-    MetricConfig metricConfig = new MetricConfig()
-        .samples(config.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
-        .timeWindow(config.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
-                    TimeUnit.MILLISECONDS);
-    List<MetricsReporter> reporters =
-        config.getConfiguredInstances(RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
-                                      MetricsReporter.class);
-    reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
-    this.metrics = new Metrics(metricConfig, reporters, config.getTime());
-
+    this.metrics = configureMetrics();
     this.getMetricsTags().putAll(
             parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
 
@@ -134,6 +129,49 @@ public abstract class Application<T extends RestConfig> {
 
   public final String getPath() {
     return path;
+  }
+
+  /**
+   * Configure Application MetricReport instances.
+   */
+  private List<MetricsReporter> configureMetricsReporters(T appConfig) {
+    List<MetricsReporter> reporters =
+            appConfig.getConfiguredInstances(
+                    RestConfig.METRICS_REPORTER_CLASSES_CONFIG,
+                    MetricsReporter.class);
+    reporters.add(new JmxReporter());
+
+    // Treat prefixed configs as overrides to originals
+    Map<String, Object> reporterConfigs = appConfig.originals();
+    reporterConfigs.putAll(appConfig.metricsReporterConfig());
+
+    reporters.forEach(r -> r.configure(reporterConfigs));
+    return reporters;
+  }
+
+
+  /**
+   * Configure Application Metrics instance.
+   */
+  protected Metrics configureMetrics() {
+    T appConfig = getConfiguration();
+
+    MetricConfig metricConfig = new MetricConfig()
+            .samples(appConfig.getInt(RestConfig.METRICS_NUM_SAMPLES_CONFIG))
+            .timeWindow(appConfig.getLong(RestConfig.METRICS_SAMPLE_WINDOW_MS_CONFIG),
+                    TimeUnit.MILLISECONDS);
+
+    return new Metrics(metricConfig,
+            configureMetricsReporters(appConfig),
+            appConfig.getTime(),
+            appConfig.getMetricsContext());
+  }
+
+  /**
+   * Returns {@link Metrics} object
+   */
+  public final Metrics getMetrics() {
+    return this.metrics;
   }
 
   /**
@@ -261,6 +299,29 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
+    if (isCsrfProtectionEnabled()) {
+      String csrfEndpoint = config.getString(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT);
+      int csrfTokenExpiration =
+          config.getInt(RestConfig.CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES);
+      int csrfTokenMaxEntries =
+          config.getInt(RestConfig.CSRF_PREVENTION_TOKEN_MAX_ENTRIES);
+
+      FilterHolder filterHolder = new FilterHolder(CsrfTokenProtectionFilter.class);
+      filterHolder.setName("cross-site-request-forgery-prevention");
+      filterHolder.setInitParameter(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT, csrfEndpoint);
+      filterHolder.setInitParameter(
+          RestConfig.CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES, String.valueOf(csrfTokenExpiration));
+      filterHolder.setInitParameter(
+          RestConfig.CSRF_PREVENTION_TOKEN_MAX_ENTRIES, String.valueOf(csrfTokenMaxEntries));
+
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
+
+    if (config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG) != null
+            && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
+      configureHttpResponsHeaderFilter(context);
+    }
+
     configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
@@ -311,6 +372,10 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCorsEnabled() {
     return AuthUtil.isCorsEnabled(config);
+  }
+
+  private boolean isCsrfProtectionEnabled() {
+    return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
   }
 
   @SuppressWarnings("unchecked")
@@ -494,7 +559,7 @@ public abstract class Application<T extends RestConfig> {
     registerFeatures(config, restConfig);
     registerExceptionMappers(config, restConfig);
 
-    config.register(new MetricsResourceMethodApplicationListener(metrics, "jersey",
+    config.register(new MetricsResourceMethodApplicationListener(getMetrics(), "jersey",
                                                                  metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
@@ -540,6 +605,21 @@ public abstract class Application<T extends RestConfig> {
     config.register(ConstraintViolationExceptionMapper.class);
     config.register(new WebApplicationExceptionMapper(restConfig));
     config.register(new GenericExceptionMapper(restConfig));
+  }
+
+  /**
+   * Register header filter to ServletContextHandler.
+   * @param context The serverlet context handler
+   */
+  protected void configureHttpResponsHeaderFilter(ServletContextHandler context) {
+    String headerConfig = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
+    log.debug("headerConfig : " + headerConfig);
+    String[] configs = StringUtil.csvSplit(headerConfig);
+    Arrays.stream(configs)
+            .forEach(RestConfig::validateHttpResponseHeaderConfig);
+    FilterHolder headerFilterHolder = new FilterHolder(HeaderFilter.class);
+    headerFilterHolder.setInitParameter("headerConfig", headerConfig);
+    context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   public T getConfiguration() {

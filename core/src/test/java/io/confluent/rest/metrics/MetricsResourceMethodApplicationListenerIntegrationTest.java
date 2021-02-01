@@ -1,6 +1,6 @@
 package io.confluent.rest.metrics;
 
-import io.confluent.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.TestMetricsReporter;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.exceptions.RestNotFoundException;
@@ -13,6 +13,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.RequestDispatcher;
@@ -33,9 +35,7 @@ import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
@@ -111,6 +111,28 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
   }
 
+  @Test
+  public void testMetricReporterConfiguration() {
+    ApplicationWithFilter app;
+    Properties props = new Properties();
+
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop1", "val1");
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop2", "val2");
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop3", "override");
+    props.put("prop3", "original");
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    props.put("not.prefixed.config", "val3");
+
+    app = new ApplicationWithFilter(new TestRestConfig(props));
+    TestMetricsReporter reporter = (TestMetricsReporter) app.getMetrics().reporters().get(0);
+
+    assertTrue(reporter.getConfigs().containsKey("not.prefixed.config"));
+    assertTrue(reporter.getConfigs().containsKey("prop1"));
+    assertTrue(reporter.getConfigs().containsKey("prop2"));
+    assertEquals(reporter.getConfigs().get("prop3"), "override");
+  }
+
+
   private class ApplicationWithFilter extends Application<TestRestConfig> {
 
     Configurable resourceConfig;
@@ -137,7 +159,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
             Request baseRequest,
             HttpServletRequest request,
             HttpServletResponse response
-        ) throws IOException {
+        ) throws IOException, ServletException {
           handledException = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
           try {
             super.handle(target, baseRequest, request, response);
@@ -147,6 +169,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         }
       });
     }
+
   }
 
   @Produces(MediaType.APPLICATION_JSON)

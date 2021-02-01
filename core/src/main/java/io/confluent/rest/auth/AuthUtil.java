@@ -39,6 +39,17 @@ public final class AuthUtil {
   }
 
   /**
+   * Checks if {@link RestConfig#ACCESS_CONTROL_SKIP_OPTIONS} is set.
+   *
+   * @param restConfig the rest app's config.
+   * @return true if not empty, false otherwise.
+   */
+  public static boolean isSkipOptionsAuth(final RestConfig restConfig) {
+    boolean skipOption = restConfig.getBoolean(RestConfig.ACCESS_CONTROL_SKIP_OPTIONS);
+    return skipOption;
+  }
+
+  /**
    * Build the standard global auth constraint from standard RestConfig.
    *
    * <p>The valid roles is extracted from {@link RestConfig#AUTHENTICATION_ROLES_CONFIG}
@@ -128,7 +139,8 @@ public final class AuthUtil {
     final ConstraintMapping mapping = new ConstraintMapping();
     mapping.setConstraint(constraint);
     mapping.setMethod("*");
-    if (authenticate && AuthUtil.isCorsEnabled(restConfig)) {
+
+    if (authenticate && AuthUtil.isCorsEnabled(restConfig) && isSkipOptionsAuth(restConfig)) {
       mapping.setMethodOmissions(new String[]{"OPTIONS"});
     }
     mapping.setPathSpec(pathSpec);
