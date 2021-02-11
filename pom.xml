@@ -57,6 +57,7 @@
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <io.confluent.rest-utils.version>6.2.0-0</io.confluent.rest-utils.version>
+        <guava.version>24.1.1-jre</guava.version>
     </properties>
 
     <repositories>
