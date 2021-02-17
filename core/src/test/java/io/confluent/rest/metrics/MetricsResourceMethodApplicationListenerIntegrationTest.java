@@ -26,6 +26,7 @@ import javax.ws.rs.core.Response;
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
+import javax.servlet.ServletException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -109,7 +110,14 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
             HttpServletResponse response
         ) throws IOException {
           handledException = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
-          super.handle(target, baseRequest, request, response);
+          try {
+            super.handle(target, baseRequest, request, response);
+          } catch (ServletException e) {
+            // Silently ignore ServletException -- because this will never be thrown, at least
+            // for 9.4.35.v20201120. Notice that in the code here, doError() only throws
+            // IOException, and not ServletException.
+            // https://github.com/eclipse/jetty.project/blob/jetty-9.4.35.v20201120/jetty-server/src/main/java/org/eclipse/jetty/server/handler/ErrorHandler.java#L91
+          }
         }
       });
     }
