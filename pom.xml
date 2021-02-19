@@ -52,6 +52,7 @@
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <jersey.version>2.27</jersey.version>
         <jetty.version>9.4.11.v20180605</jetty.version>
+        <guava.version>24.1.1-jre</guava.version>
     </properties>
 
     <repositories>
