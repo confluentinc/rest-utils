@@ -250,7 +250,12 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
-  final Handler configureHandler() {
+  /**
+   * Configures the {@link Handler} for the current {@link Application}.
+   *
+   * @return {@link Handler} object
+   */
+  public Handler configureHandler() {
     ResourceConfig resourceConfig = new ResourceConfig();
     configureBaseApplication(resourceConfig, getMetricsTags());
     configureResourceExtensions(resourceConfig);
@@ -333,7 +338,12 @@ public abstract class Application<T extends RestConfig> {
     return handlers;
   }
 
-  final Handler configureWebSocketHandler() throws ServletException {
+  /**
+   * Configures web socket {@link Handler} for the current {@link Application}.
+   *
+   * @return {@link Handler} object
+   */
+  public Handler configureWebSocketHandler() throws ServletException {
     final ServletContextHandler webSocketContext =
             new ServletContextHandler(ServletContextHandler.SESSIONS);
     webSocketContext.setContextPath(
