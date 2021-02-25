@@ -20,8 +20,17 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.test.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
+
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -119,12 +128,79 @@ public class TestCustomizeThreadPool {
     }
   }
 
+  @Test
+  @Ignore
+  public void testJettyThreadPoolMetrics() throws Exception {
+    RestResource.latch = new CountDownLatch(1);
+    TestCustomizeThreadPoolApplication app = new TestCustomizeThreadPoolApplication();
+    String uri = app.getUri();
+    try {
+      app.start();
+      assertEquals(0, getIntMetricValue(app.metrics, "request-queue-size"));
+
+      //send 18 requests:  queueSize (8) + threads (10)
+      int numThread = 18;
+      Thread[] threads = sendRequests(uri + "/custom/resource", numThread);
+      TestUtils.waitForCondition(() -> app.server.getQueueSize() == 8, "Queue is not full");
+      assertEquals(8, getIntMetricValue(app.metrics, "request-queue-size"));
+      assertEquals(10, getIntMetricValue(app.metrics, "busy-thread-count"));
+      assertEquals(1.0, getDoubleMetricValue(app.metrics, "thread-pool-usage"), 0.0);
+
+      RestResource.latch.countDown();
+      for(int i = 0; i < numThread; i++) {
+        threads[i].join();
+      }
+
+      TestUtils.waitForCondition(() -> app.server.getQueueSize() == 0, "Queue is not empty");
+      assertEquals(0, getIntMetricValue(app.metrics, "request-queue-size"));
+      assertTrue(getDoubleMetricValue(app.metrics, "thread-pool-usage") > 0);
+      assertTrue(getDoubleMetricValue(app.metrics, "thread-pool-usage") < 1);
+    } finally {
+      RestResource.latch = null;
+      app.stop();
+    }
+  }
+
+  public static int getIntMetricValue(Metrics metrics, String attribute) {
+    Map<MetricName, KafkaMetric> allMetrics = metrics.metrics();
+    Optional<KafkaMetric> metric = allMetrics.entrySet().stream().filter((m) -> {
+      return m.getKey().name().equals(attribute);
+    }).map(Map.Entry::getValue).findFirst();
+    return metric.isPresent() ? (Integer) metric.get().metricValue() : -1;
+  }
+
+  public static double getDoubleMetricValue(Metrics metrics, String attribute) {
+    Map<MetricName, KafkaMetric> allMetrics = metrics.metrics();
+    Optional<KafkaMetric> metric = allMetrics.entrySet().stream().filter((m) -> {
+      return m.getKey().name().equals(attribute);
+    }).map(Map.Entry::getValue).findFirst();
+    return metric.isPresent() ? (Double) metric.get().metricValue() : -1;
+  }
+
   /**
    * Simulate multiple HTTP clients sending HTTP requests same time. Each client will send one HTTP request.
    * The requests will be put in queue if the number of clients are more than the working threads.
    * */
   @SuppressWarnings("SameParameterValue")
   private void makeConcurrentGetRequests(String uri, int numThread, TestCustomizeThreadPoolApplication app) throws Exception {
+    Thread[] threads = sendRequests(uri, numThread);
+
+    long startingTime = System.currentTimeMillis();
+    while(System.currentTimeMillis() - startingTime < 360*1000) {
+      log.info("Queue size {}, queue capacity {} ", app.getServer().getQueueSize(), app.getServer().getQueueCapacity());
+      assertTrue("Number of jobs in queue is not more than capacity of queue ", app.getServer().getQueueSize() <= app.getServer().getQueueCapacity());
+      Thread.sleep(2000);
+      if (app.getServer().getQueueSize() == 0)
+        break;
+    }
+
+    for(int i = 0; i < numThread; i++) {
+      threads[i].join();
+    }
+    log.info("End queue size {}, queue capacity {} ", app.getServer().getQueueSize(), app.getServer().getQueueCapacity());
+  }
+
+  private Thread[] sendRequests(final String uri, final int numThread) {
     Thread[] threads = new Thread[numThread];
     for(int i = 0; i < numThread; i++) {
       threads[i] = new Thread() {
@@ -134,7 +210,7 @@ public class TestCustomizeThreadPool {
           CloseableHttpResponse response = null;
           try {
             response = httpclient.execute(httpget);
-            HttpStatus.Code statusCode = HttpStatus.getCode(response.getStatusLine().getStatusCode());
+            Code statusCode = HttpStatus.getCode(response.getStatusLine().getStatusCode());
             log.info("Status code {}, reason {} ", statusCode, response.getStatusLine().getReasonPhrase());
             assertThat(statusCode, is(Code.OK));
           } catch (Exception e) {
@@ -152,34 +228,28 @@ public class TestCustomizeThreadPool {
 
       threads[i].start();
     }
-
-    long startingTime = System.currentTimeMillis();
-    while(System.currentTimeMillis() - startingTime < 360*1000) {
-      log.info("Queue size {}, queue capacity {} ", app.getServer().getQueueSize(), app.getServer().getQueueCapacity());
-      assertTrue("Number of jobs in queue is not more than capacity of queue ", app.getServer().getQueueSize() <= app.getServer().getQueueCapacity());
-      Thread.sleep(2000);
-      if (app.getServer().getQueueSize() == 0)
-        break;
-    }
-
-    for(int i = 0; i < numThread; i++) {
-      threads[i].join();
-    }
-    log.info("End queue size {}, queue capacity {} ", app.getServer().getQueueSize(), app.getServer().getQueueCapacity());
+    return threads;
   }
 
   @Path("/custom")
   @Produces(MediaType.TEXT_PLAIN)
   public static class RestResource {
+
+    static CountDownLatch latch = null;
+
     @GET
     @Path("/resource")
-    public String get() {
-      synchronized(locker) {
-        try {
-          locker.wait(10000);
-        } catch (Exception e) {
-          log.info(e.getMessage());
+    public String get() throws InterruptedException {
+      if (latch == null) {
+        synchronized(locker) {
+          try {
+            locker.wait(10000);
+          } catch (Exception e) {
+            log.info(e.getMessage());
+          }
         }
+      } else {
+        latch.await();
       }
       return "ThreadPool";
     }
