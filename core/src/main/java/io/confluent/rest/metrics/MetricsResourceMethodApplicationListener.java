@@ -53,6 +53,8 @@ import org.apache.kafka.common.metrics.stats.WindowedCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Jersey ResourceMethodApplicationListener that records metrics for each endpoint by listening
@@ -60,6 +62,7 @@ import org.apache.kafka.common.utils.Time;
  * latency (average, 90th, 99th, etc).
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
+  private static final Logger log = LoggerFactory.getLogger(MetricsResourceMethodApplicationListener.class);
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
@@ -278,11 +281,13 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
      * Indicate that a request has failed with an exception.
      */
     public void exception(final RequestEvent event) {
-      final int statusCode = event.getException() instanceof WebApplicationException
-          ? ((WebApplicationException) event.getException()).getResponse().getStatus() : 0;
-      int idx = statusCode / 100;
+      int idx = event.getContainerResponse().getStatus() / 100;
+
       // Index 0 means "unknown" status codes.
-      idx = idx < 0 || idx >= 6 ? 0 : idx;
+      if (idx <= 0 || idx >= 6) {
+        log.error("Unidentified exception to record metrics against", event.getException());
+        idx = 0;
+      }
 
       errorSensorByStatus[idx].record();
       errorSensor.record();
@@ -335,12 +340,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         final ContainerResponse response = event.getContainerResponse();
         wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
         response.setEntityStream(wrappedResponseStream);
-      } else if (event.getType() == RequestEvent.Type.ON_EXCEPTION) {
-        this.metrics.get(null).metrics().exception(event);
-        final MethodMetrics metrics = getMethodMetrics(event);
-        if (metrics != null) {
-          metrics.exception(event);
-        }
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         final long elapsed = time.milliseconds() - started;
         final long requestSize;
@@ -357,6 +356,16 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         } else {
           responseSize = 0;
         }
+
+        // Handle exceptions
+        if (event.getException() != null) {
+          this.metrics.get(null).metrics().exception(event);
+          final MethodMetrics metrics = getMethodMetrics(event);
+          if (metrics != null) {
+            metrics.exception(event);
+          }
+        }
+
         this.metrics.get(null).metrics().finished(requestSize, responseSize, elapsed);
         final MethodMetrics metrics = getMethodMetrics(event);
         if (metrics != null) {

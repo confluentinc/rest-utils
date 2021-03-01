@@ -1,5 +1,6 @@
 package io.confluent.rest.metrics;
 
+import io.confluent.rest.exceptions.GenericExceptionMapper;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.TestMetricsReporter;
 import io.confluent.rest.annotations.PerformanceMetric;
@@ -13,8 +14,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.RequestDispatcher;
@@ -93,7 +92,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   public void testExceptionMetrics() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
-        .path("/private/exception")
+        .path("/private/fake")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
     assertEquals(404, response.getStatus());
@@ -103,6 +102,27 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           assertTrue("Actual: " + metric.value(),
               metric.value() > 0);
+        } else if (!metric.metricName().tags().isEmpty()) {
+          assertTrue("Actual: " + metric.value() + metric.metricName(),
+              metric.value() == 0.0 || Double.isNaN(metric.value()));
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testMapped500sAreCounted() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .path("/public/caught")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(500, response.getStatus());
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-rate")) {
+        if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("5xx")) {
+          assertTrue("Actual: " + metric.value(), metric.value() > 0);
         } else if (!metric.metricName().tags().isEmpty()) {
           assertTrue("Actual: " + metric.value() + metric.metricName(),
               metric.value() == 0.0 || Double.isNaN(metric.value()));
@@ -145,6 +165,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
       resourceConfig = config;
       config.register(PrivateResource.class);
+      config.register(new PublicResource());
+
       // ensures the dispatch error message gets shown in the response
       // as opposed to a generic error page
       config.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true);
@@ -178,10 +200,14 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
   }
 
-  @GET
-  @PerformanceMetric("error")
-  @Path("/exception")
-  public Void exception() {
-    throw new RestNotFoundException("Rest Not Found", 4040);
+  @Produces(MediaType.APPLICATION_JSON)
+  @Path("/public/")
+  public static class PublicResource {
+    @GET
+    @Path("/caught")
+    public Void caught() {
+      throw new RuntimeException("cyrus");
+    }
   }
+
 }
