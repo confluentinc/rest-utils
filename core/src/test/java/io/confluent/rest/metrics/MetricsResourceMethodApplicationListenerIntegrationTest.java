@@ -1,10 +1,7 @@
 package io.confluent.rest.metrics;
 
-import io.confluent.rest.exceptions.GenericExceptionMapper;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.TestMetricsReporter;
-import io.confluent.rest.annotations.PerformanceMetric;
-import io.confluent.rest.exceptions.RestNotFoundException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
