@@ -280,8 +280,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
      * Indicate that a request has failed with an exception.
      */
     public void exception(final RequestEvent event) {
-      int idx = event.getContainerResponse() != null ?
-          event.getContainerResponse().getStatus() / 100 : 5;
+      int idx = event.getContainerResponse() != null
+          ? event.getContainerResponse().getStatus() / 100 : 5;
 
       // Index 0 means "unknown" status codes.
       if (idx <= 0 || idx >= 6) {
