@@ -41,8 +41,6 @@ import java.util.concurrent.TimeUnit;
 
 import io.confluent.rest.annotations.PerformanceMetric;
 
-import javax.ws.rs.WebApplicationException;
-
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.stats.Avg;
@@ -62,7 +60,8 @@ import org.slf4j.LoggerFactory;
  * latency (average, 90th, 99th, etc).
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
-  private static final Logger log = LoggerFactory.getLogger(MetricsResourceMethodApplicationListener.class);
+  private static final Logger log = LoggerFactory.getLogger(
+      MetricsResourceMethodApplicationListener.class);
 
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
@@ -281,7 +280,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
      * Indicate that a request has failed with an exception.
      */
     public void exception(final RequestEvent event) {
-      int idx = event.getContainerResponse() != null ? event.getContainerResponse().getStatus() / 100 : 5;
+      int idx = event.getContainerResponse() != null ?
+          event.getContainerResponse().getStatus() / 100 : 5;
 
       // Index 0 means "unknown" status codes.
       if (idx <= 0 || idx >= 6) {
