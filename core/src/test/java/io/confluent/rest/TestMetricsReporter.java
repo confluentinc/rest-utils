@@ -42,11 +42,11 @@ public class TestMetricsReporter implements MetricsReporter {
     return metricTimeseries;
   }
 
-  public static void reset() { metricTimeseries = new LinkedList<KafkaMetric>(); }
+  public static void reset() { metricTimeseries = new LinkedList<>(); }
 
   public static void print() {
     for (KafkaMetric metric : metricTimeseries) {
-      System.out.println("\t" + metric.metricName() + ": " + metric.value());
+      System.out.println("\t" + metric.metricName() + ": " + metric.metricValue());
     }
   }
 
