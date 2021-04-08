@@ -1,5 +1,5 @@
 /**
- * Copyright 2014 Confluent Inc.
+ * Copyright 2020 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -226,8 +226,9 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_METHOD_NONE = "NONE";
   public static final String AUTHENTICATION_METHOD_BASIC = "BASIC";
   public static final String AUTHENTICATION_METHOD_BEARER = "BEARER";
+  public static final String AUTHENTICATION_METHOD_OIDC = "OIDC";
   public static final String AUTHENTICATION_METHOD_DOC =
-      "Method of authentication. Must be BASIC or BEARER to enable authentication. "
+      "Method of authentication. Must be BASIC, OIDC, or BEARER to enable authentication. "
       + "For BASIC, you must supply a valid JAAS config file for the "
       + "'java.security.auth.login.config' system property for the appropriate authentication "
       + "provider. For BEARER, you must implement your own Application.createAuthenticator() "
@@ -236,7 +237,8 @@ public class RestConfig extends AbstractConfig {
       ConfigDef.ValidString.in(
           AUTHENTICATION_METHOD_NONE,
           AUTHENTICATION_METHOD_BASIC,
-          AUTHENTICATION_METHOD_BEARER
+          AUTHENTICATION_METHOD_BEARER,
+          AUTHENTICATION_METHOD_OIDC
       );
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
   public static final String AUTHENTICATION_REALM_DOC =

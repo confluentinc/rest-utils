@@ -185,7 +185,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
             HttpServletResponse response
         ) throws IOException, ServletException {
           handledException = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
-          super.handle(target, baseRequest, request, response);
+          try {
+            super.handle(target, baseRequest, request, response);
+          } catch (ServletException e) {
+            /* NOOP{ */
+          }
         }
       });
     }
