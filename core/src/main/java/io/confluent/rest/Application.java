@@ -97,11 +97,12 @@ public abstract class Application<T extends RestConfig> {
   protected T config;
   private final String path;
 
-  protected ApplicationServer server;
+  protected ApplicationServer<T> server;
   protected Metrics metrics;
   protected final CustomRequestLog requestLog;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
+  @SuppressWarnings("unchecked")
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
@@ -112,7 +113,7 @@ public abstract class Application<T extends RestConfig> {
 
   public Application(T config, String path) {
     this.config = config;
-    this.path = Objects.requireNonNull(path);;
+    this.path = Objects.requireNonNull(path);
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(
@@ -237,12 +238,13 @@ public abstract class Application<T extends RestConfig> {
   public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
-      server = new ApplicationServer(config);
+      server = new ApplicationServer<>(config);
       server.registerApplication(this);
     }
     return server;
   }
 
+  @SuppressWarnings("unchecked")
   final void setServer(ApplicationServer server) {
     this.server = Objects.requireNonNull(server);
   }

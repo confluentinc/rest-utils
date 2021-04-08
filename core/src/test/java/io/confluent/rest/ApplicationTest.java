@@ -96,7 +96,7 @@ public class ApplicationTest {
   @Test
   public void testParseListToMap() {
     assertEquals(
-        new HashMap(){
+        new HashMap<String, String>(){
           {
             put("k1","v1");
             put("k2","v2");

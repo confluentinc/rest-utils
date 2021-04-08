@@ -218,6 +218,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     applications.doStop();
   }
 
+  @SuppressWarnings("unchecked")
   protected final void doStart() throws Exception {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();

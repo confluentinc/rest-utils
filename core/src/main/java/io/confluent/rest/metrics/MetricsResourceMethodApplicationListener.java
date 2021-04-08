@@ -377,6 +377,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       }
     }
 
+    @SuppressWarnings("unchecked")
     private MethodMetrics getMethodMetrics(RequestEvent event) {
       ResourceMethod method = event.getUriInfo().getMatchedResourceMethod();
       if (method == null) {

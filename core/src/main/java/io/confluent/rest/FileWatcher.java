@@ -100,7 +100,8 @@ public class FileWatcher implements Runnable {
         log.debug("Watch event is OVERFLOW");
         continue;
       }
-      WatchEvent<Path> ev = (WatchEvent<Path>)event;
+      @SuppressWarnings("unchecked")
+      WatchEvent<Path> ev = (WatchEvent<Path>) event;
       Path changed = this.file.getParent().resolve(ev.context());
       log.info("Watch file change: " + ev.context() + "=>" + changed);
       // Need to use path equals than isSameFile
