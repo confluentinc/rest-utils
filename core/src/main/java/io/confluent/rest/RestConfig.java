@@ -421,7 +421,6 @@ public class RestConfig extends AbstractConfig {
   }
 
   // CHECKSTYLE_RULES.OFF: MethodLength
-  @SuppressWarnings("deprecation")
   private static ConfigDef incompleteBaseConfigDef() {
     // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()

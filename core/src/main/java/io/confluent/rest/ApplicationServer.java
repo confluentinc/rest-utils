@@ -377,6 +377,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
+    @SuppressWarnings("deprecation")
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
 

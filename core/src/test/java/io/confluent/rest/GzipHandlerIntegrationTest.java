@@ -55,7 +55,7 @@ public class GzipHandlerIntegrationTest {
   @Test
   public void testGzip() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path("/test/zeros")
         .request(MediaType.APPLICATION_OCTET_STREAM)
         .acceptEncoding("gzip")

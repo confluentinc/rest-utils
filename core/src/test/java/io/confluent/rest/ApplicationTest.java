@@ -25,6 +25,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
@@ -68,16 +69,11 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.security.Constraint;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 public class ApplicationTest {
 
   private static final String REALM = "realm";
-
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
 
   @Before
   public void setUp() {
@@ -306,11 +302,9 @@ public class ApplicationTest {
   }
 
   @Test
-  public void shouldThrowIfResourceExtensionThrows() throws Exception {
-    expectedException.expectMessage(
-        containsString("Exception throw by resource extension. ext:"));
-
-    new TestApp(TestRegistryExtension.class, BadRegistryExtension.class);
+  public void shouldThrowIfResourceExtensionThrows() {
+    Exception e = assertThrows(Exception.class, () -> new TestApp(TestRegistryExtension.class, BadRegistryExtension.class));
+    assertThat(e.getMessage(), containsString("Exception throw by resource extension. ext:"));
   }
 
   @Test

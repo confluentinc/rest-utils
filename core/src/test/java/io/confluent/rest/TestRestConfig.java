@@ -47,4 +47,10 @@ public class TestRestConfig extends RestConfig {
             getString(METRICS_JMX_PREFIX_CONFIG),
             originalsWithPrefix(METRICS_CONTEXT_PREFIX)).metricsContext();
   }
+
+  @SuppressWarnings("deprecation")
+  public int getPort() {
+    return getInt(RestConfig.PORT_CONFIG);
+  }
+
 }

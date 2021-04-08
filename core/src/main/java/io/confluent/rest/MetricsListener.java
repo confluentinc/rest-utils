@@ -22,11 +22,11 @@ import java.util.Map;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.common.metrics.stats.Total;
 import org.eclipse.jetty.io.NetworkTrafficListener;
 
-public class MetricsListener extends NetworkTrafficListener.Adapter {
+public class MetricsListener implements NetworkTrafficListener {
 
   /*
    * `NetworkTrafficListener` in Jetty 9.2 doesn't expose `accepted`
@@ -73,7 +73,7 @@ public class MetricsListener extends NetworkTrafficListener.Adapter {
         "Total number of active Jetty TCP connections",
         metricTags
     );
-    this.connections.add(metricName, new Total());
+    this.connections.add(metricName, new CumulativeSum());
   }
 
 

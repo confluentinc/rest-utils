@@ -67,7 +67,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     // RequestEvent.Type.FINISHED before RequestEvent.Type.RESP_FILTERS_START
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path("/private/endpoint")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
@@ -88,7 +88,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Test
   public void testExceptionMetrics() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path("/private/fake")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
@@ -112,7 +112,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Test
   public void testMapped500sAreCounted() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path("/public/caught")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();

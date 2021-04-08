@@ -65,7 +65,7 @@ public class ExceptionHandlingTest {
   private void testGetException(String path, int expectedStatus, int expectedErrorCode,
       String expectedMessage) {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path(path)
         .request()
         .get();
@@ -79,7 +79,7 @@ public class ExceptionHandlingTest {
   private void testPostException(String path, Entity entity, int expectedStatus, int expectedErrorCode,
       String expectedMessage) {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-      .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+      .target("http://localhost:" + config.getPort())
       .path(path)
       .request()
       .post(entity);

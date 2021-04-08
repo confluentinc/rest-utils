@@ -49,7 +49,6 @@ import java.util.Properties;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -117,7 +116,7 @@ public class SslTest {
   }
 
   private void enableSslClientAuth(Properties props) {
-    props.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, true);
+    props.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, true);
   }
 
   private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
@@ -256,9 +255,8 @@ public class SslTest {
             "Request latency metrics should be measurable",
             metricValue instanceof Double);
         double latencyMaxValue = (double) metricValue;
-        assertTrue(
-            "Metrics should be collected (max latency shouldn't be 0)",
-            latencyMaxValue != 0.0);
+        assertNotEquals("Metrics should be collected (max latency shouldn't be 0)", 0.0,
+          latencyMaxValue);
       }
     }
   }
