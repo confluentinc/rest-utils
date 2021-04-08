@@ -245,10 +245,20 @@ public class SslTest {
   }
 
   private void assertMetricsCollected() {
-    assertNotEquals("Expected to have metrics.", 0, TestMetricsReporter.getMetricTimeseries().size());
+    assertNotEquals(
+        "Expected to have metrics.",
+        0,
+        TestMetricsReporter.getMetricTimeseries().size());
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-latency-max")) {
-        assertTrue("Metrics should be collected (max latency shouldn't be 0)", metric.value() != 0.0);
+        Object metricValue = metric.metricValue();
+        assertTrue(
+            "Request latency metrics should be measurable",
+            metricValue instanceof Double);
+        double latencyMaxValue = (double) metricValue;
+        assertTrue(
+            "Metrics should be collected (max latency shouldn't be 0)",
+            latencyMaxValue != 0.0);
       }
     }
   }
