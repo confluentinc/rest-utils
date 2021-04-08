@@ -13,8 +13,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.RequestDispatcher;
@@ -100,12 +98,14 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
+        Object metricValue = metric.metricValue();
+        assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
+        double errorRateValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
-          assertTrue("Actual: " + metric.value(),
-              metric.value() > 0);
+          assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
         } else if (!metric.metricName().tags().isEmpty()) {
-          assertTrue("Actual: " + metric.value() + metric.metricName(),
-              metric.value() == 0.0 || Double.isNaN(metric.value()));
+          assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
+              errorRateValue == 0.0 || Double.isNaN(errorRateValue));
         }
       }
     }
