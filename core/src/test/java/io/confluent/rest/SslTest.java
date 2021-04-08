@@ -116,7 +116,7 @@ public class SslTest {
   }
 
   private void enableSslClientAuth(Properties props) {
-    props.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, true);
+    props.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
   }
 
   private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
