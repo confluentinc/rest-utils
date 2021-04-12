@@ -377,7 +377,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       }
     }
 
-    @SuppressWarnings("unchecked")
     private MethodMetrics getMethodMetrics(RequestEvent event) {
       ResourceMethod method = event.getUriInfo().getMatchedResourceMethod();
       if (method == null) {
@@ -389,10 +388,17 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         return null;
       }
 
-      Map tags = (Map) event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
-      if (tags == null) {
+      Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
+
+      if (tagsObj == null) {
         return metrics.metrics();
       }
+      if (!(tagsObj instanceof Map<?, ?>)) {
+        throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
+            + " to be a `Map`, but it is " + tagsObj.getClass());
+      }
+      @SuppressWarnings("unchecked")
+      Map<String, String> tags = (Map<String, String>) tagsObj;
 
       // we have additional tags, find the appropriate metrics holder
       return metrics.metrics(tags);

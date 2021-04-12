@@ -218,11 +218,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     applications.doStop();
   }
 
-  @SuppressWarnings("unchecked")
   protected final void doStart() throws Exception {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
-    for (Application app : applications.getApplications()) {
+    for (Application<?> app : applications.getApplications()) {
       attachMetricsListener(app.getMetrics(), app.getMetricsTags());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
