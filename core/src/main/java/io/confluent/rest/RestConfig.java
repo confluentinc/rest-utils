@@ -22,13 +22,16 @@ import io.confluent.common.config.ConfigDef.Type;
 import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.utils.SystemTime;
 import io.confluent.common.utils.Time;
-
 import io.confluent.rest.extension.ResourceExtension;
+
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import static java.util.Collections.emptyList;
 
 public class RestConfig extends AbstractConfig {
   public static final String DEBUG_CONFIG = "debug";
@@ -245,6 +248,142 @@ public class RestConfig extends AbstractConfig {
           + "including changes to the Jetty version";
 
   // CHECKSTYLE_RULES.OFF: MethodLength
+  public static final String IDLE_TIMEOUT_MS_CONFIG = "idle.timeout.ms";
+  public static final String IDLE_TIMEOUT_MS_DOC =
+          "The number of milliseconds to hold an idle session open for.";
+  public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
+
+  public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
+  public static final String THREAD_POOL_MIN_DOC =
+          "The minimum number of threads will be startred for HTTP Servlet server.";
+  public static final int THREAD_POOL_MIN_DEFAULT = 8;
+
+  public static final String THREAD_POOL_MAX_CONFIG = "thread.pool.max";
+  public static final String THREAD_POOL_MAX_DOC =
+          "The maxinum number of threads will be startred for HTTP Servlet server.";
+  public static final int THREAD_POOL_MAX_DEFAULT = 200;
+
+  public static final String REQUEST_QUEUE_CAPACITY_CONFIG = "request.queue.capacity";
+  public static final String REQUEST_QUEUE_CAPACITY_DOC =
+          "The capacity of request queue for each thread pool.";
+  public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
+
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
+  public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
+          "The initial capacity of request queue for each thread pool.";
+  public static final int REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT = 128;
+
+  public static final String REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG = "request.queue.capacity.growby";
+  public static final String REQUEST_QUEUE_CAPACITY_GROWBY_DOC =
+          "The size of request queue will be increased by.";
+  public static final int REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT = 64;
+
+  /**
+   * @link "https://www.eclipse.org/jetty/documentation/current/header-filter.html"
+   * @link "https://www.eclipse.org/jetty/javadoc/9.4.28.v20200408/org/eclipse/jetty/servlets/HeaderFilter.html"
+   **/
+  public static final String RESPONSE_HTTP_HEADERS_CONFIG = "response.http.headers.config";
+  public static final String RESPONSE_HTTP_HEADERS_DOC =
+          "Set values for Jetty HTTP response headers";
+  public static final String RESPONSE_HTTP_HEADERS_DEFAULT = "";
+
+  public static final String CSRF_PREVENTION_ENABLED = "csrf.prevention.enable";
+  public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
+  protected static final String CSRF_PREVENTION_ENABLED_DOC = "Enable token based CSRF prevention";
+
+  public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT =
+      "csrf.prevention.token.endpoint";
+  public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT = "/csrf";
+  protected static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DOC =
+      "Endpoint to fetch the CSRF token. Token will be set in the Response header";
+
+  public static final String CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES =
+      "csrf.prevention.token.expiration.minutes";
+  public static final int CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DEFAULT = 30;
+  protected static final String CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DOC =
+      "CSRF Token expiration period in minutes";
+
+  public static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES =
+      "csrf.prevention.token.max.entries";
+  public static final int CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT = 10000;
+  protected static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC =
+      "Specifies the maximum number of entries the token cache may contain";
+
+  private static final String DOS_FILTER_ENABLED_CONFIG = "dos.filter.enabled";
+  private static final String DOS_FILTER_ENABLED_DOC =
+      "Whether to enable DosFilter for the application. Default is false.";
+  private static final boolean DOS_FILTER_ENABLED_DEFAULT = false;
+
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG =
+      "dos.filter.max.requests.per.sec";
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC =
+      "Maximum number of requests from a connection per second. Requests in excess of this are "
+          + "first delayed, then throttled. Default is 25.";
+  private static final int DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
+
+  private static final String DOS_FILTER_DELAY_MS_CONFIG = "dos.filter.delay.ms";
+  private static final String DOS_FILTER_DELAY_MS_DOC =
+      "Delay imposed on all requests over the rate limit, before they are considered at all: 100 "
+          + "(ms) = Default, -1 = Reject request, 0 = No delay, any other value = Delay in ms";
+  private static final Duration DOS_FILTER_DELAY_MS_DEFAULT = Duration.ofMillis(100);
+
+  private static final String DOS_FILTER_MAX_WAIT_MS_CONFIG = "dos.filter.max.wait.ms";
+  private static final String DOS_FILTER_MAX_WAIT_MS_DOC =
+      "Length of time, in ms, to blocking wait for the throttle semaphore. Default is 50 ms.";
+  private static final Duration DOS_FILTER_MAX_WAIT_MS_DEFAULT = Duration.ofMillis(50);
+
+  private static final String DOS_FILTER_THROTTLED_REQUESTS_CONFIG =
+      "dos.filter.throttled.requests";
+  private static final String DOS_FILTER_THROTTLED_REQUESTS_DOC =
+      "Number of requests over the rate limit able to be considered at once. Default is 5.";
+  private static final int DOS_FILTER_THROTTLED_REQUESTS_DEFAULT = 5;
+
+  private static final String DOS_FILTER_THROTTLE_MS_CONFIG = "dos.filter.throttle.ms";
+  private static final String DOS_FILTER_THROTTLE_MS_DOC =
+      "Length of time, in ms, to async wait for semaphore. Default is 30000L.";
+  private static final Duration DOS_FILTER_THROTTLE_MS_DEFAULT = Duration.ofSeconds(30);
+
+  private static final String DOS_FILTER_MAX_REQUEST_MS_CONFIG = "dos.filter.max.requests.ms";
+  private static final String DOS_FILTER_MAX_REQUEST_MS_DOC =
+      "Length of time, in ms, to allow the request to run. Default is 30000L.";
+  private static final Duration DOS_FILTER_MAX_REQUEST_MS_DEFAULT = Duration.ofSeconds(30);
+
+  private static final String DOS_FILTER_MAX_IDLE_TRACKER_MS_CONFIG =
+      "dos.filter.max.idle.tracker.ms";
+  private static final String DOS_FILTER_MAX_IDLE_TRACKER_MS_DOC =
+      "Length of time, in ms, to keep track of request rates for a connection, before deciding "
+          + "that the user has gone away, and discarding it. Default is 30000L.";
+  private static final Duration DOS_FILTER_MAX_IDLE_TRACKER_MS_DEFAULT = Duration.ofSeconds(30);
+
+  private static final String DOS_FILTER_INSERT_HEADERS_CONFIG = "dos.filter.insert.headers";
+  private static final String DOS_FILTER_INSERT_HEADERS_DOC =
+      "If true, insert the DoSFilter headers into the response. Defaults to true.";
+  private static final boolean DOS_FILTER_INSERT_HEADERS_DEFAULT = true;
+
+  private static final String DOS_FILTER_TRACK_SESSIONS_CONFIG = "dos.filter.track.sessions";
+  private static final String DOS_FILTER_TRACK_SESSIONS_DOC =
+      "If true, usage rate is tracked by session if a session exists. Defaults to true.";
+  private static final boolean DOS_FILTER_TRACK_SESSIONS_DEFAULT = true;
+
+  private static final String DOS_FILTER_REMOTE_PORT_CONFIG = "dos.filter.remote.port";
+  private static final String DOS_FILTER_REMOTE_PORT_DOC =
+      "If true and session tracking is not used, then rate is tracked by IP and port (effectively "
+          + "connection). Defaults to false.";
+  private static final boolean DOS_FILTER_REMOTE_PORT_DEFAULT = false;
+
+  private static final String DOS_FILTER_IP_WHITELIST_CONFIG = "dos.filter.ip.whitelist";
+  private static final String DOS_FILTER_IP_WHITELIST_DOC =
+      "A comma-separated list of IP addresses that will not be rate limited.";
+  private static final List<String> DOS_FILTER_IP_WHITELIST_DEFAULT = emptyList();
+
+  private static final String DOS_FILTER_MANAGED_ATTR_CONFIG = "dos.filter.managed.attr";
+  private static final String DOS_FILTER_MANAGED_ATTR_DOC =
+      "If set to true, then this servlet is set as a ServletContext attribute with the filter "
+          + "name as the attribute name. This allows a context external mechanism (for example, "
+          + "JMX via ContextHandler.MANAGED_ATTRIBUTES) to manage the configuration of the filter."
+          + "Default is false.";
+  private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
+
   public static ConfigDef baseConfigDef() {
     // CHECKSTYLE_RULES.ON: MethodLength
     return new ConfigDef()
@@ -470,21 +609,165 @@ public class RestConfig extends AbstractConfig {
         ).define(
             RESOURCE_EXTENSION_CLASSES_CONFIG,
             Type.LIST,
-            Collections.emptyList(),
+            emptyList(),
             Importance.LOW,
             RESOURCE_EXTENSION_CLASSES_DOC
         ).define(
             REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
             Type.LIST,
-            Collections.emptyList(),
+            emptyList(),
             Importance.LOW,
             REST_SERVLET_INITIALIZERS_CLASSES_DOC
         ).define(
             WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG,
             Type.LIST,
-            Collections.emptyList(),
+            emptyList(),
             Importance.LOW,
             WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC
+        ).define(
+            IDLE_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            IDLE_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            IDLE_TIMEOUT_MS_DOC
+        ).define(
+            THREAD_POOL_MIN_CONFIG,
+            Type.INT,
+            THREAD_POOL_MIN_DEFAULT,
+            Importance.LOW,
+            THREAD_POOL_MIN_DOC
+        ).define(
+            THREAD_POOL_MAX_CONFIG,
+            Type.INT,
+            THREAD_POOL_MAX_DEFAULT,
+            Importance.LOW,
+            THREAD_POOL_MAX_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_INITIAL_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_DOC
+        ).define(
+            REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG,
+            Type.INT,
+            REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT,
+            Importance.LOW,
+            REQUEST_QUEUE_CAPACITY_GROWBY_DOC
+        ).define(
+            RESPONSE_HTTP_HEADERS_CONFIG,
+            Type.STRING,
+            RESPONSE_HTTP_HEADERS_DEFAULT,
+            Importance.LOW,
+            RESPONSE_HTTP_HEADERS_DOC
+        ).define(
+            CSRF_PREVENTION_ENABLED,
+            Type.BOOLEAN,
+            CSRF_PREVENTION_ENABLED_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_ENABLED_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT,
+            Type.STRING,
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES,
+            Type.INT,
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES_DOC
+        ).define(
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES,
+            Type.INT,
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT,
+            Importance.LOW,
+            CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC
+        ).define(
+            DOS_FILTER_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_ENABLED_DOC
+        ).define(
+            DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC
+        ).define(
+            DOS_FILTER_DELAY_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_DELAY_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_DELAY_MS_DOC
+        ).define(
+            DOS_FILTER_MAX_WAIT_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_MAX_WAIT_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_MAX_WAIT_MS_DOC
+        ).define(
+            DOS_FILTER_THROTTLED_REQUESTS_CONFIG,
+            Type.INT,
+            DOS_FILTER_THROTTLED_REQUESTS_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_THROTTLED_REQUESTS_DOC
+        ).define(
+            DOS_FILTER_THROTTLE_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_THROTTLE_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_THROTTLE_MS_DOC
+        ).define(
+            DOS_FILTER_MAX_REQUEST_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_MAX_REQUEST_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_MAX_REQUEST_MS_DOC
+        ).define(
+            DOS_FILTER_MAX_IDLE_TRACKER_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_MAX_IDLE_TRACKER_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_MAX_IDLE_TRACKER_MS_DOC
+        ).define(
+            DOS_FILTER_INSERT_HEADERS_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_INSERT_HEADERS_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_INSERT_HEADERS_DOC
+        ).define(
+            DOS_FILTER_TRACK_SESSIONS_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TRACK_SESSIONS_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TRACK_SESSIONS_DOC
+        ).define(
+            DOS_FILTER_REMOTE_PORT_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_REMOTE_PORT_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_REMOTE_PORT_DOC
+        ).define(
+            DOS_FILTER_IP_WHITELIST_CONFIG,
+            Type.LIST,
+            DOS_FILTER_IP_WHITELIST_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_IP_WHITELIST_DOC
+        ).define(
+            DOS_FILTER_MANAGED_ATTR_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_MANAGED_ATTR_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_MANAGED_ATTR_DOC
         );
   }
 
@@ -500,5 +783,57 @@ public class RestConfig extends AbstractConfig {
 
   public Time getTime() {
     return defaultTime;
+  }
+
+  public final boolean isDosFilterEnabled() {
+    return getBoolean(DOS_FILTER_ENABLED_CONFIG);
+  }
+
+  public final int getDosFilterMaxRequestsPerSec() {
+    return getInt(DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG);
+  }
+
+  public final Duration getDosFilterDelayMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_DELAY_MS_CONFIG));
+  }
+
+  public final Duration getDosFilterMaxWaitMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_MAX_WAIT_MS_CONFIG));
+  }
+
+  public final int getDosFilterThrottledRequests() {
+    return getInt(DOS_FILTER_THROTTLED_REQUESTS_CONFIG);
+  }
+
+  public final Duration getDosFilterThrottleMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_THROTTLE_MS_CONFIG));
+  }
+
+  public final Duration getDosFilterMaxRequestMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_MAX_REQUEST_MS_CONFIG));
+  }
+
+  public final Duration getDosFilterMaxIdleTrackerMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_MAX_IDLE_TRACKER_MS_CONFIG));
+  }
+
+  public final boolean getDosFilterInsertHeaders() {
+    return getBoolean(DOS_FILTER_INSERT_HEADERS_CONFIG);
+  }
+
+  public final boolean getDosFilterTrackSessions() {
+    return getBoolean(DOS_FILTER_TRACK_SESSIONS_CONFIG);
+  }
+
+  public final boolean getDosFilterRemotePort() {
+    return getBoolean(DOS_FILTER_REMOTE_PORT_CONFIG);
+  }
+
+  public final List<String> getDosFilterIpWhitelist() {
+    return getList(DOS_FILTER_IP_WHITELIST_CONFIG);
+  }
+
+  public final boolean getDosFilterManagedAttr() {
+    return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
   }
 }
