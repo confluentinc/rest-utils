@@ -601,7 +601,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureDosFilter(ServletContextHandler context) {
-    if (!config.getDosFilterEnabled()) {
+    if (!config.isDosFilterEnabled()) {
       return;
     }
     FilterHolder filterHolder = new FilterHolder(new DoSFilter());

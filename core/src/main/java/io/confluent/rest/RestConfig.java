@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -348,7 +348,7 @@ public class RestConfig extends AbstractConfig {
 
   private static final String DOS_FILTER_ENABLED_CONFIG = "dos.filter.enabled";
   private static final String DOS_FILTER_ENABLED_DOC =
-      "Whether to enable DosFilter for the application.";
+      "Whether to enable DosFilter for the application. Default is false.";
   private static final boolean DOS_FILTER_ENABLED_DEFAULT = false;
 
   private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG =
@@ -417,7 +417,8 @@ public class RestConfig extends AbstractConfig {
   private static final String DOS_FILTER_MANAGED_ATTR_DOC =
       "If set to true, then this servlet is set as a ServletContext attribute with the filter "
           + "name as the attribute name. This allows a context external mechanism (for example, "
-          + "JMX via ContextHandler.MANAGED_ATTRIBUTES) to manage the configuration of the filter.";
+          + "JMX via ContextHandler.MANAGED_ATTRIBUTES) to manage the configuration of the filter."
+          + "Default is false.";
   private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
 
   public static ConfigDef baseConfigDef() {
@@ -951,7 +952,7 @@ public class RestConfig extends AbstractConfig {
     }
   }
 
-  public final boolean getDosFilterEnabled() {
+  public final boolean isDosFilterEnabled() {
     return getBoolean(DOS_FILTER_ENABLED_CONFIG);
   }
 
