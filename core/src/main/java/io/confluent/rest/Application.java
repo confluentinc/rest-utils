@@ -97,7 +97,7 @@ public abstract class Application<T extends RestConfig> {
   protected T config;
   private final String path;
 
-  protected ApplicationServer<T> server;
+  protected ApplicationServer<?> server;
   protected Metrics metrics;
   protected final CustomRequestLog requestLog;
 
@@ -228,7 +228,7 @@ public abstract class Application<T extends RestConfig> {
    * @return a Map of tags and values
    */
   public Map<String,String> getMetricsTags() {
-    return new LinkedHashMap<String, String>();
+    return new LinkedHashMap<>();
   }
 
   /**
@@ -244,8 +244,7 @@ public abstract class Application<T extends RestConfig> {
     return server;
   }
 
-  @SuppressWarnings("unchecked")
-  final void setServer(ApplicationServer server) {
+  final void setServer(ApplicationServer<?> server) {
     this.server = Objects.requireNonNull(server);
   }
 
