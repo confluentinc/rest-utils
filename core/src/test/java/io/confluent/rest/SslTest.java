@@ -393,7 +393,7 @@ public class SslTest {
 
     @Override
     public Map<String, String> getMetricsTags() {
-      Map<String, String> tags = new LinkedHashMap<String, String>();
+      Map<String, String> tags = new LinkedHashMap<>();
       tags.put("instance-id", "1");
       return tags;
     }

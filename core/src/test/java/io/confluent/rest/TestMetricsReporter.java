@@ -25,7 +25,7 @@ import java.util.Map;
 
 public class TestMetricsReporter implements MetricsReporter {
 
-  private static List<KafkaMetric> metricTimeseries = new LinkedList<KafkaMetric>();
+  private static List<KafkaMetric> metricTimeseries = new LinkedList<>();
 
   private Map<String, ?> configs;
 

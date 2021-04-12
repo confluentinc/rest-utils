@@ -47,6 +47,6 @@ public class ConstraintViolations {
   }
 
   public static ConstraintViolationException simpleException(String msg) {
-    return new ConstraintViolationException(msg, new HashSet<ConstraintViolation<?>>());
+    return new ConstraintViolationException(msg, new HashSet<>());
   }
 }
