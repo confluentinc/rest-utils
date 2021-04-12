@@ -109,7 +109,7 @@ public class ApplicationTest {
   @Test
   public void testParseEmptyListToMap() {
     assertEquals(
-        new HashMap(),
+        new HashMap<String, String>(),
         Application.parseListToMap(new ArrayList<>())
     );
   }
@@ -117,14 +117,14 @@ public class ApplicationTest {
   @Test(expected = ConfigException.class)
   public void testParseBadListToMap() {
     assertEquals(
-        new HashMap(),
+        new HashMap<String, String>(),
         Application.parseListToMap(Arrays.asList("k1:v1:what", "k2:v2"))
     );
   }
 
   @Test
   public void testParseListenersDeprecated() {
-    List<String> listenersConfig = new ArrayList<String>();
+    List<String> listenersConfig = new ArrayList<>();
     List<URI> listeners = Application.parseListeners(listenersConfig, RestConfig.PORT_CONFIG_DEFAULT,
             Arrays.asList("http", "https"), "http");
     assertEquals("Should have only one listener.", 1, listeners.size());
@@ -133,10 +133,10 @@ public class ApplicationTest {
 
   @Test
   public void testParseListenersHttpAndHttps() {
-    List<String> listenersConfig = new ArrayList<String>();
+    List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("http://localhost:123");
     listenersConfig.add("https://localhost:124");
-    List<URI> listeners = application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
     assertEquals("Should have two listeners.", 2, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "localhost", 123);
     assertExpectedUri(listeners.get(1), "https", "localhost", 124);
@@ -144,14 +144,14 @@ public class ApplicationTest {
 
   @Test(expected = ConfigException.class)
   public void testParseListenersUnparseableUri() {
-    List<String> listenersConfig = new ArrayList<String>();
+    List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("!");
     Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
   }
 
   @Test
   public void testParseListenersUnsupportedScheme() {
-    List<String> listenersConfig = new ArrayList<String>();
+    List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("http://localhost:8080");
     listenersConfig.add("foo://localhost:8081");
     List<URI> listeners = Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
@@ -161,7 +161,7 @@ public class ApplicationTest {
 
   @Test(expected = ConfigException.class)
   public void testParseListenersNoSupportedListeners() {
-    List<String> listenersConfig = new ArrayList<String>();
+    List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("foo://localhost:8080");
     listenersConfig.add("bar://localhost:8081");
     Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
@@ -169,7 +169,7 @@ public class ApplicationTest {
 
   @Test(expected = ConfigException.class)
   public void testParseListenersNoPort() {
-    List<String> listenersConfig = new ArrayList<String>();
+    List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("http://localhost");
     Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
   }
@@ -262,7 +262,7 @@ public class ApplicationTest {
     final Map<String, Object> config = ImmutableMap.of(
         RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BEARER);
 
-    Application app = new TestApp(config) {
+    Application<?> app = new TestApp(config) {
       @Override
       protected LoginService createLoginService() {
         return new JAASLoginService("realm");
@@ -276,7 +276,7 @@ public class ApplicationTest {
     final Map<String, Object> config = ImmutableMap.of(
         RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BEARER);
 
-    Application app = new TestApp(config) {
+    Application<?> app = new TestApp(config) {
       @Override
       protected LoginAuthenticator createAuthenticator() {
         return new BasicAuthenticator();
@@ -290,7 +290,7 @@ public class ApplicationTest {
     final Map<String, Object> config = ImmutableMap.of(
         RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BEARER);
 
-    Application app = new TestApp(config);
+    Application<?> app = new TestApp(config);
     app.createBearerSecurityHandler();
   }
 
@@ -350,7 +350,7 @@ public class ApplicationTest {
   }
 
   @Test
-  public void testMetricsContextJMXPrefixPropagation() throws Exception  {
+  public void testMetricsContextJMXPrefixPropagation() {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.METRICS_JMX_PREFIX_CONFIG, "FooApp");
 
