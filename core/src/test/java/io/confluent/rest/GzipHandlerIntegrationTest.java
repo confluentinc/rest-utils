@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import org.eclipse.jetty.server.Server;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,29 +34,31 @@ import javax.ws.rs.core.Response;
 import static org.junit.Assert.assertEquals;
 
 public class GzipHandlerIntegrationTest {
-  TestRestConfig config;
-  CompressibleApplication app;
+  private TestRestConfig config;
+  private Server server;
 
   @Before
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
     props.setProperty("compression.enable", "true");
+    props.setProperty("listeners", "http://localhost:0");
     config = new TestRestConfig(props);
-    app = new CompressibleApplication(config);
-    app.start();
+    CompressibleApplication application = new CompressibleApplication(config);
+    server = application.createServer();
+    server.start();
   }
 
   @After
   public void tearDown() throws Exception {
-    app.stop();
-    app.join();
+    server.stop();
+    server.join();
   }
 
   @Test
   public void testGzip() {
-    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+    Response response = ClientBuilder.newClient()
+        .target(server.getURI())
         .path("/test/zeros")
         .request(MediaType.APPLICATION_OCTET_STREAM)
         .acceptEncoding("gzip")
@@ -66,15 +69,12 @@ public class GzipHandlerIntegrationTest {
 
   private static class CompressibleApplication extends Application<TestRestConfig> {
 
-    Configurable resourceConfig;
-
     CompressibleApplication(TestRestConfig props) {
       super(props);
     }
 
     @Override
     public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
-      resourceConfig = config;
       config.register(ZerosResource.class);
     }
   }

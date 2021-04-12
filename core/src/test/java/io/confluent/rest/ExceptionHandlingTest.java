@@ -31,6 +31,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
 
+import org.eclipse.jetty.server.Server;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,28 +45,31 @@ import io.confluent.rest.exceptions.RestServerErrorException;
  */
 public class ExceptionHandlingTest {
 
-  TestRestConfig config;
-  ExceptionApplication app;
+  private TestRestConfig config;
+  private Server server;
+  private ExceptionApplication application;
 
   @Before
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
+    props.setProperty("listeners", "http://localhost:0");
     config = new TestRestConfig(props);
-    app = new ExceptionApplication(config);
-    app.start();
+    application = new ExceptionApplication(config);
+    server = application.createServer();
+    server.start();
   }
 
   @After
   public void tearDown() throws Exception {
-    app.stop();
-    app.join();
+    server.stop();
+    server.join();
   }
 
   private void testGetException(String path, int expectedStatus, int expectedErrorCode,
       String expectedMessage) {
-    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+    Response response = ClientBuilder.newClient(application.resourceConfig.getConfiguration())
+        .target(server.getURI())
         .path(path)
         .request()
         .get();
@@ -76,10 +80,14 @@ public class ExceptionHandlingTest {
     assertEquals(expectedMessage, msg.getMessage());
   }
 
-  private void testPostException(String path, Entity entity, int expectedStatus, int expectedErrorCode,
+  private void testPostException(
+      String path,
+      Entity entity,
+      int expectedStatus,
+      int expectedErrorCode,
       String expectedMessage) {
-    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-      .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+    Response response = ClientBuilder.newClient(application.resourceConfig.getConfiguration())
+      .target(server.getURI())
       .path(path)
       .request()
       .post(entity);
@@ -118,13 +126,14 @@ public class ExceptionHandlingTest {
     Map<String, String> m = new HashMap<String, String>();
     m.put("something", "something");
     m.put("something-else", "something-else");
-    testPostException("/unrecognizedfield", Entity.json(m), 422, 422, "Unrecognized field: something-else");
+    testPostException(
+        "/unrecognizedfield", Entity.json(m), 422, 422, "Unrecognized field: something-else");
   }
 
   // Test app just has endpoints that trigger different types of exceptions.
   private static class ExceptionApplication extends Application<TestRestConfig> {
 
-    Configurable resourceConfig;
+    Configurable<?> resourceConfig;
 
     ExceptionApplication(TestRestConfig props) {
       super(props);
