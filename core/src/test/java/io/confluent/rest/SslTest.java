@@ -190,11 +190,9 @@ public class SslTest {
       statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode); 
-      assertEquals("expect hit error with new server cert", true, hitError); 
+      assertTrue("expect hit error with new server cert", hitError);
     } finally {
-      if (app != null) {
-        app.stop();
-      }
+      app.stop();
     }
   }
 
