@@ -81,7 +81,7 @@ public class CsrfTokenProtectionFilter implements Filter {
   private LoadingCache<String, String> tokenSupplier;
 
   static {
-    HashSet<String> mti = new HashSet();
+    HashSet<String> mti = new HashSet<>();
     mti.add("GET");
     mti.add("OPTIONS");
     mti.add("HEAD");

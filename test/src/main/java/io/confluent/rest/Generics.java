@@ -49,7 +49,6 @@ public class Generics {
    * @param <T>      the type bound
    * @return the class's type parameter
    */
-  @SuppressWarnings("unchecked")
   public static <T> Class<T> getTypeParameter(Class<?> klass, Class<? super T> bound) {
     if (klass == null)
       throw new NullPointerException();

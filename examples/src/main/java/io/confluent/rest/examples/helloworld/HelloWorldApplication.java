@@ -56,7 +56,7 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
 
   @Override
   public Map<String, String> getMetricsTags() {
-    Map<String, String> tags = new LinkedHashMap<String, String>();
+    Map<String, String> tags = new LinkedHashMap<>();
     // In a real app, you might have or generate a unique ID for this instance and add other
     // tags like data center, app version, etc.
     tags.put("instance-id", "1");
@@ -74,7 +74,7 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
       // the format of the message returned by the API, e.g.
       // java -jar rest-utils-examples.jar \
       //    io.confluent.rest.examples.helloworld.HelloWorldApplication 'Goodbye, %s'
-      TreeMap<String,String> settings = new TreeMap<String,String>();
+      TreeMap<String,String> settings = new TreeMap<>();
       if (args.length > 0) {
         settings.put(HelloWorldRestConfig.GREETING_CONFIG, args[0]);
       }

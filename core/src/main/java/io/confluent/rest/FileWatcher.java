@@ -100,9 +100,15 @@ public class FileWatcher implements Runnable {
         log.debug("Watch event is OVERFLOW");
         continue;
       }
-      WatchEvent<Path> ev = (WatchEvent<Path>)event;
-      Path changed = this.file.getParent().resolve(ev.context());
-      log.info("Watch file change: " + ev.context() + "=>" + changed);
+
+      if (event.context() != null && !(event.context() instanceof Path)) {
+        throw new ClassCastException("Expected `event.context()` to be an instance of " + Path.class
+            + ", but it is " + event.context().getClass());
+      }
+
+      Path context = (Path) event.context();
+      Path changed = this.file.getParent().resolve(context);
+      log.info("Watch file change: " + context + "=>" + changed);
       // Need to use path equals than isSameFile
       if (Files.exists(changed) && changed.equals(this.file)) {
         log.debug("Watch matching file: " + file);

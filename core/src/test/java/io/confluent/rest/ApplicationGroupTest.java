@@ -31,7 +31,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class ApplicationGroupTest {
 
   static TestRestConfig testConfig;
-  private static ApplicationServer server;
+  private static ApplicationServer<TestRestConfig> server;
 
   @Before
   public void setup() throws Exception {
@@ -39,7 +39,7 @@ public class ApplicationGroupTest {
     props.setProperty(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:0");
 
     testConfig = new TestRestConfig(props);
-    server = new ApplicationServer(testConfig);
+    server = new ApplicationServer<>(testConfig);
   }
 
   @After

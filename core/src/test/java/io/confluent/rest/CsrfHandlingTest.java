@@ -62,7 +62,7 @@ public class CsrfHandlingTest {
 
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path("ping")
             .request()
             .header(CsrfTokenProtectionFilter.Headers.REQUESTED_BY, requestedBy)
@@ -80,7 +80,7 @@ public class CsrfHandlingTest {
 
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path("ping")
             .request()
             .header(CsrfTokenProtectionFilter.Headers.REQUESTED_BY, requestedBy)
@@ -100,7 +100,7 @@ public class CsrfHandlingTest {
 
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path("ping")
             .request()
             .header(CsrfTokenProtectionFilter.Headers.REQUESTED_WITH, token)
@@ -119,7 +119,7 @@ public class CsrfHandlingTest {
 
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path("ping")
             .request()
             .header(CsrfTokenProtectionFilter.Headers.REQUESTED_BY, requestedBy)
@@ -137,7 +137,7 @@ public class CsrfHandlingTest {
   public void testGetByPassesCheck() {
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path("ping")
             .request()
             .get();
@@ -151,7 +151,7 @@ public class CsrfHandlingTest {
   public void testCsrfTokenFetchRequest() {
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT)
             .request()
             .header(CsrfTokenProtectionFilter.Headers.REQUESTED_BY, "test-session")
@@ -166,7 +166,7 @@ public class CsrfHandlingTest {
   public void testCsrfTokenFetchMissingRequester() {
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT)
             .request()
             .get();
@@ -183,7 +183,7 @@ public class CsrfHandlingTest {
   private String getToken(String requestedBy) {
     Response response =
         ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+            .target("http://localhost:" + config.getPort())
             .path(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT)
             .request()
             .header(CsrfTokenProtectionFilter.Headers.REQUESTED_BY, requestedBy)

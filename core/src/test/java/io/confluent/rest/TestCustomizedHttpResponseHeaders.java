@@ -184,7 +184,6 @@ public class TestCustomizedHttpResponseHeaders {
 
     private static TestRestConfig createConfig() {
       props = new Properties();
-      String uri = "http://localhost:8080";
       return new TestRestConfig(props);
     }
   }

@@ -108,11 +108,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
               "DEPRECATION warning: `listeners` configuration is not configured. "
                       + "Falling back to the deprecated `port` configuration."
       );
-      listenersConfig = new ArrayList<String>(1);
+      listenersConfig = new ArrayList<>(1);
       listenersConfig.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
     }
 
-    List<URI> listeners = new ArrayList<URI>(listenersConfig.size());
+    List<URI> listeners = new ArrayList<>(listenersConfig.size());
     for (String listenerStr : listenersConfig) {
       URI uri;
       try {
@@ -221,7 +221,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   protected final void doStart() throws Exception {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
-    for (Application app : applications.getApplications()) {
+    for (Application<?> app : applications.getApplications()) {
       attachMetricsListener(app.getMetrics(), app.getMetricsTags());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
@@ -377,6 +377,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
+    @SuppressWarnings("deprecation")
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
 

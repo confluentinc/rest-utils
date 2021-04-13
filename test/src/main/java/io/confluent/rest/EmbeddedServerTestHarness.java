@@ -32,8 +32,8 @@ import java.util.Vector;
 
 public abstract class
     EmbeddedServerTestHarness<C extends RestConfig, T extends io.confluent.rest.Application<C>> {
-  private List<Object> resources = new Vector<Object>();
-  private List<Class<?>> resourceClasses = new Vector<Class<?>>();
+  private List<Object> resources = new Vector<>();
+  private List<Class<?>> resourceClasses = new Vector<>();
 
   protected C config;
   protected T app;

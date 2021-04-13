@@ -125,11 +125,11 @@ public class ShutdownTest {
   };
 
   private static class RequestThread extends Thread {
-    RestConfig config;
+    TestRestConfig config;
     volatile boolean finished = false;
     String response = null;
 
-    RequestThread(RestConfig config) {
+    RequestThread(TestRestConfig config) {
       this.config = config;
     }
     @Override
@@ -142,7 +142,7 @@ public class ShutdownTest {
           log.info("Starting client");
           Client client = ClientBuilder.newClient();
           response = client
-              .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+              .target("http://localhost:" + config.getPort())
               .path("/")
               .request()
               .get(String.class);

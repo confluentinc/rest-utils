@@ -32,9 +32,10 @@ import org.eclipse.jetty.security.IdentityService;
 import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.security.authentication.LoginAuthenticator;
+import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.Slf4jRequestLog;
+import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
@@ -97,11 +98,12 @@ public abstract class Application<T extends RestConfig> {
   protected T config;
   private final String path;
 
-  protected ApplicationServer server;
+  protected ApplicationServer<?> server;
   protected Metrics metrics;
-  protected final Slf4jRequestLog requestLog;
+  protected final CustomRequestLog requestLog;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
+  @SuppressWarnings("unchecked")
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
@@ -112,15 +114,15 @@ public abstract class Application<T extends RestConfig> {
 
   public Application(T config, String path) {
     this.config = config;
-    this.path = Objects.requireNonNull(path);;
+    this.path = Objects.requireNonNull(path);
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(
             parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
 
-    this.requestLog = new Slf4jRequestLog();
-    this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    this.requestLog.setLogLatency(true);
+    Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
+    logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %msT");
   }
 
   public final String getPath() {
@@ -227,7 +229,7 @@ public abstract class Application<T extends RestConfig> {
    * @return a Map of tags and values
    */
   public Map<String,String> getMetricsTags() {
-    return new LinkedHashMap<String, String>();
+    return new LinkedHashMap<>();
   }
 
   /**
@@ -237,17 +239,17 @@ public abstract class Application<T extends RestConfig> {
   public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
-      server = new ApplicationServer(config);
+      server = new ApplicationServer<>(config);
       server.registerApplication(this);
     }
     return server;
   }
 
-  final void setServer(ApplicationServer server) {
+  final void setServer(ApplicationServer<?> server) {
     this.server = Objects.requireNonNull(server);
   }
 
-  final ApplicationServer getServer() {
+  final ApplicationServer<?> getServer() {
     return server;
   }
 
@@ -356,7 +358,7 @@ public abstract class Application<T extends RestConfig> {
     configureSecurityHandler(webSocketContext);
 
     ServerContainer container =
-            WebSocketServerContainerInitializer.configureContext(webSocketContext);
+            WebSocketServerContainerInitializer.initialize(webSocketContext);
     registerWebSocketEndpoints(container);
 
     configureWebSocketPostResourceHandling(webSocketContext);

@@ -263,7 +263,7 @@ public class TestCustomizeThreadPool {
     }
     public TestCustomizeThreadPoolApplication(Properties props) {
       super(new TestRestConfig(props));
-      this.props = props;
+      TestCustomizeThreadPoolApplication.props = props;
     }
 
     @Override

@@ -54,7 +54,7 @@ public class RequestScopedMetricsIntegrationTest {
 
     // this request should create a new metric with runtime tags
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path("/public/ts")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
@@ -70,7 +70,7 @@ public class RequestScopedMetricsIntegrationTest {
 
     // this request should reuse the previously created metrics
     response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getInt(RestConfig.PORT_CONFIG))
+        .target("http://localhost:" + config.getPort())
         .path("/public/ts")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();

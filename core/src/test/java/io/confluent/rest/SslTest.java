@@ -49,7 +49,6 @@ import java.util.Properties;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -117,7 +116,7 @@ public class SslTest {
   }
 
   private void enableSslClientAuth(Properties props) {
-    props.put(RestConfig.SSL_CLIENT_AUTH_CONFIG, true);
+    props.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
   }
 
   private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
@@ -191,11 +190,9 @@ public class SslTest {
       statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode); 
-      assertEquals("expect hit error with new server cert", true, hitError); 
+      assertTrue("expect hit error with new server cert", hitError);
     } finally {
-      if (app != null) {
-        app.stop();
-      }
+      app.stop();
     }
   }
 
@@ -256,9 +253,10 @@ public class SslTest {
             "Request latency metrics should be measurable",
             metricValue instanceof Double);
         double latencyMaxValue = (double) metricValue;
-        assertTrue(
+        assertNotEquals(
             "Metrics should be collected (max latency shouldn't be 0)",
-            latencyMaxValue != 0.0);
+            0.0,
+            latencyMaxValue);
       }
     }
   }
@@ -395,7 +393,7 @@ public class SslTest {
 
     @Override
     public Map<String, String> getMetricsTags() {
-      Map<String, String> tags = new LinkedHashMap<String, String>();
+      Map<String, String> tags = new LinkedHashMap<>();
       tags.put("instance-id", "1");
       return tags;
     }

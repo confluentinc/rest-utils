@@ -123,7 +123,7 @@ public class ExceptionHandlingTest {
 
   @Test
   public void testUnrecognizedField() {
-    Map<String, String> m = new HashMap<String, String>();
+    Map<String, String> m = new HashMap<>();
     m.put("something", "something");
     m.put("something-else", "something-else");
     testPostException(

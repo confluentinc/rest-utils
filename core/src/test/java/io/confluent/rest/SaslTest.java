@@ -227,9 +227,10 @@ public class SaslTest {
             "Request latency metrics should be measurable",
             metricValue instanceof Double);
         double latencyMaxValue = (double) metricValue;
-        assertTrue(
+        assertNotEquals(
             "Metrics should be collected (max latency shouldn't be 0)",
-            latencyMaxValue != 0.0);
+            0.0,
+            metricValue);
       }
     }
   }
