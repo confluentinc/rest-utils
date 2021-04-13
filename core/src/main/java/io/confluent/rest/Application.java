@@ -249,7 +249,7 @@ public abstract class Application<T extends RestConfig> {
     this.server = Objects.requireNonNull(server);
   }
 
-  final ApplicationServer getServer() {
+  final ApplicationServer<?> getServer() {
     return server;
   }
 
