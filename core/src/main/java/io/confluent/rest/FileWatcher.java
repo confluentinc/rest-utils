@@ -102,8 +102,8 @@ public class FileWatcher implements Runnable {
       }
 
       if (event.context() != null && !(event.context() instanceof Path)) {
-        throw new ClassCastException("Expected `event.context()` to be an instance of `Path`, "
-            + "but it is " + event.context().getClass());
+        throw new ClassCastException("Expected `event.context()` to be an instance of " + Path.class
+            + ", but it is " + event.context().getClass());
       }
 
       Path context = (Path) event.context();

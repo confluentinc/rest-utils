@@ -255,8 +255,10 @@ public class SslTest {
             "Request latency metrics should be measurable",
             metricValue instanceof Double);
         double latencyMaxValue = (double) metricValue;
-        assertNotEquals("Metrics should be collected (max latency shouldn't be 0)", 0.0,
-          latencyMaxValue);
+        assertNotEquals(
+            "Metrics should be collected (max latency shouldn't be 0)",
+            0.0,
+            latencyMaxValue);
       }
     }
   }

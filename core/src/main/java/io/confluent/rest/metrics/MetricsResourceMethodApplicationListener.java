@@ -395,7 +395,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       }
       if (!(tagsObj instanceof Map<?, ?>)) {
         throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
-            + " to be a `Map`, but it is " + tagsObj.getClass());
+            + " to be a " + Map.class + ", but it is " + tagsObj.getClass());
       }
       @SuppressWarnings("unchecked")
       Map<String, String> tags = (Map<String, String>) tagsObj;
