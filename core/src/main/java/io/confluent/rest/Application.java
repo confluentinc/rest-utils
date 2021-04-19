@@ -77,6 +77,7 @@ import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -568,6 +569,7 @@ public abstract class Application<T extends RestConfig> {
    */
   protected void registerExceptionMappers(Configurable<?> config, T restConfig) {
     config.register(ConstraintViolationExceptionMapper.class);
+    config.register(JsonMappingExceptionMapper.class);
     config.register(new WebApplicationExceptionMapper(restConfig));
     config.register(new GenericExceptionMapper(restConfig));
   }
