@@ -52,6 +52,7 @@
         <confluent.maven.repo>http://packages.confluent.io/maven/</confluent.maven.repo>
         <jersey.version>2.27</jersey.version>
         <jetty.version>9.4.14.v20181114</jetty.version>
+        <hibernate.validator.version>6.1.7.Final</hibernate.validator.version>
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <guava.version>24.1.1-jre</guava.version>
     </properties>
@@ -95,6 +96,17 @@
                 <groupId>org.glassfish.jersey.ext</groupId>
                 <artifactId>jersey-bean-validation</artifactId>
                 <version>${jersey.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.hibernate.validator</groupId>
+                        <artifactId>hibernate-validator</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.validator</groupId>
+                <artifactId>hibernate-validator</artifactId>
+                <version>${hibernate.validator.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey.inject</groupId>
