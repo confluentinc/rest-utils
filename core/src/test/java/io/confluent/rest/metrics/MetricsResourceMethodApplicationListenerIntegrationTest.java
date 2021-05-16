@@ -1,5 +1,6 @@
 package io.confluent.rest.metrics;
 
+import javax.servlet.ServletException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -107,7 +108,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
             Request baseRequest,
             HttpServletRequest request,
             HttpServletResponse response
-        ) throws IOException {
+        ) throws IOException, ServletException {
           handledException = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
           super.handle(target, baseRequest, request, response);
         }
