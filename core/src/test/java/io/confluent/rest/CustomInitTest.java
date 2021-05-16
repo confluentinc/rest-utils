@@ -141,7 +141,7 @@ public class CustomInitTest {
 
     WebSocket ws = Dsl.asyncHttpClient()
         .prepareGet(WS_URI + "/test")
-        .setRequestTimeout(5000)
+        .setRequestTimeout(10000)
         .execute(wsHandler)
         .get();
 
