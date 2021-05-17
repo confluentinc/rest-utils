@@ -226,8 +226,8 @@ public class SslTest {
       try {
         makeGetRequest(uri + "/test",
                 untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (SSLException she) { // handle a transient failure.
-        throw new SocketException(she.getMessage());
+      } catch (SSLException e) { // handle exception from different JDK versions
+        throw new SocketException(e.getMessage());
       }
     } finally {
       app.stop();
