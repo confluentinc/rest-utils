@@ -23,11 +23,8 @@ mkdir -p ${DESTDIR}${BINPATH}
 mkdir -p ${DESTDIR}${LIBPATH}
 mkdir -p ${DESTDIR}${SYSCONFDIR}
 
-if [[ -n ${SECURITY_PATCH} ]]; then
-PREPACKAGED="package/target/rest-utils-package-${VERSION}-${SECURITY_PATCH}-package"
-else
-PREPACKAGED="package/target/rest-utils-package-${VERSION}-package"
-fi
+
+PREPACKAGED="package/target/rest-utils-package-${VERSION}${SECURITY_SUFFIX}-package"
 pushd ${PREPACKAGED}
 find . -type f | grep -v README[.]rpm | xargs -I XXX ${INSTALL} -o root -g root XXX ${DESTDIR}${PREFIX}/XXX
 popd
