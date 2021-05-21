@@ -13,7 +13,7 @@ endif
 
 export PACKAGE_TITLE=rest-utils
 export FULL_PACKAGE_TITLE=confluent-rest-utils
-export PACKAGE_NAME=$(FULL_PACKAGE_TITLE)-$(VERSION)
+export PACKAGE_NAME=$(FULL_PACKAGE_TITLE)-$(VERSION)$(SECURITY_SUFFIX)
 
 # Defaults that are likely to vary by platform. These are cleanly separated so
 # it should be easy to maintain altered values on platform-specific branches
