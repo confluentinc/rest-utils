@@ -77,12 +77,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   
     final StringTokenizer st = new StringTokenizer(versionString, ".");
     int majorVersion = Integer.parseInt(st.nextToken());
-    int minorVersion;
-    if (st.hasMoreTokens()) {
-      minorVersion = Integer.parseInt(st.nextToken());
-    } else {
-      minorVersion = 0;
-    }
   
     return majorVersion >= 11;
   }
