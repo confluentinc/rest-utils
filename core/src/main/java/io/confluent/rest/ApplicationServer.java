@@ -72,11 +72,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
-  private static final Version VERSION =
-      parseVersion(System.getProperty("java.specification.version"));
-
-  // Package private for testing
-  static Version parseVersion(String versionString) {
+  private static boolean isJava11Compatible() {
+    final String versionString = System.getProperty("java.specification.version");
+  
     final StringTokenizer st = new StringTokenizer(versionString, ".");
     int majorVersion = Integer.parseInt(st.nextToken());
     int minorVersion;
@@ -85,32 +83,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     } else {
       minorVersion = 0;
     }
-    return new Version(majorVersion, minorVersion);
-  }
-
-  // Having these as static final provides the best opportunity for compiler optimization
-  public static final boolean IS_JAVA11_COMPATIBLE = VERSION.isJava11Compatible();
-
-  // Package private for testing
-  static class Version {
-    public final int majorVersion;
-    public final int minorVersion;
-
-    private Version(int majorVersion, int minorVersion) {
-      this.majorVersion = majorVersion;
-      this.minorVersion = minorVersion;
-    }
-
-    @Override
-    public String toString() {
-      return "Version(majorVersion=" + majorVersion
-              + ", minorVersion=" + minorVersion + ")";
-    }
-
-    // Package private for testing
-    boolean isJava11Compatible() {
-      return majorVersion >= 11;
-    }
+  
+    return majorVersion >= 11;
   }
 
   public ApplicationServer(T config) {
@@ -424,54 +398,63 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
+    final boolean http2Enabled = config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
+
     @SuppressWarnings("deprecation")
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
 
     for (URI listener : listeners) {
-      log.info("Adding listener: " + listener.toString());
-      NetworkTrafficServerConnector connector;
-
-      // Default to supporting HTTP/2 for Java 11 and later
-      if (IS_JAVA11_COMPATIBLE) {
-        if (listener.getScheme().equals("http")) {
-          // HTTP2C is HTTP/2 Clear text
-          final HTTP2CServerConnectionFactory h2cConnectionFactory =
-                  new HTTP2CServerConnectionFactory(httpConfiguration);
-  
-          // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
-          connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                  httpConnectionFactory, h2cConnectionFactory);
-        } else {
-          final HTTP2ServerConnectionFactory h2ConnectionFactory =
-                  new HTTP2ServerConnectionFactory(httpConfiguration);
-  
-          ALPNServerConnectionFactory alpnConnectionFactory = new ALPNServerConnectionFactory();
-          alpnConnectionFactory.setDefaultProtocol(HttpVersion.HTTP_1_1.asString());
-  
-          SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
-                  alpnConnectionFactory.getProtocol());
-  
-          connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                  sslConnectionFactory, alpnConnectionFactory, h2ConnectionFactory,
-                  httpConnectionFactory);
-        }
-      } else {
-        if (listener.getScheme().equals("http")) {
-          connector = new NetworkTrafficServerConnector(this, httpConnectionFactory);
-        } else {
-          connector = new NetworkTrafficServerConnector(this, httpConnectionFactory,
-                  sslContextFactory);
-        }
-      }
-
-      connector.setPort(listener.getPort());
-      connector.setHost(listener.getHost());
-      connector.setIdleTimeout(config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
-
-      connectors.add(connector);
-      super.addConnector(connector);
+      addConnectorForListener(httpConfiguration, httpConnectionFactory, listener, http2Enabled);
     }
+  }
+
+  private void addConnectorForListener(HttpConfiguration httpConfiguration,
+                                       HttpConnectionFactory httpConnectionFactory,
+                                       URI listener, boolean http2Enabled) {
+    NetworkTrafficServerConnector connector;
+
+    // Default to supporting HTTP/2 for Java 11 and later
+    if (http2Enabled && isJava11Compatible()) {
+      log.info("Adding listener with HTTP/2: " + listener.toString());
+      if (listener.getScheme().equals("http")) {
+        // HTTP2C is HTTP/2 Clear text
+        final HTTP2CServerConnectionFactory h2cConnectionFactory =
+                new HTTP2CServerConnectionFactory(httpConfiguration);
+
+        // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
+        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+                httpConnectionFactory, h2cConnectionFactory);
+      } else {
+        final HTTP2ServerConnectionFactory h2ConnectionFactory =
+                new HTTP2ServerConnectionFactory(httpConfiguration);
+
+        ALPNServerConnectionFactory alpnConnectionFactory = new ALPNServerConnectionFactory();
+        alpnConnectionFactory.setDefaultProtocol(HttpVersion.HTTP_1_1.asString());
+
+        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
+                alpnConnectionFactory.getProtocol());
+
+        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+                sslConnectionFactory, alpnConnectionFactory, h2ConnectionFactory,
+                httpConnectionFactory);
+      }
+    } else {
+      log.info("Adding listener: " + listener.toString());
+      if (listener.getScheme().equals("http")) {
+        connector = new NetworkTrafficServerConnector(this, httpConnectionFactory);
+      } else {
+        connector = new NetworkTrafficServerConnector(this, httpConnectionFactory,
+                sslContextFactory);
+      }
+    }
+
+    connector.setPort(listener.getPort());
+    connector.setHost(listener.getHost());
+    connector.setIdleTimeout(config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
+
+    connectors.add(connector);
+    super.addConnector(connector);
   }
 
   // for testing
