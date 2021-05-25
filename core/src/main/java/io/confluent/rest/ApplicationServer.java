@@ -72,7 +72,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
-  private static boolean isJava11Compatible() {
+  // Package-visible for tests
+  static boolean isJava11Compatible() {
     final String versionString = System.getProperty("java.specification.version");
   
     final StringTokenizer st = new StringTokenizer(versionString, ".");
@@ -405,7 +406,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private void addConnectorForListener(HttpConfiguration httpConfiguration,
                                        HttpConnectionFactory httpConnectionFactory,
-                                       URI listener, boolean http2Enabled) {
+                                       URI listener,
+                                       boolean http2Enabled) {
     NetworkTrafficServerConnector connector;
 
     // Default to supporting HTTP/2 for Java 11 and later
