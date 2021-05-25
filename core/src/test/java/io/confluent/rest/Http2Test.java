@@ -212,7 +212,6 @@ public class Http2Test {
         fail("HTTP/2 Cleartext should not be enabled");
       } catch (java.util.concurrent.ExecutionException exc) {
         // Fall back to HTTP/1.1 once we've seen HTTP/2C fail
-        assertTrue(exc.getCause() instanceof java.net.ConnectException);
         statusCode = makeGetRequestHttp(httpUri + "/test");
         assertEquals(EXPECTED_200_MSG, 200, statusCode);
       }
@@ -243,7 +242,6 @@ public class Http2Test {
         fail("HTTP/2 Cleartext should not be enabled");
       } catch (java.util.concurrent.ExecutionException exc) {
         // Fall back to HTTP/1.1 once we've seen HTTP/2 fail
-        assertTrue(exc.getCause() instanceof java.net.ConnectException);
         statusCode = makeGetRequestHttp(httpsUri + "/test",
                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
         assertEquals(EXPECTED_200_MSG, 200, statusCode);
