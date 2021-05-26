@@ -116,23 +116,11 @@ public class Http2Test {
     props.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, SSL_PASSWORD);
   }
 
-  private TestRestConfig buildTestConfig(boolean httpListener,
-                                         boolean httpsListener,
-                                        boolean disableHttp2) {
+  private TestRestConfig buildTestConfig(boolean enableHttp2) {
     Properties props = new Properties();
-    if (httpListener) {
-      if (httpsListener) {
-        props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI + "," + HTTPS_URI);
-      } else {
-        props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI);
-      }
-    }
-    else {
-      assertTrue(httpsListener);
-      props.put(RestConfig.LISTENERS_CONFIG, HTTPS_URI);
-    }
+    props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI + "," + HTTPS_URI);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
-    if (disableHttp2) {
+    if (!enableHttp2) {
       props.put(RestConfig.HTTP2_ENABLED_CONFIG, false);
     }
     configServerKeystore(props);
@@ -141,7 +129,7 @@ public class Http2Test {
 
   @Test
   public void testHttp2() throws Exception {
-    TestRestConfig config = buildTestConfig(true, true, false);
+    TestRestConfig config = buildTestConfig(true);
     Http2TestApplication app = new Http2TestApplication(config);
     try {
       app.start();
@@ -171,7 +159,7 @@ public class Http2Test {
 
   @Test
   public void testHttp2CNotEnabled() throws Exception {
-    TestRestConfig config = buildTestConfig(true, false, true);
+    TestRestConfig config = buildTestConfig(false);
     Http2TestApplication app = new Http2TestApplication(config);
     try {
       app.start();
@@ -193,7 +181,7 @@ public class Http2Test {
 
   @Test
   public void testHttp2NotEnabled() throws Exception {
-    TestRestConfig config = buildTestConfig(false, true, true);
+    TestRestConfig config = buildTestConfig(false);
     Http2TestApplication app = new Http2TestApplication(config);
     try {
       app.start();
