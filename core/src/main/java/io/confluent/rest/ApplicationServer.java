@@ -394,7 +394,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             new HttpConnectionFactory(httpConfiguration);
 
     // Default to supporting HTTP/2 for Java 11 and later
-    final boolean http2Enabled = isJava11Compatible() && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
+    final boolean http2Enabled = isJava11Compatible()
+                              && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
 
     @SuppressWarnings("deprecation")
     List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),

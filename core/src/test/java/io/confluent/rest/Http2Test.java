@@ -223,8 +223,10 @@ public class Http2Test {
     }
   }
 
-  private SslContextFactory buildSslContextFactory(String clientKeystoreLocation, String clientKeystorePassword,
-                                                   String clientKeyPassword) {
+  private SslContextFactory buildSslContextFactory(String clientKeystoreLocation,
+                                                   String clientKeystorePassword,
+                                                   String clientKeyPassword)
+      throws Exception {
     SslContextFactory sslContextFactory = new SslContextFactory.Client();
     // trust all self-signed certs.
     SSLContextBuilder sslContextBuilder = SSLContexts.custom()
@@ -257,7 +259,9 @@ public class Http2Test {
                                 String clientKeyPassword)
       throws Exception {
     log.debug("Making GET using HTTPS " + url);
-    HttpClient httpClient = new HttpClient(buildSslContextFactory());
+    HttpClient httpClient = new HttpClient(buildSslContextFactory(clientKeystoreLocation,
+                                                                  clientKeystorePassword,
+                                                                  clientKeyPassword));
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
@@ -283,7 +287,10 @@ public class Http2Test {
       throws Exception {
     log.debug("Making GET using HTTP/2 " + url);
     HTTP2Client http2Client = new HTTP2Client();
-    HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client), buildSslContextFactory());
+    HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client),
+                                           buildSslContextFactory(clientKeystoreLocation,
+                                                                  clientKeystorePassword,
+                                                                  clientKeyPassword));
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
