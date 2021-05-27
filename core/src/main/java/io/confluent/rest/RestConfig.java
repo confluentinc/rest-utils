@@ -421,6 +421,13 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
 
+  public static final String HTTP2_ENABLED_CONFIG = "http2.enabled";
+  protected static final String HTTP2_ENABLED_DOC =
+      "If true, enable HTTP/2 connections. Connections will default to HTTP/2 not HTTP/1.1 "
+          + "for clients that support it. Only takes effect if the server is running on a "
+          + "Java 11 JVM or later. Default is true.";
+  protected static final boolean HTTP2_ENABLED_DEFAULT = true;
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -877,6 +884,12 @@ public class RestConfig extends AbstractConfig {
             DOS_FILTER_MANAGED_ATTR_DEFAULT,
             Importance.LOW,
             DOS_FILTER_MANAGED_ATTR_DOC
+        ).define(
+            HTTP2_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            HTTP2_ENABLED_DEFAULT,
+            Importance.LOW,
+            HTTP2_ENABLED_DOC
         );
   }
 
