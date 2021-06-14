@@ -1,8 +1,9 @@
 package io.confluent.rest.metrics;
 
+import io.confluent.rest.*;
 import org.apache.kafka.common.metrics.KafkaMetric;
-import io.confluent.rest.TestMetricsReporter;
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
@@ -26,10 +27,6 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import io.confluent.rest.Application;
-import io.confluent.rest.RestConfig;
-import io.confluent.rest.TestRestConfig;
-
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static org.junit.Assert.*;
 
@@ -37,6 +34,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   TestRestConfig config;
   ApplicationWithFilter app;
+  private Server server;
   volatile Throwable handledException = null;
 
   @Before
@@ -47,13 +45,14 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     config = new TestRestConfig(props);
     app = new ApplicationWithFilter(config);
-    app.start();
+    server = app.createServer();
+    server.start();
   }
 
   @After
   public void tearDown() throws Exception {
-    app.stop();
-    app.join();
+    server.stop();
+    server.join();
   }
 
   @Test
@@ -67,7 +66,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     // RequestEvent.Type.FINISHED before RequestEvent.Type.RESP_FILTERS_START
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getPort())
+        .target(server.getURI())
         .path("/private/endpoint")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
@@ -88,7 +87,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Test
   public void testExceptionMetrics() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getPort())
+        .target(server.getURI())
         .path("/private/fake")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
@@ -112,7 +111,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Test
   public void testMapped500sAreCounted() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getPort())
+        .target(server.getURI())
         .path("/public/caught")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();

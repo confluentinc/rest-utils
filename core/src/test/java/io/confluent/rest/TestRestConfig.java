@@ -16,14 +16,15 @@
 
 package io.confluent.rest;
 
+import static java.util.Collections.emptyMap;
 import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
 
 import io.confluent.rest.metrics.RestMetricsContext;
 import io.confluent.rest.metrics.TestRestMetricsContext;
 import org.apache.kafka.common.config.ConfigDef;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * Test config class that only uses the built-in properties of RestConfig.
@@ -34,11 +35,18 @@ public class TestRestConfig extends RestConfig {
     config = baseConfigDef();
   }
   public TestRestConfig() {
-    this(new Properties());
+    this(emptyMap());
   }
 
   public TestRestConfig(Map<?,?> originals) {
-    super(config, originals);
+    super(config, createConfigs(originals));
+  }
+
+  private static Map<Object, Object> createConfigs(Map<?, ?> originals) {
+    HashMap<Object, Object> configs = new HashMap<>();
+    configs.put("listeners", "http://localhost:0");
+    configs.putAll(originals);
+    return configs;
   }
 
   @Override
@@ -46,11 +54,6 @@ public class TestRestConfig extends RestConfig {
     return new TestRestMetricsContext(
             getString(METRICS_JMX_PREFIX_CONFIG),
             originalsWithPrefix(METRICS_CONTEXT_PREFIX)).metricsContext();
-  }
-
-  @SuppressWarnings("deprecation")
-  public int getPort() {
-    return getInt(RestConfig.PORT_CONFIG);
   }
 
 }

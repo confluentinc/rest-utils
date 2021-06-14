@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.glassfish.jersey.servlet.ServletProperties;
@@ -41,6 +42,7 @@ public class StaticResourcesTest {
 
   TestRestConfig config;
   StaticResourcesTest.StaticApplication app;
+  private Server server;
 
   String staticContent;
 
@@ -57,13 +59,14 @@ public class StaticResourcesTest {
     props.setProperty("debug", "false");
     config = new TestRestConfig(props);
     app = new StaticResourcesTest.StaticApplication(config);
-    app.start();
+    server = app.createServer();
+    server.start();
   }
 
   @After
   public void tearDown() throws Exception {
-    app.stop();
-    app.join();
+    server.stop();
+    server.join();
   }
 
   @Test
@@ -83,7 +86,7 @@ public class StaticResourcesTest {
 
   private void testGet(String path, int expectedStatus, String expectedMessage) {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getPort())
+        .target(server.getURI())
         .path(path)
         .request()
         .get();
