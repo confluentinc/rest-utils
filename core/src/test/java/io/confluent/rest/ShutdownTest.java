@@ -16,10 +16,12 @@
 
 package io.confluent.rest;
 
+import org.eclipse.jetty.server.Server;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +32,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Configurable;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.*;
 
 public class ShutdownTest {
@@ -55,16 +58,17 @@ public class ShutdownTest {
     props.put("shutdown.graceful.ms", "150");
     final TestRestConfig config = new TestRestConfig(props);
     ShutdownApplication app = new ShutdownApplication(config);
-    app.start();
+    Server server = app.createServer();
+    server.start();
 
-    RequestThread req = new RequestThread(config);
+    RequestThread req = new RequestThread(server.getURI());
     req.start();
     app.resource.requestProcessingStarted.await();
 
     StopThread stop = new StopThread(app);
     stop.start();
 
-    app.join();
+    server.join();
     log.info("Application finished");
 
     // The request thread may not quite be done yet. Wait on it, but only give it a small amount of extra time to finish
@@ -125,12 +129,12 @@ public class ShutdownTest {
   };
 
   private static class RequestThread extends Thread {
-    TestRestConfig config;
+    private final URI target;
     volatile boolean finished = false;
     String response = null;
 
-    RequestThread(TestRestConfig config) {
-      this.config = config;
+    RequestThread(URI target) {
+      this.target = checkNotNull(target);
     }
     @Override
     public void run() {
@@ -142,7 +146,7 @@ public class ShutdownTest {
           log.info("Starting client");
           Client client = ClientBuilder.newClient();
           response = client
-              .target("http://localhost:" + config.getPort())
+              .target(target)
               .path("/")
               .request()
               .get(String.class);

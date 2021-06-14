@@ -1,5 +1,6 @@
 package io.confluent.rest.metrics;
 
+import org.eclipse.jetty.server.Server;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -20,7 +21,6 @@ import java.util.Properties;
 
 import io.confluent.common.utils.IntegrationTest;
 import io.confluent.rest.Application;
-import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 import io.confluent.rest.annotations.PerformanceMetric;
 
@@ -31,6 +31,7 @@ public class RequestScopedMetricsIntegrationTest {
 
   TestRestConfig config;
   SimpleApplication app;
+  private Server server;
 
   @Before
   public void setUp() throws Exception {
@@ -38,13 +39,14 @@ public class RequestScopedMetricsIntegrationTest {
     props.setProperty("debug", "false");
     config = new TestRestConfig(props);
     app = new SimpleApplication(config);
-    app.start();
+    server = app.createServer();
+    server.start();
   }
 
   @After
   public void tearDown() throws Exception {
-    app.stop();
-    app.join();
+    server.stop();
+    server.join();
   }
 
   @Test
@@ -54,7 +56,7 @@ public class RequestScopedMetricsIntegrationTest {
 
     // this request should create a new metric with runtime tags
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getPort())
+        .target(server.getURI())
         .path("/public/ts")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
@@ -70,7 +72,7 @@ public class RequestScopedMetricsIntegrationTest {
 
     // this request should reuse the previously created metrics
     response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target("http://localhost:" + config.getPort())
+        .target(server.getURI())
         .path("/public/ts")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
