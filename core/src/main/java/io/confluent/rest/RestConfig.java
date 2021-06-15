@@ -397,16 +397,17 @@ public class RestConfig extends AbstractConfig {
       "If true, insert the DoSFilter headers into the response. Defaults to true.";
   private static final boolean DOS_FILTER_INSERT_HEADERS_DEFAULT = true;
 
-  private static final String DOS_FILTER_TRACK_SESSIONS_CONFIG = "dos.filter.track.sessions";
-  private static final String DOS_FILTER_TRACK_SESSIONS_DOC =
-      "If true, usage rate is tracked by session if a session exists. Defaults to true.";
-  private static final boolean DOS_FILTER_TRACK_SESSIONS_DEFAULT = true;
-
   private static final String DOS_FILTER_REMOTE_PORT_CONFIG = "dos.filter.remote.port";
   private static final String DOS_FILTER_REMOTE_PORT_DOC =
-      "If true and session tracking is not used, then rate is tracked by IP and port (effectively "
-          + "connection). Defaults to false.";
+      "If true, then rate is tracked by IP and port (effectively per connection). Defaults to "
+          + "false.";
   private static final boolean DOS_FILTER_REMOTE_PORT_DEFAULT = false;
+
+  private static final String DOS_FILTER_TRACK_GLOBAL_CONFIG = "dos.filter.track.global";
+  private static final String DOS_FILTER_TRACK_GLOBAL_DOC =
+      "If true and remote port tracking is not used, then rate is tracked globally for all "
+          + "connections. Defaults to false.";
+  private static final boolean DOS_FILTER_TRACK_GLOBAL_DEFAULT = false;
 
   private static final String DOS_FILTER_IP_WHITELIST_CONFIG = "dos.filter.ip.whitelist";
   private static final String DOS_FILTER_IP_WHITELIST_DOC =
@@ -861,17 +862,17 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_INSERT_HEADERS_DOC
         ).define(
-            DOS_FILTER_TRACK_SESSIONS_CONFIG,
-            Type.BOOLEAN,
-            DOS_FILTER_TRACK_SESSIONS_DEFAULT,
-            Importance.LOW,
-            DOS_FILTER_TRACK_SESSIONS_DOC
-        ).define(
             DOS_FILTER_REMOTE_PORT_CONFIG,
             Type.BOOLEAN,
             DOS_FILTER_REMOTE_PORT_DEFAULT,
             Importance.LOW,
             DOS_FILTER_REMOTE_PORT_DOC
+        ).define(
+            DOS_FILTER_TRACK_GLOBAL_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TRACK_GLOBAL_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TRACK_GLOBAL_DOC
         ).define(
             DOS_FILTER_IP_WHITELIST_CONFIG,
             Type.LIST,
@@ -1000,12 +1001,12 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_INSERT_HEADERS_CONFIG);
   }
 
-  public final boolean getDosFilterTrackSessions() {
-    return getBoolean(DOS_FILTER_TRACK_SESSIONS_CONFIG);
-  }
-
   public final boolean getDosFilterRemotePort() {
     return getBoolean(DOS_FILTER_REMOTE_PORT_CONFIG);
+  }
+
+  public final boolean getDosFilterTrackGlobal() {
+    return getBoolean(DOS_FILTER_TRACK_GLOBAL_CONFIG);
   }
 
   public final List<String> getDosFilterIpWhitelist() {

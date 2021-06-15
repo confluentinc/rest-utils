@@ -27,6 +27,13 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.eclipse.jetty.server.Server;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,7 +43,7 @@ import org.junit.runners.JUnit4;
 public class DosFilterTest {
 
   @Test
-  public void dosFilterEnabled_throttlesRequests() throws Exception {
+  public void dosFilterEnabled_defaultTracking_throttlesRequestsPerIp() throws Exception {
     FooApplication application =
         new FooApplication(
             new FooConfig(
@@ -48,23 +55,142 @@ public class DosFilterTest {
     Server server = application.createServer();
     server.start();
 
-    Client client = ClientBuilder.newClient();
+    HttpGet request =
+        new HttpGet(UriBuilder.fromUri(server.getURI()).path("/foo").build());
+
+    CloseableHttpClient ephemeralClient =
+        HttpClients.custom()
+            .setConnectionManager(new BasicHttpClientConnectionManager())
+            .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
+            .build();
 
     // Request should succeed.
-    Response response1 = client.target(server.getURI()).path("/foo").request().get();
-    assertEquals(Status.OK.getStatusCode(), response1.getStatus());
+    CloseableHttpResponse response1 = ephemeralClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
+    response1.close();
 
     // Following requests should all be throttled.
     for (int i = 0; i < 100; i++) {
-      Response response2 = client.target(server.getURI()).path("/foo").request().get();
-      assertEquals(Status.TOO_MANY_REQUESTS.getStatusCode(), response2.getStatus());
+      CloseableHttpResponse response2 = ephemeralClient.execute(request);
+      assertEquals(
+          Status.TOO_MANY_REQUESTS.getStatusCode(), response2.getStatusLine().getStatusCode());
+      response2.close();
     }
 
     Thread.sleep(1000);
 
     // Request should succeed again.
-    Response response3 = client.target(server.getURI()).path("/foo").request().get();
-    assertEquals(Status.OK.getStatusCode(), response3.getStatus());
+    CloseableHttpResponse response3 = ephemeralClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response3.getStatusLine().getStatusCode());
+    response3.close();
+
+    server.stop();
+  }
+
+  @Test
+  public void dosFilterEnabled_remotePort_throttlesRequestsPerConnection() throws Exception {
+    FooApplication application =
+        new FooApplication(
+            new FooConfig(
+                ImmutableMap.<String, String>builder()
+                    .put("listeners", "http://localhost:0")
+                    .put("dos.filter.enabled", "true")
+                    .put("dos.filter.max.requests.per.sec", "1")
+                    .put("dos.filter.delay.ms", "-1")
+                    .put("dos.filter.remote.port", "true")
+                    .build()));
+    Server server = application.createServer();
+    server.start();
+
+    HttpGet request =
+        new HttpGet(UriBuilder.fromUri(server.getURI()).path("/foo").build());
+
+    // Following requests should not be throttled, since they use different connections.
+    CloseableHttpClient ephemeralClient =
+        HttpClients.custom()
+            .setConnectionManager(new BasicHttpClientConnectionManager())
+            .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
+            .build();
+    for (int i = 0; i < 100; i++) {
+      CloseableHttpResponse response = ephemeralClient.execute(request);
+      assertEquals(Status.OK.getStatusCode(), response.getStatusLine().getStatusCode());
+      response.close();
+    }
+
+    CloseableHttpClient persistentClient =
+        HttpClients.custom()
+            .setConnectionManager(new PoolingHttpClientConnectionManager())
+            .setKeepAliveStrategy((httpResponse, httpContext) -> 5000)
+            .build();
+
+    // Request should succeed.
+    CloseableHttpResponse response1 = persistentClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
+    response1.getEntity().getContent().close();
+    response1.close();
+
+    // Following requests should all be throttled since they all reuse the same connection.
+    for (int i = 0; i < 100; i++) {
+      CloseableHttpResponse response2 = persistentClient.execute(request);
+      assertEquals(
+          Status.TOO_MANY_REQUESTS.getStatusCode(), response2.getStatusLine().getStatusCode());
+      response2.getEntity().getContent().close();
+      response2.close();
+    }
+
+    Thread.sleep(1000);
+
+    // Request on the same connection should succeed again.
+    CloseableHttpResponse response3 = persistentClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response3.getStatusLine().getStatusCode());
+  }
+
+  @Test
+  public void dosFilterEnabled_trackGlobal_throttlesRequestsGlobally() throws Exception {
+    FooApplication application =
+        new FooApplication(
+            new FooConfig(
+                ImmutableMap.<String, String>builder()
+                    .put("listeners", "http://localhost:0")
+                    .put("dos.filter.enabled", "true")
+                    .put("dos.filter.max.requests.per.sec", "1")
+                    .put("dos.filter.delay.ms", "-1")
+                    .put("dos.filter.track.global", "true")
+                    .build()));
+    Server server = application.createServer();
+    server.start();
+
+    HttpGet request =
+        new HttpGet(UriBuilder.fromUri(server.getURI()).path("/foo").build());
+
+    // There's no way for us to actually check throttling is happening across different IPs. We
+    // check here it behaves at least per-IP.
+
+    CloseableHttpClient ephemeralClient =
+        HttpClients.custom()
+            .setConnectionManager(new BasicHttpClientConnectionManager())
+            .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
+            .build();
+
+    // Request should succeed.
+    CloseableHttpResponse response1 = ephemeralClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
+    response1.close();
+
+    // Following requests should all be throttled.
+    for (int i = 0; i < 100; i++) {
+      CloseableHttpResponse response2 = ephemeralClient.execute(request);
+      assertEquals(
+          Status.TOO_MANY_REQUESTS.getStatusCode(), response2.getStatusLine().getStatusCode());
+      response2.close();
+    }
+
+    Thread.sleep(1000);
+
+    // Request should succeed again.
+    CloseableHttpResponse response3 = ephemeralClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response3.getStatusLine().getStatusCode());
+    response3.close();
 
     server.stop();
   }
