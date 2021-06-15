@@ -73,6 +73,7 @@ import java.util.function.Consumer;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
 import javax.ws.rs.core.Configurable;
 
 import io.confluent.rest.auth.AuthUtil;
@@ -608,7 +609,13 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
-    FilterHolder filterHolder = new FilterHolder(new DoSFilter());
+    DoSFilter dosFilter;
+    if (!config.getDosFilterRemotePort() && config.getDosFilterTrackGlobal()) {
+      dosFilter = new GlobalDosFilter();
+    } else {
+      dosFilter = new DoSFilter();
+    }
+    FilterHolder filterHolder = new FilterHolder(dosFilter);
     filterHolder.setInitParameter(
         "maxRequestsPerSec", String.valueOf(config.getDosFilterMaxRequestsPerSec()));
     filterHolder.setInitParameter(
@@ -625,8 +632,7 @@ public abstract class Application<T extends RestConfig> {
         "maxIdleTrackerMs", String.valueOf(config.getDosFilterMaxIdleTrackerMs().toMillis()));
     filterHolder.setInitParameter(
         "insertHeaders", String.valueOf(config.getDosFilterInsertHeaders()));
-    filterHolder.setInitParameter(
-        "trackSessions", String.valueOf(config.getDosFilterTrackSessions()));
+    filterHolder.setInitParameter("trackSessions", "false");
     filterHolder.setInitParameter(
         "remotePort", String.valueOf(config.getDosFilterRemotePort()));
     filterHolder.setInitParameter(
@@ -696,4 +702,15 @@ public abstract class Application<T extends RestConfig> {
    * point it should be safe to clean up any resources used while processing requests.
    */
   public void onShutdown() {}
+
+  /**
+   * A rate-limiter that applies a single limit to the entire server.
+   */
+  private static final class GlobalDosFilter extends DoSFilter {
+
+    @Override
+    protected String extractUserId(ServletRequest request) {
+      return "GLOBAL";
+    }
+  }
 }
