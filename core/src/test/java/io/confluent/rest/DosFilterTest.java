@@ -19,13 +19,12 @@ package io.confluent.rest;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
+
+import java.net.URI;
 import java.util.Map;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -55,14 +54,9 @@ public class DosFilterTest {
     Server server = application.createServer();
     server.start();
 
-    HttpGet request =
-        new HttpGet(UriBuilder.fromUri(server.getURI()).path("/foo").build());
+    HttpGet request = createRequest(server.getURI());
 
-    CloseableHttpClient ephemeralClient =
-        HttpClients.custom()
-            .setConnectionManager(new BasicHttpClientConnectionManager())
-            .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
-            .build();
+    CloseableHttpClient ephemeralClient = createEphemeralClient();
 
     // Request should succeed.
     CloseableHttpResponse response1 = ephemeralClient.execute(request);
@@ -102,26 +96,17 @@ public class DosFilterTest {
     Server server = application.createServer();
     server.start();
 
-    HttpGet request =
-        new HttpGet(UriBuilder.fromUri(server.getURI()).path("/foo").build());
+    HttpGet request = createRequest(server.getURI());
 
     // Following requests should not be throttled, since they use different connections.
-    CloseableHttpClient ephemeralClient =
-        HttpClients.custom()
-            .setConnectionManager(new BasicHttpClientConnectionManager())
-            .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
-            .build();
+    CloseableHttpClient ephemeralClient = createEphemeralClient();
     for (int i = 0; i < 100; i++) {
       CloseableHttpResponse response = ephemeralClient.execute(request);
       assertEquals(Status.OK.getStatusCode(), response.getStatusLine().getStatusCode());
       response.close();
     }
 
-    CloseableHttpClient persistentClient =
-        HttpClients.custom()
-            .setConnectionManager(new PoolingHttpClientConnectionManager())
-            .setKeepAliveStrategy((httpResponse, httpContext) -> 5000)
-            .build();
+    CloseableHttpClient persistentClient = createPersistentClient();
 
     // Request should succeed.
     CloseableHttpResponse response1 = persistentClient.execute(request);
@@ -160,17 +145,12 @@ public class DosFilterTest {
     Server server = application.createServer();
     server.start();
 
-    HttpGet request =
-        new HttpGet(UriBuilder.fromUri(server.getURI()).path("/foo").build());
+    HttpGet request = createRequest(server.getURI());
 
     // There's no way for us to actually check throttling is happening across different IPs. We
     // check here it behaves at least per-IP.
 
-    CloseableHttpClient ephemeralClient =
-        HttpClients.custom()
-            .setConnectionManager(new BasicHttpClientConnectionManager())
-            .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
-            .build();
+    CloseableHttpClient ephemeralClient = createEphemeralClient();
 
     // Request should succeed.
     CloseableHttpResponse response1 = ephemeralClient.execute(request);
@@ -196,7 +176,7 @@ public class DosFilterTest {
   }
 
   @Test
-  public void dosFilterDisabled_DoesNotThrottleRequests() throws Exception {
+  public void dosFilterDisabled_doesNotThrottleRequests() throws Exception {
     FooApplication application =
         new FooApplication(
             new FooConfig(
@@ -208,19 +188,41 @@ public class DosFilterTest {
     Server server = application.createServer();
     server.start();
 
-    Client client = ClientBuilder.newClient();
+    HttpGet request = createRequest(server.getURI());
+
+    CloseableHttpClient ephemeralClient = createEphemeralClient();
 
     // Request should succeed.
-    Response response1 = client.target(server.getURI()).path("/foo").request().get();
-    assertEquals(Status.OK.getStatusCode(), response1.getStatus());
+    CloseableHttpResponse response1 = ephemeralClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
+    response1.close();
 
-    // Following requests should all also succeed.
+    // Following requests should also all succeed.
     for (int i = 0; i < 100; i++) {
-      Response response2 = client.target(server.getURI()).path("/foo").request().get();
-      assertEquals(Status.OK.getStatusCode(), response2.getStatus());
+      CloseableHttpResponse response2 = ephemeralClient.execute(request);
+      assertEquals(Status.OK.getStatusCode(), response2.getStatusLine().getStatusCode());
+      response2.close();
     }
 
     server.stop();
+  }
+
+  private static HttpGet createRequest(URI serverUri) {
+    return new HttpGet(UriBuilder.fromUri(serverUri).path("/foo").build());
+  }
+
+  private static CloseableHttpClient createEphemeralClient() {
+    return HttpClients.custom()
+        .setConnectionManager(new BasicHttpClientConnectionManager())
+        .setKeepAliveStrategy((httpResponse, httpContext) -> -1)
+        .build();
+  }
+
+  private static CloseableHttpClient createPersistentClient() {
+    return HttpClients.custom()
+        .setConnectionManager(new PoolingHttpClientConnectionManager())
+        .setKeepAliveStrategy((httpResponse, httpContext) -> 5000)
+        .build();
   }
 
   public static final class FooApplication extends Application<FooConfig> {
