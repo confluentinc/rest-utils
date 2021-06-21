@@ -158,6 +158,37 @@ public class Http2Test {
   }
 
   @Test
+  public void testHttp2AmbiguousSegment() throws Exception {
+    // This test is ensuring that URI-encoded / characters work in URIs in all variants
+    TestRestConfig config = buildTestConfig(true);
+    Http2TestApplication app = new Http2TestApplication(config);
+    try {
+      app.start();
+
+      int statusCode;
+
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        statusCode = makeGetRequestHttp2(HTTP_URI + "/test%2fambiguous%2fsegment");
+        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        statusCode = makeGetRequestHttp2(HTTPS_URI + "/test%2fambiguous%2fsegment",
+                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      }
+
+      // HTTP/1.1 should work whether HTTP/2 is available or not
+      statusCode = makeGetRequestHttp(HTTP_URI + "/test%2fambiguous%2fsegment");
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      statusCode = makeGetRequestHttp(HTTPS_URI + "/test%2fambiguous%2fsegment",
+                                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
   public void testHttp2CNotEnabled() throws Exception {
     TestRestConfig config = buildTestConfig(false);
     Http2TestApplication app = new Http2TestApplication(config);
@@ -306,6 +337,7 @@ public class Http2Test {
     @Override
     public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
       config.register(new Http2TestResource());
+      config.register(new Http2TestAmbiguousSegmentResource());
     }
 
     @Override
@@ -330,6 +362,22 @@ public class Http2Test {
     @PerformanceMetric("test")
     public Http2TestResponse hello() {
       return new Http2TestResponse();
+    }
+  }
+
+  @Path("/test%2Fambiguous%2Fsegment")
+  @Produces("application/test.v1+json")
+  public static class Http2TestAmbiguousSegmentResource {
+    public static class Http2TestAmbiguousSegmentResponse {
+      @JsonProperty
+      public String getMessage() {
+        return "foo";
+      }
+    }
+
+    @GET
+    public Http2TestAmbiguousSegmentResponse hello() {
+      return new Http2TestAmbiguousSegmentResponse();
     }
   }
 }
