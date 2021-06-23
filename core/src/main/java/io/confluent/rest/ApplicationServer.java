@@ -444,7 +444,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // path-manipulation tricks in URIs, it breaks certain existing systems including
       // the Schema Registry. Jetty behaviour was then reverted specifying the compliance mode
       // in the HttpConnectionFactory class using the HttpCompliance.RFC7230 enum. This has
-      // the problem that it applies onto to HTTP/1.1. The following sets this compliance mode
+      // the problem that it applies only to HTTP/1.1. The following sets this compliance mode
       // explicitly when HTTP/2 is enabled.
       connector.addBean(HttpCompliance.RFC7230);
     } else {
