@@ -22,6 +22,7 @@ import org.apache.kafka.common.metrics.Metrics;
 
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
+import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
@@ -436,6 +437,16 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                 sslConnectionFactory, alpnConnectionFactory, h2ConnectionFactory,
                 httpConnectionFactory);
       }
+
+      // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
+      // rigorously and remove support for ambiguous URIs, such as escaping
+      // . and / characters. While this is a good idea because it prevents clever
+      // path-manipulation tricks in URIs, it breaks certain existing systems including
+      // the Schema Registry. Jetty behaviour was then reverted specifying the compliance mode
+      // in the HttpConnectionFactory class using the HttpCompliance.RFC7230 enum. This has
+      // the problem that it applies only to HTTP/1.1. The following sets this compliance mode
+      // explicitly when HTTP/2 is enabled.
+      connector.addBean(HttpCompliance.RFC7230);
     } else {
       log.info("Adding listener: " + listener.toString());
       if (listener.getScheme().equals("http")) {
