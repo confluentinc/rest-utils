@@ -31,6 +31,7 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -420,9 +421,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         final HTTP2CServerConnectionFactory h2cConnectionFactory =
                 new HTTP2CServerConnectionFactory(httpConfiguration);
 
+        final ProxyConnectionFactory proxyConnectionFactory =
+                new ProxyConnectionFactory(httpConnectionFactory.getProtocol());
+
         // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
+        log.info("proxy, http, h2");
         connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                httpConnectionFactory, h2cConnectionFactory);
+                proxyConnectionFactory, httpConnectionFactory, h2cConnectionFactory);
       } else {
         final HTTP2ServerConnectionFactory h2ConnectionFactory =
                 new HTTP2ServerConnectionFactory(httpConfiguration);
@@ -433,9 +438,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
                 alpnConnectionFactory.getProtocol());
 
+        final ProxyConnectionFactory proxyConnectionFactory =
+                new ProxyConnectionFactory(sslConnectionFactory.getProtocol());
+
+        log.info("proxy, ssl, apln, h2, http");
         connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                sslConnectionFactory, alpnConnectionFactory, h2ConnectionFactory,
-                httpConnectionFactory);
+                proxyConnectionFactory, sslConnectionFactory, alpnConnectionFactory,
+                h2ConnectionFactory, httpConnectionFactory);
       }
 
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
@@ -450,10 +459,22 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     } else {
       log.info("Adding listener: " + listener.toString());
       if (listener.getScheme().equals("http")) {
-        connector = new NetworkTrafficServerConnector(this, httpConnectionFactory);
+        final ProxyConnectionFactory proxyConnectionFactory =
+                new ProxyConnectionFactory(httpConnectionFactory.getProtocol());
+
+        log.info("proxy, http");
+        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+                proxyConnectionFactory, httpConnectionFactory);
       } else {
-        connector = new NetworkTrafficServerConnector(this, httpConnectionFactory,
-                sslContextFactory);
+        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
+                httpConnectionFactory.getProtocol());
+
+        final ProxyConnectionFactory proxyConnectionFactory =
+                new ProxyConnectionFactory(sslConnectionFactory.getProtocol());
+
+        log.info("proxy, ssl, http");
+        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+                proxyConnectionFactory, sslConnectionFactory, httpConnectionFactory);
       }
     }
 
