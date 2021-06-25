@@ -193,6 +193,8 @@ public abstract class Application<T extends RestConfig> {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
 
     // The configuration for the JAX-RS REST service
+
+    log.info("DEBUG: creating server");
     ResourceConfig resourceConfig = new ResourceConfig();
 
     Map<String, String> configuredTags = parseListToMap(
@@ -371,6 +373,7 @@ public abstract class Application<T extends RestConfig> {
           try {
             initializer.accept(context);
           } catch (final Exception e) {
+            log.info("DEBUG: error {}", e.getMessage());
             throw new RuntimeException("Exception from custom initializer. "
                 + "config:" + initializerConfigName + ", initializer" + initializer, e);
           }
@@ -380,13 +383,16 @@ public abstract class Application<T extends RestConfig> {
   protected void configureSecurityHandler(ServletContextHandler context) {
     String authMethod = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(authMethod)) {
+      log.info("DEBUG: basic auth is enabled");
       context.setSecurityHandler(createBasicSecurityHandler());
     } else if (enableBearerAuth(authMethod)) {
+      log.info("DEBUG: bearer auth is enabled");
       context.setSecurityHandler(createBearerSecurityHandler());
     }
   }
 
   private SslContextFactory createSslContextFactory() {
+    log.info("DEBUG: create SSL context factory");
     SslContextFactory sslContextFactory = new SslContextFactory.Server();
     if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
       sslContextFactory.setKeyStorePath(
@@ -455,6 +461,7 @@ public abstract class Application<T extends RestConfig> {
   private void configureClientAuth(SslContextFactory sslContextFactory) {
     String clientAuthentication = config.getString(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG);
 
+    log.info("DEBUG: configure client auth with SSL");
     if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTH_CONFIG)) {
       if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG)) {
         log.warn(
@@ -524,6 +531,7 @@ public abstract class Application<T extends RestConfig> {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
+      log.info("DEBUG: returning basic authenticator");
       return new BasicAuthenticator();
     } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(
@@ -539,6 +547,7 @@ public abstract class Application<T extends RestConfig> {
     final String realm = getConfiguration().getString(RestConfig.AUTHENTICATION_REALM_CONFIG);
     final String method = getConfiguration().getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
+      log.info("DEBUG: return JAASLoginService");
       return new JAASLoginService(realm);
     } else if (enableBearerAuth(method)) {
       throw new UnsupportedOperationException(

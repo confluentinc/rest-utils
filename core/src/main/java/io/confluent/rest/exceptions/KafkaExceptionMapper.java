@@ -103,6 +103,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   }
 
   private Response handleException(final Throwable exception) {
+    log.info("DEBUG: kafka exception {}", exception.getMessage());
     if (exception instanceof AuthenticationException) {
       return getResponse(exception, Status.UNAUTHORIZED,
           KAFKA_AUTHENTICATION_ERROR_CODE);
@@ -126,6 +127,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   private Response getResponse(final Throwable exception, final Status status,
                                final int errorCode) {
     ErrorMessage errorMessage = new ErrorMessage(errorCode, exception.getMessage());
+    log.info("DEBUG: error message in getResponse {}", errorMessage.getMessage());
     return Response.status(status)
         .entity(errorMessage).build();
   }
@@ -133,6 +135,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   private Response getResponse(final Throwable cause) {
     ResponsePair responsePair = HANDLED.get(cause.getClass());
     ErrorMessage errorMessage = new ErrorMessage(responsePair.errorCode, cause.getMessage());
+    log.info("DEBUG: error message in getResponse {}", errorMessage.getMessage());
     return Response.status(responsePair.status)
         .entity(errorMessage).build();
   }

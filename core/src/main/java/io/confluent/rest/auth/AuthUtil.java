@@ -17,12 +17,18 @@
 package io.confluent.rest.auth;
 
 import io.confluent.rest.RestConfig;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.util.security.Constraint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class AuthUtil {
+
+  private static final Logger log = LoggerFactory.getLogger(AuthUtil.class);
 
   private AuthUtil() {
   }
@@ -50,6 +56,7 @@ public final class AuthUtil {
    * @return the constraint mapping.
    */
   public static ConstraintMapping createGlobalAuthConstraint(final RestConfig restConfig) {
+    log.info("DEBUG: creating global auth constraint");
     return createConstraint(restConfig, true, "/*");
   }
 
@@ -69,6 +76,7 @@ public final class AuthUtil {
       final RestConfig restConfig,
       final String pathSpec
   ) {
+    log.info("DEBUG: creating secured constraint");
     return createConstraint(restConfig, true, pathSpec);
   }
 
@@ -88,6 +96,7 @@ public final class AuthUtil {
       final RestConfig restConfig,
       final String pathSpec
   ) {
+    log.info("DEBUG: creating unsecured constraint");
     return createConstraint(restConfig, false, pathSpec);
   }
 
@@ -99,6 +108,9 @@ public final class AuthUtil {
    */
   public static List<ConstraintMapping> createUnsecuredConstraints(final RestConfig restConfig) {
     final List<String> unsecuredPaths = restConfig.getList(RestConfig.AUTHENTICATION_SKIP_PATHS);
+
+    log.info("DEBUG: creating unsecured constraint");
+    log.info("DEBUG: unsecured paths are {}", Arrays.toString(unsecuredPaths.toArray()));
 
     return unsecuredPaths.stream()
         .map(p -> createConstraint(restConfig, false, p))
@@ -120,8 +132,10 @@ public final class AuthUtil {
   ) {
     final Constraint constraint = new Constraint();
     constraint.setAuthenticate(authenticate);
+    log.info("DEBUG: set authenticate {} on constraint {}", authenticate, constraint.toString());
     if (authenticate) {
       final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+      log.info("DEBUG: roles are {}", Arrays.toString(roles.toArray()));
       constraint.setRoles(roles.toArray(new String[0]));
     }
 
