@@ -18,6 +18,10 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.confluent.rest.FileWatcher.Callback;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -49,7 +53,6 @@ import java.util.Properties;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -61,6 +64,7 @@ import io.confluent.rest.annotations.PerformanceMetric;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SslTest {
   private static final Logger log = LoggerFactory.getLogger(SslTest.class);
@@ -174,29 +178,58 @@ public class SslTest {
       assertMetricsCollected();
 
       // verify reload -- override the server keystore with a wrong one
-      Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      boolean hitError = false;
-      try {
-        makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (Exception e) {
-        System.out.println(e);
-        hitError = true;
-      }
+      executeFileWatcherTest(serverKeystore.toPath(),
+        () -> Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING),
+        () -> {
+          boolean hitError = false;
+          try {
+            makeGetRequest(httpsUri + "/test",
+                    clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+          } catch (Exception e) {
+            e.printStackTrace();
+            hitError = true;
+          } finally {
+            assertTrue("expect hit error with new server cert", hitError);
+          }
+        });
 
       // verify reload -- override the server keystore with a correct one
-      Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      statusCode = makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode); 
-      assertEquals("expect hit error with new server cert", true, hitError); 
+      executeFileWatcherTest(serverKeystore.toPath(),
+        () -> Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING),
+        () -> {
+          try {
+            int sc = makeGetRequest(httpsUri + "/test",
+                    clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+            assertEquals(EXPECTED_200_MSG, 200, sc);
+          } catch (Exception e) {
+            e.printStackTrace();
+            fail("should not have hit error with new correct server cert");
+          }
+        });
+
     } finally {
-      if (app != null) {
-        app.stop();
-      }
+      app.stop();
     }
+  }
+
+  private void executeFileWatcherTest(
+      java.nio.file.Path path, Callback copyCallback, Callback callback) throws Exception {
+    final CountDownLatch lock = new CountDownLatch(1);
+    final FileWatcher fileWatcher =
+        new FileWatcher(
+            path,
+            () -> {
+              try {
+                callback.run();
+              } finally {
+                lock.countDown();
+              }
+            });
+
+    Executors.newCachedThreadPool().submit(fileWatcher);
+    copyCallback.run();
+    lock.await(CERT_RELOAD_WAIT_TIME, TimeUnit.MILLISECONDS);
+    fileWatcher.shutdown();
   }
 
   @Test(expected = ClientProtocolException.class)
