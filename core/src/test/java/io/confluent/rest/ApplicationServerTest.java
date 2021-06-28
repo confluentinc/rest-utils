@@ -1,5 +1,9 @@
 package io.confluent.rest;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -13,7 +17,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,8 +35,11 @@ import javax.ws.rs.ext.ExceptionMapper;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
-public class ApplicationGroupTest {
+public class ApplicationServerTest {
 
   static TestRestConfig testConfig;
   private static ApplicationServer<TestRestConfig> server;
@@ -125,6 +136,96 @@ public class ApplicationGroupTest {
       return HttpStatus.getCode(response.getStatusLine().getStatusCode());
     }
   }
+
+  @Test
+  public void testParseDuplicateUnnamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:4000,http://0.0.0.0:443");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    // Should not throw, since http is not considered a listener name.
+    List<ApplicationServer.NamedURI> listeners = ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+
+    assertEquals(2, listeners.size());
+
+    assertNull(listeners.get(0).name);
+    assertEquals(new URI("http://0.0.0.0:4000"), listeners.get(0).uri);
+
+    assertNull(listeners.get(1).name);
+    assertEquals(new URI("http://0.0.0.0:443"), listeners.get(1).uri);
+  }
+
+  @Test(expected = ConfigException.class)
+  public void testParseDuplicateNamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "INTERNAL://0.0.0.0:4000,INTERNAL://0.0.0.0:443");
+    props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+  }
+
+  @Test(expected = ConfigException.class)
+  public void testParseDuplicateKnownNamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:4000,http://0.0.0.0:443");
+    props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "http:http");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+  }
+
+  @Test
+  public void testParseNamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "INTERNAL://0.0.0.0:4000,EXTERNAL://0.0.0.0:443");
+    props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,EXTERNAL:https");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+
+    assertEquals(2, namedListeners.size());
+
+    assertEquals("internal", namedListeners.get(0).name);
+    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).uri);
+
+    assertEquals("external", namedListeners.get(1).name);
+    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).uri);
+  }
+
+  @Test
+  public void testParseUnnamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:4000,https://0.0.0.0:443");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+
+    assertEquals(2, namedListeners.size());
+
+    assertNull(namedListeners.get(0).name);
+    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).uri);
+
+    assertNull(namedListeners.get(1).name);
+    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).uri);
+  }
+
+  // There is additional testing of parseListeners in ApplictionTest
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);

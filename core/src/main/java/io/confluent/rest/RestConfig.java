@@ -21,9 +21,11 @@ import io.confluent.rest.metrics.RestMetricsContext;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Set;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -54,10 +56,18 @@ public class RestConfig extends AbstractConfig {
 
   public static final String LISTENERS_CONFIG = "listeners";
   protected static final String LISTENERS_DOC =
-      "List of listeners. http and https are supported. Each listener must include the protocol, "
-      + "hostname, and port. For example: http://myhost:8080, https://0.0.0.0:8081";
-  // TODO: add a default value when `PORT_CONFIG` is deleted.
+      "Comma separated list of listeners in the form NAME://HOST:PORT. For example: "
+      + "\"https://myhost:8080,INTERNAL://0.0.0.0:8081\". If name is not a supported protocol "
+      + "(http or https), this must be specified via the listener.protocol.map property. "
+      + "NAME is case insensitive.";
   protected static final String LISTENERS_DEFAULT = "";
+
+  public static final String LISTENER_PROTOCOL_MAP_CONFIG =
+      "listener.protocol.map";
+  protected static final String LISTENER_PROTOCOL_MAP_DOC =
+      "Map between listener names (case insensitive) and URI scheme (http or https) specified "
+      + "as a comma separated list of NAME:SCHEME. For example: INTERNAL:http,EXTERNAL:https.";
+  protected static final String LISTENER_PROTOCOL_MAP_DEFAULT = "";
 
   public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
   protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
@@ -891,6 +901,12 @@ public class RestConfig extends AbstractConfig {
             HTTP2_ENABLED_DEFAULT,
             Importance.LOW,
             HTTP2_ENABLED_DOC
+        ).define(
+            LISTENER_PROTOCOL_MAP_CONFIG,
+            Type.LIST,
+            LISTENER_PROTOCOL_MAP_DEFAULT,
+            Importance.LOW,
+            LISTENER_PROTOCOL_MAP_DOC
         );
   }
 
@@ -1015,5 +1031,168 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final Map<String,String> getMap(String propertyName, boolean keyValToLowerCase) {
+    List<String> list = getList(propertyName);
+    Map<String, String> map = new HashMap<>();
+    for (String entry : list) {
+      String[] keyValue = entry.split("\\s*:\\s*", -1);
+      if (keyValue.length != 2) {
+        throw new ConfigException("Map entry should have form <key>:<value");
+      }
+      String key = keyValToLowerCase ? keyValue[0].toLowerCase() : keyValue[0];
+      String val = keyValToLowerCase ? keyValue[1].toLowerCase() : keyValue[1];
+      if (key.isEmpty()) {
+        throw new ConfigException(
+            "Entry '" + entry + "' in " + LISTENER_PROTOCOL_MAP_CONFIG
+            + " does not specify a key");
+      }
+      if (map.containsKey(key)) {
+        throw new ConfigException(
+            "Entry '" + key + "' was specified more than once in "
+            + propertyName);
+      }
+      map.put(key, val);
+    }
+    return map;
+  }
+
+  public final Map<String,String> getMap(String propertyName) {
+    return getMap(propertyName, false);
+  }
+
+  public final Map<String, String> getListenerProtocolMap() {
+    Map<String, String> result = getMap(LISTENER_PROTOCOL_MAP_CONFIG, true /* keyValToLowerCase */);
+
+    for (Map.Entry<String,String> entry : result.entrySet()) {
+      if (ApplicationServer.SUPPORTED_URI_SCHEMES.contains(entry.getKey())) {
+        if (!entry.getKey().equals(entry.getValue())) {
+          throw new ConfigException(
+              "Listener name '" + entry.getKey() + "' is a supported protocol, so the "
+              + "corresponding protocol specified in "
+              + LISTENER_PROTOCOL_MAP_CONFIG + " must be '" + entry.getKey() + "'");
+        }
+      }
+    }
+
+    return result;
+  }
+
+  static Map<String, Map<String, Object>> getPrefixedConfigGroupedByListener(
+        String configPrefix,
+        Set<String> listenerNames,
+        Map<String, ?> originals) {
+    Map<String, Map<String, Object>> grouped = new HashMap<>();
+
+    for (String key : originals.keySet()) {
+      if (!key.startsWith(configPrefix)) {
+        continue;
+      }
+
+      String scopedKey = key.substring(configPrefix.length());
+
+      boolean hasListenerName = false;
+      for (String listenerName : listenerNames) {
+        if (scopedKey.toLowerCase().startsWith(listenerName + ".")) {
+          hasListenerName = true;
+          if (!grouped.containsKey(listenerName)) {
+            grouped.put(listenerName, new HashMap<>());
+          }
+          scopedKey = scopedKey.substring(listenerName.length() + 1);
+          grouped.get(listenerName).put(scopedKey, originals.get(key));
+          break;
+        }
+      }
+
+      if (!hasListenerName) {
+        if (!grouped.containsKey("")) {
+          grouped.put("", new HashMap<>());
+        }
+        grouped.get("").put(scopedKey, originals.get(key));
+      }
+    }
+
+    if (grouped.size() == 0) {
+      grouped.put("", new HashMap<>());
+    }
+
+    return grouped;
+  }
+
+  /**
+   * <p>A helper method for extracting multi-instance application configuration,
+   * specified via property names of the form PREFIX[.LISTENER_NAME].PROPERTY.</p>
+   *
+   * <p>Returns either a single configuration instance with key "" which should be
+   * used to construct an application instance bound to all listeners or one or
+   * more named configuration instances which should be used to create
+   * application instances bound to the corresponding named connector(s).
+   * LISTENER_NAME is case insensitive.</p>
+   *
+   * <p>Examples:</p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:4000,C://2.2.2.2:3000
+   *  my.config.prefix.foo=1
+   *  my.config.prefix.bar=2
+   *  my.config.prefix.B.bar=3
+   * Result:
+   *  ConfigException: if any property is specified for a specific listener, it is not
+   *  valid to also specify a property without the listener qualified.
+   * </pre></p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:0
+   *  my.config.prefix.B.foo=1
+   *  my.config.prefix.B.bar=2
+   * Result:
+   *  instance on B:
+   *   foo=1
+   *   bar=2
+   * </pre></p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:0
+   *  my.config.prefix.foo=1
+   *  my.config.prefix.bar=2
+   * Result:
+   *  instance on all interfaces (A + B):
+   *   foo=1
+   *   bar=2
+   * </pre></p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:0
+   *  (no prefixed config)
+   * Result:
+   *  instance on all interfaces (A + B):
+   *   (empty config)
+   * </pre></p>
+   */
+  public static Map<String, Map<String, Object>> getInstanceConfig(
+      String configPrefix,
+      Set<String> listenerNames,
+      Map<String, ?> originals) {
+
+    Map<String, Map<String, Object>> grouped =
+        getPrefixedConfigGroupedByListener(configPrefix, listenerNames, originals);
+
+    if (grouped.size() == 1) {
+      return grouped;
+    }
+
+    if (grouped.containsKey("")) {
+      // In the future, this we might choose to relax this constraint to allow more
+      // convenient configuration in some scenarios. However, that will require
+      // decisions on behavior, and for the user to consult the manual to understand
+      // what these are.
+      throw new ConfigException(
+          "Some configuration properties prefixed by '" + configPrefix + "' specify a "
+          + "listener name, others don't. Either all or none of these properties must "
+          + "specify a listener name.");
+    }
+
+    return grouped;
   }
 }
