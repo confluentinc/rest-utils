@@ -21,6 +21,7 @@ import io.confluent.rest.metrics.RestMetricsContext;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -1015,5 +1016,33 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final Map<String,String> getMap(String propertyName, boolean keyValToLowerCase) {
+    List<String> list = getList(propertyName);
+    Map<String, String> map = new HashMap<>();
+    for (String entry : list) {
+      String[] keyValue = entry.split("\\s*:\\s*", -1);
+      if (keyValue.length != 2) {
+        throw new ConfigException("Map entry should have form <key>:<value");
+      }
+      String key = keyValToLowerCase ? keyValue[0].toLowerCase() : keyValue[0];
+      String val = keyValToLowerCase ? keyValue[1].toLowerCase() : keyValue[1];
+      if (key.isEmpty()) {
+        throw new ConfigException(
+            "Entry '" + entry + "' in " + propertyName + " does not specify a key");
+      }
+      if (map.containsKey(key)) {
+        throw new ConfigException(
+            "Entry '" + key + "' was specified more than once in "
+            + propertyName);
+      }
+      map.put(key, val);
+    }
+    return map;
+  }
+
+  public final Map<String,String> getMap(String propertyName) {
+    return getMap(propertyName, false);
   }
 }

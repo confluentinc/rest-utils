@@ -99,6 +99,7 @@ public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
   private final String path;
+  private final String listenerName;
 
   protected ApplicationServer<?> server;
   protected Metrics metrics;
@@ -115,12 +116,16 @@ public abstract class Application<T extends RestConfig> {
   }
 
   public Application(T config, String path) {
+    this(config, path, null);
+  }
+
+  public Application(T config, String path, String listenerName) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
+    this.listenerName = listenerName;
 
     this.metrics = configureMetrics();
-    this.getMetricsTags().putAll(
-            parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
+    this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
 
     Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
     logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
@@ -129,6 +134,10 @@ public abstract class Application<T extends RestConfig> {
 
   public final String getPath() {
     return path;
+  }
+
+  public final String getListenerName() {
+    return listenerName;
   }
 
   /**
@@ -273,6 +282,13 @@ public abstract class Application<T extends RestConfig> {
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
 
+    if (this.listenerName != null && !this.listenerName.isEmpty()) {
+      log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), this.listenerName);
+      context.setVirtualHosts(new String[]{"@" + this.listenerName});
+    } else {
+      log.info("Binding {} to all listeners.", this.getClass().getSimpleName());
+    }
+
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");
 
@@ -370,6 +386,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   // This is copied from the old MAP implementation from cp ConfigDef.Type.MAP
+  @Deprecated
   public static Map<String, String> parseListToMap(List<String> list) {
     Map<String, String> configuredTags = new HashMap<>();
     for (String entry : list) {
@@ -441,8 +458,7 @@ public abstract class Application<T extends RestConfig> {
           List<String> listenersConfig,
           int deprecatedPort,
           List<String> supportedSchemes,
-          String defaultScheme
-  ) {
+          String defaultScheme) {
     return ApplicationServer.parseListeners(
             listenersConfig, deprecatedPort, supportedSchemes, defaultScheme);
   }
