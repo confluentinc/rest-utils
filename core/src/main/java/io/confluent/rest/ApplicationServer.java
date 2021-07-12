@@ -32,7 +32,6 @@ import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -49,17 +48,14 @@ import org.slf4j.LoggerFactory;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
-import java.util.stream.Collectors;
 import java.util.concurrent.BlockingQueue;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
@@ -520,28 +516,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     connectors.add(connector);
     super.addConnector(connector);
-  }
-
-  // for testing
-  List<URL> getListeners() {
-    return Arrays.stream(getServer().getConnectors())
-            .filter(connector -> connector instanceof ServerConnector)
-            .map(ServerConnector.class::cast)
-            .map(connector -> {
-              try {
-                final String protocol = new HashSet<>(connector.getProtocols())
-                        .stream()
-                        .map(String::toLowerCase)
-                        .anyMatch(s -> s.equals("ssl")) ? "https" : "http";
-
-                final int localPort = connector.getLocalPort();
-
-                return new URL(protocol, "localhost", localPort, "");
-              } catch (final Exception e) {
-                throw new RuntimeException("Malformed listener", e);
-              }
-            })
-            .collect(Collectors.toList());
   }
 
   /**
