@@ -69,7 +69,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
-  public static final List<String> SUPPORTED_URI_SCHEMES = Arrays.asList("http", "https");
+  public static final List<String> SUPPORTED_URI_SCHEMES =
+      Collections.unmodifiableList(Arrays.asList("http", "https"));
 
   // Package-visible for tests
   static boolean isJava11Compatible() {
@@ -86,14 +87,14 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   public ApplicationServer(T config, List<NamedURI> namedListeners) {
-    this(config, createThreadPool(config), namedListeners);
+    this(config, namedListeners, createThreadPool(config));
   }
 
   public ApplicationServer(T config, ThreadPool threadPool) {
-    this(config, threadPool, null);
+    this(config, null, threadPool);
   }
 
-  public ApplicationServer(T config, ThreadPool threadPool, List<NamedURI> namedListeners) {
+  public ApplicationServer(T config, List<NamedURI> namedListeners, ThreadPool threadPool) {
     super(threadPool);
 
     this.config = config;

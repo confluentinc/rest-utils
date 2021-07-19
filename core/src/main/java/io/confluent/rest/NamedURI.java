@@ -23,16 +23,16 @@ public final class NamedURI {
   private final URI uri;
   private final String name;
 
+  public NamedURI(URI uri, String name) {
+    this.uri = uri;
+    this.name = name;
+  }
+
   public URI getURI() {
     return this.uri;
   }
 
   public String getName() {
     return this.name;
-  }
-
-  public NamedURI(URI uri, String name) {
-    this.uri = uri;
-    this.name = name;
   }
 }

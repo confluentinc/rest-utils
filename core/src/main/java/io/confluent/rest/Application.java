@@ -282,9 +282,9 @@ public abstract class Application<T extends RestConfig> {
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
 
-    if (this.listenerName != null && !this.listenerName.isEmpty()) {
-      log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), this.listenerName);
-      context.setVirtualHosts(new String[]{"@" + this.listenerName});
+    if (listenerName != null && !listenerName.isEmpty()) {
+      log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), listenerName);
+      context.setVirtualHosts(new String[]{"@" + listenerName});
     } else {
       log.info("Binding {} to all listeners.", this.getClass().getSimpleName());
     }

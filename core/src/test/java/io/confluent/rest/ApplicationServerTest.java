@@ -133,19 +133,19 @@ public class ApplicationServerTest {
 
   List<URL> getListeners() {
     return Arrays.stream(server.getConnectors())
-            .filter(connector -> connector instanceof ServerConnector)
+            .filter(ServerConnector.class::isInstance)
             .map(ServerConnector.class::cast)
             .map(connector -> {
               try {
-                final String protocol = new HashSet<>(connector.getProtocols())
+                String protocol = new HashSet<>(connector.getProtocols())
                         .stream()
                         .map(String::toLowerCase)
                         .anyMatch(s -> s.equals("ssl")) ? "https" : "http";
 
-                final int localPort = connector.getLocalPort();
+                int localPort = connector.getLocalPort();
 
                 return new URL(protocol, "localhost", localPort, "");
-              } catch (final Exception e) {
+              } catch (Exception e) {
                 throw new RuntimeException("Malformed listener", e);
               }
             })

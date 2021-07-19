@@ -1018,31 +1018,24 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
   }
 
-  public final Map<String,String> getMap(String propertyName, boolean keyValToLowerCase) {
+  public final Map<String, String> getMap(String propertyName) {
     List<String> list = getList(propertyName);
     Map<String, String> map = new HashMap<>();
     for (String entry : list) {
       String[] keyValue = entry.split("\\s*:\\s*", -1);
       if (keyValue.length != 2) {
-        throw new ConfigException("Map entry should have form <key>:<value");
+        throw new ConfigException("Map entry should have form <key>:<value>");
       }
-      String key = keyValToLowerCase ? keyValue[0].toLowerCase() : keyValue[0];
-      String val = keyValToLowerCase ? keyValue[1].toLowerCase() : keyValue[1];
-      if (key.isEmpty()) {
+      if (keyValue[0].isEmpty()) {
         throw new ConfigException(
             "Entry '" + entry + "' in " + propertyName + " does not specify a key");
       }
-      if (map.containsKey(key)) {
+      if (map.containsKey(keyValue[0])) {
         throw new ConfigException(
-            "Entry '" + key + "' was specified more than once in "
-            + propertyName);
+            "Entry '" + keyValue[0] + "' was specified more than once in " + propertyName);
       }
-      map.put(key, val);
+      map.put(keyValue[0], keyValue[1]);
     }
     return map;
-  }
-
-  public final Map<String,String> getMap(String propertyName) {
-    return getMap(propertyName, false);
   }
 }
