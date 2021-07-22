@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
@@ -107,48 +109,38 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     configureConnectors(sslContextFactory);
   }
 
-  static class NamedURI {
-    public final URI uri;
-    public final String name;
-
-    public NamedURI(URI uri, String name) {
-      this.uri = uri;
-      this.name = name;
-    }
-  }
-
   static NamedURI constructNamedURI(
-          String namedListenerMaybe,
+          String listener,
           Map<String,String> listenerProtocolMap,
           List<String> supportedSchemes) {
     URI uri;
     try {
-      uri = UriBuilder.fromUri(namedListenerMaybe).build();
-    } catch (UriBuilderException e) {
+      uri = new URI(listener);
+    } catch (URISyntaxException e) {
       throw new ConfigException(
-          "Listener '" + namedListenerMaybe + "' is not a valid URI.");
+          "Listener '" + listener + "' is not a valid URI.");
     }
     if (uri.getPort() == -1) {
       throw new ConfigException(
-          "Listener '" + namedListenerMaybe + "' must specify a port.");
+          "Listener '" + listener + "' must specify a port.");
     }
-    if (!supportedSchemes.contains(uri.getScheme())) {
-      String uriName = uri.getScheme().toLowerCase();
-      String protocolMaybe = listenerProtocolMap.get(uriName);
-      if (protocolMaybe == null) {
-        throw new ConfigException(
-            "Listener '" + uri + "' has an unsupported scheme '" + uri.getScheme() + "'");
-      }
-      try {
-        uri = UriBuilder.fromUri(namedListenerMaybe).scheme(protocolMaybe).build();
-      } catch (UriBuilderException e) {
-        throw new ConfigException(
-          "Listener '" + namedListenerMaybe + "' with protocol '"
-          + protocolMaybe + "' is not a valid URI.");
-      }
-      return new NamedURI(uri, uriName);
+    if (supportedSchemes.contains(uri.getScheme())) {
+      return new NamedURI(uri, null); // unnamed.
     }
-    return new NamedURI(uri, null); // unnamed.
+    String uriName = uri.getScheme().toLowerCase();
+    String protocol = listenerProtocolMap.get(uriName);
+    if (protocol == null) {
+      throw new ConfigException(
+          "Listener '" + uri + "' has an unsupported scheme '" + uri.getScheme() + "'");
+    }
+    try {
+      return new NamedURI(
+          UriBuilder.fromUri(listener).scheme(protocol).build(),
+          uriName);
+    } catch (UriBuilderException e) {
+      throw new ConfigException(
+          "Listener '" + listener + "' with protocol '" + protocol + "' is not a valid URI.");
+    }
   }
 
   /**
@@ -176,25 +168,24 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     List<NamedURI> namedURIs = new ArrayList<>(listeners.size());
 
-    for (String listener : listeners) {
-      NamedURI namedURI = constructNamedURI(listener, listenerProtocolMap, supportedSchemes);
-      if (namedURI.name != null) {   // Multiple unnamed URIs are allowed.
-        for (NamedURI existingNamedURI : namedURIs) {
-          if (existingNamedURI.name != null && existingNamedURI.name.equals(namedURI.name)) {
-            throw new ConfigException(
-              "More than one listener with name '" + namedURI.name + "' was defined.");
-          }
-        }
-      }
-      namedURIs.add(namedURI);
-    }
+    List<NamedURI> uris = listeners.stream()
+        .map(listener -> constructNamedURI(listener, listenerProtocolMap, supportedSchemes))
+        .collect(Collectors.toList());
+    List<NamedURI> namedUris =
+        uris.stream().filter(uri -> uri.getName() != null).collect(Collectors.toList());
+    List<NamedURI> unnamedUris =
+        uris.stream().filter(uri -> uri.getName() == null).collect(Collectors.toList());
 
-    if (namedURIs.isEmpty()) {
+    if (namedUris.stream().map(a -> a.getName()).distinct().count() != namedUris.size()) {
+      throw new ConfigException(
+          "More than one listener was specified with same name. Listener names must be unique.");
+    }
+    if (namedUris.isEmpty() && unnamedUris.isEmpty()) {
       throw new ConfigException(
           "No listeners are configured. At least one listener must be configured.");
     }
 
-    return namedURIs;
+    return uris;
   }
 
   public void registerApplication(Application application) {
@@ -447,10 +438,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     NetworkTrafficServerConnector connector;
 
     if (http2Enabled) {
-      log.info(
-          "Adding listener " + (listener.name == null ? "" : "'" + listener.name + "'")
-          + " with HTTP/2: " + listener.uri.toString());
-      if (listener.uri.getScheme().equals("http")) {
+      log.info("Adding listener with HTTP/2: " + listener);
+      if (listener.getUri().getScheme().equals("http")) {
         // HTTP2C is HTTP/2 Clear text
         final HTTP2CServerConnectionFactory h2cConnectionFactory =
                 new HTTP2CServerConnectionFactory(httpConfiguration);
@@ -483,9 +472,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // explicitly when HTTP/2 is enabled.
       connector.addBean(HttpCompliance.RFC7230);
     } else {
-      log.info(
-          "Adding listener " + (listener.name == null ? "" : "'" + listener.name + "'")
-          + ": " + listener.uri.toString());
+      log.info("Adding listener: " + listener);
       if (listener.uri.getScheme().equals("http")) {
         connector = new NetworkTrafficServerConnector(this, httpConnectionFactory);
       } else {
@@ -494,11 +481,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       }
     }
 
-    connector.setPort(listener.uri.getPort());
-    connector.setHost(listener.uri.getHost());
+    connector.setPort(listener.getUri().getPort());
+    connector.setHost(listener.getUri().getHost());
     connector.setIdleTimeout(config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
-    if (listener.name != null) {
-      connector.setName(listener.name);
+    if (listener.getName() != null) {
+      connector.setName(listener.getName());
     }
 
     connectors.add(connector);
@@ -579,5 +566,31 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
             requestQueue);
+  }
+
+  static final class NamedURI {
+    private final URI uri;
+    private final String name;
+
+    NamedURI(URI uri, String name) {
+      this.uri = uri;
+      this.name = name;
+    }
+
+    URI getUri() {
+      return uri;
+    }
+
+    String getName() {
+      return name;
+    }
+
+    @Override
+    public String toString() {
+      if (name == null) {
+        return uri.toString();
+      }
+      return "'" + name + "' " + uri.toString();
+    }
   }
 }

@@ -61,6 +61,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -70,6 +71,7 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
@@ -466,16 +468,11 @@ public abstract class Application<T extends RestConfig> {
     // deprecated).
     Map<String,String> listenerProtocolMap = new HashMap<>();
 
-    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
-            listenersConfig, listenerProtocolMap,
-            deprecatedPort, supportedSchemes, defaultScheme);
-
-    List<URI> listeners = new ArrayList<>();
-    for (ApplicationServer.NamedURI namedListener : namedListeners) {
-      listeners.add(namedListener.uri);
-    }
-
-    return listeners;
+    return ApplicationServer.parseListeners(
+      listenersConfig, Collections.emptyMap(), deprecatedPort, supportedSchemes, defaultScheme)
+        .stream()
+        .map(ApplicationServer.NamedURI::getUri)
+        .collect(Collectors.toList());
   }
 
   /**

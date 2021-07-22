@@ -176,11 +176,11 @@ public class ApplicationServerTest {
 
     assertEquals(2, listeners.size());
 
-    assertNull(listeners.get(0).name);
-    assertEquals(new URI("http://0.0.0.0:4000"), listeners.get(0).uri);
+    assertNull(listeners.get(0).getName());
+    assertEquals(new URI("http://0.0.0.0:4000"), listeners.get(0).getUri());
 
-    assertNull(listeners.get(1).name);
-    assertEquals(new URI("http://0.0.0.0:443"), listeners.get(1).uri);
+    assertNull(listeners.get(1).getName());
+    assertEquals(new URI("http://0.0.0.0:443"), listeners.get(1).getUri());
   }
 
   @Test(expected = ConfigException.class)
@@ -210,11 +210,11 @@ public class ApplicationServerTest {
 
     assertEquals(2, namedListeners.size());
 
-    assertEquals("internal", namedListeners.get(0).name);
-    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).uri);
+    assertEquals("internal", namedListeners.get(0).getName());
+    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).getUri());
 
-    assertEquals("external", namedListeners.get(1).name);
-    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).uri);
+    assertEquals("external", namedListeners.get(1).getName());
+    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).getUri());
   }
 
   @Test
@@ -230,11 +230,11 @@ public class ApplicationServerTest {
 
     assertEquals(2, namedListeners.size());
 
-    assertNull(namedListeners.get(0).name);
-    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).uri);
+    assertNull(namedListeners.get(0).getName());
+    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).getUri());
 
-    assertNull(namedListeners.get(1).name);
-    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).uri);
+    assertNull(namedListeners.get(1).getName());
+    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).getUri());
   }
 
   // There is additional testing of parseListeners in ApplictionTest
