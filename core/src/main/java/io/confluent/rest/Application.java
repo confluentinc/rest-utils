@@ -90,7 +90,8 @@ import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CON
 import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
 
 /**
- * A REST application. Extend this class and implement setupResources() to register REST
+ * A REST application.
+ * Extend this class and implement setupResources() to register REST
  * resources with the JAX-RS server. Use createServer() to get a fully-configured, ready to run
  * Jetty server.
  */
