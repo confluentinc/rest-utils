@@ -166,8 +166,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       listeners.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
     }
 
-    List<NamedURI> namedURIs = new ArrayList<>(listeners.size());
-
     List<NamedURI> uris = listeners.stream()
         .map(listener -> constructNamedURI(listener, listenerProtocolMap, supportedSchemes))
         .collect(Collectors.toList());

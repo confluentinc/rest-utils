@@ -466,8 +466,6 @@ public abstract class Application<T extends RestConfig> {
     // Support for named listeners is only implemented for the case of Applications
     // managed by ApplicationServer (direct instantiation of Application is to be
     // deprecated).
-    Map<String,String> listenerProtocolMap = new HashMap<>();
-
     return ApplicationServer.parseListeners(
       listenersConfig, Collections.emptyMap(), deprecatedPort, supportedSchemes, defaultScheme)
         .stream()
