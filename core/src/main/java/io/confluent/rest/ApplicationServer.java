@@ -159,9 +159,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     // will have a default value which includes the default port.
     if (listeners.isEmpty() || listeners.get(0).isEmpty()) {
       log.warn(
-              "DEPRECATION warning: `listeners` configuration is not configured. "
-                      + "Falling back to the deprecated `port` configuration."
-      );
+          "DEPRECATION warning: `listeners` configuration is not configured. "
+          + "Falling back to the deprecated `port` configuration.");
       listeners = new ArrayList<>(1);
       listeners.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
     }
