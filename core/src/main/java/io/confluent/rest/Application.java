@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -215,7 +215,9 @@ public abstract class Application<T extends RestConfig> {
   /**
    * add any servlet filters that should be called before resource handling
    */
-  protected void configurePreResourceHandling(ServletContextHandler context) {}
+  protected void configurePreResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * expose SslContextFactory
@@ -228,13 +230,17 @@ public abstract class Application<T extends RestConfig> {
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
-  protected void configurePostResourceHandling(ServletContextHandler context) {}
+  protected void configurePostResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
-  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {}
+  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
@@ -477,7 +483,9 @@ public abstract class Application<T extends RestConfig> {
    * Used to register any websocket endpoints that will live under the path configured via
    * {@link io.confluent.rest.RestConfig#WEBSOCKET_PATH_PREFIX_CONFIG}
    */
-  protected void registerWebSocketEndpoints(ServerContainer container) { }
+  protected void registerWebSocketEndpoints(ServerContainer container) {
+
+  }
 
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
@@ -727,7 +735,9 @@ public abstract class Application<T extends RestConfig> {
    * stopped accepting new connections, and tried to gracefully finish existing requests. At this
    * point it should be safe to clean up any resources used while processing requests.
    */
-  public void onShutdown() {}
+  public void onShutdown() {
+
+  }
 
   /**
    * A rate-limiter that applies a single limit to the entire server.
