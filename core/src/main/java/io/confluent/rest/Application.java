@@ -666,15 +666,5 @@ public abstract class Application<T extends RestConfig> {
 
   }
 
-  /**
-   * A rate-limiter that applies a single limit to the entire server.
-   */
-  private static final class GlobalDosFilter extends DoSFilter {
-
-    @Override
-    protected String extractUserId(ServletRequest request) {
-      return "GLOBAL";
-    }
-  }
 }
 
