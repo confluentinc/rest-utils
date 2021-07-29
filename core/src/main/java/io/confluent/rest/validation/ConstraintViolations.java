@@ -24,7 +24,9 @@ import java.util.Set;
 
 public class ConstraintViolations {
 
-  private ConstraintViolations() { /* singleton */ }
+  private ConstraintViolations() {
+    /* singleton */
+  }
 
   public static <T> String format(ConstraintViolation<T> v) {
     return String.format("%s %s (was %s)",
