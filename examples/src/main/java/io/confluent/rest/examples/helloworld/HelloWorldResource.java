@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,9 @@ public class HelloWorldResource {
     @NotEmpty
     private String message;
 
-    public HelloResponse() { /* Jackson deserialization */ }
+    public HelloResponse() {
+      /* Jackson deserialization */
+    }
 
     public HelloResponse(String message) {
       this.message = message;
