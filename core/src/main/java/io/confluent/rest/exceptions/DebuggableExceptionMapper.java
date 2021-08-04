@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ import javax.ws.rs.ext.Provider;
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.entities.ErrorMessage;
 
-/**
+/*
  * Abstract exception mapper that checks the debug flag and generates an error message including the
  * stack trace if it is enabled.
  */
@@ -46,7 +46,7 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
     this.restConfig = restConfig;
   }
 
-  /**
+  /*
    * Create a Response object using the given exception, status, and message. When debugging is
    * enabled, the message will be replaced with the exception class, exception message, and
    * stacktrace.

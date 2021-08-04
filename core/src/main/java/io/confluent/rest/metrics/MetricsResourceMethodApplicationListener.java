@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2015 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
+ */
 
 package io.confluent.rest.metrics;
 
@@ -48,7 +48,7 @@ import io.confluent.common.metrics.stats.Rate;
 import io.confluent.common.utils.Time;
 import io.confluent.rest.annotations.PerformanceMetric;
 
-/**
+/*
  * Jersey ResourceMethodApplicationListener that records metrics for each endpoint by listening
  * for method start and finish events. It reports some common metrics for each such as rate and
  * latency (average, 90th, 99th, etc).
