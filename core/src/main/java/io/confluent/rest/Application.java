@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -162,7 +162,9 @@ public abstract class Application<T extends RestConfig> {
   /**
    * add any servlet filters that should be called before resource handling
    */
-  protected void configurePreResourceHandling(ServletContextHandler context) {}
+  protected void configurePreResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * expose SslContextFactory
@@ -175,13 +177,17 @@ public abstract class Application<T extends RestConfig> {
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
-  protected void configurePostResourceHandling(ServletContextHandler context) {}
+  protected void configurePostResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
-  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {}
+  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
@@ -589,5 +595,8 @@ public abstract class Application<T extends RestConfig> {
    * stopped accepting new connections, and tried to gracefully finish existing requests. At this
    * point it should be safe to clean up any resources used while processing requests.
    */
-  public void onShutdown() {}
+  public void onShutdown() {
+
+  }
+
 }
