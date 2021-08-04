@@ -79,7 +79,8 @@ public class Generics {
         }
       }
     }
-    throw new IllegalStateException("Cannot figure out type parameterization for " + klass.getName());
+    throw new IllegalStateException("Cannot figure out type parameterization for "
+                                    + klass.getName());
   }
 
   @SuppressWarnings("unchecked")
