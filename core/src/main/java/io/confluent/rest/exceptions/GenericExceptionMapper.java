@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import javax.ws.rs.core.Response;
 
 import io.confluent.rest.RestConfig;
 
-/**
+/*
  * Catch-all exception mapper to handle any uncaught errors that aren't already mapped.
  */
 public class GenericExceptionMapper extends DebuggableExceptionMapper<Throwable> {

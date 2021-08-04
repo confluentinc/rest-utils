@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 
-/**
+/*
  * Jackson provider that handles some additional exceptions. This allows additional processing and
  * validation of entities during parsing that don't fit well with the standard validation framework
  * (e.g. decoding of encoded fields to avoid storing the original and repeated decoding if the field

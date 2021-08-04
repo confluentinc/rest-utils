@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2015 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@ package io.confluent.rest.exceptions;
 
 import javax.ws.rs.WebApplicationException;
 
-/**
+/*
  * RestException is a subclass of WebApplicationException that always includes an error code and
  * can be converted to the standard error format. It is automatically handled by the rest-utils
  * exception mappers. For convenience, it provides subclasses for a few of the most common

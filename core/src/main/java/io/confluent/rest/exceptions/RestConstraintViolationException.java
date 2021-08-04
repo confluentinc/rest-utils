@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2015 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import java.util.Set;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 
-/**
+/*
  * ConstraintViolationException that includes RestException-like data to create a standard error
  * response. Note that this does not inherit from RestException because it must inherit from
  * ConstraintViolationException to be caught by the correct ExceptionMapper.

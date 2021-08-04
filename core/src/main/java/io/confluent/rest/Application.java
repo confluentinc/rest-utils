@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,7 +86,7 @@ import io.confluent.rest.validation.JacksonMessageBodyProvider;
 import static io.confluent.rest.RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG;
 import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG;
 
-/**
+/*
  * A REST application. Extend this class and implement setupResources() to register REST
  * resources with the JAX-RS server. Use createServer() to get a fully-configured, ready to run
  * Jetty server.
