@@ -452,6 +452,13 @@ public abstract class Application<T extends RestConfig> {
       context.setSecurityHandler(createBasicSecurityHandler());
     } else if (enableBearerAuth(authMethod)) {
       context.setSecurityHandler(createBearerSecurityHandler());
+    } else {
+      AuthUtil.createDisableOptionsConstraint(config)
+          .ifPresent(optionsConstraint -> {
+            ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+            securityHandler.addConstraintMapping(optionsConstraint);
+            context.setSecurityHandler(securityHandler);
+          });
     }
   }
 
@@ -550,7 +557,9 @@ public abstract class Application<T extends RestConfig> {
     securityHandler.setIdentityService(createIdentityService());
     securityHandler.setRealmName(realm);
     AuthUtil.createUnsecuredConstraints(config)
-            .forEach(securityHandler::addConstraintMapping);
+        .forEach(securityHandler::addConstraintMapping);
+    AuthUtil.createDisableOptionsConstraint(config)
+        .ifPresent(securityHandler::addConstraintMapping);
 
     return securityHandler;
   }

@@ -18,6 +18,7 @@ package io.confluent.rest.auth;
 
 import io.confluent.rest.RestConfig;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.util.security.Constraint;
@@ -47,6 +48,17 @@ public final class AuthUtil {
   public static boolean isSkipOptionsAuth(final RestConfig restConfig) {
     boolean skipOption = restConfig.getBoolean(RestConfig.ACCESS_CONTROL_SKIP_OPTIONS);
     return skipOption;
+  }
+
+  /**
+   * Checks if {@link RestConfig#REJECT_OPTIONS_REQUEST} is set.
+   *
+   * @param restConfig the rest app's config.
+   * @return true if not empty, false otherwise.
+   */
+  public static boolean isRejectOptions(final RestConfig restConfig) {
+    boolean rejectOption = restConfig.getBoolean(RestConfig.REJECT_OPTIONS_REQUEST);
+    return rejectOption;
   }
 
   /**
@@ -140,10 +152,35 @@ public final class AuthUtil {
     mapping.setConstraint(constraint);
     mapping.setMethod("*");
 
+    if (isRejectOptions(restConfig)) {
+      mapping.setMethodOmissions(new String[]{"OPTIONS"});
+    }
+
     if (authenticate && AuthUtil.isCorsEnabled(restConfig) && isSkipOptionsAuth(restConfig)) {
       mapping.setMethodOmissions(new String[]{"OPTIONS"});
     }
     mapping.setPathSpec(pathSpec);
     return mapping;
+  }
+
+  public static Optional<ConstraintMapping>
+        createDisableOptionsConstraint(final RestConfig config) {
+
+    if (isRejectOptions(config)) {
+
+      Constraint forbidConstraint = new Constraint();
+      forbidConstraint.setName("Disable OPTIONS");
+      //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
+      // forbidding access
+      forbidConstraint.setAuthenticate(true);
+
+      ConstraintMapping forbidMapping = new ConstraintMapping();
+      forbidMapping.setMethod("OPTIONS");
+      forbidMapping.setPathSpec("/*");
+      forbidMapping.setConstraint(forbidConstraint);
+      return Optional.of(forbidMapping);
+
+    }
+    return Optional.ofNullable(null);
   }
 }
