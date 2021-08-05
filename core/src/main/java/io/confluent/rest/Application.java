@@ -42,6 +42,7 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.servlets.DoSFilter;
 import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -321,8 +322,10 @@ public abstract class Application<T extends RestConfig> {
 
     if (config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG) != null
             && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
-      configureHttpResponsHeaderFilter(context);
+      configureHttpResponseHeaderFilter(context);
     }
+
+    configureDosFilter(context);
 
     configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
@@ -584,7 +587,7 @@ public abstract class Application<T extends RestConfig> {
    * Register header filter to ServletContextHandler.
    * @param context The serverlet context handler
    */
-  protected void configureHttpResponsHeaderFilter(ServletContextHandler context) {
+  protected void configureHttpResponseHeaderFilter(ServletContextHandler context) {
     String headerConfig = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
     log.debug("headerConfig : " + headerConfig);
     String[] configs = StringUtil.csvSplit(headerConfig);
@@ -593,6 +596,38 @@ public abstract class Application<T extends RestConfig> {
     FilterHolder headerFilterHolder = new FilterHolder(HeaderFilter.class);
     headerFilterHolder.setInitParameter("headerConfig", headerConfig);
     context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureDosFilter(ServletContextHandler context) {
+    if (!config.isDosFilterEnabled()) {
+      return;
+    }
+    FilterHolder filterHolder = new FilterHolder(new DoSFilter());
+    filterHolder.setInitParameter(
+        "maxRequestsPerSec", String.valueOf(config.getDosFilterMaxRequestsPerSec()));
+    filterHolder.setInitParameter(
+        "delayMs", String.valueOf(config.getDosFilterDelayMs().toMillis()));
+    filterHolder.setInitParameter(
+        "maxWaitMs", String.valueOf(config.getDosFilterMaxWaitMs().toMillis()));
+    filterHolder.setInitParameter(
+        "throttledRequests", String.valueOf(config.getDosFilterThrottledRequests()));
+    filterHolder.setInitParameter(
+        "throttleMs", String.valueOf(config.getDosFilterThrottleMs().toMillis()));
+    filterHolder.setInitParameter(
+        "maxRequestMs", String.valueOf(config.getDosFilterMaxRequestMs().toMillis()));
+    filterHolder.setInitParameter(
+        "maxIdleTrackerMs", String.valueOf(config.getDosFilterMaxIdleTrackerMs().toMillis()));
+    filterHolder.setInitParameter(
+        "insertHeaders", String.valueOf(config.getDosFilterInsertHeaders()));
+    filterHolder.setInitParameter(
+        "trackSessions", String.valueOf(config.getDosFilterTrackSessions()));
+    filterHolder.setInitParameter(
+        "remotePort", String.valueOf(config.getDosFilterRemotePort()));
+    filterHolder.setInitParameter(
+        "ipWhitelist", String.valueOf(config.getDosFilterIpWhitelist()));
+    filterHolder.setInitParameter(
+        "managedAttr", String.valueOf(config.getDosFilterManagedAttr()));
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   public T getConfiguration() {

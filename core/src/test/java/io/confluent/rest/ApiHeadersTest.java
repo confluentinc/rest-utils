@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2019 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,19 +42,17 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
+import org.eclipse.jetty.server.Server;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ApiHeadersTest {
 
-  private static final String httpUri = "http://localhost:8080";
-  private static final String httpsUri = "https://localhost:8081";
-
   private static final String SSL_PASSWORD = "test1234";
 
   private static String clientKeystoreLocation;
-  private static TestApplication app;
+  private static Server server;
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -70,26 +68,27 @@ public class ApiHeadersTest {
     TestSslUtils.createTrustStore(trustStore.getAbsolutePath(), new Password(SSL_PASSWORD), certs);
 
     final Properties props = new Properties();
-    props.put(RestConfig.LISTENERS_CONFIG, httpUri + "," + httpsUri);
+    props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:0,https://localhost:0");
     props.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, serverKeystore.getAbsolutePath());
     props.put(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG, SSL_PASSWORD);
     props.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, SSL_PASSWORD);
 
-    app = new TestApplication(new TestRestConfig(props));
-    app.start();
+    TestApplication app = new TestApplication(new TestRestConfig(props));
+    server = app.createServer();
+    server.start();
   }
 
   @AfterClass
   public static void teardown() throws Exception {
-    if (app != null) {
-      app.stop();
+    if (server != null) {
+      server.stop();
     }
   }
 
   @Test
   public void testHttpDoesNotReturnJettyServerVersionHeader() throws Exception {
 
-    final HttpGet httpget = new HttpGet(httpUri +  "/test/endpoint");
+    final HttpGet httpget = new HttpGet(server.getURI() + "/test/endpoint");
 
     try ( CloseableHttpClient httpclient = HttpClients.createDefault();
         CloseableHttpResponse response = httpclient.execute(httpget) ) {
@@ -102,36 +101,47 @@ public class ApiHeadersTest {
   @Test
   public void testHttpsDoesNotReturnJettyServerVersionHeader() throws Exception {
 
-    final HttpGet httpget = new HttpGet(httpsUri +  "/test/endpoint");
+    final HttpGet httpget = new HttpGet(server.getURI() + "/test/endpoint");
 
     // trust all self-signed certs and add the client keystore if it's configured.
     final SSLContext sslContext = SSLContexts.custom()
         .loadTrustMaterial(new TrustSelfSignedStrategy())
-        .loadKeyMaterial(new File(clientKeystoreLocation),SSL_PASSWORD.toCharArray(),
+        .loadKeyMaterial(new File(clientKeystoreLocation), SSL_PASSWORD.toCharArray(),
             SSL_PASSWORD.toCharArray())
         .build();
 
-    final SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext, new String[]{"TLSv1.2"},
-        null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+    final SSLConnectionSocketFactory sslSf =
+        new SSLConnectionSocketFactory(
+            sslContext,
+            new String[]{"TLSv1.2"},
+            null,
+            SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
-    try ( CloseableHttpClient httpclient = HttpClients.custom().setSSLSocketFactory(sslSf).build();
-        CloseableHttpResponse response = httpclient.execute(httpget) ) {
+    try (
+        CloseableHttpClient httpclient = HttpClients.custom().setSSLSocketFactory(sslSf).build();
+        CloseableHttpResponse response = httpclient.execute(httpget)) {
 
       assertThat(response.getStatusLine().getStatusCode(), is(200));
-      assertThat(response.getFirstHeader( "Server" ), is(nullValue()));
+      assertThat(response.getFirstHeader("Server"), is(nullValue()));
     }
   }
 
 
-  private static void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
+  private static void createKeystoreWithCert(
+      File file, String alias, Map<String, X509Certificate> certs) throws Exception {
 
     final KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
 
     final X509Certificate cert = new CertificateBuilder(30, "SHA1withRSA")
         .sanDnsNames("localhost").generate("CN=mymachine.local, O=A client", keypair);
 
-    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD), alias,
-        keypair.getPrivate(), cert);
+    TestSslUtils.createKeyStore(
+        file.getPath(),
+        new Password(SSL_PASSWORD),
+        new Password(SSL_PASSWORD),
+        alias,
+        keypair.getPrivate(),
+        cert);
     certs.put(alias, cert);
   }
 
