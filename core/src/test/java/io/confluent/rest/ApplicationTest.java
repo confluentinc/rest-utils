@@ -71,7 +71,6 @@ import org.eclipse.jetty.util.security.Constraint;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import scala.App;
 
 public class ApplicationTest {
 

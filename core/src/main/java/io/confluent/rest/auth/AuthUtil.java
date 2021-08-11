@@ -181,6 +181,6 @@ public final class AuthUtil {
       return Optional.of(forbidMapping);
 
     }
-    return Optional.ofNullable(null);
+    return Optional.empty();
   }
 }
