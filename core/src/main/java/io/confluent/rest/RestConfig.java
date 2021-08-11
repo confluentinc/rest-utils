@@ -97,6 +97,12 @@ public class RestConfig extends AbstractConfig {
           "Whether to skip authentication for OPTIONS requests";
   protected static final boolean ACCESS_CONTROL_SKIP_OPTIONS_DEFAULT = true;
 
+  public static final String REJECT_OPTIONS_REQUEST = "reject.options.request";
+  protected static final String REJECT_OPTIONS_REQUEST_DOC =
+      "Whether to reject OPTIONS requests";
+  protected static final boolean REJECT_OPTIONS_REQUEST_DEFAULT = false;
+
+
   public static final String ACCESS_CONTROL_ALLOW_METHODS = "access.control.allow.methods";
   protected static final String ACCESS_CONTROL_ALLOW_METHODS_DOC =
       "Set value to Jetty Access-Control-Allow-Origin header for specified methods";
@@ -557,6 +563,13 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             ACCESS_CONTROL_SKIP_OPTIONS_DOC
         ).define(
+            REJECT_OPTIONS_REQUEST,
+            Type.BOOLEAN,
+            REJECT_OPTIONS_REQUEST_DEFAULT,
+            Importance.LOW,
+            REJECT_OPTIONS_REQUEST_DOC
+        )
+        .define(
             REQUEST_LOGGER_NAME_CONFIG,
             Type.STRING,
             REQUEST_LOGGER_NAME_DEFAULT,

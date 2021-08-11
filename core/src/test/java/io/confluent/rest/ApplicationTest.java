@@ -66,6 +66,7 @@ import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
 import org.junit.After;
 import org.junit.Before;
@@ -225,6 +226,45 @@ public class ApplicationTest {
     assertThat(mappings.get(2).getPathSpec(), is("/path/2"));
     assertThat(mappings.get(2).getConstraint().getAuthenticate(), is(false));
   }
+
+  @Test
+  public void testConstraintsWhenOptionsRequestNotAllowedAndSecurityOn() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.REJECT_OPTIONS_REQUEST, true);
+
+    ConstraintSecurityHandler securityHandler = new TestApp(config).createBasicSecurityHandler();
+
+    final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
+    assertThat(mappings.size(), is(2));
+    assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertThat(mappings.get(0).getMethodOmissions(), is(new String[]{"OPTIONS"}));
+    assertThat(mappings.get(1).getPathSpec(), is("/*"));
+    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(true));
+    assertThat(mappings.get(1).getConstraint().isAnyRole(), is(false));
+    assertThat(mappings.get(1).getMethod(), is("OPTIONS"));
+
+  }
+
+  @Test
+  public void testConstraintsWhenOptionsRequestNotAllowedAndSecurityOff() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.REJECT_OPTIONS_REQUEST, true);
+
+    Application<TestRestConfig> app = new TestApp(config);
+    ServletContextHandler context = new ServletContextHandler();
+    app.configureSecurityHandler(context);
+
+    ConstraintSecurityHandler securityHandler = (ConstraintSecurityHandler) context.getSecurityHandler();
+
+    final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
+    assertThat(mappings.size(), is(1));
+    assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(true));
+    assertThat(mappings.get(0).getConstraint().isAnyRole(), is(false));
+    assertThat(mappings.get(0).getMethod(), is("OPTIONS"));
+
+  }
+
 
   @Test(expected = UnsupportedOperationException.class)
   public void testBearerNoAuthenticator() {
