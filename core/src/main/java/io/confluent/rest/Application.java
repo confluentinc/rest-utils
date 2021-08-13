@@ -131,7 +131,9 @@ public abstract class Application<T extends RestConfig> {
 
     Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
     logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %msT");
+
+    // %{ms}T logs request time in milliseconds
+    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
   }
 
   public final String getPath() {
