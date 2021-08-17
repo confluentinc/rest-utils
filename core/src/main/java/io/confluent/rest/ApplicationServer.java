@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2019 Confluent Inc.
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,6 @@ import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -50,29 +49,32 @@ import org.slf4j.LoggerFactory;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
-import java.util.stream.Collectors;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriBuilderException;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class ApplicationServer<T extends RestConfig> extends Server {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   private final T config;
-  private final ApplicationGroup applications;
+  private final List<Application<?>> applications;
   private final SslContextFactory sslContextFactory;
 
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
+
+  static final List<String> SUPPORTED_URI_SCHEMES =
+      Collections.unmodifiableList(Arrays.asList("http", "https"));
 
   // Package-visible for tests
   static boolean isJava11Compatible() {
@@ -92,7 +94,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     super(threadPool);
 
     this.config = config;
-    this.applications = new ApplicationGroup(this);
+    this.applications = new ArrayList<>();
 
     int gracefulShutdownMs = config.getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
     if (gracefulShutdownMs > 0) {
@@ -108,76 +110,89 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     configureConnectors(sslContextFactory);
   }
 
+  static NamedURI constructNamedURI(
+          String listener,
+          Map<String,String> listenerProtocolMap,
+          List<String> supportedSchemes) {
+    URI uri;
+    try {
+      uri = new URI(listener);
+    } catch (URISyntaxException e) {
+      throw new ConfigException(
+          "Listener '" + listener + "' is not a valid URI.");
+    }
+    if (uri.getPort() == -1) {
+      throw new ConfigException(
+          "Listener '" + listener + "' must specify a port.");
+    }
+    if (supportedSchemes.contains(uri.getScheme())) {
+      return new NamedURI(uri, null); // unnamed.
+    }
+    String uriName = uri.getScheme().toLowerCase();
+    String protocol = listenerProtocolMap.get(uriName);
+    if (protocol == null) {
+      throw new ConfigException(
+          "Listener '" + uri + "' has an unsupported scheme '" + uri.getScheme() + "'");
+    }
+    try {
+      return new NamedURI(
+          UriBuilder.fromUri(listener).scheme(protocol).build(),
+          uriName);
+    } catch (UriBuilderException e) {
+      throw new ConfigException(
+          "Listener '" + listener + "' with protocol '" + protocol + "' is not a valid URI.");
+    }
+  }
+
   /**
    * TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
    * It's only used to support the deprecated configuration.
    */
-  static List<URI> parseListeners(
-          List<String> listenersConfig,
+  static List<NamedURI> parseListeners(
+          List<String> listeners,
+          Map<String,String> listenerProtocolMap,
           int deprecatedPort,
           List<String> supportedSchemes,
-          String defaultScheme
-  ) {
+          String defaultScheme) {
+
     // handle deprecated case, using PORT_CONFIG.
     // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG
     // will have a default value which includes the default port.
-    if (listenersConfig.isEmpty() || listenersConfig.get(0).isEmpty()) {
+    if (listeners.isEmpty() || listeners.get(0).isEmpty()) {
       log.warn(
-              "DEPRECATION warning: `listeners` configuration is not configured. "
-                      + "Falling back to the deprecated `port` configuration."
-      );
-      listenersConfig = new ArrayList<>(1);
-      listenersConfig.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
+          "DEPRECATION warning: `listeners` configuration is not configured. "
+          + "Falling back to the deprecated `port` configuration.");
+      listeners = new ArrayList<>(1);
+      listeners.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
     }
 
-    List<URI> listeners = new ArrayList<>(listenersConfig.size());
-    for (String listenerStr : listenersConfig) {
-      URI uri;
-      try {
-        uri = new URI(listenerStr);
-      } catch (URISyntaxException use) {
-        throw new ConfigException(
-                "Could not parse a listener URI from the `listener` configuration option."
-        );
-      }
-      String scheme = uri.getScheme();
-      if (scheme == null) {
-        throw new ConfigException(
-                "Found a listener without a scheme. All listeners must have a scheme. The "
-                        + "listener without a scheme is: " + listenerStr
-        );
-      }
-      if (uri.getPort() == -1) {
-        throw new ConfigException(
-                "Found a listener without a port. All listeners must have a port. The "
-                        + "listener without a port is: " + listenerStr
-        );
-      }
-      if (!supportedSchemes.contains(scheme)) {
-        log.warn(
-                "Found a listener with an unsupported scheme (supported: {}). "
-                        + "Ignoring listener '{}'",
-                supportedSchemes,
-                listenerStr
-        );
-      } else {
-        listeners.add(uri);
-      }
+    List<NamedURI> uris = listeners.stream()
+        .map(listener -> constructNamedURI(listener, listenerProtocolMap, supportedSchemes))
+        .collect(Collectors.toList());
+    List<NamedURI> namedUris =
+        uris.stream().filter(uri -> uri.getName() != null).collect(Collectors.toList());
+    List<NamedURI> unnamedUris =
+        uris.stream().filter(uri -> uri.getName() == null).collect(Collectors.toList());
+
+    if (namedUris.stream().map(a -> a.getName()).distinct().count() != namedUris.size()) {
+      throw new ConfigException(
+          "More than one listener was specified with same name. Listener names must be unique.");
+    }
+    if (namedUris.isEmpty() && unnamedUris.isEmpty()) {
+      throw new ConfigException(
+          "No listeners are configured. At least one listener must be configured.");
     }
 
-    if (listeners.isEmpty()) {
-      throw new ConfigException("No listeners are configured. Must have at least one listener.");
-    }
-
-    return listeners;
+    return uris;
   }
 
   public void registerApplication(Application application) {
-    applications.addApplication(application);
+    application.setServer(this);
+    applications.add(application);
   }
 
   public List<Application<?>> getApplications() {
-    return applications.getApplications();
+    return Collections.unmodifiableList(applications);
   }
 
   private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
@@ -215,7 +230,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
-    /* DefaultHandler must come last eo ensure all contexts
+    /* DefaultHandler must come last to ensure all contexts
      * have a chance to handle a request first */
     handlers.addHandler(new DefaultHandler());
     /* Needed for graceful shutdown as per `setStopTimeout` documentation */
@@ -233,13 +248,16 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   protected void doStop() throws Exception {
     super.doStop();
-    applications.doStop();
+    for (Application<?> application : applications) {
+      application.getMetrics().close();
+      application.doShutdown();
+    }
   }
 
   protected final void doStart() throws Exception {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
-    for (Application<?> app : applications.getApplications()) {
+    for (Application<?> app : applications) {
       attachMetricsListener(app.getMetrics(), app.getMetricsTags());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
@@ -400,23 +418,26 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                               && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
 
     @SuppressWarnings("deprecation")
-    List<URI> listeners = parseListeners(config.getList(RestConfig.LISTENERS_CONFIG),
-            config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
+    List<NamedURI> listeners = parseListeners(
+        config.getList(RestConfig.LISTENERS_CONFIG),
+        config.getListenerProtocolMap(),
+        config.getInt(RestConfig.PORT_CONFIG),
+        SUPPORTED_URI_SCHEMES, "http");
 
-    for (URI listener : listeners) {
+    for (NamedURI listener : listeners) {
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener, http2Enabled);
     }
   }
 
   private void addConnectorForListener(HttpConfiguration httpConfiguration,
                                        HttpConnectionFactory httpConnectionFactory,
-                                       URI listener,
+                                       NamedURI listener,
                                        boolean http2Enabled) {
     NetworkTrafficServerConnector connector;
 
     if (http2Enabled) {
-      log.info("Adding listener with HTTP/2: " + listener.toString());
-      if (listener.getScheme().equals("http")) {
+      log.info("Adding listener with HTTP/2: " + listener);
+      if (listener.getUri().getScheme().equals("http")) {
         // HTTP2C is HTTP/2 Clear text
         final HTTP2CServerConnectionFactory h2cConnectionFactory =
                 new HTTP2CServerConnectionFactory(httpConfiguration);
@@ -457,8 +478,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // explicitly when HTTP/2 is enabled.
       connector.addBean(HttpCompliance.RFC7230);
     } else {
-      log.info("Adding listener: " + listener.toString());
-      if (listener.getScheme().equals("http")) {
+      log.info("Adding listener: " + listener);
+      if (listener.uri.getScheme().equals("http")) {
         final ProxyConnectionFactory proxyConnectionFactory =
                 new ProxyConnectionFactory(httpConnectionFactory.getProtocol());
 
@@ -478,34 +499,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       }
     }
 
-    connector.setPort(listener.getPort());
-    connector.setHost(listener.getHost());
+    connector.setPort(listener.getUri().getPort());
+    connector.setHost(listener.getUri().getHost());
     connector.setIdleTimeout(config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
+    if (listener.getName() != null) {
+      connector.setName(listener.getName());
+    }
 
     connectors.add(connector);
     super.addConnector(connector);
-  }
-
-  // for testing
-  List<URL> getListeners() {
-    return Arrays.stream(getServer().getConnectors())
-            .filter(connector -> connector instanceof ServerConnector)
-            .map(ServerConnector.class::cast)
-            .map(connector -> {
-              try {
-                final String protocol = new HashSet<>(connector.getProtocols())
-                        .stream()
-                        .map(String::toLowerCase)
-                        .anyMatch(s -> s.equals("ssl")) ? "https" : "http";
-
-                final int localPort = connector.getLocalPort();
-
-                return new URL(protocol, "localhost", localPort, "");
-              } catch (final Exception e) {
-                throw new RuntimeException("Malformed listener", e);
-              }
-            })
-            .collect(Collectors.toList());
   }
 
   /**
@@ -582,5 +584,31 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
             requestQueue);
+  }
+
+  static final class NamedURI {
+    private final URI uri;
+    private final String name;
+
+    NamedURI(URI uri, String name) {
+      this.uri = uri;
+      this.name = name;
+    }
+
+    URI getUri() {
+      return uri;
+    }
+
+    String getName() {
+      return name;
+    }
+
+    @Override
+    public String toString() {
+      if (name == null) {
+        return uri.toString();
+      }
+      return "'" + name + "' " + uri.toString();
+    }
   }
 }

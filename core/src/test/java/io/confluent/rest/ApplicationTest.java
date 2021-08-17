@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
+ */
 
 package io.confluent.rest;
 
@@ -66,6 +66,7 @@ import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
 import org.junit.After;
 import org.junit.Before;
@@ -94,39 +95,10 @@ public class ApplicationTest {
   }
 
   @Test
-  public void testParseListToMap() {
-    assertEquals(
-        new HashMap<String, String>(){
-          {
-            put("k1","v1");
-            put("k2","v2");
-          }
-        },
-        Application.parseListToMap(Arrays.asList("k1:v1", "k2:v2"))
-    );
-  }
-
-  @Test
-  public void testParseEmptyListToMap() {
-    assertEquals(
-        new HashMap<String, String>(),
-        Application.parseListToMap(new ArrayList<>())
-    );
-  }
-
-  @Test(expected = ConfigException.class)
-  public void testParseBadListToMap() {
-    assertEquals(
-        new HashMap<String, String>(),
-        Application.parseListToMap(Arrays.asList("k1:v1:what", "k2:v2"))
-    );
-  }
-
-  @Test
   public void testParseListenersDeprecated() {
     List<String> listenersConfig = new ArrayList<>();
     List<URI> listeners = Application.parseListeners(listenersConfig, RestConfig.PORT_CONFIG_DEFAULT,
-            Arrays.asList("http", "https"), "http");
+            ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
     assertEquals("Should have only one listener.", 1, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "0.0.0.0", RestConfig.PORT_CONFIG_DEFAULT);
   }
@@ -136,7 +108,7 @@ public class ApplicationTest {
     List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("http://localhost:123");
     listenersConfig.add("https://localhost:124");
-    List<URI> listeners = Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
     assertEquals("Should have two listeners.", 2, listeners.size());
     assertExpectedUri(listeners.get(0), "http", "localhost", 123);
     assertExpectedUri(listeners.get(1), "https", "localhost", 124);
@@ -146,17 +118,15 @@ public class ApplicationTest {
   public void testParseListenersUnparseableUri() {
     List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("!");
-    Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+    Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
   }
 
-  @Test
+  @Test(expected = ConfigException.class)
   public void testParseListenersUnsupportedScheme() {
     List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("http://localhost:8080");
     listenersConfig.add("foo://localhost:8081");
-    List<URI> listeners = Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
-    assertEquals("Should have one listener.", 1, listeners.size());
-    assertExpectedUri(listeners.get(0), "http", "localhost", 8080);
+    List<URI> listeners = Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
   }
 
   @Test(expected = ConfigException.class)
@@ -164,14 +134,14 @@ public class ApplicationTest {
     List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("foo://localhost:8080");
     listenersConfig.add("bar://localhost:8081");
-    Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+    Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
   }
 
   @Test(expected = ConfigException.class)
   public void testParseListenersNoPort() {
     List<String> listenersConfig = new ArrayList<>();
     listenersConfig.add("http://localhost");
-    Application.parseListeners(listenersConfig, -1, Arrays.asList("http", "https"), "http");
+    Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
   }
 
   @Test
@@ -256,6 +226,45 @@ public class ApplicationTest {
     assertThat(mappings.get(2).getPathSpec(), is("/path/2"));
     assertThat(mappings.get(2).getConstraint().getAuthenticate(), is(false));
   }
+
+  @Test
+  public void testConstraintsWhenOptionsRequestNotAllowedAndSecurityOn() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.REJECT_OPTIONS_REQUEST, true);
+
+    ConstraintSecurityHandler securityHandler = new TestApp(config).createBasicSecurityHandler();
+
+    final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
+    assertThat(mappings.size(), is(2));
+    assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertThat(mappings.get(0).getMethodOmissions(), is(new String[]{"OPTIONS"}));
+    assertThat(mappings.get(1).getPathSpec(), is("/*"));
+    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(true));
+    assertThat(mappings.get(1).getConstraint().isAnyRole(), is(false));
+    assertThat(mappings.get(1).getMethod(), is("OPTIONS"));
+
+  }
+
+  @Test
+  public void testConstraintsWhenOptionsRequestNotAllowedAndSecurityOff() {
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.REJECT_OPTIONS_REQUEST, true);
+
+    Application<TestRestConfig> app = new TestApp(config);
+    ServletContextHandler context = new ServletContextHandler();
+    app.configureSecurityHandler(context);
+
+    ConstraintSecurityHandler securityHandler = (ConstraintSecurityHandler) context.getSecurityHandler();
+
+    final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
+    assertThat(mappings.size(), is(1));
+    assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(true));
+    assertThat(mappings.get(0).getConstraint().isAnyRole(), is(false));
+    assertThat(mappings.get(0).getMethod(), is("OPTIONS"));
+
+  }
+
 
   @Test(expected = UnsupportedOperationException.class)
   public void testBearerNoAuthenticator() {

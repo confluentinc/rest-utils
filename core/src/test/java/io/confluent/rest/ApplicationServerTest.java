@@ -1,5 +1,10 @@
 package io.confluent.rest;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -8,14 +13,21 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
+import org.eclipse.jetty.server.ServerConnector;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -27,8 +39,11 @@ import javax.ws.rs.ext.ExceptionMapper;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
-public class ApplicationGroupTest {
+public class ApplicationServerTest {
 
   static TestRestConfig testConfig;
   private static ApplicationServer<TestRestConfig> server;
@@ -116,15 +131,113 @@ public class ApplicationGroupTest {
     assertThat(makeGetRequest("/app2/index.html"), is(Code.OK));
   }
 
+  List<URL> getListeners() {
+    return Arrays.stream(server.getConnectors())
+            .filter(ServerConnector.class::isInstance)
+            .map(ServerConnector.class::cast)
+            .map(connector -> {
+              try {
+                String protocol = new HashSet<>(connector.getProtocols())
+                        .stream()
+                        .map(String::toLowerCase)
+                        .anyMatch(s -> s.equals("ssl")) ? "https" : "http";
+
+                int localPort = connector.getLocalPort();
+
+                return new URL(protocol, "localhost", localPort, "");
+              } catch (final Exception e) {
+                throw new RuntimeException("Malformed listener", e);
+              }
+            })
+            .collect(Collectors.toList());
+  }
+
   @SuppressWarnings("SameParameterValue")
   private HttpStatus.Code makeGetRequest(final String path) throws Exception {
-    final HttpGet httpget = new HttpGet(server.getListeners().get(0).toString() + path);
+    final HttpGet httpget = new HttpGet(getListeners().get(0).toString() + path);
 
     try (CloseableHttpClient httpClient = HttpClients.createDefault();
          CloseableHttpResponse response = httpClient.execute(httpget)) {
       return HttpStatus.getCode(response.getStatusLine().getStatusCode());
     }
   }
+
+  @Test
+  public void testParseDuplicateUnnamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:4000,http://0.0.0.0:443");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    // Should not throw, since http is not considered a listener name.
+    List<ApplicationServer.NamedURI> listeners = ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+
+    assertEquals(2, listeners.size());
+
+    assertNull(listeners.get(0).getName());
+    assertEquals(new URI("http://0.0.0.0:4000"), listeners.get(0).getUri());
+
+    assertNull(listeners.get(1).getName());
+    assertEquals(new URI("http://0.0.0.0:443"), listeners.get(1).getUri());
+  }
+
+  @Test(expected = ConfigException.class)
+  public void testParseDuplicateNamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "INTERNAL://0.0.0.0:4000,INTERNAL://0.0.0.0:443");
+    props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+  }
+
+  @Test
+  public void testParseNamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "INTERNAL://0.0.0.0:4000,EXTERNAL://0.0.0.0:443");
+    props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,EXTERNAL:https");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+
+    assertEquals(2, namedListeners.size());
+
+    assertEquals("internal", namedListeners.get(0).getName());
+    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).getUri());
+
+    assertEquals("external", namedListeners.get(1).getName());
+    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).getUri());
+  }
+
+  @Test
+  public void testParseUnnamedListeners() throws URISyntaxException {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:4000,https://0.0.0.0:443");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
+      config.getList(RestConfig.LISTENERS_CONFIG),
+      config.getListenerProtocolMap(),
+      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+
+    assertEquals(2, namedListeners.size());
+
+    assertNull(namedListeners.get(0).getName());
+    assertEquals(new URI("http://0.0.0.0:4000"), namedListeners.get(0).getUri());
+
+    assertNull(namedListeners.get(1).getName());
+    assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).getUri());
+  }
+
+  // There is additional testing of parseListeners in ApplictionTest
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
     private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);

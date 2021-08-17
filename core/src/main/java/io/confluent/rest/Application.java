@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,6 +61,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -70,6 +71,7 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
@@ -99,6 +101,7 @@ public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   protected T config;
   private final String path;
+  private final String listenerName;
 
   protected ApplicationServer<?> server;
   protected Metrics metrics;
@@ -115,20 +118,30 @@ public abstract class Application<T extends RestConfig> {
   }
 
   public Application(T config, String path) {
+    this(config, path, null);
+  }
+
+  public Application(T config, String path, String listenerName) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
+    this.listenerName = listenerName;
 
     this.metrics = configureMetrics();
-    this.getMetricsTags().putAll(
-            parseListToMap(config.getList(RestConfig.METRICS_TAGS_CONFIG)));
+    this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
 
     Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
     logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %msT");
+
+    // %{ms}T logs request time in milliseconds
+    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
   }
 
   public final String getPath() {
     return path;
+  }
+
+  public final String getListenerName() {
+    return listenerName;
   }
 
   /**
@@ -204,7 +217,9 @@ public abstract class Application<T extends RestConfig> {
   /**
    * add any servlet filters that should be called before resource handling
    */
-  protected void configurePreResourceHandling(ServletContextHandler context) {}
+  protected void configurePreResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * expose SslContextFactory
@@ -217,13 +232,17 @@ public abstract class Application<T extends RestConfig> {
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
-  protected void configurePostResourceHandling(ServletContextHandler context) {}
+  protected void configurePostResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * add any servlet filters that should be called after resource
    * handling but before falling back to the default servlet
    */
-  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {}
+  protected void configureWebSocketPostResourceHandling(ServletContextHandler context) {
+
+  }
 
   /**
    * Returns a map of tag names to tag values to apply to metrics for this application.
@@ -272,6 +291,13 @@ public abstract class Application<T extends RestConfig> {
 
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
+
+    if (listenerName != null && !listenerName.isEmpty()) {
+      log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), listenerName);
+      context.setVirtualHosts(new String[]{"@" + listenerName});
+    } else {
+      log.info("Binding {} to all listeners.", this.getClass().getSimpleName());
+    }
 
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");
@@ -370,6 +396,8 @@ public abstract class Application<T extends RestConfig> {
   }
 
   // This is copied from the old MAP implementation from cp ConfigDef.Type.MAP
+  // TODO: This method should be removed in favor of RestConfig.getMap(). Note
+  // that it is no longer used by projects related to kafka-rest.
   public static Map<String, String> parseListToMap(List<String> list) {
     Map<String, String> configuredTags = new HashMap<>();
     for (String entry : list) {
@@ -426,6 +454,13 @@ public abstract class Application<T extends RestConfig> {
       context.setSecurityHandler(createBasicSecurityHandler());
     } else if (enableBearerAuth(authMethod)) {
       context.setSecurityHandler(createBearerSecurityHandler());
+    } else {
+      AuthUtil.createDisableOptionsConstraint(config)
+          .ifPresent(optionsConstraint -> {
+            ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+            securityHandler.addConstraintMapping(optionsConstraint);
+            context.setSecurityHandler(securityHandler);
+          });
     }
   }
 
@@ -438,20 +473,28 @@ public abstract class Application<T extends RestConfig> {
    * Helper function used to support the deprecated configuration.
    */
   public static List<URI> parseListeners(
-          List<String> listenersConfig,
-          int deprecatedPort,
-          List<String> supportedSchemes,
-          String defaultScheme
-  ) {
+      List<String> listenersConfig,
+      int deprecatedPort,
+      List<String> supportedSchemes,
+      String defaultScheme) {
+
+    // Support for named listeners is only implemented for the case of Applications
+    // managed by ApplicationServer (direct instantiation of Application is to be
+    // deprecated).
     return ApplicationServer.parseListeners(
-            listenersConfig, deprecatedPort, supportedSchemes, defaultScheme);
+      listenersConfig, Collections.emptyMap(), deprecatedPort, supportedSchemes, defaultScheme)
+        .stream()
+        .map(ApplicationServer.NamedURI::getUri)
+        .collect(Collectors.toList());
   }
 
   /**
    * Used to register any websocket endpoints that will live under the path configured via
    * {@link io.confluent.rest.RestConfig#WEBSOCKET_PATH_PREFIX_CONFIG}
    */
-  protected void registerWebSocketEndpoints(ServerContainer container) { }
+  protected void registerWebSocketEndpoints(ServerContainer container) {
+
+  }
 
   static boolean enableBasicAuth(String authMethod) {
     return RestConfig.AUTHENTICATION_METHOD_BASIC.equals(authMethod);
@@ -516,7 +559,9 @@ public abstract class Application<T extends RestConfig> {
     securityHandler.setIdentityService(createIdentityService());
     securityHandler.setRealmName(realm);
     AuthUtil.createUnsecuredConstraints(config)
-            .forEach(securityHandler::addConstraintMapping);
+        .forEach(securityHandler::addConstraintMapping);
+    AuthUtil.createDisableOptionsConstraint(config)
+        .ifPresent(securityHandler::addConstraintMapping);
 
     return securityHandler;
   }
@@ -701,7 +746,9 @@ public abstract class Application<T extends RestConfig> {
    * stopped accepting new connections, and tried to gracefully finish existing requests. At this
    * point it should be safe to clean up any resources used while processing requests.
    */
-  public void onShutdown() {}
+  public void onShutdown() {
+
+  }
 
   /**
    * A rate-limiter that applies a single limit to the entire server.

@@ -22,8 +22,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.RestConfig;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.junit.Before;
 import org.junit.Test;
@@ -164,6 +166,20 @@ public class AuthUtilTest {
   }
 
   @Test
+  public void shouldCreateGlobalConstraintWithOptionsMethodOmission() {
+    // Given:
+    config = restConfigWith(ImmutableMap.of(
+        RestConfig.REJECT_OPTIONS_REQUEST, true));
+
+    // When:
+    final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
+
+    // Then:
+    assertThat(mapping.getMethodOmissions().length, is(1));
+    assertThat(Arrays.stream(mapping.getMethodOmissions()).findFirst().get(), is("OPTIONS"));
+  }
+
+  @Test
   public void shouldCreateNoUnsecuredPathConstraints() {
     // Given:
     config = restConfigWith(ImmutableMap.of(
@@ -223,6 +239,24 @@ public class AuthUtilTest {
     assertThat(mappings.getMethod(), is("*"));
     assertThat(mappings.getPathSpec(), is("/path/*"));
     assertThat(mappings.getConstraint().getAuthenticate(), is(true));
+  }
+
+  @Test
+  public void shouldCreateConstraintWithNoOptions() {
+    //Given:
+    config = restConfigWith(ImmutableMap.of(RestConfig.REJECT_OPTIONS_REQUEST, true));
+
+    //When:
+    final Optional<ConstraintMapping> mappings =
+        AuthUtil.createDisableOptionsConstraint(config);
+
+    //Then:
+    assertThat(mappings.isPresent(), is(true));
+    assertThat(mappings.get().getConstraint().isAnyRole(), is(false));
+    assertThat(mappings.get().getMethod(), is("OPTIONS"));
+    assertThat(mappings.get().getPathSpec(), is("/*"));
+    assertThat(mappings.get().getConstraint().getAuthenticate(), is(true));
+
   }
 
   private static RestConfig restConfigWith(final Map<String, Object> config) {

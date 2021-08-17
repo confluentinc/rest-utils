@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -173,7 +173,9 @@ public class CsrfTokenProtectionFilter implements Filter {
   }
 
   @Override
-  public void destroy() {}
+  public void destroy() {
+
+  }
 
   @VisibleForTesting
   String getCsrfTokenEndpoint() {
