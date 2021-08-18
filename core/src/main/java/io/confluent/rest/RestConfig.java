@@ -451,7 +451,7 @@ public class RestConfig extends AbstractConfig {
   protected static final String PROXY_CONNECTION_FACTORY_ENABLED_DOC =
       "If true, support PROXY protocol requests using "
           + "org.eclipse.jetty.server.ProxyConnectionFactory";
-  protected static final boolean PROXY_CONNECTION_FACTORY_ENALBED_DEFAULT = false;
+  protected static final boolean PROXY_CONNECTION_FACTORY_ENALBED_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
