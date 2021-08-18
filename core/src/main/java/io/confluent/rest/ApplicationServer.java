@@ -27,6 +27,7 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.jmx.MBeanContainer;
+import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -417,6 +418,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final boolean http2Enabled = isJava11Compatible()
                               && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
 
+    final boolean proxyProtocolEnabled =
+        config.getBoolean(RestConfig.PROXY_CONNECTION_FACTORY_ENABLED_CONFIG);
+
     @SuppressWarnings("deprecation")
     List<NamedURI> listeners = parseListeners(
         config.getList(RestConfig.LISTENERS_CONFIG),
@@ -425,14 +429,17 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         SUPPORTED_URI_SCHEMES, "http");
 
     for (NamedURI listener : listeners) {
-      addConnectorForListener(httpConfiguration, httpConnectionFactory, listener, http2Enabled);
+      addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
+              http2Enabled, proxyProtocolEnabled);
     }
   }
 
   private void addConnectorForListener(HttpConfiguration httpConfiguration,
                                        HttpConnectionFactory httpConnectionFactory,
                                        NamedURI listener,
-                                       boolean http2Enabled) {
+                                       boolean http2Enabled,
+                                       boolean proxyProtocolEnabled) {
+    ArrayList<ConnectionFactory> connectionFactories = new ArrayList<>();
     NetworkTrafficServerConnector connector;
 
     if (http2Enabled) {
@@ -442,13 +449,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         final HTTP2CServerConnectionFactory h2cConnectionFactory =
                 new HTTP2CServerConnectionFactory(httpConfiguration);
 
-        final ProxyConnectionFactory proxyConnectionFactory =
-                new ProxyConnectionFactory(httpConnectionFactory.getProtocol());
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
+        }
 
         // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
-        log.info("proxy, http, h2");
-        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                proxyConnectionFactory, httpConnectionFactory, h2cConnectionFactory);
+        connectionFactories.add(httpConnectionFactory);
+        connectionFactories.add(h2cConnectionFactory);
       } else {
         final HTTP2ServerConnectionFactory h2ConnectionFactory =
                 new HTTP2ServerConnectionFactory(httpConfiguration);
@@ -459,14 +466,18 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
                 alpnConnectionFactory.getProtocol());
 
-        final ProxyConnectionFactory proxyConnectionFactory =
-                new ProxyConnectionFactory(sslConnectionFactory.getProtocol());
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
+        }
 
-        log.info("proxy, ssl, apln, h2, http");
-        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                proxyConnectionFactory, sslConnectionFactory, alpnConnectionFactory,
-                h2ConnectionFactory, httpConnectionFactory);
+        connectionFactories.add(sslConnectionFactory);
+        connectionFactories.add(alpnConnectionFactory);
+        connectionFactories.add(h2ConnectionFactory);
+        connectionFactories.add(httpConnectionFactory);
       }
+
+      connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+              connectionFactories.toArray(new ConnectionFactory[0]));
 
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
       // rigorously and remove support for ambiguous URIs, such as escaping
@@ -480,23 +491,25 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     } else {
       log.info("Adding listener: " + listener);
       if (listener.uri.getScheme().equals("http")) {
-        final ProxyConnectionFactory proxyConnectionFactory =
-                new ProxyConnectionFactory(httpConnectionFactory.getProtocol());
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
+        }
 
-        log.info("proxy, http");
-        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                proxyConnectionFactory, httpConnectionFactory);
+        connectionFactories.add(httpConnectionFactory);
       } else {
         SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
                 httpConnectionFactory.getProtocol());
 
-        final ProxyConnectionFactory proxyConnectionFactory =
-                new ProxyConnectionFactory(sslConnectionFactory.getProtocol());
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
+        }
 
-        log.info("proxy, ssl, http");
-        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                proxyConnectionFactory, sslConnectionFactory, httpConnectionFactory);
+        connectionFactories.add(sslConnectionFactory);
+        connectionFactories.add(httpConnectionFactory);
       }
+
+      connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+              connectionFactories.toArray(new ConnectionFactory[0]));
     }
 
     connector.setPort(listener.getUri().getPort());
