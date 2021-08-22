@@ -419,7 +419,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                               && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
 
     final boolean proxyProtocolEnabled =
-        config.getBoolean(RestConfig.PROXY_CONNECTION_FACTORY_ENABLED_CONFIG);
+        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
 
     @SuppressWarnings("deprecation")
     List<NamedURI> listeners = parseListeners(
@@ -475,19 +475,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         connectionFactories.add(h2ConnectionFactory);
         connectionFactories.add(httpConnectionFactory);
       }
-
-      connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-              connectionFactories.toArray(new ConnectionFactory[0]));
-
-      // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
-      // rigorously and remove support for ambiguous URIs, such as escaping
-      // . and / characters. While this is a good idea because it prevents clever
-      // path-manipulation tricks in URIs, it breaks certain existing systems including
-      // the Schema Registry. Jetty behaviour was then reverted specifying the compliance mode
-      // in the HttpConnectionFactory class using the HttpCompliance.RFC7230 enum. This has
-      // the problem that it applies only to HTTP/1.1. The following sets this compliance mode
-      // explicitly when HTTP/2 is enabled.
-      connector.addBean(HttpCompliance.RFC7230);
     } else {
       log.info("Adding listener: " + listener);
       if (listener.uri.getScheme().equals("http")) {
@@ -507,9 +494,20 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         connectionFactories.add(sslConnectionFactory);
         connectionFactories.add(httpConnectionFactory);
       }
+    }
 
-      connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-              connectionFactories.toArray(new ConnectionFactory[0]));
+    connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
+            connectionFactories.toArray(new ConnectionFactory[0]));
+    if (http2Enabled) {
+      // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
+      // rigorously and remove support for ambiguous URIs, such as escaping
+      // . and / characters. While this is a good idea because it prevents clever
+      // path-manipulation tricks in URIs, it breaks certain existing systems including
+      // the Schema Registry. Jetty behaviour was then reverted specifying the compliance mode
+      // in the HttpConnectionFactory class using the HttpCompliance.RFC7230 enum. This has
+      // the problem that it applies only to HTTP/1.1. The following sets this compliance mode
+      // explicitly when HTTP/2 is enabled.
+      connector.addBean(HttpCompliance.RFC7230);
     }
 
     connector.setPort(listener.getUri().getPort());

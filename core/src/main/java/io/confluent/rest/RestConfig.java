@@ -446,12 +446,11 @@ public class RestConfig extends AbstractConfig {
           + "Java 11 JVM or later. Default is true.";
   protected static final boolean HTTP2_ENABLED_DEFAULT = true;
 
-  public static final String PROXY_CONNECTION_FACTORY_ENABLED_CONFIG =
-      "proxy.connection.factory.enabled";
-  protected static final String PROXY_CONNECTION_FACTORY_ENABLED_DOC =
-      "If true, support PROXY protocol requests using "
-          + "org.eclipse.jetty.server.ProxyConnectionFactory";
-  protected static final boolean PROXY_CONNECTION_FACTORY_ENALBED_DEFAULT = true;
+  public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
+      "proxy.protocol.enabled";
+  protected static final String PROXY_PROTOCOL_ENABLED_DOC =
+      "If true, support PROXY protocol requests. Default is false.";
+  protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -929,11 +928,11 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             LISTENER_PROTOCOL_MAP_DOC
         ).define(
-            PROXY_CONNECTION_FACTORY_ENABLED_CONFIG,
+            PROXY_PROTOCOL_ENABLED_CONFIG,
             Type.BOOLEAN,
-            PROXY_CONNECTION_FACTORY_ENALBED_DEFAULT,
+            PROXY_PROTOCOL_ENABLED_DEFAULT,
             Importance.LOW,
-            PROXY_CONNECTION_FACTORY_ENABLED_DOC
+            PROXY_PROTOCOL_ENABLED_DOC
         );
   }
 
