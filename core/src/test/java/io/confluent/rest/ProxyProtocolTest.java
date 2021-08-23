@@ -11,6 +11,8 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.server.ConnectionFactory;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -124,6 +126,16 @@ public class ProxyProtocolTest {
         server.registerApplication(app);
         server.start();
 
+        boolean proxyConnectionFactoryFound = false;
+        for (ConnectionFactory factory : server.getConnectors()[0].getConnectionFactories()) {
+            if (factory instanceof ProxyConnectionFactory) {
+                proxyConnectionFactoryFound = true;
+                break;
+            }
+        }
+
+        assertThat("ProxyConnectionFactory was not found in server's connection factories",
+                proxyConnectionFactoryFound);
         assertThat(makeGetRequest(url + "/app/resource"), is(HttpStatus.Code.OK.getCode()));
     }
 
