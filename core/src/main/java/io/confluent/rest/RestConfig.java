@@ -450,7 +450,7 @@ public class RestConfig extends AbstractConfig {
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
       "If true, support PROXY protocol requests. Default is false.";
-  protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = true;
+  protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
