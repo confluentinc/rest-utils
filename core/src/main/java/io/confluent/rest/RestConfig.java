@@ -449,7 +449,15 @@ public class RestConfig extends AbstractConfig {
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
-      "If true, support PROXY protocol requests. Default is false.";
+      "If true, enable support for the PROXY protocol. When enabled, the server will "
+          + "automatically detect whether PROXY protocol headers are present, and if they are, "
+          + "whether V1 or V2 of the protocol is in use. When the headers are present, the actual "
+          + "IP address and port of the client will be visible when the request is handled. If "
+          + "the headers are not present, requests will be processed normally, but if the server "
+          + "runs behind a load balancer, the request will appear to come from the the IP address "
+          + "and port of the load balancer. See "
+          + "https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt for more information. "
+          + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
 
   public static ConfigDef baseConfigDef() {
