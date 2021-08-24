@@ -18,19 +18,24 @@ package io.confluent.rest;
 
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.metrics.RestMetricsContext;
+
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.common.config.ConfigException;
+
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import org.apache.kafka.common.config.AbstractConfig;
-import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigDef.Type;
-import org.apache.kafka.common.config.ConfigDef.Importance;
-import org.apache.kafka.common.utils.Time;
 
 import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
+
+import static java.util.Collections.emptyList;
 
 public class RestConfig extends AbstractConfig {
 
@@ -344,6 +349,83 @@ public class RestConfig extends AbstractConfig {
   protected static final String CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC =
       "Specifies the maximum number of entries the token cache may contain";
 
+  // CHECKSTYLE_RULES.OFF: MethodLength
+
+  private static final String DOS_FILTER_ENABLED_CONFIG = "dos.filter.enabled";
+  private static final String DOS_FILTER_ENABLED_DOC =
+      "Whether to enable DosFilter for the application. Default is false.";
+  private static final boolean DOS_FILTER_ENABLED_DEFAULT = false;
+
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG =
+      "dos.filter.max.requests.per.sec";
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC =
+      "Maximum number of requests from a connection per second. Requests in excess of this are "
+          + "first delayed, then throttled. Default is 25.";
+  private static final int DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
+
+  private static final String DOS_FILTER_DELAY_MS_CONFIG = "dos.filter.delay.ms";
+  private static final String DOS_FILTER_DELAY_MS_DOC =
+      "Delay imposed on all requests over the rate limit, before they are considered at all: 100 "
+          + "(ms) = Default, -1 = Reject request, 0 = No delay, any other value = Delay in ms";
+  private static final Duration DOS_FILTER_DELAY_MS_DEFAULT = Duration.ofMillis(100);
+
+  private static final String DOS_FILTER_MAX_WAIT_MS_CONFIG = "dos.filter.max.wait.ms";
+  private static final String DOS_FILTER_MAX_WAIT_MS_DOC =
+      "Length of time, in ms, to blocking wait for the throttle semaphore. Default is 50 ms.";
+  private static final Duration DOS_FILTER_MAX_WAIT_MS_DEFAULT = Duration.ofMillis(50);
+
+  private static final String DOS_FILTER_THROTTLED_REQUESTS_CONFIG =
+      "dos.filter.throttled.requests";
+  private static final String DOS_FILTER_THROTTLED_REQUESTS_DOC =
+      "Number of requests over the rate limit able to be considered at once. Default is 5.";
+  private static final int DOS_FILTER_THROTTLED_REQUESTS_DEFAULT = 5;
+
+  private static final String DOS_FILTER_THROTTLE_MS_CONFIG = "dos.filter.throttle.ms";
+  private static final String DOS_FILTER_THROTTLE_MS_DOC =
+      "Length of time, in ms, to async wait for semaphore. Default is 30000L.";
+  private static final Duration DOS_FILTER_THROTTLE_MS_DEFAULT = Duration.ofSeconds(30);
+
+  private static final String DOS_FILTER_MAX_REQUEST_MS_CONFIG = "dos.filter.max.requests.ms";
+  private static final String DOS_FILTER_MAX_REQUEST_MS_DOC =
+      "Length of time, in ms, to allow the request to run. Default is 30000L.";
+  private static final Duration DOS_FILTER_MAX_REQUEST_MS_DEFAULT = Duration.ofSeconds(30);
+
+  private static final String DOS_FILTER_MAX_IDLE_TRACKER_MS_CONFIG =
+      "dos.filter.max.idle.tracker.ms";
+  private static final String DOS_FILTER_MAX_IDLE_TRACKER_MS_DOC =
+      "Length of time, in ms, to keep track of request rates for a connection, before deciding "
+          + "that the user has gone away, and discarding it. Default is 30000L.";
+  private static final Duration DOS_FILTER_MAX_IDLE_TRACKER_MS_DEFAULT = Duration.ofSeconds(30);
+
+  private static final String DOS_FILTER_INSERT_HEADERS_CONFIG = "dos.filter.insert.headers";
+  private static final String DOS_FILTER_INSERT_HEADERS_DOC =
+      "If true, insert the DoSFilter headers into the response. Defaults to true.";
+  private static final boolean DOS_FILTER_INSERT_HEADERS_DEFAULT = true;
+
+  private static final String DOS_FILTER_TRACK_SESSIONS_CONFIG = "dos.filter.track.sessions";
+  private static final String DOS_FILTER_TRACK_SESSIONS_DOC =
+      "If true, usage rate is tracked by session if a session exists. Defaults to true.";
+  private static final boolean DOS_FILTER_TRACK_SESSIONS_DEFAULT = true;
+
+  private static final String DOS_FILTER_REMOTE_PORT_CONFIG = "dos.filter.remote.port";
+  private static final String DOS_FILTER_REMOTE_PORT_DOC =
+      "If true and session tracking is not used, then rate is tracked by IP and port (effectively "
+          + "connection). Defaults to false.";
+  private static final boolean DOS_FILTER_REMOTE_PORT_DEFAULT = false;
+
+  private static final String DOS_FILTER_IP_WHITELIST_CONFIG = "dos.filter.ip.whitelist";
+  private static final String DOS_FILTER_IP_WHITELIST_DOC =
+      "A comma-separated list of IP addresses that will not be rate limited.";
+  private static final List<String> DOS_FILTER_IP_WHITELIST_DEFAULT = emptyList();
+
+  private static final String DOS_FILTER_MANAGED_ATTR_CONFIG = "dos.filter.managed.attr";
+  private static final String DOS_FILTER_MANAGED_ATTR_DOC =
+      "If set to true, then this servlet is set as a ServletContext attribute with the filter "
+          + "name as the attribute name. This allows a context external mechanism (for example, "
+          + "JMX via ContextHandler.MANAGED_ATTRIBUTES) to manage the configuration of the filter."
+          + "Default is false.";
+  private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -642,19 +724,19 @@ public class RestConfig extends AbstractConfig {
         ).define(
             RESOURCE_EXTENSION_CLASSES_CONFIG,
             Type.LIST,
-            Collections.emptyList(),
+            emptyList(),
             Importance.LOW,
             RESOURCE_EXTENSION_CLASSES_DOC
         ).define(
             REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
             Type.LIST,
-            Collections.emptyList(),
+            emptyList(),
             Importance.LOW,
             REST_SERVLET_INITIALIZERS_CLASSES_DOC
         ).define(
             WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG,
             Type.LIST,
-            Collections.emptyList(),
+            emptyList(),
             Importance.LOW,
             WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_DOC
         ).define(
@@ -723,6 +805,84 @@ public class RestConfig extends AbstractConfig {
             CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DEFAULT,
             Importance.LOW,
             CSRF_PREVENTION_TOKEN_MAX_ENTRIES_DOC
+        ).define(
+            DOS_FILTER_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_ENABLED_DOC
+        ).define(
+            DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC
+        ).define(
+            DOS_FILTER_DELAY_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_DELAY_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_DELAY_MS_DOC
+        ).define(
+            DOS_FILTER_MAX_WAIT_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_MAX_WAIT_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_MAX_WAIT_MS_DOC
+        ).define(
+            DOS_FILTER_THROTTLED_REQUESTS_CONFIG,
+            Type.INT,
+            DOS_FILTER_THROTTLED_REQUESTS_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_THROTTLED_REQUESTS_DOC
+        ).define(
+            DOS_FILTER_THROTTLE_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_THROTTLE_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_THROTTLE_MS_DOC
+        ).define(
+            DOS_FILTER_MAX_REQUEST_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_MAX_REQUEST_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_MAX_REQUEST_MS_DOC
+        ).define(
+            DOS_FILTER_MAX_IDLE_TRACKER_MS_CONFIG,
+            Type.LONG,
+            DOS_FILTER_MAX_IDLE_TRACKER_MS_DEFAULT.toMillis(),
+            Importance.LOW,
+            DOS_FILTER_MAX_IDLE_TRACKER_MS_DOC
+        ).define(
+            DOS_FILTER_INSERT_HEADERS_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_INSERT_HEADERS_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_INSERT_HEADERS_DOC
+        ).define(
+            DOS_FILTER_TRACK_SESSIONS_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TRACK_SESSIONS_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TRACK_SESSIONS_DOC
+        ).define(
+            DOS_FILTER_REMOTE_PORT_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_REMOTE_PORT_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_REMOTE_PORT_DOC
+        ).define(
+            DOS_FILTER_IP_WHITELIST_CONFIG,
+            Type.LIST,
+            DOS_FILTER_IP_WHITELIST_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_IP_WHITELIST_DOC
+        ).define(
+            DOS_FILTER_MANAGED_ATTR_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_MANAGED_ATTR_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_MANAGED_ATTR_DOC
         );
   }
 
@@ -790,10 +950,62 @@ public class RestConfig extends AbstractConfig {
      * {@link https://www.eclipse.org/jetty/documentation/current/header-filter.html}
      **/
     if (!Arrays.asList("set", "add", "setDate", "addDate")
-            .stream()
-            .anyMatch(action::equalsIgnoreCase)) {
+        .stream()
+        .anyMatch(action::equalsIgnoreCase)) {
       throw new ConfigException(String.format("Invalid header config action: \"%s\". "
-              + "The action need be one of [\"set\", \"add\", \"setDate\", \"addDate\"]", action));
+          + "The action need be one of [\"set\", \"add\", \"setDate\", \"addDate\"]", action));
     }
+  }
+
+  public final boolean isDosFilterEnabled() {
+    return getBoolean(DOS_FILTER_ENABLED_CONFIG);
+  }
+
+  public final int getDosFilterMaxRequestsPerSec() {
+    return getInt(DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG);
+  }
+
+  public final Duration getDosFilterDelayMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_DELAY_MS_CONFIG));
+  }
+
+  public final Duration getDosFilterMaxWaitMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_MAX_WAIT_MS_CONFIG));
+  }
+
+  public final int getDosFilterThrottledRequests() {
+    return getInt(DOS_FILTER_THROTTLED_REQUESTS_CONFIG);
+  }
+
+  public final Duration getDosFilterThrottleMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_THROTTLE_MS_CONFIG));
+  }
+
+  public final Duration getDosFilterMaxRequestMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_MAX_REQUEST_MS_CONFIG));
+  }
+
+  public final Duration getDosFilterMaxIdleTrackerMs() {
+    return Duration.ofMillis(getLong(DOS_FILTER_MAX_IDLE_TRACKER_MS_CONFIG));
+  }
+
+  public final boolean getDosFilterInsertHeaders() {
+    return getBoolean(DOS_FILTER_INSERT_HEADERS_CONFIG);
+  }
+
+  public final boolean getDosFilterTrackSessions() {
+    return getBoolean(DOS_FILTER_TRACK_SESSIONS_CONFIG);
+  }
+
+  public final boolean getDosFilterRemotePort() {
+    return getBoolean(DOS_FILTER_REMOTE_PORT_CONFIG);
+  }
+
+  public final List<String> getDosFilterIpWhitelist() {
+    return getList(DOS_FILTER_IP_WHITELIST_CONFIG);
+  }
+
+  public final boolean getDosFilterManagedAttr() {
+    return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
   }
 }
