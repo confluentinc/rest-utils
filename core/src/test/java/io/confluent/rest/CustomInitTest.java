@@ -50,6 +50,7 @@ import org.eclipse.jetty.security.AbstractLoginService;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.security.Password;
@@ -63,12 +64,10 @@ import org.slf4j.LoggerFactory;
 public class CustomInitTest {
 
   private static final Logger log = LoggerFactory.getLogger(CustomInitTest.class);
-  private static final String HTTP_URI = "http://localhost:8080";
-  private static final String WS_URI = "ws://localhost:8080/ws";
   private static final String NEHAS_BASIC_AUTH = "bmVoYTpha2Zhaw==";
   private static final String JUNS_BASIC_AUTH = "anVuOmthZmthLQ==";
 
-  private CustomInitTestApplication app;
+  private Server server;
   private CloseableHttpClient httpclient;
 
   @Before
@@ -76,7 +75,7 @@ public class CustomInitTest {
     httpclient = HttpClients.createDefault();
 
     final Properties props = new Properties();
-    props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI);
+    props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:0");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     props.put(RestConfig.AUTHENTICATION_ROLES_CONFIG, "SomeRequiredRole");
     props.put(RestConfig.REST_SERVLET_INITIALIZERS_CLASSES_CONFIG,
@@ -84,14 +83,16 @@ public class CustomInitTest {
     props.put(RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG,
         Collections.singletonList(CustomWsInitializer.class.getName()));
 
-    app = new CustomInitTestApplication(new TestRestConfig(props));
-    app.start();
+    CustomInitTestApplication application =
+        new CustomInitTestApplication(new TestRestConfig(props));
+    server = application.createServer();
+    server.start();
   }
 
   @After
   public void cleanup() throws Exception {
     httpclient.close();
-    app.stop();
+    server.stop();
   }
 
   @Test
@@ -111,8 +112,8 @@ public class CustomInitTest {
   }
 
   private CloseableHttpResponse makeRestGetRequest(String basicAuth) throws Exception {
-    log.debug("Making GET " + HTTP_URI + "/test");
-    HttpGet httpget = new HttpGet(HTTP_URI + "/test");
+    log.debug("Making GET " + server.getURI() + "/test");
+    HttpGet httpget = new HttpGet(server.getURI() + "/test");
     if (basicAuth != null) {
       httpget.setHeader(HttpHeaders.AUTHORIZATION, "Basic " + basicAuth);
     }
@@ -123,7 +124,8 @@ public class CustomInitTest {
   }
 
   private void makeWsGetRequest() throws Exception {
-    log.debug("Making WebSocket GET " + WS_URI + "/test");
+    String uri = server.getURI().toString().replace("http", "ws") + "ws";
+    log.debug("Making WebSocket GET " + uri + "test");
     final AtomicReference<Throwable> error = new AtomicReference<>();
     WebSocketUpgradeHandler wsHandler = new WebSocketUpgradeHandler.Builder()
         .addWebSocketListener(new WebSocketListener() {
@@ -140,7 +142,7 @@ public class CustomInitTest {
         }).build();
 
     WebSocket ws = Dsl.asyncHttpClient()
-        .prepareGet(WS_URI + "/test")
+        .prepareGet(uri + "/test")
         .setRequestTimeout(10000)
         .execute(wsHandler)
         .get();
