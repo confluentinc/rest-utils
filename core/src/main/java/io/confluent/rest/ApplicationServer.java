@@ -27,10 +27,12 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.jmx.MBeanContainer;
+import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
@@ -416,6 +418,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final boolean http2Enabled = isJava11Compatible()
                               && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
 
+    final boolean proxyProtocolEnabled =
+        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
+
     @SuppressWarnings("deprecation")
     List<NamedURI> listeners = parseListeners(
         config.getList(RestConfig.LISTENERS_CONFIG),
@@ -424,41 +429,21 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         SUPPORTED_URI_SCHEMES, "http");
 
     for (NamedURI listener : listeners) {
-      addConnectorForListener(httpConfiguration, httpConnectionFactory, listener, http2Enabled);
+      addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
+              http2Enabled, proxyProtocolEnabled);
     }
   }
 
   private void addConnectorForListener(HttpConfiguration httpConfiguration,
                                        HttpConnectionFactory httpConnectionFactory,
                                        NamedURI listener,
-                                       boolean http2Enabled) {
-    NetworkTrafficServerConnector connector;
-
+                                       boolean http2Enabled,
+                                       boolean proxyProtocolEnabled) {
+    ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
+        httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled);
+    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
+        null, 0, 0, connectionFactories);
     if (http2Enabled) {
-      log.info("Adding listener with HTTP/2: " + listener);
-      if (listener.getUri().getScheme().equals("http")) {
-        // HTTP2C is HTTP/2 Clear text
-        final HTTP2CServerConnectionFactory h2cConnectionFactory =
-                new HTTP2CServerConnectionFactory(httpConfiguration);
-
-        // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
-        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                httpConnectionFactory, h2cConnectionFactory);
-      } else {
-        final HTTP2ServerConnectionFactory h2ConnectionFactory =
-                new HTTP2ServerConnectionFactory(httpConfiguration);
-
-        ALPNServerConnectionFactory alpnConnectionFactory = new ALPNServerConnectionFactory();
-        alpnConnectionFactory.setDefaultProtocol(HttpVersion.HTTP_1_1.asString());
-
-        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
-                alpnConnectionFactory.getProtocol());
-
-        connector = new NetworkTrafficServerConnector(this, null, null, null, 0, 0,
-                sslConnectionFactory, alpnConnectionFactory, h2ConnectionFactory,
-                httpConnectionFactory);
-      }
-
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
       // rigorously and remove support for ambiguous URIs, such as escaping
       // . and / characters. While this is a good idea because it prevents clever
@@ -468,14 +453,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // the problem that it applies only to HTTP/1.1. The following sets this compliance mode
       // explicitly when HTTP/2 is enabled.
       connector.addBean(HttpCompliance.RFC7230);
-    } else {
-      log.info("Adding listener: " + listener);
-      if (listener.uri.getScheme().equals("http")) {
-        connector = new NetworkTrafficServerConnector(this, httpConnectionFactory);
-      } else {
-        connector = new NetworkTrafficServerConnector(this, httpConnectionFactory,
-                sslContextFactory);
-      }
     }
 
     connector.setPort(listener.getUri().getPort());
@@ -487,6 +464,69 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     connectors.add(connector);
     super.addConnector(connector);
+  }
+
+  private ConnectionFactory[] getConnectionFactories(HttpConfiguration httpConfiguration,
+                                                     HttpConnectionFactory httpConnectionFactory,
+                                                     NamedURI listener,
+                                                     boolean http2Enabled,
+                                                     boolean proxyProtocolEnabled) {
+    ArrayList<ConnectionFactory> connectionFactories = new ArrayList<>();
+
+    if (http2Enabled) {
+      log.info("Adding listener with HTTP/2: " + listener);
+      if (listener.getUri().getScheme().equals("http")) {
+        // HTTP2C is HTTP/2 Clear text
+        final HTTP2CServerConnectionFactory h2cConnectionFactory =
+            new HTTP2CServerConnectionFactory(httpConfiguration);
+
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
+        }
+
+        // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
+        connectionFactories.add(httpConnectionFactory);
+        connectionFactories.add(h2cConnectionFactory);
+      } else {
+        final HTTP2ServerConnectionFactory h2ConnectionFactory =
+            new HTTP2ServerConnectionFactory(httpConfiguration);
+
+        ALPNServerConnectionFactory alpnConnectionFactory = new ALPNServerConnectionFactory();
+        alpnConnectionFactory.setDefaultProtocol(HttpVersion.HTTP_1_1.asString());
+
+        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
+            alpnConnectionFactory.getProtocol());
+
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
+        }
+
+        connectionFactories.add(sslConnectionFactory);
+        connectionFactories.add(alpnConnectionFactory);
+        connectionFactories.add(h2ConnectionFactory);
+        connectionFactories.add(httpConnectionFactory);
+      }
+    } else {
+      log.info("Adding listener: " + listener);
+      if (listener.uri.getScheme().equals("http")) {
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
+        }
+
+      } else {
+        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
+            httpConnectionFactory.getProtocol());
+
+        if (proxyProtocolEnabled) {
+          connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
+        }
+
+        connectionFactories.add(sslConnectionFactory);
+      }
+      connectionFactories.add(httpConnectionFactory);
+    }
+
+    return connectionFactories.toArray(new ConnectionFactory[0]);
   }
 
   /**
