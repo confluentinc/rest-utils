@@ -1,6 +1,7 @@
 package io.confluent.rest.metrics;
 
 import io.confluent.rest.*;
+import java.util.List;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
@@ -85,6 +86,47 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
+  public void testSuccessMetrics() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target(server.getURI())
+        .path("/public/hello")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(200, response.getStatus());
+
+    ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target(server.getURI())
+        .path("/public/hello")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+
+    //checkpoint ensures that all the assertions are tested
+    int metricsCheckpointWindow = 0;
+    int metricsCheckpointCumulative = 0;
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-count-windowed")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        metricsCheckpointWindow++;
+        Object metricValue = metric.metricValue();
+        assertTrue("Metrics should be measurable", metricValue instanceof Double);
+        double countValue = (double) metricValue;
+        assertTrue("Actual: " + countValue, countValue == 2.0);
+      }
+      if (metric.metricName().name().equals("request-count-cumulative")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("cumulativesum"));
+        metricsCheckpointCumulative++;
+        Object metricValue = metric.metricValue();
+        assertTrue("Metrics should be measurable", metricValue instanceof Double);
+        double countValue = (double) metricValue;
+        assertTrue("Actual: " + countValue, countValue == 2.0);
+      }
+    }
+    assertEquals(1, metricsCheckpointWindow); //A single metric for the windowed count
+    assertEquals(1, metricsCheckpointCumulative); //A single metric for the cumulative count
+  }
+
+  @Test
   public void testExceptionMetrics() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
@@ -93,19 +135,87 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .get();
     assertEquals(404, response.getStatus());
 
-    for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
+    ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target(server.getURI())
+        .path("/private/fake")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+
+    //checkpoints ensure that all the assertions are tested
+    int rateCheckpoint4xx = 0;
+    int windowCheckpoint4xx = 0;
+    int cumulativeCheckpoint4xx = 0;
+    int rateCheckpointNot4xx = 0;
+    int windowCheckpointNot4xx = 0;
+    int cumulativeCheckpointNot4xx = 0;
+    int anyErrorRateCheckpoint = 0;
+    int anyErrorWindowCheckpoint = 0;
+    int anyErrorCumulativeCheckpoint = 0;
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
         assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
         double errorRateValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
+          rateCheckpoint4xx++;
           assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
         } else if (!metric.metricName().tags().isEmpty()) {
+          rateCheckpointNot4xx++;
           assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
               errorRateValue == 0.0 || Double.isNaN(errorRateValue));
+        } else {
+          anyErrorRateCheckpoint++;
+          //average rate is not consistently above 0 here, so not validating
         }
       }
+      if (metric.metricName().name().equals("request-error-count-windowed")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        Object metricValue = metric.metricValue();
+        assertTrue("Error count metrics should be measurable", metricValue instanceof Double);
+        double errorCountValue = (double) metricValue;
+        if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
+          windowCheckpoint4xx++;
+          assertTrue("Actual: " + errorCountValue, errorCountValue == 2.0);
+        } else if (!metric.metricName().tags().isEmpty()) {
+          windowCheckpointNot4xx++;
+          assertTrue(String.format("Actual: %f (%s)", errorCountValue, metric.metricName()),
+              errorCountValue == 0.0 || Double.isNaN(errorCountValue));
+        } else {
+          anyErrorWindowCheckpoint++;
+          assertTrue("Count for all errors actual: " + errorCountValue, errorCountValue == 2.0);
+        }
+      }
+      if (metric.metricName().name().equals("request-error-count-cumulative")) {
+          assertTrue(metric.measurable().toString().toLowerCase().startsWith("cumulativesum"));
+          Object metricValue = metric.metricValue();
+          assertTrue("Error count metrics should be measurable", metricValue instanceof Double);
+          double errorCountValue = (double) metricValue;
+          if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
+            cumulativeCheckpoint4xx++;
+            assertTrue("Actual: " + errorCountValue, errorCountValue == 2.0);
+          } else if (!metric.metricName().tags().isEmpty()) {
+            cumulativeCheckpointNot4xx++;
+            assertTrue(String.format("Actual: %f (%s)", errorCountValue, metric.metricName()),
+                errorCountValue == 0.0 || Double.isNaN(errorCountValue));
+          } else {
+            anyErrorCumulativeCheckpoint++;
+            assertTrue("Count for all errors actual: " + errorCountValue, errorCountValue == 2.0);
+          }
+      }
     }
+
+    assertEquals(1, anyErrorRateCheckpoint); //A Single rate metric for the two errors
+    assertEquals(1, anyErrorWindowCheckpoint); //A single windowed metric for the two errors
+    assertEquals(1, anyErrorCumulativeCheckpoint); //A single cumulative metric for the two errors
+    assertEquals(1, rateCheckpoint4xx); //Single rate metric for the two 4xx errors
+    assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the two 4xx errors
+    assertEquals(1, cumulativeCheckpoint4xx); ///A single cumulative metric for the two 4xx errors,
+    assertEquals(5, rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx
+    assertEquals(5, windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
+    assertEquals(5, cumulativeCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for cumulative metrics
+
   }
 
   @Test
@@ -194,6 +304,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Produces(MediaType.APPLICATION_JSON)
   @Path("/private")
   private static class PrivateResource {
+
     @GET
     @Path("/endpoint")
     public Void notAccessible() {
@@ -204,10 +315,17 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Produces(MediaType.APPLICATION_JSON)
   @Path("/public/")
   public static class PublicResource {
+
     @GET
     @Path("/caught")
     public Void caught() {
       throw new RuntimeException("cyrus");
+    }
+
+    @GET
+    @Path("/hello")
+    public String hello() {
+      return "hello";
     }
   }
 
