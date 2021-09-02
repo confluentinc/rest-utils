@@ -101,19 +101,29 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .get();
 
     //checkpoint ensures that all the assertions are tested
-    int metricsCheckpoint = 0;
+    int metricsCheckpointWindow = 0;
+    int metricsCheckpointCumulative = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-count-windowed") || metric.metricName().name()
-          .equals("request-count-cumulative")) {
-        metricsCheckpoint++;
+      if (metric.metricName().name().equals("request-count-windowed")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        metricsCheckpointWindow++;
+        Object metricValue = metric.metricValue();
+        assertTrue("Metrics should be measurable", metricValue instanceof Double);
+        double countValue = (double) metricValue;
+        assertTrue("Actual: " + countValue, countValue == 2.0);
+      }
+      if (metric.metricName().name().equals("request-count-cumulative")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("cumulativesum"));
+        metricsCheckpointCumulative++;
         Object metricValue = metric.metricValue();
         assertTrue("Metrics should be measurable", metricValue instanceof Double);
         double countValue = (double) metricValue;
         assertTrue("Actual: " + countValue, countValue == 2.0);
       }
     }
-    assertEquals(2, metricsCheckpoint); //A single metric for the windowed count and a single metric for the cummulative count
+    assertEquals(1, metricsCheckpointWindow); //A single metric for the windowed count
+    assertEquals(1, metricsCheckpointCumulative); //A single metric for the cumulative count
   }
 
   @Test
@@ -133,14 +143,18 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     //checkpoints ensure that all the assertions are tested
     int rateCheckpoint4xx = 0;
-    int countCheckpoint4xx = 0;
+    int windowCheckpoint4xx = 0;
+    int cumulativeCheckpoint4xx = 0;
     int rateCheckpointNot4xx = 0;
-    int countCheckpointNot4xx = 0;
+    int windowCheckpointNot4xx = 0;
+    int cumulativeCheckpointNot4xx = 0;
     int anyErrorRateCheckpoint = 0;
-    int anyErrorCountCheckpoint = 0;
+    int anyErrorWindowCheckpoint = 0;
+    int anyErrorCumulativeCheckpoint = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
         assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
         double errorRateValue = (double) metricValue;
@@ -156,31 +170,51 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           //average rate is not consistently above 0 here, so not validating
         }
       }
-      if (metric.metricName().name().equals("request-error-count-windowed") || metric.metricName().name().equals("request-error-count-cumulative")) {
-        System.out.println("counters " + metric.metricName());
+      if (metric.metricName().name().equals("request-error-count-windowed")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
         assertTrue("Error count metrics should be measurable", metricValue instanceof Double);
         double errorCountValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
-          countCheckpoint4xx++;
+          windowCheckpoint4xx++;
           assertTrue("Actual: " + errorCountValue, errorCountValue == 2.0);
         } else if (!metric.metricName().tags().isEmpty()) {
-          countCheckpointNot4xx++;
+          windowCheckpointNot4xx++;
           assertTrue(String.format("Actual: %f (%s)", errorCountValue, metric.metricName()),
               errorCountValue == 0.0 || Double.isNaN(errorCountValue));
         } else {
-          anyErrorCountCheckpoint++;
+          anyErrorWindowCheckpoint++;
           assertTrue("Count for all errors actual: " + errorCountValue, errorCountValue == 2.0);
         }
+      }
+      if (metric.metricName().name().equals("request-error-count-cumulative")) {
+          assertTrue(metric.measurable().toString().toLowerCase().startsWith("cumulativesum"));
+          Object metricValue = metric.metricValue();
+          assertTrue("Error count metrics should be measurable", metricValue instanceof Double);
+          double errorCountValue = (double) metricValue;
+          if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
+            cumulativeCheckpoint4xx++;
+            assertTrue("Actual: " + errorCountValue, errorCountValue == 2.0);
+          } else if (!metric.metricName().tags().isEmpty()) {
+            cumulativeCheckpointNot4xx++;
+            assertTrue(String.format("Actual: %f (%s)", errorCountValue, metric.metricName()),
+                errorCountValue == 0.0 || Double.isNaN(errorCountValue));
+          } else {
+            anyErrorCumulativeCheckpoint++;
+            assertTrue("Count for all errors actual: " + errorCountValue, errorCountValue == 2.0);
+          }
       }
     }
 
     assertEquals(1, anyErrorRateCheckpoint); //A Single rate metric for the two errors
-    assertEquals(2, anyErrorCountCheckpoint); //A single cumulative metric for the two errors, and a single windowed metric for the two errors
+    assertEquals(1, anyErrorWindowCheckpoint); //A single windowed metric for the two errors
+    assertEquals(1, anyErrorCumulativeCheckpoint); //A single cumulative metric for the two errors
     assertEquals(1, rateCheckpoint4xx); //Single rate metric for the two 4xx errors
-    assertEquals(2, countCheckpoint4xx); ///A single cumulative metric for the two 4xx errors, and a single windowed metric for the two 4xx errors
+    assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the two 4xx errors
+    assertEquals(1, cumulativeCheckpoint4xx); ///A single cumulative metric for the two 4xx errors,
     assertEquals(5, rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx
-    assertEquals(10, countCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for both cumulative and windowed metrics
+    assertEquals(5, windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
+    assertEquals(5, cumulativeCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for cumulative metrics
 
   }
 
