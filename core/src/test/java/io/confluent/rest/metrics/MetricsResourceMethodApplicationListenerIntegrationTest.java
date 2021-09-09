@@ -104,7 +104,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     int metricsCheckpointWindow = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-count-windowed")) {
+      if (metric.metricName().name().equals("request-count")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         metricsCheckpointWindow++;
         Object metricValue = metric.metricValue();
@@ -157,7 +157,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           //average rate is not consistently above 0 here, so not validating
         }
       }
-      if (metric.metricName().name().equals("request-error-count-windowed")) {
+      if (metric.metricName().name().equals("request-error-count")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
         assertTrue("Error count metrics should be measurable", metricValue instanceof Double);

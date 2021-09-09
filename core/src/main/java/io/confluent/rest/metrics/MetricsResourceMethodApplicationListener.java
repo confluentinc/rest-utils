@@ -189,7 +189,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       this.requestSizeSensor = metrics.sensor(getName(method, annotation, "request-size"));
       MetricName metricName = new MetricName(
-          getName(method, annotation, "request-count-windowed"), metricGrpName,
+          getName(method, annotation, "request-count"), metricGrpName,
           "The request count using a windowed counter", metricTags);
       this.requestSizeSensor.add(metricName, new WindowedCount());
       metricName = new MetricName(
@@ -261,7 +261,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
             tags);
         errorSensorByStatus[i].add(metricName, new Rate());
 
-        metricName = new MetricName(getName(method, annotation, "request-error-count-windowed"),
+        metricName = new MetricName(getName(method, annotation, "request-error-count"),
             metricGrpName,
             "A windowed count of requests that resulted in an HTTP error response with code - "
                 + HTTP_STATUS_CODE_TEXT[i], tags);
@@ -279,7 +279,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors-count"));
       metricName = new MetricName(
-          getName(method, annotation, "request-error-count-windowed"),
+          getName(method, annotation, "request-error-count"),
           metricGrpName,
           "A windowed count of requests that resulted in HTTP error responses",
           metricTags);
