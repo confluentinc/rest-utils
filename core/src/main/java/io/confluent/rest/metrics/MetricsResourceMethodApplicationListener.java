@@ -16,7 +16,6 @@
 
 package io.confluent.rest.metrics;
 
-import org.apache.kafka.common.metrics.stats.CumulativeCount;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -190,13 +189,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       this.requestSizeSensor = metrics.sensor(getName(method, annotation, "request-size"));
       MetricName metricName = new MetricName(
-          getName(method, annotation, "request-count-windowed"), metricGrpName,
+          getName(method, annotation, "request-count"), metricGrpName,
           "The request count using a windowed counter", metricTags);
       this.requestSizeSensor.add(metricName, new WindowedCount());
-      metricName = new MetricName(
-          getName(method, annotation, "request-count-cumulative"), metricGrpName,
-          "The request count using a cumulative counter", metricTags);
-      this.requestSizeSensor.add(metricName, new CumulativeCount());
       metricName = new MetricName(
           getName(method, annotation, "request-rate"), metricGrpName,
           "The average number of HTTP requests per second.", metricTags);
@@ -266,16 +261,11 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
             tags);
         errorSensorByStatus[i].add(metricName, new Rate());
 
-        metricName = new MetricName(getName(method, annotation, "request-error-count-windowed"),
+        metricName = new MetricName(getName(method, annotation, "request-error-count"),
             metricGrpName,
             "A windowed count of requests that resulted in an HTTP error response with code - "
                 + HTTP_STATUS_CODE_TEXT[i], tags);
         errorSensorByStatus[i].add(metricName, new WindowedCount());
-        metricName = new MetricName(getName(method, annotation, "request-error-count-cumulative"),
-            metricGrpName,
-            "A cumulative count of requests that resulted in an HTTP error response with code -  "
-                + HTTP_STATUS_CODE_TEXT[i], tags);
-        errorSensorByStatus[i].add(metricName, new CumulativeCount());
 
       }
 
@@ -289,17 +279,11 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors-count"));
       metricName = new MetricName(
-          getName(method, annotation, "request-error-count-windowed"),
+          getName(method, annotation, "request-error-count"),
           metricGrpName,
           "A windowed count of requests that resulted in HTTP error responses",
           metricTags);
       this.errorSensor.add(metricName, new WindowedCount());
-      metricName = new MetricName(
-          getName(method, annotation, "request-error-count-cumulative"),
-          metricGrpName,
-          "A cumulative count of requests that resulted in HTTP error responses",
-          metricTags);
-      this.errorSensor.add(metricName, new CumulativeCount());
     }
 
     /**
