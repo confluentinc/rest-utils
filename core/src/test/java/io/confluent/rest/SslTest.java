@@ -226,8 +226,11 @@ public class SslTest {
       try {
         makeGetRequest(uri + "/test",
                 untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (SSLHandshakeException she) { // handle a transient failure.
-        throw new SocketException(she.getMessage());
+      } catch (SSLException e) { // handle a transient failure.
+        // JDK7 will throw SSLHandshakeException
+        // JDK8 will throw the SocketException
+        // JDK11 will throw the SSLException
+        throw new SocketException(e.toString());
       }
     } finally {
       app.stop();
