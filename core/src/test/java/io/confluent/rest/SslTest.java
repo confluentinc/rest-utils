@@ -227,7 +227,11 @@ public class SslTest {
         makeGetRequest(uri + "/test",
                 untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       } catch (SSLHandshakeException she) { // handle a transient failure.
+        // nodeLabel:docker-oraclejdk8
         throw new SocketException(she.getMessage());
+      } catch (SSLException se) {
+        // nodeLabel:docker-debian-10-jdk8
+        throw new SocketException(se.toString());
       }
     } finally {
       app.stop();
@@ -251,7 +255,11 @@ public class SslTest {
       } catch (SSLHandshakeException she) {
         // JDK7 will throw the SHE, but JDK8 will throw the SE. This catch allows this code
         // to run on JDK7 and JDK8.
+        // nodeLabel:docker-oraclejdk8
         throw new SocketException(she.toString());
+      } catch (SSLException se) {
+        // nodeLabel:docker-debian-10-jdk8
+        throw new SocketException(se.toString());
       }
     } finally {
       app.stop();
