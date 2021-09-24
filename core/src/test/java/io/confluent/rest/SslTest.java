@@ -18,6 +18,10 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.core.Context;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -72,6 +76,7 @@ public class SslTest {
 
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
+  public static final String EXPECTED_500_MSG = "Response status must be 500.";
   public static final int CERT_RELOAD_WAIT_TIME = 20000;
 
   @Before
@@ -148,6 +153,39 @@ public class SslTest {
       statusCode = makeGetRequest(httpsUri + "/test",
                                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testServerSideHttpAndHttpsResolution() throws Exception {
+    TestMetricsReporter.reset();
+    Properties props = new Properties();
+    String httpUri = "http://localhost:8080";
+    String httpsUri = "https://localhost:8081";
+    props.put(RestConfig.LISTENERS_CONFIG, httpUri + "," + httpsUri);
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    configServerKeystore(props);
+    TestRestConfig config = new TestRestConfig(props);
+    SslTestApplication app = new SslTestApplication(config);
+    try {
+      app.start();
+
+      int statusCode = makeGetRequest(httpUri + "/test/http-only");
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+
+      statusCode = makeGetRequest(httpUri + "/test/https-only");
+      assertEquals(EXPECTED_500_MSG, 500, statusCode);
+
+      statusCode = makeGetRequest(httpsUri + "/test/https-only",
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+
+      statusCode = makeGetRequest(httpsUri + "/test/http-only",
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(EXPECTED_500_MSG, 500, statusCode);
       assertMetricsCollected();
     } finally {
       app.stop();
@@ -402,17 +440,39 @@ public class SslTest {
   @Path("/test")
   @Produces("application/test.v1+json")
   public static class SslTestResource {
-    public static class SslTestResponse {
+    @Context HttpServletRequest request;
+
+    @GET
+    @PerformanceMetric("test")
+    public TestResponse hello() {
+      return new TestResponse();
+    }
+
+    @Path("/http-only")
+    @GET
+    @PerformanceMetric("http-only")
+    public TestResponse httpOnly() {
+      if (!Objects.equals(request.getScheme(), "http")) {
+        throw new InternalServerErrorException("Got request on HTTP-only endpoint via non-http protocol");
+      }
+      return new TestResponse();
+    }
+
+    @Path("/https-only")
+    @GET
+    @PerformanceMetric("https-only")
+    public TestResponse httpsOnly() {
+      if (!Objects.equals(request.getScheme(), "https")) {
+        throw new InternalServerErrorException("Got request on HTTPS-only endpoint via non-https protocol");
+      }
+      return new TestResponse();
+    }
+
+    public static class TestResponse {
       @JsonProperty
       public String getMessage() {
         return "foo";
       }
-    }
-
-    @GET
-    @PerformanceMetric("test")
-    public SslTestResponse hello() {
-      return new SslTestResponse();
     }
   }
 }
