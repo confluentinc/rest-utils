@@ -392,9 +392,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
-    // we need to set below only if listener is https
-    httpConfiguration.addCustomizer(new SecureRequestCustomizer());
-
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
@@ -407,6 +404,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
 
     for (URI listener : listeners) {
+      if (listener.getScheme().equals("https")) {
+        if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
+          httpConfiguration.addCustomizer(new SecureRequestCustomizer());
+        }
+      }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener, http2Enabled);
     }
   }
