@@ -31,6 +31,7 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -403,6 +404,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             config.getInt(RestConfig.PORT_CONFIG), Arrays.asList("http", "https"), "http");
 
     for (URI listener : listeners) {
+      if (listener.getScheme().equals("https")) {
+        if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
+          httpConfiguration.addCustomizer(new SecureRequestCustomizer());
+        }
+      }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener, http2Enabled);
     }
   }
