@@ -33,6 +33,7 @@ import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
@@ -429,8 +430,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         SUPPORTED_URI_SCHEMES, "http");
 
     for (NamedURI listener : listeners) {
+      if (listener.getUri().getScheme().equals("https")) {
+        if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
+          httpConfiguration.addCustomizer(new SecureRequestCustomizer());
+        }
+      }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
-              http2Enabled, proxyProtocolEnabled);
+          http2Enabled, proxyProtocolEnabled);
     }
   }
 
