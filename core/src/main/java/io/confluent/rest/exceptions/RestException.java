@@ -16,7 +16,7 @@
 
 package io.confluent.rest.exceptions;
 
-import javax.ws.rs.WebApplicationException;
+import jakarta.ws.rs.WebApplicationException;
 
 /**
  * RestException is a subclass of WebApplicationException that always includes an error code and

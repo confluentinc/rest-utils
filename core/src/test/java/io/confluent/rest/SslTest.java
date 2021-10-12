@@ -45,13 +45,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
+import jakarta.net.ssl.SSLContext;
+import jakarta.net.ssl.SSLException;
+import jakarta.net.ssl.SSLHandshakeException;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
 
 import io.confluent.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;

@@ -17,7 +17,7 @@ package io.confluent.rest.examples;
 
 import org.junit.Test;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 
 import io.confluent.rest.RestConfigException;
 import io.confluent.rest.EmbeddedServerTestHarness;

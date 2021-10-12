@@ -26,7 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Configurable;
 
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfigException;
