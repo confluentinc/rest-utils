@@ -16,8 +16,8 @@
 
 package io.confluent.rest.validation;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 
 import java.util.HashSet;
 import java.util.Set;
