@@ -149,7 +149,7 @@ public class ShutdownTest {
           log.info("Marking request finished");
           finished = true;
           return;
-        } catch (javax.ws.rs.ProcessingException e) {
+        } catch (jakarta.ws.rs.ProcessingException e) {
           // ignore and retry
           log.info("Request failed, will retry", e);
         }

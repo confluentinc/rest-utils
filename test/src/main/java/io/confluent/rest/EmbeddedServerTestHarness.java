@@ -23,8 +23,8 @@ import org.glassfish.jersey.test.jetty.JettyTestContainerFactory;
 import org.junit.After;
 import org.junit.Before;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.core.Application;
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.core.Application;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;

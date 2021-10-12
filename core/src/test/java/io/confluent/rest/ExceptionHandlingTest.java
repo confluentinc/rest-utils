@@ -159,7 +159,7 @@ public class ExceptionHandlingTest {
     @GET
     @Path("/notfound")
     public String notFound() {
-      throw new javax.ws.rs.NotFoundException("Generic Not Found");
+      throw new jakarta.ws.rs.NotFoundException("Generic Not Found");
     }
 
     @GET

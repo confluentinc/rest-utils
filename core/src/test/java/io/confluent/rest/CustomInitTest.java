@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
-import static javax.ws.rs.core.Response.Status.FORBIDDEN;
-import static javax.ws.rs.core.Response.Status.OK;
+import static jakarta.ws.rs.core.Response.Status.FORBIDDEN;
+import static jakarta.ws.rs.core.Response.Status.OK;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
