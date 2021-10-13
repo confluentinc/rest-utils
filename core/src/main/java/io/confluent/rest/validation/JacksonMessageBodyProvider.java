@@ -19,7 +19,7 @@ package io.confluent.rest.validation;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.core.MediaType;
@@ -38,7 +38,7 @@ import java.lang.reflect.Type;
  * is accessed multiple times).
  */
 @Provider
-public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
+public class JacksonMessageBodyProvider extends JacksonJsonProvider {
 
   public JacksonMessageBodyProvider() {
     setMapper(new ObjectMapper());

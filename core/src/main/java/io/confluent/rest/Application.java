@@ -17,7 +17,7 @@
 package io.confluent.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
+import com.fasterxml.jackson.jakarta.rs.base.JsonParseExceptionMapper;
 
 import io.confluent.rest.auth.AuthUtil;
 import org.eclipse.jetty.jaas.JAASLoginService;
@@ -68,8 +68,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletException;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletException;
 import jakarta.ws.rs.core.Configurable;
 
 import io.confluent.common.config.ConfigException;
