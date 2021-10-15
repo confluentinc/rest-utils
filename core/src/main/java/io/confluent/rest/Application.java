@@ -70,7 +70,7 @@ import java.util.function.Consumer;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Configurable;
 
 import io.confluent.common.config.ConfigException;
 import io.confluent.common.metrics.JmxReporter;
