@@ -29,7 +29,8 @@ import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.Slf4jRequestLog;
+import org.eclipse.jetty.server.CustomRequestLog;
+import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -99,7 +100,7 @@ public abstract class Application<T extends RestConfig> {
   protected Server server = null;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   protected Metrics metrics;
-  protected final Slf4jRequestLog requestLog;
+  protected final CustomRequestLog requestLog;
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
   protected SslContextFactory sslContextFactory;
 
@@ -116,9 +117,9 @@ public abstract class Application<T extends RestConfig> {
                                       MetricsReporter.class);
     reporters.add(new JmxReporter(config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG)));
     this.metrics = new Metrics(metricConfig, reporters, config.getTime());
-    this.requestLog = new Slf4jRequestLog();
-    this.requestLog.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-    this.requestLog.setLogLatency(true);
+    Slf4jRequestLogWriter slf4jRequestLogWriter = new Slf4jRequestLogWriter();
+    slf4jRequestLogWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    this.requestLog = new CustomRequestLog(slf4jRequestLogWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT);
     this.sslContextFactory = createSslContextFactory();
   }
 
@@ -453,7 +454,7 @@ public abstract class Application<T extends RestConfig> {
    * Used to register any websocket endpoints that will live under the path configured via
    * {@link io.confluent.rest.RestConfig#WEBSOCKET_PATH_PREFIX_CONFIG}
    */
-  protected void registerWebSocketEndpoints(ServerContainer container) {
+  protected void registerWebSocketEndpoints(JettyWebSocketServerContainer container) {
 
   }
 
