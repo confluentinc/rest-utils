@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>org.eclipse.jetty.websocket</groupId>
-            <artifactId>websocket-jakarta-server</artifactId>
+            <artifactId>websocket-jetty-server</artifactId>
         </dependency>
 
         <dependency>
