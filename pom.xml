@@ -56,7 +56,7 @@
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <guava.version>30.1.1-jre</guava.version>
-        <netty.version>4.1.62.Final</netty.version>
+        <netty.version>4.1.68.Final</netty.version>
     </properties>
 
     <repositories>
