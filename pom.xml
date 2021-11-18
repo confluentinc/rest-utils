@@ -57,6 +57,7 @@
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <io.confluent.rest-utils.version>6.2.2-0</io.confluent.rest-utils.version>
+        <netty.version>4.1.68.Final</netty.version>
     </properties>
 
     <repositories>
