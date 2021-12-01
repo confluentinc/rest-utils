@@ -207,6 +207,62 @@ public class DosFilterTest {
     server.stop();
   }
 
+  @Test
+  public void dosFilterEnabled_throttlesRequestsPerConnection_AndGlobally()
+      throws Exception {
+    FooApplication application =
+        new FooApplication(
+            new FooConfig(
+                ImmutableMap.<String, String>builder()
+                    .put("listeners", "http://localhost:0")
+                    .put("dos.filter.enabled", "true")
+                    .put("dos.filter.max.requests.global.per.sec", "1")
+                    .put("dos.filter.delay.ms", "-1")
+                    .put("dos.filter.track.global", "true")
+                    .build()));
+    Server server = application.createServer();
+    server.start();
+
+    HttpGet request = createRequest(server.getURI());
+
+    CloseableHttpClient ephemeralClient = createEphemeralClient();
+    CloseableHttpClient persistentClient = createPersistentClient();
+
+    // First request succeeds, everything else withing 1s fails
+    CloseableHttpResponse response1 = ephemeralClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
+    response1.close();
+
+    CloseableHttpResponse responsePersistent = persistentClient.execute(request);
+    assertEquals(
+        Status.TOO_MANY_REQUESTS.getStatusCode(), responsePersistent.getStatusLine().getStatusCode());
+    responsePersistent.getEntity().getContent().close();
+    responsePersistent.close();
+
+    CloseableHttpResponse responseEphemeral = ephemeralClient.execute(request);
+    assertEquals(
+        Status.TOO_MANY_REQUESTS.getStatusCode(), responseEphemeral.getStatusLine().getStatusCode());
+    responseEphemeral.close();
+
+    // Reset the rate
+    Thread.sleep(1000);
+
+    CloseableHttpResponse response2 = persistentClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response2.getStatusLine().getStatusCode());
+
+    CloseableHttpResponse response3 = ephemeralClient.execute(request);
+    assertEquals(
+        Status.TOO_MANY_REQUESTS.getStatusCode(), response3.getStatusLine().getStatusCode());
+
+    Thread.sleep(1000);
+
+    CloseableHttpResponse response4 = persistentClient.execute(request);
+    assertEquals(Status.OK.getStatusCode(), response4.getStatusLine().getStatusCode());
+
+    server.stop();
+  }
+
+
   private static HttpGet createRequest(URI serverUri) {
     return new HttpGet(UriBuilder.fromUri(serverUri).path("/foo").build());
   }

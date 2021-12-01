@@ -375,6 +375,14 @@ public class RestConfig extends AbstractConfig {
           + "first delayed, then throttled. Default is 25.";
   private static final int DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
 
+  private static final String DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_CONFIG =
+      "dos.filter.max.requests.global.per.sec";
+  private static final String DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DOC =
+      "Maximum number of requests per second for the rest instance. Requests in excess of this are "
+          + "first delayed, then throttled. If set to the default value of -1, then the value of "
+          + "dos.filter.max.requests.per.sec is used.";
+  private static final int DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DEFAULT = -1;
+
   private static final String DOS_FILTER_DELAY_MS_CONFIG = "dos.filter.delay.ms";
   private static final String DOS_FILTER_DELAY_MS_DOC =
       "Delay imposed on all requests over the rate limit, before they are considered at all: 100 "
@@ -858,6 +866,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC
         ).define(
+            DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DOC
+        ).define(
             DOS_FILTER_DELAY_MS_CONFIG,
             Type.LONG,
             DOS_FILTER_DELAY_MS_DEFAULT.toMillis(),
@@ -1021,6 +1035,10 @@ public class RestConfig extends AbstractConfig {
 
   public final int getDosFilterMaxRequestsPerSec() {
     return getInt(DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG);
+  }
+
+  public final int getDosFilterMaxRequestsGlobalPerSec() {
+    return getInt(DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_CONFIG);
   }
 
   public final Duration getDosFilterDelayMs() {
