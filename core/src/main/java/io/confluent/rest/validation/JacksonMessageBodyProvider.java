@@ -89,11 +89,12 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
       throw e;
     } catch (IOException e) {
       Throwable cause = e.getCause();
-      if (cause instanceof TimeoutException)
+      if (cause instanceof TimeoutException) {
         throw new RestTimeoutException("Timeout while reading from inputStream",
             RestTimeoutException.DEFAULT_ERROR_CODE,
             RestTimeoutException.DEFAULT_ERROR_CODE,
             e);
+      }
       throw e;
     }
   }
