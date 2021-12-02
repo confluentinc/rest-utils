@@ -31,6 +31,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
 
+import io.confluent.rest.exceptions.RestTimeoutException;
 import org.eclipse.jetty.server.Server;
 import org.junit.After;
 import org.junit.Before;
@@ -117,6 +118,14 @@ public class ExceptionHandlingTest {
                      Response.Status.INTERNAL_SERVER_ERROR.getReasonPhrase());
   }
 
+  @Test
+  public void testRestTimeoutException() {
+    Map<String, String> m = new HashMap<>();
+    m.put("something", "something");
+    m.put("something-else", "something-else");
+    testPostException("readTimeout",  Entity.json(m), 408, 408, "Idle timeout expired" );
+  }
+
   public static class FakeType {
     public String something;
   }
@@ -172,6 +181,12 @@ public class ExceptionHandlingTest {
     @Path("/unrecognizedfield")
     public String blah(FakeType ft) {
       return ft.something;
+    }
+
+    @POST
+    @Path("/readTimeout")
+    public String restTimeout() {
+      throw new RestTimeoutException("Idle timeout expired", 408, 408);
     }
   }
 
