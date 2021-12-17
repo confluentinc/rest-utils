@@ -49,106 +49,13 @@ public class DosFilterTest {
                 ImmutableMap.of(
                     "listeners", "http://localhost:0",
                     "dos.filter.enabled", "true",
-                    "dos.filter.max.requests.per.sec", "1",
+                    "dos.filter.max.requests.per.connection.per.sec", "1",
+                    "dos.filter.max.requests.per.sec", "1000",
                     "dos.filter.delay.ms", "-1")));
     Server server = application.createServer();
     server.start();
 
     HttpGet request = createRequest(server.getURI());
-
-    CloseableHttpClient ephemeralClient = createEphemeralClient();
-
-    // Request should succeed.
-    CloseableHttpResponse response1 = ephemeralClient.execute(request);
-    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
-    response1.close();
-
-    // Following requests should all be throttled.
-    for (int i = 0; i < 100; i++) {
-      CloseableHttpResponse response2 = ephemeralClient.execute(request);
-      assertEquals(
-          Status.TOO_MANY_REQUESTS.getStatusCode(), response2.getStatusLine().getStatusCode());
-      response2.close();
-    }
-
-    Thread.sleep(1000);
-
-    // Request should succeed again.
-    CloseableHttpResponse response3 = ephemeralClient.execute(request);
-    assertEquals(Status.OK.getStatusCode(), response3.getStatusLine().getStatusCode());
-    response3.close();
-
-    server.stop();
-  }
-
-  @Test
-  public void dosFilterEnabled_remotePort_throttlesRequestsPerConnection() throws Exception {
-    FooApplication application =
-        new FooApplication(
-            new FooConfig(
-                ImmutableMap.<String, String>builder()
-                    .put("listeners", "http://localhost:0")
-                    .put("dos.filter.enabled", "true")
-                    .put("dos.filter.max.requests.per.sec", "1")
-                    .put("dos.filter.delay.ms", "-1")
-                    .put("dos.filter.remote.port", "true")
-                    .build()));
-    Server server = application.createServer();
-    server.start();
-
-    HttpGet request = createRequest(server.getURI());
-
-    // Following requests should not be throttled, since they use different connections.
-    CloseableHttpClient ephemeralClient = createEphemeralClient();
-    for (int i = 0; i < 100; i++) {
-      CloseableHttpResponse response = ephemeralClient.execute(request);
-      assertEquals(Status.OK.getStatusCode(), response.getStatusLine().getStatusCode());
-      response.close();
-    }
-
-    CloseableHttpClient persistentClient = createPersistentClient();
-
-    // Request should succeed.
-    CloseableHttpResponse response1 = persistentClient.execute(request);
-    assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
-    response1.getEntity().getContent().close();
-    response1.close();
-
-    // Following requests should all be throttled since they all reuse the same connection.
-    for (int i = 0; i < 100; i++) {
-      CloseableHttpResponse response2 = persistentClient.execute(request);
-      assertEquals(
-          Status.TOO_MANY_REQUESTS.getStatusCode(), response2.getStatusLine().getStatusCode());
-      response2.getEntity().getContent().close();
-      response2.close();
-    }
-
-    Thread.sleep(1000);
-
-    // Request on the same connection should succeed again.
-    CloseableHttpResponse response3 = persistentClient.execute(request);
-    assertEquals(Status.OK.getStatusCode(), response3.getStatusLine().getStatusCode());
-  }
-
-  @Test
-  public void dosFilterEnabled_trackGlobal_throttlesRequestsGlobally() throws Exception {
-    FooApplication application =
-        new FooApplication(
-            new FooConfig(
-                ImmutableMap.<String, String>builder()
-                    .put("listeners", "http://localhost:0")
-                    .put("dos.filter.enabled", "true")
-                    .put("dos.filter.max.requests.per.sec", "1")
-                    .put("dos.filter.delay.ms", "-1")
-                    .put("dos.filter.track.global", "true")
-                    .build()));
-    Server server = application.createServer();
-    server.start();
-
-    HttpGet request = createRequest(server.getURI());
-
-    // There's no way for us to actually check throttling is happening across different IPs. We
-    // check here it behaves at least per-IP.
 
     CloseableHttpClient ephemeralClient = createEphemeralClient();
 
@@ -183,7 +90,7 @@ public class DosFilterTest {
                 ImmutableMap.of(
                     "listeners", "http://localhost:0",
                     "dos.filter.enabled", "false",
-                    "dos.filter.max.requests.per.sec", "1",
+                    "dos.filter.max.requests.per.connection.per.sec", "1",
                     "dos.filter.delay.ms", "-1")));
     Server server = application.createServer();
     server.start();
@@ -208,7 +115,7 @@ public class DosFilterTest {
   }
 
   @Test
-  public void dosFilterEnabled_throttlesRequestsPerConnection_AndGlobally()
+  public void dosFilterEnabled_throttlesRequestsGlobally()
       throws Exception {
     FooApplication application =
         new FooApplication(
@@ -216,9 +123,9 @@ public class DosFilterTest {
                 ImmutableMap.<String, String>builder()
                     .put("listeners", "http://localhost:0")
                     .put("dos.filter.enabled", "true")
-                    .put("dos.filter.max.requests.global.per.sec", "1")
+                    .put("dos.filter.max.requests.per.sec", "1")
+                    .put("dos.filter.max.requests.per.connection.per.sec", "100")
                     .put("dos.filter.delay.ms", "-1")
-                    .put("dos.filter.track.global", "true")
                     .build()));
     Server server = application.createServer();
     server.start();
@@ -228,7 +135,7 @@ public class DosFilterTest {
     CloseableHttpClient ephemeralClient = createEphemeralClient();
     CloseableHttpClient persistentClient = createPersistentClient();
 
-    // First request succeeds, everything else withing 1s fails
+    // First request succeeds, everything else within 1s fails
     CloseableHttpResponse response1 = ephemeralClient.execute(request);
     assertEquals(Status.OK.getStatusCode(), response1.getStatusLine().getStatusCode());
     response1.close();

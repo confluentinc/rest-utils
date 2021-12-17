@@ -371,17 +371,16 @@ public class RestConfig extends AbstractConfig {
   private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG =
       "dos.filter.max.requests.per.sec";
   private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC =
-      "Maximum number of requests from a connection per second. Requests in excess of this are "
-          + "first delayed, then throttled. Default is 25.";
+      "Maximum number of requests per second for the REST instance. Requests in excess of this "
+          + "are first delayed, then throttled. Default is 25.";
   private static final int DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
 
-  private static final String DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_CONFIG =
-      "dos.filter.max.requests.global.per.sec";
-  private static final String DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DOC =
-      "Maximum number of requests per second for the rest instance. Requests in excess of this are "
-          + "first delayed, then throttled. If set to the default value of -1, then the value of "
-          + "dos.filter.max.requests.per.sec is used.";
-  private static final int DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DEFAULT = -1;
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_CONFIG =
+      "dos.filter.max.requests.per.connection.per.sec";
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DOC =
+      "Maximum number of requests per second per ipaddress for the rest instance. "
+          + "Requests in excess of this are first delayed, then throttled.";
+  private static final int DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DEFAULT = 25;
 
   private static final String DOS_FILTER_DELAY_MS_CONFIG = "dos.filter.delay.ms";
   private static final String DOS_FILTER_DELAY_MS_DOC =
@@ -421,18 +420,6 @@ public class RestConfig extends AbstractConfig {
   private static final String DOS_FILTER_INSERT_HEADERS_DOC =
       "If true, insert the DoSFilter headers into the response. Defaults to true.";
   private static final boolean DOS_FILTER_INSERT_HEADERS_DEFAULT = true;
-
-  private static final String DOS_FILTER_REMOTE_PORT_CONFIG = "dos.filter.remote.port";
-  private static final String DOS_FILTER_REMOTE_PORT_DOC =
-      "If true, then rate is tracked by IP and port (effectively per connection). Defaults to "
-          + "false.";
-  private static final boolean DOS_FILTER_REMOTE_PORT_DEFAULT = false;
-
-  private static final String DOS_FILTER_TRACK_GLOBAL_CONFIG = "dos.filter.track.global";
-  private static final String DOS_FILTER_TRACK_GLOBAL_DOC =
-      "If true and remote port tracking is not used, then rate is tracked globally for all "
-          + "connections. Defaults to false.";
-  private static final boolean DOS_FILTER_TRACK_GLOBAL_DEFAULT = false;
 
   private static final String DOS_FILTER_IP_WHITELIST_CONFIG = "dos.filter.ip.whitelist";
   private static final String DOS_FILTER_IP_WHITELIST_DOC =
@@ -866,11 +853,11 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC
         ).define(
-            DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_CONFIG,
+            DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_CONFIG,
             Type.INT,
-            DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DEFAULT,
+            DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DEFAULT,
             Importance.LOW,
-            DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_DOC
+            DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DOC
         ).define(
             DOS_FILTER_DELAY_MS_CONFIG,
             Type.LONG,
@@ -913,18 +900,6 @@ public class RestConfig extends AbstractConfig {
             DOS_FILTER_INSERT_HEADERS_DEFAULT,
             Importance.LOW,
             DOS_FILTER_INSERT_HEADERS_DOC
-        ).define(
-            DOS_FILTER_REMOTE_PORT_CONFIG,
-            Type.BOOLEAN,
-            DOS_FILTER_REMOTE_PORT_DEFAULT,
-            Importance.LOW,
-            DOS_FILTER_REMOTE_PORT_DOC
-        ).define(
-            DOS_FILTER_TRACK_GLOBAL_CONFIG,
-            Type.BOOLEAN,
-            DOS_FILTER_TRACK_GLOBAL_DEFAULT,
-            Importance.LOW,
-            DOS_FILTER_TRACK_GLOBAL_DOC
         ).define(
             DOS_FILTER_IP_WHITELIST_CONFIG,
             Type.LIST,
@@ -1033,12 +1008,12 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_ENABLED_CONFIG);
   }
 
-  public final int getDosFilterMaxRequestsPerSec() {
-    return getInt(DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG);
+  public final int getDosFilterMaxRequestsPerConnectionPerSec() {
+    return getInt(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_CONFIG);
   }
 
   public final int getDosFilterMaxRequestsGlobalPerSec() {
-    return getInt(DOS_FILTER_MAX_REQUESTS_GLOBAL_PER_SEC_CONFIG);
+    return getInt(DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG);
   }
 
   public final Duration getDosFilterDelayMs() {
@@ -1067,14 +1042,6 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterInsertHeaders() {
     return getBoolean(DOS_FILTER_INSERT_HEADERS_CONFIG);
-  }
-
-  public final boolean getDosFilterRemotePort() {
-    return getBoolean(DOS_FILTER_REMOTE_PORT_CONFIG);
-  }
-
-  public final boolean getDosFilterTrackGlobal() {
-    return getBoolean(DOS_FILTER_TRACK_GLOBAL_CONFIG);
   }
 
   public final List<String> getDosFilterIpWhitelist() {

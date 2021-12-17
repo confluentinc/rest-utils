@@ -654,24 +654,20 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
-    if (!config.getDosFilterRemotePort() && config.getDosFilterTrackGlobal()) {
-      configureGlobalDosFilter(context);
-    }
+    configureGlobalDosFilter(context);
     configureNonGlobalDosFilter(context);
   }
 
   private void configureNonGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new DoSFilter();
     FilterHolder filterHolder = configureFilter(dosFilter,
-        String.valueOf(config.getDosFilterMaxRequestsPerSec()));
+        String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
   
   private void configureGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new GlobalDosFilter();
-    String globalLimit = config.getDosFilterMaxRequestsGlobalPerSec() >= 0
-        ? String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec())
-        : String.valueOf(config.getDosFilterMaxRequestsPerSec());
+    String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
     FilterHolder filterHolder = configureFilter(dosFilter, globalLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
@@ -697,7 +693,7 @@ public abstract class Application<T extends RestConfig> {
         "insertHeaders", String.valueOf(config.getDosFilterInsertHeaders()));
     filterHolder.setInitParameter("trackSessions", "false");
     filterHolder.setInitParameter(
-        "remotePort", String.valueOf(config.getDosFilterRemotePort()));
+        "remotePort", String.valueOf("false"));
     filterHolder.setInitParameter(
         "ipWhitelist", String.valueOf(config.getDosFilterIpWhitelist()));
     filterHolder.setInitParameter(
