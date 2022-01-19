@@ -1,10 +1,10 @@
 package io.confluent.rest.metrics;
 
 import org.eclipse.jetty.server.Server;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -19,13 +19,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import io.confluent.common.utils.IntegrationTest;
 import io.confluent.rest.Application;
 import io.confluent.rest.TestRestConfig;
 import io.confluent.rest.annotations.PerformanceMetric;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RequestScopedMetricsIntegrationTest {
 
@@ -33,7 +32,7 @@ public class RequestScopedMetricsIntegrationTest {
   SimpleApplication app;
   private Server server;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
@@ -43,14 +42,14 @@ public class RequestScopedMetricsIntegrationTest {
     server.start();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
     server.join();
   }
 
   @Test
-  @Category(IntegrationTest.class)
+  @Tag("IntegrationTest")
   public void testRequestScopedMetricsCreateAndLookup() throws InterruptedException {
     int numMetrics = app.numMetrics();
 
@@ -66,8 +65,9 @@ public class RequestScopedMetricsIntegrationTest {
     // finish.
     Thread.sleep(500);
 
-    assertTrue("numMetrics=" + numMetrics + ", app.numMetrics=" + app.numMetrics(),
-        numMetrics < app.numMetrics());
+    assertTrue(
+        numMetrics < app.numMetrics(),
+        "numMetrics=" + numMetrics + ", app.numMetrics=" + app.numMetrics());
     numMetrics = app.numMetrics();
 
     // this request should reuse the previously created metrics
@@ -77,8 +77,9 @@ public class RequestScopedMetricsIntegrationTest {
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
     assertEquals(200, response.getStatus());
-    assertEquals("numMetrics=" + numMetrics + ", app.numMetrics=" + app.numMetrics(), numMetrics,
-        app.numMetrics());
+    assertEquals(numMetrics,
+        app.numMetrics(),
+        "numMetrics=" + numMetrics + ", app.numMetrics=" + app.numMetrics());
   }
 
   public class SimpleApplication extends Application<TestRestConfig> {

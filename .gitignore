@@ -6,3 +6,5 @@ target/
 *.iml
 .idea/
 .ipr
+.DS_Store
+core/.DS_Store

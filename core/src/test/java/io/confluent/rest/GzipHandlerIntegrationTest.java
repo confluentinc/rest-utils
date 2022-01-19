@@ -17,9 +17,9 @@
 package io.confluent.rest;
 
 import org.eclipse.jetty.server.Server;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
@@ -31,13 +31,13 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class GzipHandlerIntegrationTest {
   private TestRestConfig config;
   private Server server;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty("debug", "false");
@@ -49,7 +49,7 @@ public class GzipHandlerIntegrationTest {
     server.start();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
     server.join();

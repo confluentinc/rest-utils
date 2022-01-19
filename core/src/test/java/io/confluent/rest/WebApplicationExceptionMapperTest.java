@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
@@ -28,13 +28,13 @@ import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.RestException;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class WebApplicationExceptionMapperTest {
 
   private WebApplicationExceptionMapper mapper;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     Properties props = new Properties();
     props.setProperty("debug", "false");

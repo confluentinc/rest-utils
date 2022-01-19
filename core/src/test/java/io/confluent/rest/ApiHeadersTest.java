@@ -43,9 +43,9 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
 import org.eclipse.jetty.server.Server;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 public class ApiHeadersTest {
 
@@ -54,7 +54,7 @@ public class ApiHeadersTest {
   private static String clientKeystoreLocation;
   private static Server server;
 
-  @BeforeClass
+  @BeforeAll
   public static void setUp() throws Exception {
     final File trustStore = File.createTempFile("ApiHeadersTest-truststore", ".jks");
     final File clientKeystore = File.createTempFile("ApiHeadersTest-client-keystore", ".jks");
@@ -78,7 +78,7 @@ public class ApiHeadersTest {
     server.start();
   }
 
-  @AfterClass
+  @AfterAll
   public static void teardown() throws Exception {
     if (server != null) {
       server.stop();

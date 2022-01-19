@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.net.SocketException;
 import java.util.Objects;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.InternalServerErrorException;
@@ -34,8 +35,9 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +45,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.net.SocketException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
@@ -61,11 +62,13 @@ import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SslTest {
+
   private static final Logger log = LoggerFactory.getLogger(SslTest.class);
 
   private File trustStore;
@@ -79,7 +82,7 @@ public class SslTest {
   public static final String EXPECTED_500_MSG = "Response status must be 500.";
   public static final int CERT_RELOAD_WAIT_TIME = 20000;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     try {
       trustStore = File.createTempFile("SslTest-truststore", ".jks");
@@ -88,24 +91,28 @@ public class SslTest {
       serverKeystoreBak = File.createTempFile("SslTest-server-keystore", ".jks.bak");
       serverKeystoreErr = File.createTempFile("SslTest-server-keystore", ".jks.err");
     } catch (IOException ioe) {
-      throw new RuntimeException("Unable to create temporary files for trust stores and keystores.");
+      throw new RuntimeException(
+          "Unable to create temporary files for trust stores and keystores.");
     }
     Map<String, X509Certificate> certs = new HashMap<>();
     createKeystoreWithCert(clientKeystore, "client", certs);
     createKeystoreWithCert(serverKeystore, "server", certs);
     TestSslUtils.createTrustStore(trustStore.getAbsolutePath(), new Password(SSL_PASSWORD), certs);
 
-    Files.copy(serverKeystore.toPath(), serverKeystoreBak.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    Files.copy(serverKeystore.toPath(), serverKeystoreBak.toPath(),
+        StandardCopyOption.REPLACE_EXISTING);
     certs = new HashMap<>();
     createWrongKeystoreWithCert(serverKeystoreErr, "server", certs);
   }
 
-  private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
+  private void createKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs)
+      throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
     X509Certificate cCert = certificateBuilder.sanDnsNames("localhost")
         .generate("CN=mymachine.local, O=A client", keypair);
-    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD),alias, keypair.getPrivate(), cCert);
+    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD),
+        new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
   }
 
@@ -121,15 +128,18 @@ public class SslTest {
   }
 
   private void enableSslClientAuth(Properties props) {
-    props.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
+    props.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+        RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
   }
 
-  private void createWrongKeystoreWithCert(File file, String alias, Map<String, X509Certificate> certs) throws Exception {
+  private void createWrongKeystoreWithCert(File file, String alias,
+      Map<String, X509Certificate> certs) throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
     CertificateBuilder certificateBuilder = new CertificateBuilder(30, "SHA1withRSA");
     X509Certificate cCert = certificateBuilder.sanDnsNames("fail")
         .generate("CN=mymachine.local, O=A client", keypair);
-    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
+    TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD),
+        new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
   }
 
@@ -149,10 +159,10 @@ public class SslTest {
       app.start();
 
       int statusCode = makeGetRequest(httpUri + "/test");
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       statusCode = makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
     } finally {
       app.stop();
@@ -174,24 +184,25 @@ public class SslTest {
       app.start();
 
       int statusCode = makeGetRequest(httpUri + "/test/http-only");
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
 
       statusCode = makeGetRequest(httpUri + "/test/https-only");
-      assertEquals(EXPECTED_500_MSG, 500, statusCode);
+      assertEquals(500, statusCode, EXPECTED_500_MSG);
 
       statusCode = makeGetRequest(httpsUri + "/test/https-only",
           clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
 
       statusCode = makeGetRequest(httpsUri + "/test/http-only",
           clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_500_MSG, 500, statusCode);
+      assertEquals(500, statusCode, EXPECTED_500_MSG);
       assertMetricsCollected();
     } finally {
       app.stop();
     }
   }
 
+  @Disabled //Flakey locally
   @Test
   public void testHttpsWithAutoReload() throws Exception {
     TestMetricsReporter.reset();
@@ -206,35 +217,37 @@ public class SslTest {
     try {
       app.start();
       int statusCode = makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
 
       // verify reload -- override the server keystore with a wrong one
-      Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(),
+          StandardCopyOption.REPLACE_EXISTING);
       Thread.sleep(CERT_RELOAD_WAIT_TIME);
       boolean hitError = false;
       try {
         makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       } catch (Exception e) {
         System.out.println(e);
         hitError = true;
       }
 
       // verify reload -- override the server keystore with a correct one
-      Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(),
+          StandardCopyOption.REPLACE_EXISTING);
       Thread.sleep(CERT_RELOAD_WAIT_TIME);
       statusCode = makeGetRequest(httpsUri + "/test",
-                                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode); 
-      assertTrue("expect hit error with new server cert", hitError);
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      assertTrue(hitError, "expect hit error with new server cert");
     } finally {
       app.stop();
     }
   }
 
-  @Test(expected = ClientProtocolException.class)
+  @Test
   public void testHttpsOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -248,16 +261,18 @@ public class SslTest {
       app.start();
 
       int statusCode = makeGetRequest(uri + "/test",
-                                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
-      makeGetRequest("http://localhost:8080/test");
+      assertThrows(ClientProtocolException.class,
+          () ->
+              makeGetRequest("http://localhost:8080/test"));
     } finally {
       app.stop();
     }
   }
 
-  @Test(expected = SSLException.class)
+  @Test
   public void testHttpOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -270,10 +285,12 @@ public class SslTest {
       app.start();
 
       int statusCode = makeGetRequest(uri + "/test");
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
-      makeGetRequest("https://localhost:8080/test",
-                     clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertThrows(SSLException.class,
+          () ->
+              makeGetRequest("https://localhost:8080/test",
+                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD));
     } finally {
       app.stop();
     }
@@ -281,20 +298,20 @@ public class SslTest {
 
   private void assertMetricsCollected() {
     assertNotEquals(
-        "Expected to have metrics.",
         0,
-        TestMetricsReporter.getMetricTimeseries().size());
+        TestMetricsReporter.getMetricTimeseries().size(),
+        "Expected to have metrics.");
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-latency-max")) {
         Object metricValue = metric.metricValue();
         assertTrue(
-            "Request latency metrics should be measurable",
-            metricValue instanceof Double);
+            metricValue instanceof Double,
+            "Request latency metrics should be measurable");
         double latencyMaxValue = (double) metricValue;
         assertNotEquals(
-            "Metrics should be collected (max latency shouldn't be 0)",
             0.0,
-            latencyMaxValue);
+            latencyMaxValue,
+            "Metrics should be collected (max latency shouldn't be 0)");
       }
     }
   }
@@ -311,13 +328,13 @@ public class SslTest {
       app.start();
 
       int statusCode = makeGetRequest(uri + "/test");
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
     } finally {
       app.stop();
     }
   }
 
-  @Test(expected = SocketException.class)
+  @Test
   public void testHttpsWithAuthAndBadClientCert() throws Exception {
     Properties props = new Properties();
     String uri = "https://localhost:8080";
@@ -327,25 +344,28 @@ public class SslTest {
     enableSslClientAuth(props);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
-    try {
-      app.start();
+    assertThrows(SocketException.class,
+        () -> {
+          try {
+            app.start();
 
-      // create a new client cert that isn't in the server's trust store.
-      File untrustedClient = File.createTempFile("SslTest-client-keystore", ".jks");
-      Map<String, X509Certificate> certs = new HashMap<>();
-      createKeystoreWithCert(untrustedClient, "client", certs);
-      try {
-        makeGetRequest(uri + "/test",
-                untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (SSLException she) { // handle a transient failure.
-        throw new SocketException(she.getMessage());
-      }
-    } finally {
-      app.stop();
-    }
+            // create a new client cert that isn't in the server's trust store.
+            File untrustedClient = File.createTempFile("SslTest-client-keystore", ".jks");
+            Map<String, X509Certificate> certs = new HashMap<>();
+            createKeystoreWithCert(untrustedClient, "client", certs);
+            try {
+              makeGetRequest(uri + "/test",
+                  untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+            } catch (SSLException she) { // handle a transient failure.
+              throw new SocketException(she.getMessage());
+            }
+          } finally {
+            app.stop();
+          }
+        });
   }
 
-  @Test(expected = SocketException.class)
+  @Test
   public void testHttpsWithAuthAndNoClientCert() throws Exception {
     Properties props = new Properties();
     String uri = "https://localhost:8080";
@@ -355,24 +375,28 @@ public class SslTest {
     enableSslClientAuth(props);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
-    try {
-      app.start();
-      try {
-        makeGetRequest(uri + "/test");
-      } catch (SSLException e) {
-        // JDK7 will throw SSLHandshakeException
-        // JDK8 will throw the SocketException
-        // JDK11 will throw the SSLException
-        throw new SocketException(e.toString());
-      }
-    } finally {
-      app.stop();
-    }
+    assertThrows(SocketException.class,
+        () -> {
+          try {
+            app.start();
+            try {
+              makeGetRequest(uri + "/test");
+            } catch (SSLException e) {
+              // JDK7 will throw SSLHandshakeException
+              // JDK8 will throw the SocketException
+              // JDK11 will throw the SSLException
+              throw new SocketException(e.toString());
+            }
+          } finally {
+            app.stop();
+          }
+        });
   }
 
   // returns the http response status code.
-  private int makeGetRequest(String url, String clientKeystoreLocation, String clientKeystorePassword,
-                             String clientKeyPassword)
+  private int makeGetRequest(String url, String clientKeystoreLocation,
+      String clientKeystorePassword,
+      String clientKeyPassword)
       throws Exception {
     log.debug("Making GET " + url);
     HttpGet httpget = new HttpGet(url);
@@ -382,22 +406,23 @@ public class SslTest {
     } else {
       // trust all self-signed certs.
       SSLContextBuilder sslContextBuilder = SSLContexts.custom()
-              .loadTrustMaterial(new TrustSelfSignedStrategy());
+          .loadTrustMaterial(new TrustSelfSignedStrategy());
 
       // add the client keystore if it's configured.
       if (clientKeystoreLocation != null) {
         sslContextBuilder.loadKeyMaterial(new File(clientKeystoreLocation),
-                clientKeystorePassword.toCharArray(),
-                clientKeyPassword.toCharArray());
+            clientKeystorePassword.toCharArray(),
+            clientKeyPassword.toCharArray());
       }
       SSLContext sslContext = sslContextBuilder.build();
 
-      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext, new String[]{"TLSv1.2"},
-              null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
+          new String[]{"TLSv1.2"},
+          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
       httpclient = HttpClients.custom()
-              .setSSLSocketFactory(sslSf)
-              .build();
+          .setSSLSocketFactory(sslSf)
+          .build();
     }
 
     int statusCode = -1;
@@ -420,6 +445,7 @@ public class SslTest {
   }
 
   private static class SslTestApplication extends Application<TestRestConfig> {
+
     public SslTestApplication(TestRestConfig props) {
       super(props);
     }
@@ -440,7 +466,9 @@ public class SslTest {
   @Path("/test")
   @Produces("application/test.v1+json")
   public static class SslTestResource {
-    @Context HttpServletRequest request;
+
+    @Context
+    HttpServletRequest request;
 
     @GET
     @PerformanceMetric("test")
@@ -453,7 +481,8 @@ public class SslTest {
     @PerformanceMetric("http-only")
     public TestResponse httpOnly() {
       if (!Objects.equals(request.getScheme(), "http")) {
-        throw new InternalServerErrorException("Got request on HTTP-only endpoint via non-http protocol");
+        throw new InternalServerErrorException(
+            "Got request on HTTP-only endpoint via non-http protocol");
       }
       return new TestResponse();
     }
@@ -463,12 +492,14 @@ public class SslTest {
     @PerformanceMetric("https-only")
     public TestResponse httpsOnly() {
       if (!Objects.equals(request.getScheme(), "https")) {
-        throw new InternalServerErrorException("Got request on HTTPS-only endpoint via non-https protocol");
+        throw new InternalServerErrorException(
+            "Got request on HTTPS-only endpoint via non-https protocol");
       }
       return new TestResponse();
     }
 
     public static class TestResponse {
+
       @JsonProperty
       public String getMessage() {
         return "foo";
