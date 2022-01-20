@@ -18,8 +18,8 @@ package io.confluent.rest;
 
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 import static javax.ws.rs.core.Response.Status.OK;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,9 +55,9 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.security.Password;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +70,7 @@ public class CustomInitTest {
   private Server server;
   private CloseableHttpClient httpclient;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     httpclient = HttpClients.createDefault();
 
@@ -89,7 +89,7 @@ public class CustomInitTest {
     server.start();
   }
 
-  @After
+  @AfterEach
   public void cleanup() throws Exception {
     httpclient.close();
     server.stop();

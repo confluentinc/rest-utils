@@ -20,8 +20,8 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.glassfish.jersey.test.jetty.JettyTestContainerFactory;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Application;
@@ -99,7 +99,7 @@ public abstract class
     }
   }
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     try {
       app = createApplication();
@@ -112,7 +112,7 @@ public abstract class
     getJerseyTest().setUp();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     test.tearDown();
     test = null;

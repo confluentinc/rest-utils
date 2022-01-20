@@ -15,7 +15,7 @@
  */
 package io.confluent.rest.examples;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.ws.rs.core.Response;
 
@@ -25,7 +25,7 @@ import io.confluent.rest.examples.helloworld.HelloWorldApplication;
 import io.confluent.rest.examples.helloworld.HelloWorldRestConfig;
 import io.confluent.rest.examples.helloworld.HelloWorldResource;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * This tests a single resource by setting up a Jersey-based test server embedded in the application.

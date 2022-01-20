@@ -23,12 +23,12 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.kafka.common.config.ConfigException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.experimental.runners.Enclosed;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Properties;
 import java.util.Arrays;
 import javax.ws.rs.GET;
@@ -38,114 +38,102 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-
-@RunWith(Enclosed.class)
 public class TestCustomizedHttpResponseHeaders {
 
   private static final Logger log = LoggerFactory.getLogger(TestCustomizeThreadPool.class);
 
-  @RunWith(Parameterized.class)
-  public static class TestInvalidHeaderConfig {
-    @Parameter
-    public String invalidHeaderConfig;
+  @ParameterizedTest
+  @ValueSource(strings = {"set",
+      "badaction X-Frame-Options:DENY",
+      "set add X-XSS-Protection:1",
+      "addX-XSS-Protection",
+      "X-XSS-Protection:",
+      "add set X-XSS-Protection:",
+      "add X-XSS-Protection:1 X-XSS-Protection:1 ",
+      "add X-XSS-Protection:1,   ,",
+      "set X-Frame-Options:DENY, add  :no-cache, no-store, must-revalidate "})
+  public void testInvalidHeaderConfigFormat(String invalidHeaderConfig) throws Exception {
+    Properties props = new Properties();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
+    assertThrows(ConfigException.class,
+        () -> {
+          props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, invalidHeaderConfig);
 
-    @Parameters(name = "{0}")
-    public static Object[] invalidData() {
-      return new Object[]{
-              "set",
-              "badaction X-Frame-Options:DENY",
-              "set add X-XSS-Protection:1",
-              "addX-XSS-Protection",
-              "X-XSS-Protection:",
-              "add set X-XSS-Protection:",
-              "add X-XSS-Protection:1 X-XSS-Protection:1 ",
-              "add X-XSS-Protection:1,   ,",
-              "set X-Frame-Options:DENY, add  :no-cache, no-store, must-revalidate "
-      };
-    }
+          TestApp app = new TestApp(props);
+          CloseableHttpResponse response = null;
+          try {
+            app.start();
 
-    @Test(expected = ConfigException.class)
-    public void testInvalidHeaderConfigFormat()throws Exception {
-      Properties props = new Properties();
-      props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
-      props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG, invalidHeaderConfig);
-
-      TestApp app = new TestApp(props);
-      CloseableHttpResponse response = null;
-      try {
-        app.start();
-        response = makeGetRequest(app, "/custom/resource1");
-      } finally {
-        try {
-          if (response != null) {
-            response.close();
+            response = makeGetRequest(app, "/custom/resource1");
+          } finally {
+            try {
+              if (response != null) {
+                response.close();
+              }
+            } catch (Exception e) {
+            }
+            app.stop();
           }
-        } catch (Exception e) {
+        });
+  }
+
+  @Test
+  public void testNoCustomizedHeaderConfigs() throws Exception {
+    Properties props = new Properties();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
+
+    TestApp app = new TestApp(props);
+    CloseableHttpResponse response = null;
+    try {
+      app.start();
+      response = makePostRequest(app, "/custom/resource2");
+      String headerValue = getResponseHeader(response, "X-Frame-Options");
+      assertNull(headerValue);
+    } finally {
+      try {
+        if (response != null) {
+          response.close();
         }
-        app.stop();
+      } catch (Exception e) {
       }
+      app.stop();
     }
   }
 
-  public static class TestValidHeaderConfig {
-    @Test
-    public void testNoCustomizedHeaderConfigs()throws Exception {
-      Properties props = new Properties();
-      props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
+  @Test
+  public void testValidHeaderConfigs() throws Exception {
+    Properties props = new Properties();
+    props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
+    props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG,
+        "  set    X-Frame-Options: DENY, \"  add     Cache-Control:   no-cache, no-store, must-revalidate\" ");
 
-      TestApp app = new TestApp(props);
-      CloseableHttpResponse response = null;
+    TestApp app = new TestApp(props);
+    CloseableHttpResponse response = null;
+    try {
+      app.start();
+      response = makeGetRequest(app, "/custom/resource1");
+      assertEquals("DENY",
+          getResponseHeader(response, "X-Frame-Options"));
+      assertEquals("no-cache, no-store, must-revalidate",
+          getResponseHeader(response, "Cache-Control"));
+      assertNull(getResponseHeader(response, "X-Custom-Value"));
+    } finally {
       try {
-        app.start();
-        response = makePostRequest(app, "/custom/resource2");
-        String headerValue = getResponseHeader(response, "X-Frame-Options");
-        assertNull(headerValue);
-      } finally {
-        try {
-          if (response != null) {
-            response.close();
-          }
-        } catch (Exception e) {
+        if (response != null) {
+          response.close();
         }
-        app.stop();
+      } catch (Exception e) {
       }
-    }
-
-    @Test
-    public void testValidHeaderConfigs()throws Exception {
-      Properties props = new Properties();
-      props.put(RestConfig.LISTENERS_CONFIG, "http://localhost:8080");
-      props.put(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG,
-              "  set    X-Frame-Options: DENY, \"  add     Cache-Control:   no-cache, no-store, must-revalidate\" ");
-
-      TestApp app = new TestApp(props);
-      CloseableHttpResponse response = null;
-      try {
-        app.start();
-        response = makeGetRequest(app, "/custom/resource1");
-        assertEquals("DENY",
-                getResponseHeader(response, "X-Frame-Options"));
-        assertEquals("no-cache, no-store, must-revalidate",
-                getResponseHeader(response, "Cache-Control"));
-        assertNull(getResponseHeader(response, "X-Custom-Value"));
-      } finally {
-        try {
-          if (response != null) {
-            response.close();
-          }
-        } catch (Exception e) {
-        }
-        app.stop();
-      }
+      app.stop();
     }
   }
 
   private static class TestApp extends Application<TestRestConfig> {
+
     static Properties props = null;
 
     public TestApp() {
@@ -179,7 +167,7 @@ public class TestCustomizedHttpResponseHeaders {
     }
 
     public String getUri() {
-      return (String)props.get(RestConfig.LISTENERS_CONFIG);
+      return (String) props.get(RestConfig.LISTENERS_CONFIG);
     }
 
     private static TestRestConfig createConfig() {
@@ -189,7 +177,8 @@ public class TestCustomizedHttpResponseHeaders {
   }
 
   @SuppressWarnings("SameParameterValue")
-  private static CloseableHttpResponse makeGetRequest(TestApp app, final String path) throws Exception {
+  private static CloseableHttpResponse makeGetRequest(TestApp app, final String path)
+      throws Exception {
     String uri = app.getUri();
     final HttpGet httpget = new HttpGet(uri + path);
     CloseableHttpClient httpClient = HttpClients.createDefault();
@@ -223,7 +212,8 @@ public class TestCustomizedHttpResponseHeaders {
     Header[] headers = response.getAllHeaders();
     if (headers != null && headers.length > 0) {
       Arrays.stream(headers)
-              .forEach(header -> log.debug("header name: {}, header value: {}.", header.getName(), header.getValue()));
+          .forEach(header -> log.debug("header name: {}, header value: {}.", header.getName(),
+              header.getValue()));
     }
 
     headers = response.getHeaders(name);

@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,15 +38,13 @@ import org.asynchttpclient.ws.WebSocket;
 import org.asynchttpclient.ws.WebSocketListener;
 import org.asynchttpclient.ws.WebSocketUpgradeHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -55,7 +54,6 @@ import java.util.Properties;
 
 import javax.security.auth.login.Configuration;
 import javax.ws.rs.GET;
-import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
@@ -70,10 +68,10 @@ import io.confluent.rest.annotations.PerformanceMetric;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 import static javax.ws.rs.core.Response.Status.OK;
 import static javax.ws.rs.core.Response.Status.UNAUTHORIZED;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class SaslTest {
 
@@ -88,21 +86,22 @@ public class SaslTest {
   private SaslTestApplication app;
   private CloseableHttpClient httpclient;
 
-  @Rule
-  public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Before
-  public void setUp() throws Exception {
-    File jaasFile = tmpFolder.newFile("jaas.config");
-    File loginPropertiesFile = tmpFolder.newFile("login.properties");
+  @BeforeEach
+  public void setUp(@TempDir Path tmpFolder) throws Exception {
+    Path jaasFile = tmpFolder.resolve("jaas.config");
+    Path loginPropertiesFile = tmpFolder.resolve("login.properties");
 
     String jaas = "c3 {\n"
                   + "  org.eclipse.jetty.jaas.spi.PropertyFileLoginModule required\n"
                   + "  debug=\"true\"\n"
-                  + "  file=\"" + loginPropertiesFile.getAbsolutePath() + "\";\n"
+                  + "  file=\"" + loginPropertiesFile.toAbsolutePath() + "\";\n"
                   + "};\n";
+
+    Files.write(jaasFile, Collections.EMPTY_LIST);
+    Files.write(loginPropertiesFile, Collections.EMPTY_LIST);
     Files.write(
-        jaasFile.toPath(),
+        jaasFile,
         jaas.getBytes(StandardCharsets.UTF_8),
         StandardOpenOption.TRUNCATE_EXISTING
     );
@@ -111,13 +110,13 @@ public class SaslTest {
                              + "neha: akfak,Administrators\n"
                              + "jun: kafka-\n";
     Files.write(
-        loginPropertiesFile.toPath(),
+        loginPropertiesFile,
         loginProperties.getBytes(StandardCharsets.UTF_8),
         StandardOpenOption.TRUNCATE_EXISTING
     );
     previousAuthConfig = System.getProperty("java.security.auth.login.config");
     Configuration.setConfiguration(null);
-    System.setProperty("java.security.auth.login.config", jaasFile.getAbsolutePath());
+    System.setProperty("java.security.auth.login.config", jaasFile.toAbsolutePath().toString());
     httpclient = HttpClients.createDefault();
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -129,7 +128,7 @@ public class SaslTest {
     app.start();
   }
 
-  @After
+  @AfterEach
   public void cleanup() throws Exception {
     assertMetricsCollected();
 
@@ -217,20 +216,20 @@ public class SaslTest {
 
   private void assertMetricsCollected() {
     assertNotEquals(
-        "Expected to have metrics.",
         0,
-        TestMetricsReporter.getMetricTimeseries().size());
+        TestMetricsReporter.getMetricTimeseries().size(),
+        "Expected to have metrics.");
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-latency-max")) {
         Object metricValue = metric.metricValue();
         assertTrue(
-            "Request latency metrics should be measurable",
-            metricValue instanceof Double);
+            metricValue instanceof Double,
+            "Request latency metrics should be measurable");
         double latencyMaxValue = (double) metricValue;
         assertNotEquals(
-            "Metrics should be collected (max latency shouldn't be 0)",
             0.0,
-            metricValue);
+            metricValue,
+            "Metrics should be collected (max latency shouldn't be 0)");
       }
     }
   }
@@ -297,7 +296,7 @@ public class SaslTest {
 
   private static int extractStatusCode(final String message) {
     final Matcher matcher = WS_ERROR_PATTERN.matcher(message);
-    assertTrue("Test invalid", matcher.matches());
+    assertTrue(matcher.matches(), "Test invalid");
     return Integer.parseInt(matcher.group(1));
   }
 
@@ -330,18 +329,18 @@ public class SaslTest {
     }
   }
 
-  @Path("/")
+  @javax.ws.rs.Path("/")
   @Produces(MediaType.TEXT_PLAIN)
   public static class SaslTestResource {
     @GET
-    @Path("/principal")
+    @javax.ws.rs.Path("/principal")
     @PerformanceMetric("principal")
     public String principal(@Context SecurityContext context) {
       return context.getUserPrincipal().getName();
     }
 
     @GET
-    @Path("/role/{role}")
+    @javax.ws.rs.Path("/role/{role}")
     @PerformanceMetric("role")
     public boolean hello(
         @PathParam("role") String role,
