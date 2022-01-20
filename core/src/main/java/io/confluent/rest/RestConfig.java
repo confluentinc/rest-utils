@@ -345,6 +345,12 @@ public class RestConfig extends AbstractConfig {
   public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
   protected static final String CSRF_PREVENTION_ENABLED_DOC = "Enable token based CSRF prevention";
 
+  public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
+  public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
+  protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
+          "Enable response to request be blocked due to nosniff. The header allows you to avoid "
+          + "MIME type sniffing by saying that the MIME types are deliberately configured.";
+
   public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT =
       "csrf.prevention.token.endpoint";
   public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT = "/csrf";
@@ -941,6 +947,12 @@ public class RestConfig extends AbstractConfig {
             PROXY_PROTOCOL_ENABLED_DEFAULT,
             Importance.LOW,
             PROXY_PROTOCOL_ENABLED_DOC
+        ).define(
+            NOSNIFF_PROTECTION_ENABLED,
+            Type.BOOLEAN,
+            NOSNIFF_PROTECTION_ENABLED_DEFAULT,
+            Importance.LOW,
+            NOSNIFF_PROTECTION_ENABLED_DOC
         );
   }
 
