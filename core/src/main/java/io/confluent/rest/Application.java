@@ -344,7 +344,12 @@ public abstract class Application<T extends RestConfig> {
           RestConfig.CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES, String.valueOf(csrfTokenExpiration));
       filterHolder.setInitParameter(
           RestConfig.CSRF_PREVENTION_TOKEN_MAX_ENTRIES, String.valueOf(csrfTokenMaxEntries));
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
 
+    if (isNoSniffProtectionEnabled()) {
+      FilterHolder filterHolder = new FilterHolder(new HeaderFilter());
+      filterHolder.setInitParameter("headerConfig", "set X-Content-Type-Options: nosniff");
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
