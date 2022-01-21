@@ -353,12 +353,6 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
-    if (isNoSniffProtectionEnabled()) {
-      FilterHolder filterHolder = new FilterHolder(new HeaderFilter());
-      filterHolder.setInitParameter("headerConfig", "set X-Content-Type-Options: nosniff");
-      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-    }
-
     if (config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG) != null
             && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
       configureHttpResponseHeaderFilter(context);
