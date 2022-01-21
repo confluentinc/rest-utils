@@ -39,6 +39,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.servlets.DoSFilter;
+import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
@@ -278,7 +279,12 @@ public abstract class Application<T extends RestConfig> {
           RestConfig.CSRF_PREVENTION_TOKEN_EXPIRATION_MINUTES, String.valueOf(csrfTokenExpiration));
       filterHolder.setInitParameter(
           RestConfig.CSRF_PREVENTION_TOKEN_MAX_ENTRIES, String.valueOf(csrfTokenMaxEntries));
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
 
+    if (isNoSniffProtectionEnabled()) {
+      FilterHolder filterHolder = new FilterHolder(new HeaderFilter());
+      filterHolder.setInitParameter("headerConfig", "set X-Content-Type-Options: nosniff");
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
@@ -338,6 +344,10 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCsrfProtectionEnabled() {
     return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
+  }
+
+  private boolean isNoSniffProtectionEnabled() {
+    return config.getBoolean(RestConfig.NOSNIFF_PROTECTION_ENABLED);
   }
 
   @SuppressWarnings("unchecked")
