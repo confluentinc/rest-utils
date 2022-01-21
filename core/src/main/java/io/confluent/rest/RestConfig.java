@@ -97,6 +97,12 @@ public class RestConfig extends AbstractConfig {
       + "Leave blank to use Jetty's default.";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
 
+  public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
+  public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
+  protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
+      "Enable response to request be blocked due to nosniff. The header allows you to avoid "
+      + "MIME type sniffing by saying that the MIME types are deliberately configured.";
+
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
@@ -891,6 +897,12 @@ public class RestConfig extends AbstractConfig {
             HTTP2_ENABLED_DEFAULT,
             Importance.LOW,
             HTTP2_ENABLED_DOC
+        ).define(
+            NOSNIFF_PROTECTION_ENABLED,
+            Type.BOOLEAN,
+            NOSNIFF_PROTECTION_ENABLED_DEFAULT,
+            Importance.LOW,
+            NOSNIFF_PROTECTION_ENABLED_DOC
         );
   }
 
