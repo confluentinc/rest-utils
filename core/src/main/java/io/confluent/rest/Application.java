@@ -330,6 +330,12 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
+    if (isNoSniffProtectionEnabled()) {
+      FilterHolder filterHolder = new FilterHolder(new HeaderFilter());
+      filterHolder.setInitParameter("headerConfig", "set X-Content-Type-Options: nosniff");
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
+
     if (isCsrfProtectionEnabled()) {
       String csrfEndpoint = config.getString(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT);
       int csrfTokenExpiration =
@@ -411,6 +417,10 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCorsEnabled() {
     return AuthUtil.isCorsEnabled(config);
+  }
+
+  private boolean isNoSniffProtectionEnabled() {
+    return config.getBoolean(RestConfig.NOSNIFF_PROTECTION_ENABLED);
   }
 
   private boolean isCsrfProtectionEnabled() {
