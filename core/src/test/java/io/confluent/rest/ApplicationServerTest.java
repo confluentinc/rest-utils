@@ -41,7 +41,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class ApplicationServerTest {
@@ -238,6 +237,22 @@ public class ApplicationServerTest {
 
     assertNull(namedListeners.get(1).getName());
     assertEquals(new URI("https://0.0.0.0:443"), namedListeners.get(1).getUri());
+  }
+
+  @Test
+  public void testInvalidThreadPoolConfigQueueCapacityValid() throws Exception {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG, "1");
+    props.put(RestConfig.REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG, "9");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+
+    server.stop();
+
+    ApplicationServer applicationServer = new ApplicationServer(config);
+    applicationServer.start();
+    assertEquals( 1024*9, applicationServer.getQueueCapacity());
+    applicationServer.stop();
+
   }
 
   // There is additional testing of parseListeners in ApplictionTest
