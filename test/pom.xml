@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>rest-utils-parent</artifactId>
-        <version>7.2.0-744</version>
+        <version>7.2.0-cc-docker-ksql.63-744-rc1</version>
     </parent>
 
     <artifactId>rest-utils-test</artifactId>
