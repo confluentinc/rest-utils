@@ -71,7 +71,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final List<Application<?>> applications;
   private final SslContextFactory sslContextFactory;
 
-  private static int threadPoolRequestQueueCapacity;
+  private static volatile  int threadPoolRequestQueueCapacity;
 
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
 
@@ -606,9 +606,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             initialCapacity, growBy, maxCapacity);
 
     if (initialCapacity > maxCapacity) {
-      threadPoolRequestQueueCapacity = Math.max(initialCapacity, 8) * 1024;
+      threadPoolRequestQueueCapacity = initialCapacity;
       log.warn("request.queue.capacity is less than request.queue.capacity.init, invalid config. "
-          + "Setting request.queue.capacity to at least 1024 * request.queue.capacity.init.");
+          + "Setting request.queue.capacity to request.queue.capacity.init.");
     } else {
       threadPoolRequestQueueCapacity = maxCapacity;
     }
