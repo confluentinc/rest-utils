@@ -71,7 +71,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final List<Application<?>> applications;
   private final SslContextFactory sslContextFactory;
 
-  private static volatile  int threadPoolRequestQueueCapacity;
+  private static volatile int threadPoolRequestQueueCapacity;
 
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
 

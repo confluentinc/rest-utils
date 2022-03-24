@@ -250,7 +250,7 @@ public class ApplicationServerTest {
 
     ApplicationServer applicationServer = new ApplicationServer(config);
     applicationServer.start();
-    assertEquals( 9, applicationServer.getQueueCapacity());
+    assertEquals(9, applicationServer.getQueueCapacity());
     applicationServer.stop();
 
   }
