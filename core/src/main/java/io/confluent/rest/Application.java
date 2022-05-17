@@ -19,6 +19,7 @@ package io.confluent.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import io.confluent.rest.exceptions.SuppressedJsonParseExceptionMapper;
 import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.jaas.JAASLoginService;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -497,7 +498,7 @@ public abstract class Application<T extends RestConfig> {
   public void configureBaseApplication(Configurable<?> config, Map<String, String> metricTags) {
     T restConfig = getConfiguration();
 
-    registerJsonProvider(config, restConfig, true);
+    registerJsonProvider(config, restConfig, restConfig.getBoolean(RestConfig.DEBUG_CONFIG));
     registerFeatures(config, restConfig);
     registerExceptionMappers(config, restConfig);
 
@@ -526,6 +527,8 @@ public abstract class Application<T extends RestConfig> {
     config.register(jsonProvider);
     if (registerExceptionMapper) {
       config.register(JsonParseExceptionMapper.class);
+    } else {
+      config.register(SuppressedJsonParseExceptionMapper.class);
     }
   }
 
