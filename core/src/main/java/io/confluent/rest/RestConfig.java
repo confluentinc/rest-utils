@@ -440,6 +440,26 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
 
+  private static final String SERVER_CONNECTION_LIMIT = "server.connection.limit";
+  private static final String SERVER_CONNECTION_LIMIT_DOC =
+      "Limits the number of active connections on that server to the configured number. Once that "
+          + "limit is reached further connections will not be accepted until the number of active "
+          + "connections goes below that limit again. Active connections here means all already "
+          + "opened connections plus all connections that are in the process of being accepted. "
+          + "If the limit is set to a non-positive number, no limit is applied. Default is 0.";
+  private static final int SERVER_CONNECTION_LIMIT_DEFAULT = 0;
+
+  // For rest-utils applications connectors correspond to configured listeners. See
+  // ApplicationServer#parseListeners for more details.
+  private static final String CONNECTOR_CONNECTION_LIMIT = "connector.connection.limit";
+  private static final String CONNECTOR_CONNECTION_LIMIT_DOC =
+      "Limits the number of active connections per connector to the configured number. Once that "
+          + "limit is reached further connections will not be accepted until the number of active "
+          + "connections goes below that limit again. Active connections here means all already "
+          + "opened connections plus all connections that are in the process of being accepted. "
+          + "If the limit is set to a non-positive number, no limit is applied. Default is 0.";
+  private static final int CONNECTOR_CONNECTION_LIMIT_DEFAULT = 0;
+
   public static final String HTTP2_ENABLED_CONFIG = "http2.enabled";
   protected static final String HTTP2_ENABLED_DOC =
       "If true, enable HTTP/2 connections. Connections will default to HTTP/2 not HTTP/1.1 "
@@ -919,6 +939,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MANAGED_ATTR_DOC
         ).define(
+            SERVER_CONNECTION_LIMIT,
+            Type.INT,
+            SERVER_CONNECTION_LIMIT_DEFAULT,
+            Importance.LOW,
+            SERVER_CONNECTION_LIMIT_DOC
+        ).define(
+            CONNECTOR_CONNECTION_LIMIT,
+            Type.INT,
+            CONNECTOR_CONNECTION_LIMIT_DEFAULT,
+            Importance.LOW,
+            CONNECTOR_CONNECTION_LIMIT_DOC
+        ).define(
             HTTP2_ENABLED_CONFIG,
             Type.BOOLEAN,
             HTTP2_ENABLED_DEFAULT,
@@ -1062,6 +1094,14 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final int getServerConnectionLimit() {
+    return getInt(SERVER_CONNECTION_LIMIT);
+  }
+
+  public final int getConnectorConnectionLimit() {
+    return getInt(CONNECTOR_CONNECTION_LIMIT);
   }
 
   public final Map<String, String> getMap(String propertyName) {
