@@ -71,19 +71,21 @@ public class ConnectionLimitTest {
       // The next request should time out as the connection limit should prevent establishing a new
       // connection.
       executor.submit(() ->
-          sendCloseableRequest(server.getURI(), activeClients)).get(1, TimeUnit.SECONDS);
+          sendCloseableRequest(server.getURI(), activeClients)).get(2, TimeUnit.SECONDS);
       fail();
     } catch (Exception e) {
       assertTrue(e instanceof TimeoutException);
     }
 
-    // Make space for a new connection by closing one of the active ones.
-    activeClients.remove().close();
+    // Make space for a new connection by closing the currently active ones.
+    for (CloseableHttpClient client : activeClients) {
+      client.close();
+    }
 
     // The next request should succeed now.
     Future<CloseableHttpResponse> future =
         executor.submit(() -> sendCloseableRequest(server.getURI(), activeClients));
-    CloseableHttpResponse response = future.get(1, TimeUnit.SECONDS);
+    CloseableHttpResponse response = future.get(2, TimeUnit.SECONDS);
     assertEquals(Status.OK.getStatusCode(), response.getStatusLine().getStatusCode());
 
     // Clean up.
