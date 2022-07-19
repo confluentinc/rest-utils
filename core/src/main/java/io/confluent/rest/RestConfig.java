@@ -228,7 +228,7 @@ public class RestConfig extends AbstractConfig {
   @Deprecated
   public static final String SSL_CLIENT_AUTH_CONFIG = "ssl.client.auth";
   protected static final String SSL_CLIENT_AUTH_DOC =
-      "Whether or not to require the https client to authenticate via the server's trust store. " 
+      "Whether or not to require the https client to authenticate via the server's trust store. "
           + "Deprecated; please use " + SSL_CLIENT_AUTHENTICATION_CONFIG + " instead.";
   protected static final boolean SSL_CLIENT_AUTH_DEFAULT = false;
   public static final String SSL_ENABLED_PROTOCOLS_CONFIG = "ssl.enabled.protocols";
@@ -480,6 +480,15 @@ public class RestConfig extends AbstractConfig {
           + "https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt for more information. "
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
+
+  public static final String ERROR_HANDLING_ENABLED_CONFIG = "error.handling.enabled";
+
+  protected static final String ERROR_HANDLING_ENABLED_DOC =
+      "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
+          + "Exceptions usually display stack trace to the client and the error handler will "
+          + "disable the stack trace to the client.";
+
+  protected static final boolean ERROR_HANDLING_ENABLED_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -974,6 +983,12 @@ public class RestConfig extends AbstractConfig {
             NOSNIFF_PROTECTION_ENABLED_DEFAULT,
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
+        ).define(
+            ERROR_HANDLING_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            ERROR_HANDLING_ENABLED_DEFAULT,
+            Importance.LOW,
+            ERROR_HANDLING_ENABLED_DOC
         );
   }
 

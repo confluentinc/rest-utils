@@ -27,7 +27,7 @@ public class NoJettyDefaultStackTraceErrorHandler extends ErrorHandler {
         retrieveErrorMessage(code, message));
   }
 
-  private String retrieveErrorMessage(int code, String message) {
+  protected String retrieveErrorMessage(int code, String message) {
     switch (code) {
       case HttpStatus.INTERNAL_SERVER_ERROR_500:
         return HttpStatus.getMessage(code);

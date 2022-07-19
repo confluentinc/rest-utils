@@ -46,6 +46,7 @@ public class CsrfHandlingTest {
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty(RestConfig.CSRF_PREVENTION_ENABLED, "true");
+    props.setProperty(RestConfig.ERROR_HANDLING_ENABLED_CONFIG, "false"); // tests currently look at stack trace for validation
 
     config = new TestRestConfig(props);
     app = new CsrfApplication(config);
