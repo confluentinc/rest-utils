@@ -481,14 +481,13 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
 
-  public static final String ERROR_HANDLING_ENABLED_CONFIG = "error.handling.enabled";
+  public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
 
-  protected static final String ERROR_HANDLING_ENABLED_DOC =
+  protected static final String SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC =
       "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
-          + "Exceptions usually display stack trace to the client and the error handler will "
-          + "disable the stack trace to the client.";
+          + "This ensures that no stack traces are included in responses to clients.";
 
-  protected static final boolean ERROR_HANDLING_ENABLED_DEFAULT = true;
+  protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -984,11 +983,11 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
         ).define(
-            ERROR_HANDLING_ENABLED_CONFIG,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE,
             Type.BOOLEAN,
-            ERROR_HANDLING_ENABLED_DEFAULT,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
             Importance.LOW,
-            ERROR_HANDLING_ENABLED_DOC
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC
         );
   }
 

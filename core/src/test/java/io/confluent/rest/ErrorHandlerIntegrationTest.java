@@ -41,7 +41,7 @@ public class ErrorHandlerIntegrationTest {
       throws Exception {
 
     Properties props = new Properties();
-    props.setProperty(RestConfig.ERROR_HANDLING_ENABLED_CONFIG, "false");
+    props.setProperty(RestConfig.SUPPRESS_STACK_TRACE_IN_RESPONSE, "false");
     TestRestConfig config = new TestRestConfig(props);
 
     TestApplication application = new TestApplication(config);

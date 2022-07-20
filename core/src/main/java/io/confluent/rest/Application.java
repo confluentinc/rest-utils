@@ -433,7 +433,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private boolean isErrorHandlingEnabled() {
-    return config.getBoolean(RestConfig.ERROR_HANDLING_ENABLED_CONFIG);
+    return config.getBoolean(RestConfig.SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
   @SuppressWarnings("unchecked")
