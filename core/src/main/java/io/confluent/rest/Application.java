@@ -308,7 +308,7 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    if (isErrorHandlingEnabled()) {
+    if (isErrorStackTraceSuppressionEnabled()) {
       context.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
     }
 
@@ -432,7 +432,7 @@ public abstract class Application<T extends RestConfig> {
     return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
   }
 
-  private boolean isErrorHandlingEnabled() {
+  private boolean isErrorStackTraceSuppressionEnabled() {
     return config.getBoolean(RestConfig.SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
