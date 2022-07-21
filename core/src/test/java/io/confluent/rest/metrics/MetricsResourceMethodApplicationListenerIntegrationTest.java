@@ -1,16 +1,15 @@
 package io.confluent.rest.metrics;
 
 import io.confluent.rest.*;
-import java.util.List;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -29,7 +28,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
@@ -38,7 +37,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   private Server server;
   volatile Throwable handledException = null;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -50,7 +49,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     server.start();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
     server.join();
@@ -108,9 +107,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         metricsCheckpointWindow++;
         Object metricValue = metric.metricValue();
-        assertTrue("Metrics should be measurable", metricValue instanceof Double);
+        assertTrue(metricValue instanceof Double, "Metrics should be measurable");
         double countValue = (double) metricValue;
-        assertTrue("Actual: " + countValue, countValue == 2.0);
+        assertTrue(countValue == 2.0, "Actual: " + countValue);
       }
     }
     assertEquals(1, metricsCheckpointWindow); //A single metric for the windowed count
@@ -143,15 +142,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       if (metric.metricName().name().equals("request-error-rate")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
-        assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
         double errorRateValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           rateCheckpoint4xx++;
-          assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
+          assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
         } else if (!metric.metricName().tags().isEmpty()) {
           rateCheckpointNot4xx++;
-          assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
-              errorRateValue == 0.0 || Double.isNaN(errorRateValue));
+          assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
+              String.format("Actual: %f (%s)", errorRateValue, metric.metricName()));
         } else {
           anyErrorRateCheckpoint++;
           //average rate is not consistently above 0 here, so not validating
@@ -160,18 +159,19 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       if (metric.metricName().name().equals("request-error-count")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
-        assertTrue("Error count metrics should be measurable", metricValue instanceof Double);
+        assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
         double errorCountValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           windowCheckpoint4xx++;
-          assertTrue("Actual: " + errorCountValue, errorCountValue == 2.0);
+          assertTrue(errorCountValue == 2.0, "Actual: " + errorCountValue);
         } else if (!metric.metricName().tags().isEmpty()) {
           windowCheckpointNot4xx++;
-          assertTrue(String.format("Actual: %f (%s)", errorCountValue, metric.metricName()),
-              errorCountValue == 0.0 || Double.isNaN(errorCountValue));
+          assertTrue(
+              errorCountValue == 0.0 || Double.isNaN(errorCountValue),
+              String.format("Actual: %f (%s)", errorCountValue, metric.metricName()));
         } else {
           anyErrorWindowCheckpoint++;
-          assertTrue("Count for all errors actual: " + errorCountValue, errorCountValue == 2.0);
+          assertTrue(errorCountValue == 2.0, "Count for all errors actual: " + errorCountValue);
         }
       }
     }
@@ -197,13 +197,13 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
         Object metricValue = metric.metricValue();
-        assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
         double errorRateValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("5xx")) {
-          assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
+          assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
         } else if (!metric.metricName().tags().isEmpty()) {
-          assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
-              errorRateValue == 0.0 || Double.isNaN(errorRateValue));
+          assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
+              String.format("Actual: %f (%s)", errorRateValue, metric.metricName()));
         }
       }
     }

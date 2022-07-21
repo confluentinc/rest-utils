@@ -29,9 +29,9 @@ import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.GET;
@@ -60,7 +60,7 @@ public class ProxyProtocolTest {
 
   public static final String SSL_PASSWORD = "test1234";
 
-  @Before
+  @BeforeEach
   public void setup() throws Exception {
     props = new Properties();
     props.setProperty(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG, "true");
@@ -86,7 +86,7 @@ public class ProxyProtocolTest {
     props.put(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG, SSL_PASSWORD);
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
   }

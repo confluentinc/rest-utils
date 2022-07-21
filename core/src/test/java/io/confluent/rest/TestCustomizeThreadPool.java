@@ -24,8 +24,8 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.test.TestUtils;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Optional;
@@ -45,8 +45,9 @@ import org.slf4j.LoggerFactory;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestCustomizeThreadPool {
 
@@ -69,11 +70,11 @@ public class TestCustomizeThreadPool {
     } catch (Exception e) {
     } finally {
       log.info("Current running thread {}, maximum thread {}.", app.getServer().getThreads(), app.getServer().getMaxThreads());
-      assertTrue("Total number of running threads is less than maximum number of threads " + app.getServer().getMaxThreads(),
-              app.getServer().getThreads() - app.getServer().getMaxThreads() < 0);
+      assertTrue(app.getServer().getThreads() - app.getServer().getMaxThreads() < 0,
+          "Total number of running threads is less than maximum number of threads " + app.getServer().getMaxThreads());
       log.info("Total jobs in queue {}, capacity of queue {}.", app.getServer().getQueueSize(), app.getServer().getQueueCapacity());
-      assertTrue("Total number of jobs in queue is less than capacity of queue " + app.getServer().getQueueCapacity(),
-              app.getServer().getQueueSize() - app.getServer().getQueueCapacity() < 0);
+      assertTrue(app.getServer().getQueueSize() - app.getServer().getQueueCapacity() < 0,
+          "Total number of jobs in queue is less than capacity of queue " + app.getServer().getQueueCapacity());
       app.stop();
     }
   }
@@ -98,8 +99,8 @@ public class TestCustomizeThreadPool {
     } catch (Exception e) {
     } finally {
       log.info("Current running thread {}, maximum thread {}.", app.getServer().getThreads(), app.getServer().getMaxThreads());
-      assertEquals("Total number of running threads reach maximum number of threads.", app.getServer().getMaxThreads(),
-              app.getServer().getThreads());
+      assertEquals(app.getServer().getMaxThreads(), app.getServer().getThreads(),
+          "Total number of running threads reach maximum number of threads.");
       app.stop();
     }
   }
@@ -108,7 +109,6 @@ public class TestCustomizeThreadPool {
    * Simulate the case that the queue of thread pool is full. Http server will reject request if the queue is full and
    * throw RejectedExecutionException.
    **/
-  @Test(expected = RejectedExecutionException.class)
   public void testQueueFull() throws Exception {
     int numOfClients = 1;
     Properties props = new Properties();
@@ -122,14 +122,16 @@ public class TestCustomizeThreadPool {
     String uri = app.getUri();
     try {
       app.start();
-      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients, app);
+      assertThrows(RejectedExecutionException.class,
+          () ->
+      makeConcurrentGetRequests(uri + "/custom/resource", numOfClients, app));
     } finally {
       app.stop();
     }
   }
 
   @Test
-  @Ignore
+  @Disabled
   public void testJettyThreadPoolMetrics() throws Exception {
     RestResource.latch = new CountDownLatch(1);
     TestCustomizeThreadPoolApplication app = new TestCustomizeThreadPoolApplication();
@@ -188,7 +190,8 @@ public class TestCustomizeThreadPool {
     long startingTime = System.currentTimeMillis();
     while(System.currentTimeMillis() - startingTime < 360*1000) {
       log.info("Queue size {}, queue capacity {} ", app.getServer().getQueueSize(), app.getServer().getQueueCapacity());
-      assertTrue("Number of jobs in queue is not more than capacity of queue ", app.getServer().getQueueSize() <= app.getServer().getQueueCapacity());
+      assertTrue(app.getServer().getQueueSize() <= app.getServer().getQueueCapacity(),
+          "Number of jobs in queue is not more than capacity of queue ");
       Thread.sleep(2000);
       if (app.getServer().getQueueSize() == 0)
         break;
