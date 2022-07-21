@@ -228,7 +228,7 @@ public class RestConfig extends AbstractConfig {
   @Deprecated
   public static final String SSL_CLIENT_AUTH_CONFIG = "ssl.client.auth";
   protected static final String SSL_CLIENT_AUTH_DOC =
-      "Whether or not to require the https client to authenticate via the server's trust store. " 
+      "Whether or not to require the https client to authenticate via the server's trust store. "
           + "Deprecated; please use " + SSL_CLIENT_AUTHENTICATION_CONFIG + " instead.";
   protected static final boolean SSL_CLIENT_AUTH_DEFAULT = false;
   public static final String SSL_ENABLED_PROTOCOLS_CONFIG = "ssl.enabled.protocols";
@@ -480,6 +480,14 @@ public class RestConfig extends AbstractConfig {
           + "https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt for more information. "
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
+
+  public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
+
+  protected static final String SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC =
+      "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
+          + "This ensures that no stack traces are included in responses to clients.";
+
+  protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -974,6 +982,12 @@ public class RestConfig extends AbstractConfig {
             NOSNIFF_PROTECTION_ENABLED_DEFAULT,
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
+        ).define(
+            SUPPRESS_STACK_TRACE_IN_RESPONSE,
+            Type.BOOLEAN,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
+            Importance.LOW,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC
         );
   }
 
