@@ -71,6 +71,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       "unknown", "1xx", "2xx", "3xx", "4xx", "5xx"};
   private static final int PERCENTILE_NUM_BUCKETS = 200;
   private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
+  private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
@@ -192,7 +193,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       allTags.putAll(requestTags);
 
       this.requestSizeSensor = metrics.sensor(
-          getName(method, annotation, "request-size", requestTags));
+          getName(method, annotation, "request-size", requestTags),
+          null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       MetricName metricName = new MetricName(
           getName(method, annotation, "request-count"), metricGrpName,
           "The request count using a windowed counter", allTags);
@@ -215,7 +217,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.requestSizeSensor.add(metricName, new Max());
 
       this.responseSizeSensor = metrics.sensor(
-          getName(method, annotation, "response-size", requestTags));
+          getName(method, annotation, "response-size", requestTags),
+          null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
           getName(method, annotation, "response-rate"), metricGrpName,
           "The average number of HTTP responses per second.", allTags);
@@ -234,7 +237,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.responseSizeSensor.add(metricName, new Max());
 
       this.requestLatencySensor = metrics.sensor(
-          getName(method, annotation, "request-latency", requestTags));
+          getName(method, annotation, "request-latency", requestTags),
+          null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
           getName(method, annotation, "request-latency-avg"), metricGrpName,
           "The average request latency in ms", allTags);
@@ -258,7 +262,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       for (int i = 0; i < errorSensorByStatus.length; i++) {
         errorSensorByStatus[i] = metrics.sensor(
-            getName(method, annotation, "errors" + i, requestTags));
+            getName(method, annotation, "errors" + i, requestTags),
+            null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
         SortedMap<String, String> tags = new TreeMap<>(allTags);
         tags.put(HTTP_STATUS_CODE_TAG, HTTP_STATUS_CODE_TEXT[i]);
         metricName = new MetricName(getName(method, annotation, "request-error-rate"),
@@ -276,7 +281,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         errorSensorByStatus[i].add(metricName, new WindowedCount());
       }
 
-      this.errorSensor = metrics.sensor(getName(method, annotation, "errors", requestTags));
+      this.errorSensor = metrics.sensor(getName(method, annotation, "errors", requestTags),
+          null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
           getName(method, annotation, "request-error-rate"),
           metricGrpName,
@@ -284,7 +290,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           allTags);
       this.errorSensor.add(metricName, new Rate());
 
-      this.errorSensor = metrics.sensor(getName(method, annotation, "errors-count", requestTags));
+      this.errorSensor = metrics.sensor(getName(method, annotation, "errors-count", requestTags),
+          null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
           getName(method, annotation, "request-error-count"),
           metricGrpName,
