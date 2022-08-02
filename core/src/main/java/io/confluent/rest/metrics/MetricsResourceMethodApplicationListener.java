@@ -289,9 +289,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "The average number of requests per second that resulted in HTTP error responses",
           allTags);
       this.errorSensor.add(metricName, new Rate());
-
-      this.errorSensor = metrics.sensor(getName(method, annotation, "errors-count", requestTags),
-          null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
           getName(method, annotation, "request-error-count"),
           metricGrpName,
