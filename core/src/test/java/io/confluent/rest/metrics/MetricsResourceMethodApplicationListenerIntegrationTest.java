@@ -108,12 +108,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       switch (metric.metricName().name()) {
         case "request-count": // global metrics
-        case "request-cumulative-count": // global metrics
+        case "request-total": // global metrics
           assertMetric(metric, totalRequests);
           totalRequestsCheckpoint++;
           break;
         case "hello.request-count": // method metrics
-        case "hello.request-cumulative-count": // method metrics
+        case "hello.request-total": // method metrics
           if (metric.metricName().tags().containsValue("value1")) {
             assertMetric(metric, (totalRequests + 1) / 3);
             helloTag1RequestsCheckpoint++;
