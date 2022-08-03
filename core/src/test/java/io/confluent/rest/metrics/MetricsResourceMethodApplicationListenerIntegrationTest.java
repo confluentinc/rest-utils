@@ -108,10 +108,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       switch (metric.metricName().name()) {
         case "request-count": // global metrics
+        case "request-cumulative-count": // global metrics
           assertMetric(metric, totalRequests);
           totalRequestsCheckpoint++;
           break;
         case "hello.request-count": // method metrics
+        case "hello.request-cumulative-count": // method metrics
           if (metric.metricName().tags().containsValue("value1")) {
             assertMetric(metric, (totalRequests + 1) / 3);
             helloTag1RequestsCheckpoint++;
@@ -125,10 +127,10 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           break;
       }
     }
-    assertEquals(1, totalRequestsCheckpoint);
-    assertEquals(1, helloTag1RequestsCheckpoint);
-    assertEquals(1, helloTag2RequestsCheckpoint);
-    assertEquals(1, helloRequestsCheckpoint);
+    assertEquals(2, totalRequestsCheckpoint);
+    assertEquals(2, helloTag1RequestsCheckpoint);
+    assertEquals(2, helloTag2RequestsCheckpoint);
+    assertEquals(2, helloRequestsCheckpoint);
   }
 
   @Test
@@ -315,7 +317,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   private void assertMetric(KafkaMetric metric, int expectedValue) {
-    assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
     Object metricValue = metric.metricValue();
     assertTrue(metricValue instanceof Double, "Metrics should be measurable");
     double countValue = (double) metricValue;
