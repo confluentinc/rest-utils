@@ -205,7 +205,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "The average number of HTTP requests per second.", allTags);
       this.requestSizeSensor.add(metricName, new Rate(new WindowedCount()));
       metricName = new MetricName(
-          getName(method, annotation, "request-cumulative-count"), metricGrpName,
+          getName(method, annotation, "request-total"), metricGrpName,
           "The request count using a cumulative counter", allTags);
       this.requestSizeSensor.add(metricName, new CumulativeCount());
       metricName = new MetricName(
