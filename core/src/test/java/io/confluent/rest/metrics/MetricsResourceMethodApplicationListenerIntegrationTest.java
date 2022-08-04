@@ -221,6 +221,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       Map<String, String> tags = metric.metricName().tags();
       switch (metric.metricName().name()) {
         case "request-error-count": // global metrics
+        case "request-error-total": // global metrics
           if (is5xxError(tags)) {
             assertMetric(metric, totalRequests);
             totalCheckpoint5xx++;
@@ -233,6 +234,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           }
           break;
         case "caught.request-error-count": // method metrics
+        case "caught.request-error-total": // method metrics
           if (tags.containsValue("value1")) {
             if (is5xxError(tags)) {
               assertMetric(metric, (totalRequests + 1) / 3);
@@ -262,15 +264,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       }
     }
     int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
-    assertEquals(1, totalCheckpoint);
-    assertEquals(1, totalCheckpoint5xx);
-    assertEquals(non5xxCount, totalCheckpointNon5xx);
-    assertEquals(1, caughtCheckpoint5xx);
-    assertEquals(non5xxCount, caughtCheckpointNon5xx);
-    assertEquals(1, caughtTag1Checkpoint5xx);
-    assertEquals(non5xxCount, caughtTag1CheckpointNon5xx);
-    assertEquals(1, caughtTag2Checkpoint5xx);
-    assertEquals(non5xxCount, caughtTag2CheckpointNon5xx);
+    assertEquals(2, totalCheckpoint);
+    assertEquals(2, totalCheckpoint5xx);
+    assertEquals(non5xxCount * 2, totalCheckpointNon5xx);
+    assertEquals(2, caughtCheckpoint5xx);
+    assertEquals(non5xxCount * 2, caughtCheckpointNon5xx);
+    assertEquals(2, caughtTag1Checkpoint5xx);
+    assertEquals(non5xxCount * 2, caughtTag1CheckpointNon5xx);
+    assertEquals(2, caughtTag2Checkpoint5xx);
+    assertEquals(non5xxCount * 2, caughtTag2CheckpointNon5xx);
   }
 
   @Test
