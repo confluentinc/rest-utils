@@ -284,6 +284,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
             "A windowed count of requests that resulted in an HTTP error response with code - "
                 + HTTP_STATUS_CODE_TEXT[i], tags);
         errorSensorByStatus[i].add(metricName, new WindowedCount());
+
+        metricName = new MetricName(getName(method, annotation, "request-error-total"),
+            metricGrpName,
+            "A cumulative count of requests that resulted in an HTTP error response with code - "
+                + HTTP_STATUS_CODE_TEXT[i], tags);
+        errorSensorByStatus[i].add(metricName, new CumulativeCount());
       }
 
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors", requestTags),
@@ -300,6 +306,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "A windowed count of requests that resulted in HTTP error responses",
           allTags);
       this.errorSensor.add(metricName, new WindowedCount());
+      metricName = new MetricName(
+          getName(method, annotation, "request-error-total"),
+          metricGrpName,
+          "A cumulative count of requests that resulted in HTTP error responses",
+          allTags);
+      this.errorSensor.add(metricName, new CumulativeCount());
     }
 
     /**
