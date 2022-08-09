@@ -526,6 +526,7 @@ public abstract class Application<T extends RestConfig> {
     config.register(jsonProvider);
     if (registerExceptionMapper) {
       config.register(JsonParseExceptionMapper.class);
+      config.register(JsonMappingExceptionMapper.class);
     }
   }
 
