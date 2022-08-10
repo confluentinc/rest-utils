@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 - 2022 Confluent Inc.
+ * Copyright 2022 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package io.confluent.rest.exceptions;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.core.JsonParseException;
 import io.confluent.rest.entities.ErrorMessage;
 
 import javax.annotation.Priority;
@@ -26,25 +26,16 @@ import javax.ws.rs.ext.Provider;
 
 @Provider
 @Priority(1)
-public class JsonMappingExceptionMapper implements ExceptionMapper<JsonMappingException> {
+public class JsonParseExceptionMapper implements ExceptionMapper<JsonParseException> {
 
   public static final int BAD_REQUEST_CODE = 400;
-  // For the exception message, it contains information like `(for Object starting at
-  // [Source: (org.glassfish.jersey.message.internal.ReaderInterceptorExecutor
-  // $UnCloseableInputStream);
-  // line: 1, column: 129])`, but we don't want to expose all these information to user,
-  // so we need to use this splitter to hide source part of the information.
-  public static final String MESSAGE_SOURCE_SPLITTER = "\\(for Object starting at";
 
   @Override
-  public Response toResponse(JsonMappingException exception) {
-    String originalMessage = exception.getOriginalMessage();
-    String messageWithoutSource = originalMessage == null ? null :
-            originalMessage.split(MESSAGE_SOURCE_SPLITTER)[0].trim();
+  public Response toResponse(JsonParseException exception) {
 
     ErrorMessage message = new ErrorMessage(
         BAD_REQUEST_CODE,
-            messageWithoutSource
+            exception.getOriginalMessage()
     );
 
     return Response.status(BAD_REQUEST_CODE)
