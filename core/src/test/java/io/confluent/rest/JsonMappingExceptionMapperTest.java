@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Confluent Inc.
+ * Copyright 2021 - 2022 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 package io.confluent.rest;
 
+import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 
+import javax.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import javax.ws.rs.core.Response;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -53,6 +53,18 @@ public class JsonMappingExceptionMapperTest {
     } catch (Exception e) {
       fail("A JsonMappingException is expected.");
     }
+  }
+
+  @Test
+  public void testJsonMappingExceptionRemoveDetailsFromMessage() {
+      JsonMappingException jsonMappingException = new JsonMappingException("Json mapping error (for Object starting at:", JsonLocation.NA);
+      jsonMappingException.prependPath(new JsonMappingException.Reference("path"), 0);
+
+      Response response = mapper.toResponse(jsonMappingException);
+      assertEquals(400, response.getStatus());
+      ErrorMessage out = (ErrorMessage)response.getEntity();
+      assertEquals(400, out.getErrorCode());
+      assertEquals("Json mapping error", out.getMessage());
   }
 
   class User {
