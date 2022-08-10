@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Confluent Inc.
+ * Copyright 2014 - 2022 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package io.confluent.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
@@ -83,6 +82,7 @@ import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
+import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -620,6 +620,7 @@ public abstract class Application<T extends RestConfig> {
     config.register(jsonProvider);
     if (registerExceptionMapper) {
       config.register(JsonParseExceptionMapper.class);
+      config.register(JsonMappingExceptionMapper.class);
     }
   }
 
@@ -640,6 +641,7 @@ public abstract class Application<T extends RestConfig> {
   protected void registerExceptionMappers(Configurable<?> config, T restConfig) {
     config.register(ConstraintViolationExceptionMapper.class);
     config.register(JsonMappingExceptionMapper.class);
+    config.register(JsonParseExceptionMapper.class);
     config.register(new WebApplicationExceptionMapper(restConfig));
     config.register(new GenericExceptionMapper(restConfig));
   }
