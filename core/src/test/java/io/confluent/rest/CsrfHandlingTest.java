@@ -16,10 +16,10 @@
 
 package io.confluent.rest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import java.util.Properties;
@@ -32,9 +32,9 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
 
 import org.eclipse.jetty.server.Server;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class CsrfHandlingTest {
 
@@ -42,7 +42,7 @@ public class CsrfHandlingTest {
   CsrfApplication app;
   private Server server;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.setProperty(RestConfig.CSRF_PREVENTION_ENABLED, "true");
@@ -53,7 +53,7 @@ public class CsrfHandlingTest {
     server.start();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
     server.join();

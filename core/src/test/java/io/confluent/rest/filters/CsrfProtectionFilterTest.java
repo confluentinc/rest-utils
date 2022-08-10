@@ -16,7 +16,7 @@
 
 package io.confluent.rest.filters;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.RestConfig;
@@ -27,14 +27,15 @@ import java.util.Map;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import org.junit.Before;
-import org.junit.Test;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class CsrfProtectionFilterTest {
 
   private CsrfTokenProtectionFilter filter;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     filter = new CsrfTokenProtectionFilter();
   }

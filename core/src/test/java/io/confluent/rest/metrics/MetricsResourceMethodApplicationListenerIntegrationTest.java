@@ -1,19 +1,23 @@
 package io.confluent.rest.metrics;
 
 import io.confluent.rest.*;
-import java.util.List;
+import io.confluent.rest.annotations.PerformanceMetric;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
@@ -24,12 +28,15 @@ import javax.ws.rs.Path;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.Produces;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
-import static org.junit.Assert.*;
+import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TEXT;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
@@ -37,8 +44,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   ApplicationWithFilter app;
   private Server server;
   volatile Throwable handledException = null;
+  private AtomicInteger counter;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -48,9 +56,10 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     app = new ApplicationWithFilter(config);
     server = app.createServer();
     server.start();
+    counter = new AtomicInteger();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
     server.join();
@@ -87,37 +96,45 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @Test
   public void testSuccessMetrics() {
-    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target(server.getURI())
-        .path("/public/hello")
-        .request(MediaType.APPLICATION_JSON_TYPE)
-        .get();
-    assertEquals(200, response.getStatus());
+    int totalRequests = 10;
+    IntStream.range(0, totalRequests).forEach((i) -> makeSuccessfulCall());
 
-    ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target(server.getURI())
-        .path("/public/hello")
-        .request(MediaType.APPLICATION_JSON_TYPE)
-        .get();
-
-    //checkpoint ensures that all the assertions are tested
-    int metricsCheckpointWindow = 0;
+    // checkpoints ensure that all the assertions are tested
+    int totalRequestsCheckpoint = 0;
+    int helloRequestsCheckpoint = 0;
+    int helloTag1RequestsCheckpoint = 0;
+    int helloTag2RequestsCheckpoint = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-count")) {
-        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
-        metricsCheckpointWindow++;
-        Object metricValue = metric.metricValue();
-        assertTrue("Metrics should be measurable", metricValue instanceof Double);
-        double countValue = (double) metricValue;
-        assertTrue("Actual: " + countValue, countValue == 2.0);
+      switch (metric.metricName().name()) {
+        case "request-count": // global metrics
+        case "request-total": // global metrics
+          assertMetric(metric, totalRequests);
+          totalRequestsCheckpoint++;
+          break;
+        case "hello.request-count": // method metrics
+        case "hello.request-total": // method metrics
+          if (metric.metricName().tags().containsValue("value1")) {
+            assertMetric(metric, (totalRequests + 1) / 3);
+            helloTag1RequestsCheckpoint++;
+          } else if (metric.metricName().tags().containsValue("value2")) {
+            assertMetric(metric, totalRequests / 3);
+            helloTag2RequestsCheckpoint++;
+          } else if (metric.metricName().tags().isEmpty()) {
+            assertMetric(metric, (totalRequests + 2) / 3);
+            helloRequestsCheckpoint++;
+          }
+          break;
       }
     }
-    assertEquals(1, metricsCheckpointWindow); //A single metric for the windowed count
+    assertEquals(2, totalRequestsCheckpoint);
+    assertEquals(2, helloTag1RequestsCheckpoint);
+    assertEquals(2, helloTag2RequestsCheckpoint);
+    assertEquals(2, helloRequestsCheckpoint);
   }
 
   @Test
-  public void testExceptionMetrics() {
+  public void test4xxMetrics() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
         .path("/private/fake")
@@ -143,15 +160,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       if (metric.metricName().name().equals("request-error-rate")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
-        assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
         double errorRateValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           rateCheckpoint4xx++;
-          assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
+          assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
         } else if (!metric.metricName().tags().isEmpty()) {
           rateCheckpointNot4xx++;
-          assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
-              errorRateValue == 0.0 || Double.isNaN(errorRateValue));
+          assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
+              String.format("Actual: %f (%s)", errorRateValue, metric.metricName()));
         } else {
           anyErrorRateCheckpoint++;
           //average rate is not consistently above 0 here, so not validating
@@ -160,53 +177,102 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       if (metric.metricName().name().equals("request-error-count")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
-        assertTrue("Error count metrics should be measurable", metricValue instanceof Double);
+        assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
         double errorCountValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           windowCheckpoint4xx++;
-          assertTrue("Actual: " + errorCountValue, errorCountValue == 2.0);
+          assertTrue(errorCountValue == 2.0, "Actual: " + errorCountValue);
         } else if (!metric.metricName().tags().isEmpty()) {
           windowCheckpointNot4xx++;
-          assertTrue(String.format("Actual: %f (%s)", errorCountValue, metric.metricName()),
-              errorCountValue == 0.0 || Double.isNaN(errorCountValue));
+          assertTrue(
+              errorCountValue == 0.0 || Double.isNaN(errorCountValue),
+              String.format("Actual: %f (%s)", errorCountValue, metric.metricName()));
         } else {
           anyErrorWindowCheckpoint++;
-          assertTrue("Count for all errors actual: " + errorCountValue, errorCountValue == 2.0);
+          assertTrue(errorCountValue == 2.0, "Count for all errors actual: " + errorCountValue);
         }
       }
     }
-
+    int non4xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
     assertEquals(1, anyErrorRateCheckpoint); //A Single rate metric for the two errors
     assertEquals(1, anyErrorWindowCheckpoint); //A single windowed metric for the two errors
     assertEquals(1, rateCheckpoint4xx); //Single rate metric for the two 4xx errors
     assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the two 4xx errors
-    assertEquals(5, rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx
-    assertEquals(5, windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
-
+    assertEquals(non4xxCount, rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx
+    assertEquals(non4xxCount, windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
   }
 
   @Test
-  public void testMapped500sAreCounted() {
-    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-        .target(server.getURI())
-        .path("/public/caught")
-        .request(MediaType.APPLICATION_JSON_TYPE)
-        .get();
-    assertEquals(500, response.getStatus());
+  public void testException5xxMetrics() {
+    int totalRequests = 10;
+    IntStream.range(0, totalRequests).forEach((i) -> makeFailedCall());
+
+    int totalCheckpoint = 0;
+    int totalCheckpoint5xx = 0;
+    int totalCheckpointNon5xx = 0;
+    int caughtCheckpoint5xx = 0;
+    int caughtCheckpointNon5xx = 0;
+    int caughtTag1Checkpoint5xx = 0;
+    int caughtTag1CheckpointNon5xx = 0;
+    int caughtTag2Checkpoint5xx = 0;
+    int caughtTag2CheckpointNon5xx = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-error-rate")) {
-        Object metricValue = metric.metricValue();
-        assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
-        double errorRateValue = (double) metricValue;
-        if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("5xx")) {
-          assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
-        } else if (!metric.metricName().tags().isEmpty()) {
-          assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
-              errorRateValue == 0.0 || Double.isNaN(errorRateValue));
-        }
+      Map<String, String> tags = metric.metricName().tags();
+      switch (metric.metricName().name()) {
+        case "request-error-count": // global metrics
+        case "request-error-total": // global metrics
+          if (is5xxError(tags)) {
+            assertMetric(metric, totalRequests);
+            totalCheckpoint5xx++;
+          } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+            assertMetric(metric, 0);
+            totalCheckpointNon5xx++;
+          } else if (tags.isEmpty()) {
+            assertMetric(metric, totalRequests);
+            totalCheckpoint++;
+          }
+          break;
+        case "caught.request-error-count": // method metrics
+        case "caught.request-error-total": // method metrics
+          if (tags.containsValue("value1")) {
+            if (is5xxError(tags)) {
+              assertMetric(metric, (totalRequests + 1) / 3);
+              caughtTag1Checkpoint5xx++;
+            } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+              assertMetric(metric, 0);
+              caughtTag1CheckpointNon5xx++;
+            }
+          } else if (tags.containsValue("value2")) {
+            if (is5xxError(tags)) {
+              assertMetric(metric, totalRequests / 3);
+              caughtTag2Checkpoint5xx++;
+            } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+              assertMetric(metric, 0);
+              caughtTag2CheckpointNon5xx++;
+            }
+          } else {
+            if (is5xxError(tags)) {
+              assertMetric(metric, (totalRequests + 2) / 3);
+              caughtCheckpoint5xx++;
+            } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+              assertMetric(metric, 0);
+              caughtCheckpointNon5xx++;
+            }
+          }
+          break;
       }
     }
+    int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
+    assertEquals(2, totalCheckpoint);
+    assertEquals(2, totalCheckpoint5xx);
+    assertEquals(non5xxCount * 2, totalCheckpointNon5xx);
+    assertEquals(2, caughtCheckpoint5xx);
+    assertEquals(non5xxCount * 2, caughtCheckpointNon5xx);
+    assertEquals(2, caughtTag1Checkpoint5xx);
+    assertEquals(non5xxCount * 2, caughtTag1CheckpointNon5xx);
+    assertEquals(2, caughtTag2Checkpoint5xx);
+    assertEquals(non5xxCount * 2, caughtTag2CheckpointNon5xx);
   }
 
   @Test
@@ -230,6 +296,34 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(reporter.getConfigs().get("prop3"), "override");
   }
 
+  private void makeSuccessfulCall() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+            .target(server.getURI())
+            .path("/public/hello")
+            .request(MediaType.APPLICATION_JSON_TYPE)
+            .get();
+    assertEquals(200, response.getStatus());
+  }
+
+  private void makeFailedCall() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+            .target(server.getURI())
+            .path("/public/caught")
+            .request(MediaType.APPLICATION_JSON_TYPE)
+            .get();
+    assertEquals(500, response.getStatus());
+  }
+
+  private boolean is5xxError(Map<String, String> tags) {
+    return tags.getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("5xx");
+  }
+
+  private void assertMetric(KafkaMetric metric, int expectedValue) {
+    Object metricValue = metric.metricValue();
+    assertTrue(metricValue instanceof Double, "Metrics should be measurable");
+    double countValue = (double) metricValue;
+    assertEquals(expectedValue, countValue, "Actual: " + countValue);
+  }
 
   private class ApplicationWithFilter extends Application<TestRestConfig> {
 
@@ -244,6 +338,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       resourceConfig = config;
       config.register(PrivateResource.class);
       config.register(new PublicResource());
+      config.register(new Filter());
 
       // ensures the dispatch error message gets shown in the response
       // as opposed to a generic error page
@@ -285,15 +380,29 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     @GET
     @Path("/caught")
+    @PerformanceMetric("caught")
     public Void caught() {
       throw new RuntimeException("cyrus");
     }
 
     @GET
     @Path("/hello")
+    @PerformanceMetric("hello")
     public String hello() {
       return "hello";
     }
   }
 
+  public class Filter implements ContainerRequestFilter {
+    private final String[] tags = new String[]{"", "value1", "value2"};
+    @Override
+    public void filter(ContainerRequestContext context) {
+      Map<String, String> maps = new HashMap<>();
+      String value = tags[counter.getAndIncrement() % tags.length];
+      if (value != null && value.length() > 0) {
+        maps.put("tag", value);
+      }
+      context.setProperty(MetricsResourceMethodApplicationListener.REQUEST_TAGS_PROP_KEY, maps);
+    }
+  }
 }

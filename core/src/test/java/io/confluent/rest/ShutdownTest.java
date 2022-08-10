@@ -17,7 +17,7 @@
 package io.confluent.rest;
 
 import org.eclipse.jetty.server.Server;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +33,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Configurable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ShutdownTest {
   private static final Logger log = LoggerFactory.getLogger(ShutdownTest.class);
