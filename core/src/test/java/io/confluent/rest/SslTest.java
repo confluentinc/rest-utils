@@ -55,7 +55,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 
-import io.confluent.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
 import static org.junit.Assert.assertEquals;
@@ -245,10 +245,20 @@ public class SslTest {
   }
 
   private void assertMetricsCollected() {
-    assertNotEquals("Expected to have metrics.", 0, TestMetricsReporter.getMetricTimeseries().size());
+    assertNotEquals(
+        "Expected to have metrics.",
+        0,
+        TestMetricsReporter.getMetricTimeseries().size());
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-latency-max")) {
-        assertTrue("Metrics should be collected (max latency shouldn't be 0)", metric.value() != 0.0);
+        Object metricValue = metric.metricValue();
+        assertTrue(
+            "Request latency metrics should be measurable",
+            metricValue instanceof Double);
+        double latencyMaxValue = (double) metricValue;
+        assertTrue(
+            "Metrics should be collected (max latency shouldn't be 0)",
+            latencyMaxValue != 0.0);
       }
     }
   }
@@ -291,8 +301,8 @@ public class SslTest {
       try {
         makeGetRequest(uri + "/test",
                 untrustedClient.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (SSLException e) { // handle exception from different JDK versions
-        throw new SocketException(e.getMessage());
+      } catch (SSLException she) { // handle a transient failure.
+        throw new SocketException(she.getMessage());
       }
     } finally {
       app.stop();

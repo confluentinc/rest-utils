@@ -41,7 +41,7 @@ final class ApplicationGroup {
 
   void doStop() {
     for (Application<?> application: applications) {
-      application.metrics.close();
+      application.getMetrics().close();
       application.doShutdown();
     }
   }

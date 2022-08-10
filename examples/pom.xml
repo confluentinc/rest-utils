@@ -8,10 +8,9 @@
     <parent>
         <artifactId>rest-utils-parent</artifactId>
         <groupId>io.confluent</groupId>
-        <version>5.5.12-SNAPSHOT</version>
+        <version>6.0.10-SNAPSHOT</version>
     </parent>
 
-    <groupId>io.confluent</groupId>
     <artifactId>rest-utils-examples</artifactId>
     <packaging>jar</packaging>
     <name>rest-utils-example</name>

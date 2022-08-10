@@ -1,6 +1,6 @@
 package io.confluent.rest.metrics;
 
-import io.confluent.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.TestMetricsReporter;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.exceptions.RestNotFoundException;
@@ -33,9 +33,7 @@ import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
@@ -100,16 +98,40 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     for (KafkaMetric metric: TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")) {
+        Object metricValue = metric.metricValue();
+        assertTrue("Error rate metrics should be measurable", metricValue instanceof Double);
+        double errorRateValue = (double) metricValue;
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
-          assertTrue("Actual: " + metric.value(),
-              metric.value() > 0);
+          assertTrue("Actual: " + errorRateValue, errorRateValue > 0);
         } else if (!metric.metricName().tags().isEmpty()) {
-          assertTrue("Actual: " + metric.value() + metric.metricName(),
-              metric.value() == 0.0 || Double.isNaN(metric.value()));
+          assertTrue(String.format("Actual: %f (%s)", errorRateValue, metric.metricName()),
+              errorRateValue == 0.0 || Double.isNaN(errorRateValue));
         }
       }
     }
   }
+
+  @Test
+  public void testMetricReporterConfiguration() {
+    ApplicationWithFilter app;
+    Properties props = new Properties();
+
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop1", "val1");
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop2", "val2");
+    props.put(RestConfig.METRICS_REPORTER_CONFIG_PREFIX + "prop3", "override");
+    props.put("prop3", "original");
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    props.put("not.prefixed.config", "val3");
+
+    app = new ApplicationWithFilter(new TestRestConfig(props));
+    TestMetricsReporter reporter = (TestMetricsReporter) app.getMetrics().reporters().get(0);
+
+    assertTrue(reporter.getConfigs().containsKey("not.prefixed.config"));
+    assertTrue(reporter.getConfigs().containsKey("prop1"));
+    assertTrue(reporter.getConfigs().containsKey("prop2"));
+    assertEquals(reporter.getConfigs().get("prop3"), "override");
+  }
+
 
   private class ApplicationWithFilter extends Application<TestRestConfig> {
 
@@ -143,6 +165,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         }
       });
     }
+
   }
 
   @Produces(MediaType.APPLICATION_JSON)

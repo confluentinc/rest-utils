@@ -19,11 +19,11 @@ package io.confluent.rest;
 import java.net.Socket;
 import java.util.Map;
 
-import io.confluent.common.metrics.MetricName;
-import io.confluent.common.metrics.Metrics;
-import io.confluent.common.metrics.Sensor;
-import io.confluent.common.metrics.stats.Rate;
-import io.confluent.common.metrics.stats.Total;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.Rate;
+import org.apache.kafka.common.metrics.stats.Total;
 import org.eclipse.jetty.io.NetworkTrafficListener;
 
 public class MetricsListener extends NetworkTrafficListener.Adapter {

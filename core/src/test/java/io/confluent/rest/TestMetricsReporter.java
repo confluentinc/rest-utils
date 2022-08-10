@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
-import io.confluent.common.metrics.KafkaMetric;
-import io.confluent.common.metrics.MetricsReporter;
+import org.apache.kafka.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.MetricsReporter;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -27,23 +27,35 @@ public class TestMetricsReporter implements MetricsReporter {
 
   private static List<KafkaMetric> metricTimeseries = new LinkedList<KafkaMetric>();
 
+  private Map<String, ?> configs;
+
   public void metricChange(KafkaMetric metric) {
     metricTimeseries.add(metric);
+  }
+
+  @Override
+  public void metricRemoval(KafkaMetric kafkaMetric) {
+
   }
 
   public static List<KafkaMetric> getMetricTimeseries() {
     return metricTimeseries;
   }
 
-  public static void reset() { metricTimeseries = new LinkedList<KafkaMetric>(); }
+  public static void reset() { metricTimeseries = new LinkedList<>(); }
 
   public static void print() {
     for (KafkaMetric metric : metricTimeseries) {
-      System.out.println("\t" + metric.metricName() + ": " + metric.value());
+      System.out.println("\t" + metric.metricName() + ": " + metric.metricValue());
     }
   }
 
   public void configure(Map<String, ?> configs) {
+    this.configs = configs;
+  }
+
+  public Map<String, ?> getConfigs() {
+    return this.configs;
   }
 
   public void init(List<KafkaMetric> metrics) {

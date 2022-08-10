@@ -64,7 +64,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
-import io.confluent.common.metrics.KafkaMetric;
+import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
@@ -216,10 +216,20 @@ public class SaslTest {
   }
 
   private void assertMetricsCollected() {
-    assertNotEquals("Expected to have metrics.", 0, TestMetricsReporter.getMetricTimeseries().size());
+    assertNotEquals(
+        "Expected to have metrics.",
+        0,
+        TestMetricsReporter.getMetricTimeseries().size());
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-latency-max")) {
-        assertTrue("Metrics should be collected (max latency shouldn't be 0)", metric.value() != 0.0);
+        Object metricValue = metric.metricValue();
+        assertTrue(
+            "Request latency metrics should be measurable",
+            metricValue instanceof Double);
+        double latencyMaxValue = (double) metricValue;
+        assertTrue(
+            "Metrics should be collected (max latency shouldn't be 0)",
+            latencyMaxValue != 0.0);
       }
     }
   }

@@ -95,7 +95,7 @@ public class RequestScopedMetricsIntegrationTest {
     }
 
     public int numMetrics() {
-      return metrics.metrics().size();
+      return getMetrics().metrics().size();
     }
   }
 
