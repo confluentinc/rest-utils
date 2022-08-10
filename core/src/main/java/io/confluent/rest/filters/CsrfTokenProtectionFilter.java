@@ -173,7 +173,9 @@ public class CsrfTokenProtectionFilter implements Filter {
   }
 
   @Override
-  public void destroy() {}
+  public void destroy() {
+
+  }
 
   @VisibleForTesting
   String getCsrfTokenEndpoint() {

@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import io.confluent.rest.exceptions.RestTimeoutException;
 
 import javax.validation.ConstraintViolationException;
 import javax.ws.rs.core.MediaType;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Jackson provider that handles some additional exceptions. This allows additional processing and
@@ -83,6 +85,15 @@ public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
       Throwable cause = e.getCause();
       if (cause instanceof ConstraintViolationException) {
         throw (ConstraintViolationException) cause;
+      }
+      throw e;
+    } catch (IOException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof TimeoutException) {
+        throw new RestTimeoutException("Timeout while reading from inputStream",
+            RestTimeoutException.DEFAULT_ERROR_CODE,
+            RestTimeoutException.DEFAULT_ERROR_CODE,
+            e);
       }
       throw e;
     }

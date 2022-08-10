@@ -21,9 +21,12 @@ import io.confluent.rest.metrics.RestMetricsContext;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -54,10 +57,18 @@ public class RestConfig extends AbstractConfig {
 
   public static final String LISTENERS_CONFIG = "listeners";
   protected static final String LISTENERS_DOC =
-      "List of listeners. http and https are supported. Each listener must include the protocol, "
-      + "hostname, and port. For example: http://myhost:8080, https://0.0.0.0:8081";
-  // TODO: add a default value when `PORT_CONFIG` is deleted.
+      "Comma separated list of listeners in the form NAME://HOST:PORT. For example: "
+      + "\"https://myhost:8080,INTERNAL://0.0.0.0:8081\". If name is not a supported protocol "
+      + "(http or https), this must be specified via the listener.protocol.map property. "
+      + "NAME is case insensitive.";
   protected static final String LISTENERS_DEFAULT = "";
+
+  public static final String LISTENER_PROTOCOL_MAP_CONFIG =
+      "listener.protocol.map";
+  protected static final String LISTENER_PROTOCOL_MAP_DOC =
+      "Map between listener names (case insensitive) and URI scheme (http or https) specified "
+      + "as a comma separated list of NAME:SCHEME. For example: INTERNAL:http,EXTERNAL:https.";
+  protected static final String LISTENER_PROTOCOL_MAP_DEFAULT = "";
 
   public static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG = "response.mediatype.preferred";
   protected static final String RESPONSE_MEDIATYPE_PREFERRED_CONFIG_DOC =
@@ -86,6 +97,12 @@ public class RestConfig extends AbstractConfig {
           "Whether to skip authentication for OPTIONS requests";
   protected static final boolean ACCESS_CONTROL_SKIP_OPTIONS_DEFAULT = true;
 
+  public static final String REJECT_OPTIONS_REQUEST = "reject.options.request";
+  protected static final String REJECT_OPTIONS_REQUEST_DOC =
+      "Whether to reject OPTIONS requests";
+  protected static final boolean REJECT_OPTIONS_REQUEST_DEFAULT = false;
+
+
   public static final String ACCESS_CONTROL_ALLOW_METHODS = "access.control.allow.methods";
   protected static final String ACCESS_CONTROL_ALLOW_METHODS_DOC =
       "Set value to Jetty Access-Control-Allow-Origin header for specified methods";
@@ -96,12 +113,6 @@ public class RestConfig extends AbstractConfig {
       "Set value to Jetty Access-Control-Allow-Origin header for specified headers. "
       + "Leave blank to use Jetty's default.";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
-
-  public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
-  public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
-  protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
-      "Enable response to request be blocked due to nosniff. The header allows you to avoid "
-      + "MIME type sniffing by saying that the MIME types are deliberately configured.";
 
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
@@ -334,6 +345,12 @@ public class RestConfig extends AbstractConfig {
   public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
   protected static final String CSRF_PREVENTION_ENABLED_DOC = "Enable token based CSRF prevention";
 
+  public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
+  public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
+  protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
+          "Enable response to request be blocked due to nosniff. The header allows you to avoid "
+          + "MIME type sniffing by saying that the MIME types are deliberately configured.";
+
   public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT =
       "csrf.prevention.token.endpoint";
   public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT = "/csrf";
@@ -434,6 +451,20 @@ public class RestConfig extends AbstractConfig {
           + "for clients that support it. Only takes effect if the server is running on a "
           + "Java 11 JVM or later. Default is true.";
   protected static final boolean HTTP2_ENABLED_DEFAULT = true;
+
+  public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
+      "proxy.protocol.enabled";
+  protected static final String PROXY_PROTOCOL_ENABLED_DOC =
+      "If true, enable support for the PROXY protocol. When enabled, the server will "
+          + "automatically detect whether PROXY protocol headers are present, and if they are, "
+          + "whether V1 or V2 of the protocol is in use. When the headers are present, the actual "
+          + "IP address and port of the client will be visible when the request is handled. If "
+          + "the headers are not present, requests will be processed normally, but if the server "
+          + "runs behind a load balancer, the request will appear to come from the the IP address "
+          + "and port of the load balancer. See "
+          + "https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt for more information. "
+          + "Default is false.";
+  protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -552,6 +583,13 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             ACCESS_CONTROL_SKIP_OPTIONS_DOC
         ).define(
+            REJECT_OPTIONS_REQUEST,
+            Type.BOOLEAN,
+            REJECT_OPTIONS_REQUEST_DEFAULT,
+            Importance.LOW,
+            REJECT_OPTIONS_REQUEST_DOC
+        )
+        .define(
             REQUEST_LOGGER_NAME_CONFIG,
             Type.STRING,
             REQUEST_LOGGER_NAME_DEFAULT,
@@ -898,6 +936,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             HTTP2_ENABLED_DOC
         ).define(
+            LISTENER_PROTOCOL_MAP_CONFIG,
+            Type.LIST,
+            LISTENER_PROTOCOL_MAP_DEFAULT,
+            Importance.LOW,
+            LISTENER_PROTOCOL_MAP_DOC
+        ).define(
+            PROXY_PROTOCOL_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            PROXY_PROTOCOL_ENABLED_DEFAULT,
+            Importance.LOW,
+            PROXY_PROTOCOL_ENABLED_DOC
+        ).define(
             NOSNIFF_PROTECTION_ENABLED,
             Type.BOOLEAN,
             NOSNIFF_PROTECTION_ENABLED_DEFAULT,
@@ -1027,5 +1077,157 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final Map<String, String> getMap(String propertyName) {
+    List<String> list = getList(propertyName);
+    Map<String, String> map = new HashMap<>();
+    for (String entry : list) {
+      String[] keyValue = entry.split("\\s*:\\s*", -1);
+      if (keyValue.length != 2) {
+        throw new ConfigException("Map entry should have form <key>:<value>");
+      }
+      if (keyValue[0].isEmpty()) {
+        throw new ConfigException(
+            "Entry '" + entry + "' in " + propertyName + " does not specify a key");
+      }
+      if (map.containsKey(keyValue[0])) {
+        throw new ConfigException(
+            "Entry '" + keyValue[0] + "' was specified more than once in " + propertyName);
+      }
+      map.put(keyValue[0], keyValue[1]);
+    }
+    return map;
+  }
+
+  public final Map<String, String> getListenerProtocolMap() {
+    Map<String, String> result = getMap(LISTENER_PROTOCOL_MAP_CONFIG)
+        .entrySet()
+        .stream()
+        .collect(Collectors.toMap(
+            e -> e.getKey().toLowerCase(),
+            e -> e.getValue().toLowerCase()));
+    for (Map.Entry<String, String> entry : result.entrySet()) {
+      if (!ApplicationServer.SUPPORTED_URI_SCHEMES.contains(entry.getValue())) {
+        throw new ConfigException(
+            "Listener '" + entry.getKey()
+            + "' specifies an unsupported protocol: " + entry.getValue());
+      }
+      if (ApplicationServer.SUPPORTED_URI_SCHEMES.contains(entry.getKey())) {
+        // forbid http:https and https:http
+        if (!entry.getKey().equals(entry.getValue())) {
+          throw new ConfigException(
+              "Listener name '" + entry.getKey() + "' is a supported protocol, so the "
+              + "corresponding protocol specified in "
+              + LISTENER_PROTOCOL_MAP_CONFIG + " must be '" + entry.getKey() + "'");
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * <p>A helper method for extracting multi-instance application configuration,
+   * specified via property names of the form PREFIX[.LISTENER_NAME].PROPERTY.</p>
+   *
+   * <p>Returns either a single configuration instance with key "" which should be
+   * used to construct an application instance bound to all listeners or one or
+   * more named configuration instances which should be used to create
+   * application instances bound to the corresponding named connector(s).
+   * LISTENER_NAME is case insensitive.</p>
+   *
+   * <p>Examples:</p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:4000,C://2.2.2.2:3000
+   *  my.config.prefix.foo=1
+   *  my.config.prefix.bar=2
+   *  my.config.prefix.B.bar=3
+   * Result:
+   *  ConfigException: if any property is specified for a specific listener, it is not
+   *  valid to also specify a property without the listener qualified.
+   * </pre></p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:0
+   *  my.config.prefix.B.foo=1
+   *  my.config.prefix.B.bar=2
+   * Result:
+   *  instance on B:
+   *   foo=1
+   *   bar=2
+   * </pre></p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:0
+   *  my.config.prefix.foo=1
+   *  my.config.prefix.bar=2
+   * Result:
+   *  instance on all interfaces (A + B):
+   *   foo=1
+   *   bar=2
+   * </pre></p>
+   *
+   * <p><pre>
+   * listeners=A://1.2.3.4:5000,B://6.7.8.9:0
+   *  (no prefixed config)
+   * Result:
+   *  instance on all interfaces (A + B):
+   *   (empty config)
+   * </pre></p>
+   */
+  public static Map<String, Map<String, Object>> getInstanceConfig(
+      String configPrefix,
+      Set<String> listenerNames,
+      Map<String, ?> originals) {
+
+    Map<String, Map<String, Object>> grouped =
+        getPrefixedConfigGroupedByListener(configPrefix, listenerNames, originals);
+
+    if (grouped.size() == 1) {
+      return grouped;
+    }
+
+    if (grouped.containsKey("")) {
+      // In the future, we might choose to relax this constraint to allow more
+      // convenient configuration in some scenarios. However, that will require
+      // decisions on behavior, and for the user to consult the manual to understand
+      // what these are.
+      throw new ConfigException(
+          "Some configuration properties prefixed by '" + configPrefix + "' specify a "
+          + "listener name, others don't. Either all or none of these properties must "
+          + "specify a listener name.");
+    }
+
+    return grouped;
+  }
+
+  static Map<String, Map<String, Object>> getPrefixedConfigGroupedByListener(
+      String configPrefix,
+      Set<String> listenerNames,
+      Map<String, ?> originals) {
+    Map<String, Map<String, Object>> grouped = new HashMap<>();
+    for (String listenerName : listenerNames) {
+      String prefix = configPrefix + listenerName.toLowerCase() + ".";
+      Map<String, Object> prefixedConfigs = filterByAndStripPrefix(originals, prefix);
+      if (!prefixedConfigs.isEmpty()) {
+        grouped.put(listenerName, prefixedConfigs);
+      }
+    }
+    if (grouped.isEmpty()) {
+      grouped.put("", filterByAndStripPrefix(originals, configPrefix));
+    }
+    return grouped;
+  }
+
+  protected static HashMap<String, Object> filterByAndStripPrefix(
+      Map<String, ?> configuration, String prefix) {
+    HashMap<String, Object> stripped = new HashMap<>();
+    for (Map.Entry<String, ?> entry : configuration.entrySet()) {
+      if (entry.getKey().toLowerCase().startsWith(prefix)) {
+        stripped.put(entry.getKey().substring(prefix.length()), entry.getValue());
+      }
+    }
+    return stripped;
   }
 }
