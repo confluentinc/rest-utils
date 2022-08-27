@@ -30,6 +30,10 @@ import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLog;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
@@ -209,6 +213,11 @@ public abstract class Application<T extends RestConfig> {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
       server = new ApplicationServer(config);
+      HttpConfiguration httpConfig = new HttpConfiguration();
+      httpConfig.setSendServerVersion(false);
+      HttpConnectionFactory httpFactory = new HttpConnectionFactory(httpConfig);
+      ServerConnector httpConnector = new ServerConnector(server, httpFactory);
+      server.setConnectors(new Connector[] { httpConnector });
       server.registerApplication(this);
     }
     return server;
