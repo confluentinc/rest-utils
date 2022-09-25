@@ -43,8 +43,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple server-side request filter that implements CSRF protection as per the Guidelines for
  * Implementation of REST by NSA (section IV.F), section 4.3 of this
- * paper[http://seclab.stanford.edu/websec/csrf/csrf.pdf] and
- * https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#synchronizer-token-pattern.
+ * paper[http://seclab.stanford.edu/websec/csrf/csrf.pdf] and https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#synchronizer-token-pattern.
  * If you add it to the request filters of your application, it will check for X-Requested-With &
  * X-Requested-By header in each request except for those that don't change state (GET, OPTIONS,
  * HEAD). If the header is not found, it returns Response.Status.BAD_REQUEST response back to the
@@ -55,6 +54,7 @@ public class CsrfTokenProtectionFilter implements Filter {
   private static final Logger log = LoggerFactory.getLogger(CsrfTokenProtectionFilter.class);
 
   public static class Headers {
+
     // CSRF token header from client
     public static final String REQUESTED_WITH = "X-Requested-With";
 
@@ -90,6 +90,7 @@ public class CsrfTokenProtectionFilter implements Filter {
 
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {
+    System.out.println("grrr 2");
     if (filterConfig.getInitParameter(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT) != null) {
       this.csrfTokenEndpoint =
           filterConfig.getInitParameter(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT);
@@ -125,6 +126,26 @@ public class CsrfTokenProtectionFilter implements Filter {
   public void doFilter(
       ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
       throws IOException, ServletException {
+
+    System.out.println("ELH grr 1");
+
+    log.error("ELH *** do Filter in csrftoken");
+
+    log.error(
+        "getLocalAddr {} getLocalPort {} getServerName {} getServerPort {} getRemoteAddr {} "
+            + "getRemoteHost {} getRemotePort {}",
+        servletRequest.getLocalAddr(),
+        servletRequest.getLocalPort(),
+        servletRequest.getServerName(),
+        servletRequest.getServerPort(),
+        servletRequest.getRemoteAddr(),
+        servletRequest.getRemoteHost(),
+        servletRequest.getRemotePort());
+
+    // servletRequest.getParameterMap().put("emma property", new String[]{"valu"});
+
+    servletRequest.getServletContext().setAttribute("my attribute", "myStuff");
+    servletRequest.setAttribute("higher level atribute", "my other stuff");
 
     HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
     HttpServletResponse httpServletResponse = (HttpServletResponse) servletResponse;

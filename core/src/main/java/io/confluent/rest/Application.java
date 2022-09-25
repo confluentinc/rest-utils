@@ -135,6 +135,8 @@ public abstract class Application<T extends RestConfig> {
 
     // %{ms}T logs request time in milliseconds
     requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
+    log.error("ELH ** rest-utils updated");
+    System.out.println("ELH *** grr rest utils 2");
   }
 
   public final String getPath() {
