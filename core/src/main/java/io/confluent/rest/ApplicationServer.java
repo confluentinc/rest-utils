@@ -16,16 +16,35 @@
 
 package io.confluent.rest;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static java.util.function.Function.identity;
+
+import java.lang.management.ManagementFactory;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.StringTokenizer;
+import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriBuilderException;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
-
-import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
-import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
+import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -43,28 +62,12 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
-import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.management.ManagementFactory;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
-import java.util.concurrent.BlockingQueue;
-import java.util.stream.Collectors;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class ApplicationServer<T extends RestConfig> extends Server {
@@ -76,6 +79,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private static volatile int threadPoolRequestQueueCapacity;
 
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
+  private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
@@ -111,6 +115,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     MBeanContainer mbContainer = new MBeanContainer(ManagementFactory.getPlatformMBeanServer());
     super.addEventListener(mbContainer);
     super.addBean(mbContainer);
+
+    listeners = parseListeners(
+        config.getList(RestConfig.LISTENERS_CONFIG),
+        config.getListenerProtocolMap(),
+        config.getInt(RestConfig.PORT_CONFIG),
+        SUPPORTED_URI_SCHEMES, "http");
 
     this.sslContextFactory = createSslContextFactory(config);
     configureConnectors(sslContextFactory);
@@ -412,6 +422,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return this.sslContextFactory;
   }
 
+  public Map<NamedURI, SslContextFactory> getSslContextFactories() {
+    return listeners.stream().collect(toImmutableMap(identity(), listener -> sslContextFactory));
+  }
+
   private void configureConnectors(SslContextFactory sslContextFactory) {
 
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
@@ -426,13 +440,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     final boolean proxyProtocolEnabled =
         config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
-
-    @SuppressWarnings("deprecation")
-    List<NamedURI> listeners = parseListeners(
-        config.getList(RestConfig.LISTENERS_CONFIG),
-        config.getListenerProtocolMap(),
-        config.getInt(RestConfig.PORT_CONFIG),
-        SUPPORTED_URI_SCHEMES, "http");
 
     for (NamedURI listener : listeners) {
       if (listener.getUri().getScheme().equals("https")) {
@@ -635,29 +642,45 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             requestQueue);
   }
 
-  static final class NamedURI {
+  public static final class NamedURI {
     private final URI uri;
+    @Nullable
     private final String name;
 
-    NamedURI(URI uri, String name) {
+    public NamedURI(URI uri, @Nullable String name) {
       this.uri = uri;
       this.name = name;
     }
 
-    URI getUri() {
+    public URI getUri() {
       return uri;
     }
 
-    String getName() {
+    @Nullable
+    public String getName() {
       return name;
     }
 
     @Override
-    public String toString() {
-      if (name == null) {
-        return uri.toString();
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
       }
-      return "'" + name + "' " + uri.toString();
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NamedURI namedURI = (NamedURI) o;
+      return uri.equals(namedURI.uri) && Objects.equals(name, namedURI.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(uri, name);
+    }
+
+    @Override
+    public String toString() {
+      return "NamedURI{uri=" + uri + ", name='" + name + "'}";
     }
   }
 }
