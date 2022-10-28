@@ -16,9 +16,6 @@
 
 package io.confluent.rest;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static java.util.function.Function.identity;
-
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -194,12 +191,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   SslContextFactory getSslContextFactory() {
     return this.sslContextFactory;
-  }
-
-  public Map<NamedURI, SslContextFactory> getSslContextFactories() {
-    return listeners.stream()
-        .filter(listener -> listener.getUri().getScheme().equals("https"))
-        .collect(toImmutableMap(identity(), listener -> sslContextFactory));
   }
 
   private void configureConnectors(SslContextFactory sslContextFactory) {
