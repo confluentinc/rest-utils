@@ -256,7 +256,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
           0.0,
           PERCENTILE_MAX_LATENCY_IN_MS,
-          Percentiles.BucketSizing.CONSTANT,
+          Percentiles.BucketSizing.LINEAR,
           new Percentile(new MetricName(
               getName(method, annotation, "request-latency-95"), metricGrpName,
               "The 95th percentile request latency in ms", allTags), 95),
