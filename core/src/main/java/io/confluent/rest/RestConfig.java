@@ -1187,16 +1187,10 @@ public class RestConfig extends AbstractConfig {
         .collect(Collectors.toList());
     List<NamedURI> namedUris =
         uris.stream().filter(uri -> uri.getName() != null).collect(Collectors.toList());
-    List<NamedURI> unnamedUris =
-        uris.stream().filter(uri -> uri.getName() == null).collect(Collectors.toList());
 
-    if (namedUris.stream().map(a -> a.getName()).distinct().count() != namedUris.size()) {
+    if (namedUris.stream().map(NamedURI::getName).distinct().count() != namedUris.size()) {
       throw new ConfigException(
           "More than one listener was specified with same name. Listener names must be unique.");
-    }
-    if (namedUris.isEmpty() && unnamedUris.isEmpty()) {
-      throw new ConfigException(
-          "No listeners are configured. At least one listener must be configured.");
     }
 
     return uris;
@@ -1209,7 +1203,7 @@ public class RestConfig extends AbstractConfig {
       uri = new URI(listener);
     } catch (URISyntaxException e) {
       throw new ConfigException(
-          "Listener '" + listener + "' is not a valid URI.");
+          "Listener '" + listener + "' is not a valid URI: " + e.getMessage());
     }
     if (uri.getPort() == -1) {
       throw new ConfigException(
