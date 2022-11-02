@@ -36,7 +36,10 @@ public final class SslConfig {
   }
 
   public SslClientAuth getClientAuth() {
-    switch (restConfig.getString(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG)) {
+    String clientAuthentication =
+        (String) restConfig.originals()
+            .getOrDefault(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, "");
+    switch (clientAuthentication) {
       case RestConfig.SSL_CLIENT_AUTHENTICATION_NONE:
         return SslClientAuth.NONE;
       case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUESTED:
