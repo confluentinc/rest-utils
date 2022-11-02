@@ -130,7 +130,11 @@ public abstract class Application<T extends RestConfig> {
     logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
 
     // %{ms}T logs request time in milliseconds
-    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
+    requestLog = new CustomRequestLog(logWriter, requestLogFormat());
+  }
+
+  protected String requestLogFormat() {
+    return CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T";
   }
 
   public final String getPath() {
