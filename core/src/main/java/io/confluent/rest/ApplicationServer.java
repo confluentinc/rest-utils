@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,7 +62,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   private final T config;
   private final List<Application<?>> applications;
-  private final SslContextFactory sslContextFactory;
+  private final ImmutableMap<NamedURI, SslContextFactory> sslContextFactories;
 
   private static volatile int threadPoolRequestQueueCapacity;
 
@@ -101,8 +103,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     listeners = config.getListeners();
 
-    this.sslContextFactory = SslFactory.createSslContextFactory(config.getBaseSslConfig());
-    configureConnectors(sslContextFactory);
+    sslContextFactories = ImmutableMap.copyOf(
+        Maps.transformValues(config.getSslConfigs(), SslFactory::createSslContextFactory));
+
+    configureConnectors();
     configureConnectionLimits();
   }
 
@@ -189,12 +193,19 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     super.doStart();
   }
 
+  @Deprecated
   SslContextFactory getSslContextFactory() {
-    return this.sslContextFactory;
+    return sslContextFactories.values()
+        .stream()
+        .findAny()
+        .orElse(SslFactory.createSslContextFactory(SslConfig.defaultConfig()));
   }
 
-  private void configureConnectors(SslContextFactory sslContextFactory) {
+  public Map<NamedURI, SslContextFactory> getSslContextFactories() {
+    return sslContextFactories;
+  }
 
+  private void configureConnectors() {
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
@@ -279,8 +290,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         ALPNServerConnectionFactory alpnConnectionFactory = new ALPNServerConnectionFactory();
         alpnConnectionFactory.setDefaultProtocol(HttpVersion.HTTP_1_1.asString());
 
-        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
-            alpnConnectionFactory.getProtocol());
+        SslConnectionFactory sslConnectionFactory =
+            new SslConnectionFactory(
+                sslContextFactories.get(listener), alpnConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
@@ -299,8 +311,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         }
 
       } else {
-        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
-            httpConnectionFactory.getProtocol());
+        SslConnectionFactory sslConnectionFactory =
+            new SslConnectionFactory(
+                sslContextFactories.get(listener), httpConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
