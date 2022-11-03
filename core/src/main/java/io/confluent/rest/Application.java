@@ -225,6 +225,7 @@ public abstract class Application<T extends RestConfig> {
   /**
    * expose SslContextFactory
    */
+  @Deprecated
   protected SslContextFactory getSslContextFactory() {
     return server.getSslContextFactory();
   }
