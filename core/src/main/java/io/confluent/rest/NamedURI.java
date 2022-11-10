@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import javax.annotation.Nullable;
 import java.net.URI;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class NamedURI {
@@ -27,7 +28,7 @@ public final class NamedURI {
 
   public NamedURI(URI uri, @Nullable String name) {
     this.uri = uri;
-    this.name = name;
+    this.name = name != null ? name.toLowerCase(Locale.ENGLISH) : null;
   }
 
   public URI getUri() {
