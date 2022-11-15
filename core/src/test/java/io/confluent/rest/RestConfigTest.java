@@ -6,15 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Test;
-
+import com.google.common.collect.ImmutableMap;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.kafka.common.config.ConfigException;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class RestConfigTest {
 
@@ -202,5 +204,79 @@ public class RestConfigTest {
     assertEquals(1, conf.size());
     assertTrue(conf.containsKey(""));
     assertEquals(0, conf.get("").size());
+  }
+
+  @Test
+  public void testPerListenerSslConfig() throws URISyntaxException {
+    RestConfig restConfig =
+        new RestConfig(
+            RestConfig.baseConfigDef(),
+            ImmutableMap.<String, String>builder()
+                .put("listeners", "A://1.1.1.1:1,B://2.2.2.2:2")
+                .put("listener.protocol.map", "A:https,B:https")
+                .put("ssl.keystore.location", "default.jks")
+                .put("listener.name.A.ssl.keystore.location", "a.jks")
+                .build());
+
+    Map<NamedURI, SslConfig> sslConfigs = restConfig.getSslConfigs();
+
+    SslConfig baseSslConfig = restConfig.getBaseSslConfig();
+    SslConfig aSslConfig = sslConfigs.get(new NamedURI(new URI("https://1.1.1.1:1"), "A"));
+    SslConfig bSslConfig = sslConfigs.get(new NamedURI(new URI("https://2.2.2.2:2"), "B"));
+
+    assertEquals("default.jks", baseSslConfig.getKeyStorePath()); // default config
+    assertEquals("a.jks", aSslConfig.getKeyStorePath()); // listener override
+    assertEquals("default.jks", bSslConfig.getKeyStorePath()); // no listener override
+  }
+
+  @Test
+  public void testPerListenerSslConfigHttpsName() throws URISyntaxException {
+    RestConfig restConfig =
+        new RestConfig(
+            RestConfig.baseConfigDef(),
+            ImmutableMap.<String, String>builder()
+                .put("listeners", "https://1.1.1.1:1,https://2.2.2.2:2,A://3.3.3.3:3")
+                .put("listener.protocol.map", "A:https")
+                .put("ssl.keystore.location", "default.jks")
+                .put("listener.name.https.ssl.keystore.location", "https.jks")
+                .put("listener.name.A.ssl.keystore.location", "a.jks")
+                .build());
+
+    Map<NamedURI, SslConfig> sslConfigs = restConfig.getSslConfigs();
+
+    SslConfig baseSslConfig = restConfig.getBaseSslConfig();
+    SslConfig https1SslConfig = sslConfigs.get(new NamedURI(new URI("https://1.1.1.1:1"), null));
+    SslConfig https2SslConfig = sslConfigs.get(new NamedURI(new URI("https://2.2.2.2:2"), null));
+    SslConfig aSslConfig = sslConfigs.get(new NamedURI(new URI("https://3.3.3.3:3"), "A"));
+
+    assertEquals("default.jks", baseSslConfig.getKeyStorePath()); // default config
+    // https is a strange case because you could have multiple listeners "named" https.
+    // If you override SSL configs for the https "name", we will apply the override to all the
+    // https "named" listeners.
+    assertEquals("https.jks", https1SslConfig.getKeyStorePath()); // listener override
+    assertEquals("https.jks", https2SslConfig.getKeyStorePath()); // listener override
+    assertEquals("a.jks", aSslConfig.getKeyStorePath()); // listener override
+  }
+
+  @Test
+  public void testPerListenerSslConfigRepeatedConfig() throws URISyntaxException {
+    RestConfig restConfig =
+        new RestConfig(
+            RestConfig.baseConfigDef(),
+            ImmutableMap.<String, String>builder()
+                .put("listeners", "A://1.1.1.1:1")
+                .put("listener.protocol.map", "A:https")
+                .put("ssl.keystore.location", "default.jks")
+                .put("listener.name.a.ssl.keystore.location", "a1.jks")
+                .put("listener.name.A.ssl.keystore.location", "a2.jks")
+                .build());
+
+    Map<NamedURI, SslConfig> sslConfigs = restConfig.getSslConfigs();
+
+    SslConfig baseSslConfig = restConfig.getBaseSslConfig();
+    SslConfig aSslConfig = sslConfigs.get(new NamedURI(new URI("https://1.1.1.1:1"), "A"));
+
+    assertEquals("default.jks", baseSslConfig.getKeyStorePath()); // default config
+    assertTrue(aSslConfig.getKeyStorePath().matches("a[12]\\.jks")); // any listener override
   }
 }

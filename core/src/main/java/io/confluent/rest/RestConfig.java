@@ -31,8 +31,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.ws.rs.core.UriBuilder;
@@ -1141,10 +1142,20 @@ public class RestConfig extends AbstractConfig {
     return new SslConfig(this);
   }
 
+  private SslConfig getSslConfig(NamedURI listener) {
+    String prefix =
+        "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
+
+    Map<String, Object> overridden = originals();
+    overridden.putAll(filterByAndStripPrefix(originals(), prefix));
+
+    return new SslConfig(new RestConfig(baseConfigDef(), overridden));
+  }
+
   public final Map<NamedURI, SslConfig> getSslConfigs() {
     return getListeners().stream()
         .filter(listener -> listener.getUri().getScheme().equals("https"))
-        .collect(toImmutableMap(Function.identity(), unused -> getBaseSslConfig()));
+        .collect(toImmutableMap(Function.identity(), this::getSslConfig));
   }
 
   public final Map<String, String> getMap(String propertyName) {
