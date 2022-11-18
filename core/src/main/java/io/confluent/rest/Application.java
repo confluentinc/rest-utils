@@ -675,8 +675,8 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
-    configureGlobalDosFilter(context);
     configureNonGlobalDosFilter(context);
+    configureGlobalDosFilter(context);
   }
 
   private void configureNonGlobalDosFilter(ServletContextHandler context) {
