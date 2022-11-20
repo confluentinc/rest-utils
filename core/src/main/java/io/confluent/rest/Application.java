@@ -675,8 +675,9 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
-    configureGlobalDosFilter(context);
+    // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
+    configureGlobalDosFilter(context);
   }
 
   private void configureNonGlobalDosFilter(ServletContextHandler context) {
