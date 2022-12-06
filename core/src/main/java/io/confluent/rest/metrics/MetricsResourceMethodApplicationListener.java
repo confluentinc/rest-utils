@@ -16,6 +16,7 @@
 
 package io.confluent.rest.metrics;
 
+import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -183,10 +184,16 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private final Sensor requestLatencySensor;
     private Sensor errorSensor;
     private final Sensor[] errorSensorByStatus = new Sensor[HTTP_STATUS_CODE_TEXT.length];
+    private Sensor fourTwoNineSensor;
 
+    // CHECKSTYLE_RULES.OFF: JavaNCSS
+    // CHECKSTYLE_RULES.OFF: MethodLength
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
-                         String metricGrpPrefix, Map<String, String> metricTags,
-                         Map<String, String> requestTags) {
+        String metricGrpPrefix, Map<String, String> metricTags,
+        Map<String, String> requestTags) {
+      // CHECKSTYLE_RULES.ON: JavaNCSS
+      // CHECKSTYLE_RULES.ON: MethodLength
+
       String metricGrpName = metricGrpPrefix + "-metrics";
       // The tags will be used to generate MBean names if JmxReporter is used,
       // sort to get consistent names
@@ -292,6 +299,29 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         errorSensorByStatus[i].add(metricName, new CumulativeCount());
       }
 
+      SortedMap<String, String> fourTwoNineTags = new TreeMap<>(allTags);
+      fourTwoNineTags.put(HTTP_STATUS_CODE_TAG, "429");
+      this.fourTwoNineSensor = metrics.sensor(getName(method, annotation, "errors429", requestTags),
+          null, SENSOR_EXPIRY_SECONDS, RecordingLevel.INFO, (Sensor[]) null);
+      metricName = new MetricName(
+          getName(method, annotation, "request-error-rate-429"),
+          metricGrpName,
+          "The average number of requests per second that resulted in 429 error responses",
+          fourTwoNineTags);
+      this.fourTwoNineSensor.add(metricName, new Rate());
+      metricName = new MetricName(
+          getName(method, annotation, "request-error-count-429"),
+          metricGrpName,
+          "A windowed count of requests that resulted in 429 HTTP error responses",
+          fourTwoNineTags);
+      this.fourTwoNineSensor.add(metricName, new WindowedCount());
+      metricName = new MetricName(
+          getName(method, annotation, "request-error-total-429"),
+          metricGrpName,
+          "A cumulative count of requests that resulted in 429 HTTP error responses",
+          fourTwoNineTags);
+      this.fourTwoNineSensor.add(metricName, new CumulativeCount());
+
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors", requestTags),
           null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
@@ -341,6 +371,10 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       errorSensorByStatus[idx].record();
       errorSensor.record();
+
+      if (event.getContainerResponse() != null && event.getContainerResponse().getStatus() == 429) {
+        fourTwoNineSensor.record();
+      }
     }
 
     private static String getName(final ResourceMethod method,

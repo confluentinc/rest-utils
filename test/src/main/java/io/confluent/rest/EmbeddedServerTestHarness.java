@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import java.util.Collections;
+import java.util.Map;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
@@ -169,6 +171,7 @@ public abstract class
 
     @Override
     protected void configureClient(ClientConfig config) {
+      Map<String, String> tags = Collections.singletonMap("tenant","bob");
       app.configureBaseApplication(config, null);
     }
   }
