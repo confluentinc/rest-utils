@@ -97,7 +97,6 @@ import org.slf4j.LoggerFactory;
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
 
-  private static final String GRP_PREFIX = "jersey";
   protected T config;
   private final String path;
   private final String listenerName;
@@ -132,7 +131,7 @@ public abstract class Application<T extends RestConfig> {
     logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
 
     // %{ms}T logs request time in milliseconds
-    requestLog = new KafkaCustomRequestLog(logWriter, requestLogFormat(), metrics,
+    requestLog = new RestCustomRequestLog(logWriter, requestLogFormat(), metrics,
         getMetricsTags(), config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
@@ -608,7 +607,7 @@ public abstract class Application<T extends RestConfig> {
     registerFeatures(config, restConfig);
     registerExceptionMappers(config, restConfig);
 
-    config.register(new MetricsResourceMethodApplicationListener(getMetrics(), GRP_PREFIX,
+    config.register(new MetricsResourceMethodApplicationListener(getMetrics(), "jersey",
         metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);

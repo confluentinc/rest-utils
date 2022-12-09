@@ -81,38 +81,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @AfterEach
   public void tearDown() throws Exception {
-   // cleanUp();
     server.stop();
     server.join();
-
   }
-
-//  private void cleanUp() {
-//    MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-//    // Need to unregister the produce metrics bean to avoid affecting the metrics tests
-//    try {
-//      System.out.println("domains " + mBeanServer.getDomains());
-//
-//      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-//
-//      Set<ObjectInstance> instances = server.queryMBeans(null, null);
-//
-//      Iterator<ObjectInstance> iterator = instances.iterator();
-//
-//      while (iterator.hasNext()) {
-//        ObjectInstance instance = iterator.next();
-//        System.out.println("MBean Found:");
-//        System.out.println("Class Name:t" + instance.getClassName());
-//        System.out.println("Object Name:t" + instance.getObjectName());
-//        System.out.println("****************************************");
-//      }
-//      mBeanServer.unregisterMBean(new ObjectName("org.eclipse.jetty.servlet:context=ROOT,type=filterholder,name=org_glassfish_jersey_servlet_ServletContainer-4f74980d,id=0"));
-//    } catch (MalformedObjectNameException
-//        | InstanceNotFoundException
-//        | MBeanRegistrationException e) {
-//      e.printStackTrace();
-//    }
-//  }
 
   @Test
   public void testListenerHandlesDispatchErrorsGracefully() {
@@ -200,6 +171,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     //checkpoints ensure that all the assertions are tested
     int rateCheckpoint4xx = 0;
     int windowCheckpoint4xx = 0;
+    int rateCheckpoint429 = 0;
+    int windowCheckpoint429 = 0;
     int rateCheckpointNot4xx = 0;
     int windowCheckpointNot4xx = 0;
     int anyErrorRateCheckpoint = 0;
@@ -214,6 +187,10 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           rateCheckpoint4xx++;
           assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
+        } else if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+          rateCheckpoint429++;
+          assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
+              String.format("Actual: %f (%s)", errorRateValue, metric.metricName()));
         } else if (!metric.metricName().tags().isEmpty()) {
           rateCheckpointNot4xx++;
           assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
@@ -231,6 +208,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           windowCheckpoint4xx++;
           assertTrue(errorCountValue == 2.0, "Actual: " + errorCountValue);
+        } else if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+          windowCheckpoint429++;
         } else if (!metric.metricName().tags().isEmpty()) {
           windowCheckpointNot4xx++;
           assertTrue(
@@ -246,14 +225,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(1, anyErrorRateCheckpoint); //A Single rate metric for the two errors
     assertEquals(1, anyErrorWindowCheckpoint); //A single windowed metric for the two errors
     assertEquals(1, rateCheckpoint4xx); //Single rate metric for the two 4xx errors
-    assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the two 4xx errors
-    assertEquals(non4xxCount,
-        rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx
+    assertEquals(1, windowCheckpoint429); ///A single windowed metric for the two 4xx errors
+    assertEquals(1, rateCheckpoint429); //Single rate metric for the 429 errors
+    assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the 429 errors
+    assertEquals(non4xxCount ,
+        rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx and 429 (which is not in the HTTP_STATUS_CODE_TEXT array)
     assertEquals(non4xxCount,
         windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
   }
 
-  @Disabled
   @Test
   public void test429Metrics() throws InterruptedException {
 
@@ -268,7 +248,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     Thread.sleep(500);
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-error-rate-429")) {
+      if (metric.metricName().name().equals("request-error-rate") && metric.metricName().tags()
+          .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
@@ -277,7 +258,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
       }
 
-      if (metric.metricName().name().equals("request-error-count-429")) {
+      if (metric.metricName().name().equals("request-error-count") && metric.metricName().tags()
+          .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
@@ -354,11 +336,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
     assertEquals(2, totalCheckpoint);
     assertEquals(2, totalCheckpoint5xx);
-    assertEquals(non5xxCount * 2, totalCheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, totalCheckpointNon5xx); //include 429s
     assertEquals(2, caughtCheckpoint5xx);
     assertEquals(non5xxCount * 2, caughtCheckpointNon5xx);
     assertEquals(2, caughtTag1Checkpoint5xx);
-    assertEquals(non5xxCount * 2, caughtTag1CheckpointNon5xx);
+    assertEquals(non5xxCount * 2, caughtTag1CheckpointNon5xx );
     assertEquals(2, caughtTag2Checkpoint5xx);
     assertEquals(non5xxCount * 2, caughtTag2CheckpointNon5xx);
   }
@@ -509,7 +491,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   public class Filter implements ContainerRequestFilter {
+
     private final String[] tags = new String[]{"", "value1", "value2"};
+
     @Override
     public void filter(ContainerRequestContext context) {
       Map<String, String> maps = new HashMap<>();
