@@ -38,7 +38,7 @@ public class RestCustomRequestLog extends CustomRequestLog {
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
   private static final String GROUP_NAME = "jersey-metrics";
 
-  Sensor fourTwoNineSensor = null;
+  private Sensor fourTwoNineSensor = null;
 
   public RestCustomRequestLog(final Writer writer, final String formatString, Metrics metrics,
       Map<String, String> metricTags, String jmxPrefix) {
@@ -57,7 +57,7 @@ public class RestCustomRequestLog extends CustomRequestLog {
           null, SENSOR_EXPIRY_SECONDS, RecordingLevel.INFO, (Sensor[]) null);
 
       fourTwoNineSensor.add(getMetricName(metrics, "request-error-rate",
-          "The average number of requests per second that resulted in 429 error responses",
+          "The average number of requests per second that resulted in 429 HTTP error responses",
           instanceMetricsTags), new Rate());
       fourTwoNineSensor.add(getMetricName(metrics, "request-error-count",
           "A windowed count of requests that resulted in 429 HTTP error responses",
