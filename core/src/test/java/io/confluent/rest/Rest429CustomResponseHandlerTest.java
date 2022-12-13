@@ -19,7 +19,6 @@ package io.confluent.rest;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -32,6 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.Metrics;
@@ -40,107 +41,95 @@ import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.SampledStat;
-import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class RestCustomRequestLogTest {
+public class Rest429CustomResponseHandlerTest {
 
   private Request request;
   private Response response;
   private Sensor fourTwoNineSensor;
-  private Slf4jRequestLogWriter logWriter;
   private org.eclipse.jetty.http.MetaData.Response metaDataResponse;
   private HttpChannel httpChannel;
   private Metrics metrics;
+  private HttpServletRequest servletRequest;
 
   @BeforeEach
   public void setUp() {
     request = mock(Request.class);
     response = mock(Response.class);
     fourTwoNineSensor = mock(Sensor.class);
-    logWriter = mock(Slf4jRequestLogWriter.class);
     metaDataResponse = mock(org.eclipse.jetty.http.MetaData.Response.class);
     httpChannel = mock(HttpChannel.class);
     metrics = mock(Metrics.class);
+    servletRequest = mock(HttpServletRequest.class);
   }
 
   @Test
   public void response429_LogsMetric_LogLineWritten()
-      throws IOException {
+      throws IOException, ServletException {
     Map<String, String> allTags = new HashMap<>();
     allTags.put("http_status_code", "429");
     setMockedObjectResponses(429,
         "http://lkc-abc123.v4.network.address/clusters/lkc-efg456/topics");
     setMockedMetricsObjectResponses(allTags, "kafka-rest:jersey-metrics:request-errors:429");
 
-    RestCustomRequestLog customRequestLog = new RestCustomRequestLog(logWriter,
-        CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T", metrics, Collections.emptyMap(),
+    Rest429CustomResponseHandler customRequestLog = new Rest429CustomResponseHandler(metrics, Collections.emptyMap(),
         "kafka-rest");
-    customRequestLog.log(request, response);
+    customRequestLog.handle("http://lkc-abc123.v4.network.address/clusters/lkc-efg456/topics", request, servletRequest, response);
 
     verifyFourTwoNineSensor(fourTwoNineSensor, allTags, 1);
-    verify(logWriter).write(
-        startsWith("remoteHost - - [01/Jan/1970:00:00:00 +0000] \"- - -\" 429 12345 \"-\" \"-\" "));
   }
 
   @Test
-  public void requestNot429_NoMetricLogged_LogLineWritten() throws IOException {
+  public void requestNot429_NoMetricLogged_LogLineWritten() throws IOException, ServletException {
     Map<String, String> allTags = new HashMap<>();
     allTags.put("http_status_code", "429");
     setMockedObjectResponses(200, "/a/b/c");
     setMockedMetricsObjectResponses(allTags, "kafka-rest:jersey-metrics:request-errors:429");
 
-    RestCustomRequestLog customRequestLog = new RestCustomRequestLog(logWriter,
-        CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T", metrics, Collections.emptyMap(),
+    Rest429CustomResponseHandler customRequestLog = new Rest429CustomResponseHandler(metrics, Collections.emptyMap(),
         "kafka-rest");
-    customRequestLog.log(request, response);
+    customRequestLog.handle("/a/b/c", request, servletRequest, response);
 
     verify(fourTwoNineSensor, never()).record();
-    verify(logWriter).write(
-        startsWith("remoteHost - - [01/Jan/1970:00:00:00 +0000] \"- - -\" 200 12345 \"-\" \"-\" "));
   }
 
   @Test
-  public void nullMetricObject_NoErrorThrown_LogLineWritten() throws IOException {
+  public void nullMetricObject_NoErrorThrown_LogLineWritten() throws IOException, ServletException {
 
     Map<String, String> allTags = new HashMap<>();
     allTags.put("http_status_code", "429");
     setMockedObjectResponses(429, "/a/b/c");
 
-    RestCustomRequestLog customRequestLog = new RestCustomRequestLog(logWriter,
-        CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T", null, Collections.emptyMap(),
+    Rest429CustomResponseHandler customRequestLog = new Rest429CustomResponseHandler(null, Collections.emptyMap(),
         "kafka-rest");
 
-    customRequestLog.log(request, response);
-    verify(logWriter).write(
-        startsWith("remoteHost - - [01/Jan/1970:00:00:00 +0000] \"- - -\" 429 12345 \"-\" \"-\" "));
+    customRequestLog.handle("/a/b/c", request, servletRequest, response);
   }
 
   @Test
-  public void existingMetricsHaveTags_MetricsLoggedWithAdditionalTags_LogLineWritten() throws IOException {
+  public void existingMetricsHaveTags_MetricsLoggedWithAdditionalTags_LogLineWritten()
+      throws IOException, ServletException {
     Map<String, String> allTags = new TreeMap<>();
     allTags.put("http_status_code", "429");
     allTags.put("my", "tag");
     setMockedObjectResponses(429, "/a/lkc-abc123/c");
     setMockedMetricsObjectResponses(allTags, "kafka-rest:jersey-metrics:request-errors:429:tag");
 
-    RestCustomRequestLog customRequestLog = new RestCustomRequestLog(logWriter,
-        CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T", metrics,
+    Rest429CustomResponseHandler customRequestLog = new Rest429CustomResponseHandler(metrics,
         Collections.singletonMap("my", "tag"), "kafka-rest");
-    customRequestLog.log(request, response);
+    customRequestLog.handle("/a/b/c", request, servletRequest, response);
 
     verifyFourTwoNineSensor(fourTwoNineSensor, allTags, 1);
-    verify(logWriter).write(
-        startsWith("remoteHost - - [01/Jan/1970:00:00:00 +0000] \"- - -\" 429 12345 \"-\" \"-\" "));
   }
 
   @Test
-  public void writingToTwoDifferentLKCs_sameSensorsUsed_LogLineWritten() throws IOException {
+  public void writingToTwoDifferentLKCs_sameSensorsUsed_LogLineWritten()
+      throws IOException, ServletException {
     Map<String, String> allTags = new HashMap<>();
     allTags.put("http_status_code", "429");
     setMockedObjectResponses(429,
@@ -162,16 +151,13 @@ public class RestCustomRequestLogTest {
     when(httpChannel2.getBytesWritten()).thenReturn(12345L);
 
     //send calls
-    RestCustomRequestLog customRequestLog = new RestCustomRequestLog(logWriter,
-        CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T", metrics, Collections.emptyMap(),
+    Rest429CustomResponseHandler customRequestLog = new Rest429CustomResponseHandler(metrics, Collections.emptyMap(),
         "kafka-rest");
-    customRequestLog.log(request, response);
-    customRequestLog.log(request2, response2);
+    customRequestLog.handle("/a/b/c", request, servletRequest, response);
+    customRequestLog.handle("/a/b/c", request2, servletRequest, response2);
 
     //validate calls
     verifyFourTwoNineSensor(fourTwoNineSensor, allTags, 2);
-    verify(logWriter, times(2)).write(
-        startsWith("remoteHost - - [01/Jan/1970:00:00:00 +0000] \"- - -\" 429 12345 \"-\" \"-\" "));
   }
 
   private void setMockedObjectResponses(int returnCode, String url) {

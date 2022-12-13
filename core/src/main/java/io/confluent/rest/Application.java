@@ -96,7 +96,6 @@ import org.slf4j.LoggerFactory;
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public abstract class Application<T extends RestConfig> {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
-
   protected T config;
   private final String path;
   private final String listenerName;
@@ -104,6 +103,7 @@ public abstract class Application<T extends RestConfig> {
   protected ApplicationServer<?> server;
   protected Metrics metrics;
   protected final CustomRequestLog requestLog;
+  protected final Rest429CustomResponseHandler fourTwoNineHandler;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   @SuppressWarnings("unchecked")
@@ -131,7 +131,8 @@ public abstract class Application<T extends RestConfig> {
     logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
 
     // %{ms}T logs request time in milliseconds
-    requestLog = new RestCustomRequestLog(logWriter, requestLogFormat(), metrics,
+    requestLog = new CustomRequestLog(logWriter, requestLogFormat());
+    fourTwoNineHandler = new Rest429CustomResponseHandler(metrics,
         getMetricsTags(), config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
@@ -378,8 +379,9 @@ public abstract class Application<T extends RestConfig> {
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
 
+
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler});
+    handlers.setHandlers(new Handler[]{context, requestLogHandler, fourTwoNineHandler});
 
     return handlers;
   }

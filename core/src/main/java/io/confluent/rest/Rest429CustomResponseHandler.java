@@ -16,11 +16,15 @@
 
 package io.confluent.rest;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.Metrics;
@@ -29,21 +33,18 @@ import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.metrics.stats.CumulativeCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.WindowedCount;
-import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.handler.RequestLogHandler;
 
-public class RestCustomRequestLog extends CustomRequestLog {
+public class Rest429CustomResponseHandler extends RequestLogHandler {
 
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
   private static final String GROUP_NAME = "jersey-metrics";
 
   private Sensor fourTwoNineSensor = null;
 
-  public RestCustomRequestLog(final Writer writer, final String formatString, Metrics metrics,
-      Map<String, String> metricTags, String jmxPrefix) {
-    super(writer, formatString);
-
+  public Rest429CustomResponseHandler(Metrics metrics, Map<String, String> metricTags,
+      String jmxPrefix) {
     if (metrics != null) {
       String sensorNamePrefix = jmxPrefix + ":" + GROUP_NAME + "";
       SortedMap<String, String> instanceMetricsTags = new TreeMap<>(metricTags);
@@ -69,8 +70,8 @@ public class RestCustomRequestLog extends CustomRequestLog {
   }
 
   @Override
-  public void log(Request request, Response response) {
-    super.log(request, response);
+  public void handle(String path, Request baseRequest, HttpServletRequest request,
+      HttpServletResponse response) throws IOException, ServletException {
     if (fourTwoNineSensor != null && response != null && response.getStatus() == 429) {
       fourTwoNineSensor.record();
     }
@@ -81,5 +82,4 @@ public class RestCustomRequestLog extends CustomRequestLog {
     return metrics.metricInstance(
         new MetricNameTemplate(name, GROUP_NAME, doc, metricsTags.keySet()), metricsTags);
   }
-
 }
