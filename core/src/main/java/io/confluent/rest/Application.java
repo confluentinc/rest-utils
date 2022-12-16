@@ -103,6 +103,7 @@ public abstract class Application<T extends RestConfig> {
   protected ApplicationServer<?> server;
   protected Metrics metrics;
   protected final CustomRequestLog requestLog;
+  protected final Rest429CustomResponseHandler fourTwoNineHandler;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   @SuppressWarnings("unchecked")
@@ -131,6 +132,8 @@ public abstract class Application<T extends RestConfig> {
 
     // %{ms}T logs request time in milliseconds
     requestLog = new CustomRequestLog(logWriter, requestLogFormat());
+    fourTwoNineHandler = new Rest429CustomResponseHandler(metrics,
+        getMetricsTags(), config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
   protected String requestLogFormat() {
@@ -376,8 +379,9 @@ public abstract class Application<T extends RestConfig> {
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
 
+
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler});
+    handlers.setHandlers(new Handler[]{context, requestLogHandler, fourTwoNineHandler});
 
     return handlers;
   }
@@ -606,7 +610,7 @@ public abstract class Application<T extends RestConfig> {
     registerExceptionMappers(config, restConfig);
 
     config.register(new MetricsResourceMethodApplicationListener(getMetrics(), "jersey",
-                                                                 metricTags, restConfig.getTime()));
+        metricTags, restConfig.getTime()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
     config.property(ServerProperties.WADL_FEATURE_DISABLE, true);
@@ -686,7 +690,7 @@ public abstract class Application<T extends RestConfig> {
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
-  
+
   private void configureGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new GlobalDosFilter();
     String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
