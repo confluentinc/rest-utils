@@ -33,6 +33,7 @@ import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.NotCoordinatorException;
 import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.TimeoutException;
@@ -133,8 +134,13 @@ public class KafkaExceptionMapperTest {
     //test couple of kafka exception
     verifyMapperResponse(new CommitFailedException(), Status.INTERNAL_SERVER_ERROR,
         KAFKA_ERROR_ERROR_CODE);
-    verifyMapperResponse(new ConcurrentTransactionsException("some message"), Status.INTERNAL_SERVER_ERROR,
-        KAFKA_ERROR_ERROR_CODE);
+
+    Exception cte = new ConcurrentTransactionsException("some message");
+    if(cte instanceof RetriableException) {
+      verifyMapperResponse(cte, Status.INTERNAL_SERVER_ERROR, KAFKA_RETRIABLE_ERROR_ERROR_CODE);
+    } else {
+      verifyMapperResponse(cte, Status.INTERNAL_SERVER_ERROR, KAFKA_ERROR_ERROR_CODE);
+    }
 
     //test few general exceptions
     verifyMapperResponse(new NullPointerException("some message"), Status.INTERNAL_SERVER_ERROR,
