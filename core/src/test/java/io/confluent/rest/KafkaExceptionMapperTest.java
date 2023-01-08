@@ -33,6 +33,7 @@ import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.NotCoordinatorException;
 import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.TimeoutException;
@@ -133,8 +134,19 @@ public class KafkaExceptionMapperTest {
     //test couple of kafka exception
     verifyMapperResponse(new CommitFailedException(), Status.INTERNAL_SERVER_ERROR,
         KAFKA_ERROR_ERROR_CODE);
-    verifyMapperResponse(new ConcurrentTransactionsException("some message"), Status.INTERNAL_SERVER_ERROR,
-        KAFKA_ERROR_ERROR_CODE);
+
+    Exception cte = new ConcurrentTransactionsException("some message");
+    // In KAFKA-14417, ConcurrentTransactionsException was changed from an ApiException to be
+    //  a RetriableException (which is itself an ApiException)
+    // To adapt to this, using if/else logic based on instanceof check so the test can handle the
+    //  ConcurrentTransactionsException being of either heritage
+    if (cte instanceof RetriableException) {
+      // After the change KAFKA-14417 ripples thru the builds, this should be the eventual check,
+      //  with the else block looking for KAFKA_ERROR_ERROR_CODE being removed.
+      verifyMapperResponse(cte, Status.INTERNAL_SERVER_ERROR, KAFKA_RETRIABLE_ERROR_ERROR_CODE);
+    } else {
+      verifyMapperResponse(cte, Status.INTERNAL_SERVER_ERROR, KAFKA_ERROR_ERROR_CODE);
+    }
 
     //test few general exceptions
     verifyMapperResponse(new NullPointerException("some message"), Status.INTERNAL_SERVER_ERROR,
