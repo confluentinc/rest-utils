@@ -379,9 +379,12 @@ public abstract class Application<T extends RestConfig> {
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
 
+    // KREST-8707: context is bound to application, therefore, we need to insert a specific handler,
+    // fourTwoNineHandler, to the context. Otherwise, the handler will be bound to all applications.
+    context.insertHandler(fourTwoNineHandler);
 
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler, fourTwoNineHandler});
+    handlers.setHandlers(new Handler[]{context, requestLogHandler});
 
     return handlers;
   }
