@@ -221,7 +221,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         }
       }
     }
-    int non4xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
+    int non4xxCount = HTTP_STATUS_CODE_TEXT.length - 2; // excluded 4xx and 429
     assertEquals(1, anyErrorRateCheckpoint); //A Single rate metric for the two errors
     assertEquals(1, anyErrorWindowCheckpoint); //A single windowed metric for the two errors
     assertEquals(1, rateCheckpoint4xx); //Single rate metric for the two 4xx errors
@@ -333,16 +333,16 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           break;
       }
     }
-    int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
+    int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 2;
     assertEquals(2, totalCheckpoint);
     assertEquals(2, totalCheckpoint5xx);
     assertEquals((non5xxCount + 1) * 2, totalCheckpointNon5xx); //include 429s
     assertEquals(2, caughtCheckpoint5xx);
-    assertEquals(non5xxCount * 2, caughtCheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtCheckpointNon5xx); //include 429s
     assertEquals(2, caughtTag1Checkpoint5xx);
-    assertEquals(non5xxCount * 2, caughtTag1CheckpointNon5xx );
+    assertEquals((non5xxCount + 1) * 2, caughtTag1CheckpointNon5xx); //include 429s
     assertEquals(2, caughtTag2Checkpoint5xx);
-    assertEquals(non5xxCount * 2, caughtTag2CheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtTag2CheckpointNon5xx); //include 429s
   }
 
   @Test
