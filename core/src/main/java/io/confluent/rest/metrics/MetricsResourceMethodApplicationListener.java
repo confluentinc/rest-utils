@@ -183,7 +183,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private final Sensor requestSizeSensor;
     private final Sensor responseSizeSensor;
     private final Sensor requestLatencySensor;
-    private Sensor errorSensor;
+    private final Sensor errorSensor;
     private final Map<String, Sensor> errorSensorByStatus =
         new HashMap<>(HTTP_STATUS_CODE_TEXT.length);
 
