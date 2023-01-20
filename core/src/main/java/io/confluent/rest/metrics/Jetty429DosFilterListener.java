@@ -16,15 +16,12 @@
 
 package io.confluent.rest.metrics;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.Metrics;
@@ -33,8 +30,6 @@ import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.metrics.stats.CumulativeCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.WindowedCount;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlets.DoSFilter;
 import org.eclipse.jetty.servlets.DoSFilter.Action;
 import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
@@ -62,20 +57,23 @@ public class Jetty429DosFilterListener extends DoSFilter.Listener {
 
       fourTwoNineSensor.add(getMetricName(metrics,
           "request-error-rate",
-          "The average number of requests per second that resulted in 429 HTTP error responses in Jetty layer",
+          "The average number of requests per second that resulted in 429 HTTP error "
+              + "responses in Jetty layer",
           instanceMetricsTags), new Rate());
       fourTwoNineSensor.add(getMetricName(metrics, "request-error-count",
-          "A windowed count of requests that resulted in 429 HTTP error responses in Jetty layer",
+          "A windowed count of requests that resulted in 429 HTTP error responses"
+              + " in Jetty layer",
           instanceMetricsTags), new WindowedCount());
       fourTwoNineSensor.add(getMetricName(metrics, "request-error-total",
-          "A cumulative count of requests that resulted in 429 HTTP error responses in Jetty layer",
+          "A cumulative count of requests that resulted in 429 HTTP error responses"
+              + " in Jetty layer",
           instanceMetricsTags), new CumulativeCount());
     }
   }
 
   @Override
-  public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit, DoSFilter dosFilter)
-  {
+  public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
+      DoSFilter dosFilter) {
     Action action = super.onRequestOverLimit(request, overlimit, dosFilter);
     if (action.equals(Action.REJECT)) {
       fourTwoNineSensor.record();
