@@ -103,7 +103,6 @@ public abstract class Application<T extends RestConfig> {
   protected ApplicationServer<?> server;
   protected Metrics metrics;
   protected final CustomRequestLog requestLog;
-  protected final Rest429CustomResponseHandler fourTwoNineHandler;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   @SuppressWarnings("unchecked")
@@ -132,8 +131,6 @@ public abstract class Application<T extends RestConfig> {
 
     // %{ms}T logs request time in milliseconds
     requestLog = new CustomRequestLog(logWriter, requestLogFormat());
-    fourTwoNineHandler = new Rest429CustomResponseHandler(metrics,
-        getMetricsTags(), config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
   protected String requestLogFormat() {
@@ -379,9 +376,8 @@ public abstract class Application<T extends RestConfig> {
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
 
-
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler, fourTwoNineHandler});
+    handlers.setHandlers(new Handler[]{context, requestLogHandler});
 
     return handlers;
   }
