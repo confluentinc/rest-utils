@@ -30,6 +30,7 @@ import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
+import io.confluent.rest.metrics.Jetty429DosFilterListener;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 import java.io.IOException;
@@ -103,6 +104,7 @@ public abstract class Application<T extends RestConfig> {
   protected ApplicationServer<?> server;
   protected Metrics metrics;
   protected final CustomRequestLog requestLog;
+  protected final Jetty429DosFilterListener jetty429DosFilterListener;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   @SuppressWarnings("unchecked")
@@ -131,6 +133,8 @@ public abstract class Application<T extends RestConfig> {
 
     // %{ms}T logs request time in milliseconds
     requestLog = new CustomRequestLog(logWriter, requestLogFormat());
+    jetty429DosFilterListener = new Jetty429DosFilterListener(metrics, getMetricsTags(),
+        config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
   protected String requestLogFormat() {
@@ -682,6 +686,7 @@ public abstract class Application<T extends RestConfig> {
 
   private void configureNonGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new DoSFilter();
+    dosFilter.setListener(jetty429DosFilterListener);
     FilterHolder filterHolder = configureFilter(dosFilter,
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
@@ -689,6 +694,7 @@ public abstract class Application<T extends RestConfig> {
 
   private void configureGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new GlobalDosFilter();
+    dosFilter.setListener(jetty429DosFilterListener);
     String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
     FilterHolder filterHolder = configureFilter(dosFilter, globalLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
