@@ -209,6 +209,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
+    // Allow requests/responses with large URLs/token headers
+    httpConfiguration.setRequestHeaderSize(
+        config.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
+    httpConfiguration.setResponseHeaderSize(
+        config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
+
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
