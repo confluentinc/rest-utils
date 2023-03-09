@@ -228,7 +228,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     for (NamedURI listener : listeners) {
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
-          httpConfiguration.addCustomizer(new SecureRequestCustomizer());
+          SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
+          // Explicitly making sure that SNI is checked against Host in HTTP request
+          secureRequestCustomizer.setSniHostCheck(true);
+          httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
