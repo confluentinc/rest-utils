@@ -230,7 +230,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
           SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
           // Explicitly making sure that SNI is checked against Host in HTTP request
-          secureRequestCustomizer.setSniHostCheck(true);
+          assert secureRequestCustomizer.isSniHostCheck();
           httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
