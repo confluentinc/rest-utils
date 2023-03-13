@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.lang.management.ManagementFactory;
@@ -228,7 +229,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     for (NamedURI listener : listeners) {
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
-          httpConfiguration.addCustomizer(new SecureRequestCustomizer());
+          SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
+          // Explicitly making sure that SNI is checked against Host in HTTP request
+          Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
+              "Host name matching SNI certificate check must be enabled.");
+          httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
