@@ -2,44 +2,39 @@ package io.confluent.rest.metrics;
 
 import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
-import io.confluent.rest.*;
+import io.confluent.rest.Application;
+import io.confluent.rest.RestConfig;
+import io.confluent.rest.TestMetricsReporter;
+import io.confluent.rest.TestRestConfig;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
-
-import java.lang.management.ManagementFactory;
-import java.util.Iterator;
-import java.util.Set;
-import javax.management.InstanceNotFoundException;
-import javax.management.MBeanRegistrationException;
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectInstance;
-import javax.management.ObjectName;
-import javax.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
+import org.eclipse.jetty.security.AbstractLoginService;
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.IdentityService;
+import org.eclipse.jetty.security.LoginService;
+import org.eclipse.jetty.security.ServerAuthException;
+import org.eclipse.jetty.security.authentication.LoginAuthenticator;
+import org.eclipse.jetty.server.Authentication;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.UserIdentity;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.util.security.Constraint;
 import org.glassfish.jersey.server.ServerProperties;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.GET;
@@ -49,9 +44,19 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.container.ContainerResponseContext;
+import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TEXT;
@@ -59,7 +64,6 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
-
   TestRestConfig config;
   ApplicationWithFilter app;
   private Server server;
@@ -73,7 +77,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     props.setProperty("debug", "false");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     config = new TestRestConfig(props);
-    app = new ApplicationWithFilter(config);
+    app = new ApplicationWithFilter(config, false);
     server = app.createServer();
     server.start();
     counter = new AtomicInteger();
@@ -236,7 +240,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @Test
   public void test429Metrics() throws InterruptedException {
-
     make429Call();
     make429Call();
 
@@ -346,6 +349,56 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
+  public void testFilterExceptionLatencyMetric() {
+    // custom setup for throwing exceptions in a Jetty filter
+    app = new ApplicationWithFilter(config, true);
+    try {
+      server = app.createServer();
+      server.start();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    try {
+      Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+              .target(server.getURI())
+              .path("/public/hello")
+              .request(MediaType.APPLICATION_JSON_TYPE)
+              .get();
+
+      //String totalUri = correctURI+"public/query?=%";
+      //String totalUri = correctURI+"public/hello";
+/*
+      HttpClient client = HttpClients.createDefault();
+      HttpGet getRequest = new HttpGet(totalUri);
+      HttpResponse response = client.execute(getRequest);
+/* */
+      /*
+      final URL url = new URL(totalUri);
+      final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection.setRequestMethod("GET");
+
+      final InputStream inputStream = connection.getInputStream();
+      final Response response = new ObjectMapper().readValue(inputStream, Response.class);
+      /* */
+      /*
+      while (true) {
+        System.err.print((char)inputStream.read());
+      }
+      */
+      assertEquals(500, response.getStatus());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-latency")) {
+        assertMetricLessThan(metric, 1000);
+      }
+    }
+  }
+
+  @Test
   public void testMetricReporterConfiguration() {
     ApplicationWithFilter app;
     Properties props = new Properties();
@@ -357,7 +410,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     props.put("not.prefixed.config", "val3");
 
-    app = new ApplicationWithFilter(new TestRestConfig(props));
+    app = new ApplicationWithFilter(new TestRestConfig(props), false);
     TestMetricsReporter reporter = (TestMetricsReporter) app.getMetrics().reporters().get(0);
 
     assertTrue(reporter.getConfigs().containsKey("not.prefixed.config"));
@@ -404,12 +457,21 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(expectedValue, countValue, "Actual: " + countValue);
   }
 
+  private void assertMetricLessThan(KafkaMetric metric, int expectedValue) {
+    Object metricValue = metric.metricValue();
+    assertTrue(metricValue instanceof Double, "Metrics should be measurable");
+    double countValue = (double) metricValue;
+    assertTrue(countValue < expectedValue, "Expected: "+ expectedValue + "Actual: " + countValue);
+  }
+
   private class ApplicationWithFilter extends Application<TestRestConfig> {
+    private Configurable<?> resourceConfig;
+    // simulates an exception being thrown in a filter
+    private final boolean registerExplodingFilter;
 
-    Configurable resourceConfig;
-
-    ApplicationWithFilter(TestRestConfig props) {
+    ApplicationWithFilter(TestRestConfig props, boolean registerExplodingFilter) {
       super(props);
+      this.registerExplodingFilter = registerExplodingFilter;
     }
 
     @Override
@@ -417,6 +479,18 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       resourceConfig = config;
       config.register(PrivateResource.class);
       config.register(new PublicResource());
+      if (registerExplodingFilter) {
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+        config.register(new ExplodingFilter());
+      }
       config.register(new Filter());
       config.register(new MyExceptionMapper(appConfig));
 
@@ -450,6 +524,27 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       });
     }
 
+    @Override
+    protected void configureSecurityHandler(ServletContextHandler context) {
+      if (registerExplodingFilter) {
+        return;
+      }
+
+      ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
+      Constraint constraint = new Constraint();
+      constraint.setAuthenticate( true );
+      constraint.setRoles(new String[] { "user", "admin" });
+
+      ConstraintMapping mapping = new ConstraintMapping();
+      mapping.setPathSpec("/*");
+      mapping.setConstraint( constraint );
+      //final ConstraintSecurityHandler securityHandler = createSecurityHandler();
+
+      securityHandler.setConstraintMappings(Collections.singletonList(mapping));
+      securityHandler.setAuthenticator(new ExplodingAuthenticator());
+      securityHandler.setLoginService(new BlahLoginService());
+      context.setSecurityHandler(securityHandler);
+    }
   }
 
   @Produces(MediaType.APPLICATION_JSON)
@@ -487,11 +582,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     public String fourTwoNine() {
       throw new StatusCodeException(Status.TOO_MANY_REQUESTS, new RuntimeException("kaboom"));
     }
-
   }
 
   public class Filter implements ContainerRequestFilter {
-
     private final String[] tags = new String[]{"", "value1", "value2"};
 
     @Override
@@ -502,6 +595,47 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         maps.put("tag", value);
       }
       context.setProperty(MetricsResourceMethodApplicationListener.REQUEST_TAGS_PROP_KEY, maps);
+    }
+  }
+
+  private class ExplodingFilter implements ContainerRequestFilter, ContainerResponseFilter {
+    @Override
+    public void filter(ContainerRequestContext context) {
+      throw new RuntimeException("BOOM");
+    }
+
+    @Override
+    public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) {
+      throw new RuntimeException("BOOM");
+    }
+  }
+
+  public class ExplodingAuthenticator extends LoginAuthenticator {
+    @Override
+    public String getAuthMethod() {
+      return "TESTAUTHENTICATOR";
+    }
+
+    @Override
+    public Authentication validateRequest(ServletRequest servletRequest, ServletResponse servletResponse, boolean b) throws ServerAuthException {
+      throw new RuntimeException("Exception authenticating request!");
+    }
+
+    @Override
+    public boolean secureResponse(ServletRequest servletRequest, ServletResponse servletResponse, boolean b, Authentication.User user) throws ServerAuthException {
+      return false;
+    }
+  }
+
+  public class BlahLoginService extends AbstractLoginService {
+    @Override
+    protected String[] loadRoleInfo(UserPrincipal userPrincipal) {
+      return new String[0];
+    }
+
+    @Override
+    protected UserPrincipal loadUserInfo(String s) {
+      return null;
     }
   }
 
@@ -541,5 +675,4 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       return code;
     }
   }
-
 }

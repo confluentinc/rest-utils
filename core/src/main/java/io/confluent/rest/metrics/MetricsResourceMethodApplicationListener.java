@@ -412,7 +412,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     public MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time) {
       this.metrics = metrics;
       this.time = time;
-      // CIAM-2673: if an exception occurs, MATCHING_START is never reached, resulting in false latency metrics
+      // CIAM-2673: if an exception occur in a filter that runs before this method listener,
+      // MATCHING_START is never reached, resulting in false latency metrics
       this.started = time.milliseconds();
     }
 
