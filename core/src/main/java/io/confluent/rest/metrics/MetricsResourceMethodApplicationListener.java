@@ -536,7 +536,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.metrics = metrics;
       this.time = time;
       this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
-      // CIAM-2673: if an exception occurs, MATCHING_START is never reached, resulting in false latency metrics
+      // CIAM-2673: if an exception occur in a filter that runs before this method listener,
+      // MATCHING_START is never reached, resulting in false latency metrics
       this.started = time.milliseconds();
     }
 
