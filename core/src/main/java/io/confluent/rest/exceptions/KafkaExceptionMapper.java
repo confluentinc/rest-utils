@@ -27,6 +27,7 @@ import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.common.errors.InvalidPartitionsException;
 import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 import org.apache.kafka.common.errors.InvalidRequestException;
+import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.PolicyViolationException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
@@ -126,6 +127,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
       }
       return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
           KAFKA_RETRIABLE_ERROR_ERROR_CODE);
+    } else if (exception instanceof InvalidTopicException) {
+      return getResponse(exception, Status.BAD_REQUEST, KAFKA_BAD_REQUEST_ERROR_CODE);
     } else if (exception instanceof KafkaException) {
       log.error("Kafka exception", exception);
       return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
