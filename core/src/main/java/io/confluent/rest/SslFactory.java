@@ -16,12 +16,9 @@
 
 package io.confluent.rest;
 
-import com.google.common.collect.ImmutableMap;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.Provider;
 import java.security.Security;
-import java.util.Map;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
@@ -31,9 +28,6 @@ import org.slf4j.LoggerFactory;
 public final class SslFactory {
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
-
-  private static final Map<String, Provider> securityProviderMap = ImmutableMap.of(
-      SslConfig.TLS_CONSCRYPT, new OpenSSLProvider());
 
   private SslFactory() {}
 
@@ -117,8 +111,8 @@ public final class SslFactory {
 
   private static void configureSecurityProvider(Server sslContextFactory, SslConfig sslConfig) {
     sslContextFactory.setProvider(sslConfig.getProvider());
-    if (securityProviderMap.containsKey(sslConfig.getProvider())) {
-      Security.addProvider(securityProviderMap.get(sslConfig.getProvider()));
+    if (SslConfig.TLS_CONSCRYPT.equalsIgnoreCase(sslConfig.getProvider())) {
+      Security.addProvider(new OpenSSLProvider());
     }
   }
 }
