@@ -22,7 +22,6 @@ import static java.util.Collections.emptyMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.rest.auth.AuthUtil;
-import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
@@ -309,10 +308,6 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    if (isErrorStackTraceSuppressionEnabled()) {
-      context.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
-    }
-
     configureSecurityHandler(context);
 
     if (isCorsEnabled()) {
@@ -431,10 +426,6 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCsrfProtectionEnabled() {
     return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
-  }
-
-  private boolean isErrorStackTraceSuppressionEnabled() {
-    return config.getBoolean(RestConfig.SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
   @SuppressWarnings("unchecked")
