@@ -1153,6 +1153,10 @@ public class RestConfig extends AbstractConfig {
     return getInt(CONNECTOR_CONNECTION_LIMIT);
   }
 
+  public final boolean getSuppressStackTraceInResponse() {
+    return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
+  }
+
   public final List<NamedURI> getListeners() {
     return parseListeners(
         getList(RestConfig.LISTENERS_CONFIG),

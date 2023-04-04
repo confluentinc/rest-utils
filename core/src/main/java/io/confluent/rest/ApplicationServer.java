@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -185,7 +186,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
+  @Override
   protected final void doStart() throws Exception {
+    // set the default error handler
+    if (config.getSuppressStackTraceInResponse()) {
+      this.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
+    }
+
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
