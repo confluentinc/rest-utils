@@ -21,6 +21,7 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 import static java.util.Collections.emptyMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
@@ -118,6 +119,11 @@ public abstract class Application<T extends RestConfig> {
   }
 
   public Application(T config, String path, String listenerName) {
+    this(config, path, listenerName, null);
+  }
+
+  @VisibleForTesting
+  Application(T config, String path, String listenerName, CustomRequestLog customRequestLog) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
@@ -125,11 +131,14 @@ public abstract class Application<T extends RestConfig> {
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
 
-    Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
-    logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-
-    // %{ms}T logs request time in milliseconds
-    requestLog = new CustomRequestLog(logWriter, requestLogFormat());
+    if (customRequestLog == null) {
+      Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
+      logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+      // %{ms}T logs request time in milliseconds
+      requestLog = new CustomRequestLog(logWriter, requestLogFormat());
+    } else {
+      requestLog = customRequestLog;
+    }
   }
 
   protected String requestLogFormat() {
@@ -370,9 +379,10 @@ public abstract class Application<T extends RestConfig> {
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
+    context.insertHandler(requestLogHandler);
 
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler});
+    handlers.setHandlers(new Handler[]{context});
 
     return handlers;
   }
