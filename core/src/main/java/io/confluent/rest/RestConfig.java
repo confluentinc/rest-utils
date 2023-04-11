@@ -164,6 +164,16 @@ public class RestConfig extends AbstractConfig {
       + " be used to specify additional tags during deployment like data center, instance "
       + "details, etc.";
   protected static final String METRICS_TAGS_DEFAULT = "";
+  public static final String METRICS_ENABLE_LATENCY_SLO_SLA_CONFIG =
+      "metrics.enable.latency.slo.sla";
+  protected static final String METRICS_ENABLE_LATENCY_SLO_SLA_DOC = "Enable latency SLO and SLA";
+  protected static final boolean METRICS_ENABLE_LATENCY_SLO_SLA_DEFAULT = false;
+  public static final String METRICS_LATENCY_SLO_MS_CONFIG = "metrics.latency.slo.ms";
+  protected static final String METRICS_LATENCY_SLO_MS_DOC = "Latency SLO (in ms)";
+  protected static final long METRICS_LATENCY_SLO_MS_DEFAULT = 5;
+  public static final String METRICS_LATENCY_SLA_MS_CONFIG = "metrics.latency.sla.ms";
+  protected static final String METRICS_LATENCY_SLA_MS_DOC = "Latency SLA (in ms)";
+  protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
@@ -667,6 +677,24 @@ public class RestConfig extends AbstractConfig {
             METRICS_TAGS_DEFAULT,
             Importance.LOW,
             METRICS_TAGS_DOC
+        ).define(
+            METRICS_ENABLE_LATENCY_SLO_SLA_CONFIG,
+            Type.BOOLEAN,
+            METRICS_ENABLE_LATENCY_SLO_SLA_DEFAULT,
+            Importance.LOW,
+            METRICS_ENABLE_LATENCY_SLO_SLA_DOC
+        ).define(
+            METRICS_LATENCY_SLO_MS_CONFIG,
+            Type.LONG,
+            METRICS_LATENCY_SLO_MS_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLO_MS_DOC
+        ).define(
+            METRICS_LATENCY_SLA_MS_CONFIG,
+            Type.LONG,
+            METRICS_LATENCY_SLA_MS_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLA_MS_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,

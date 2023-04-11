@@ -75,20 +75,30 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   private static final int PERCENTILE_NUM_BUCKETS = 200;
   private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
+  private static final String[] LATENCY_SLO_SLA_NAMES = {"response-below-latency-slo",
+      "response-above-latency-slo", "response-below-latency-sla", "response-above-latency-sla"};
 
   private final Metrics metrics;
   private final String metricGrpPrefix;
   private final Map<String, String> metricTags;
   private final Time time;
   private final Map<Method, RequestScopedMetrics> methodMetrics = new HashMap<>();
+  private final boolean enableLatencySloSla;
+  private final long latencySloMs;
+  private final long latencySlaMs;
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-                                                  Map<String,String> metricTags, Time time) {
+                                                  Map<String,String> metricTags, Time time,
+                                                  boolean enableLatencySloSla,
+                                                  long latencySloMs, long latencySlaMs) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
     this.metricTags = (metricTags != null) ? metricTags : emptyMap();
     this.time = time;
+    this.enableLatencySloSla = enableLatencySloSla;
+    this.latencySloMs = latencySloMs;
+    this.latencySlaMs = latencySlaMs;
   }
 
   @Override
@@ -96,7 +106,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     if (event.getType() == ApplicationEvent.Type.INITIALIZATION_FINISHED) {
       // Special null key is used for global stats
       MethodMetrics m = new MethodMetrics(
-          null, null, this.metrics, metricGrpPrefix, metricTags, emptyMap());
+          null, null, this.metrics, metricGrpPrefix, metricTags, emptyMap(),
+          enableLatencySloSla, latencySloMs, latencySlaMs);
       methodMetrics.put(null, new RequestScopedMetrics(m, new ConstructionContext(this)));
 
       for (final Resource resource : event.getResourceModel().getResources()) {
@@ -119,7 +130,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       PerformanceMetric annotation = definitionMethod.getAnnotation(PerformanceMetric.class);
 
       MethodMetrics m = new MethodMetrics(
-          method, annotation, metrics, metricGrpPrefix, metricTags, emptyMap());
+          method, annotation, metrics, metricGrpPrefix, metricTags, emptyMap(),
+          enableLatencySloSla, latencySloMs, latencySlaMs);
       ConstructionContext context = new ConstructionContext(method, annotation, this);
       methodMetrics.put(definitionMethod, new RequestScopedMetrics(m, context));
     }
@@ -184,12 +196,24 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private final Sensor responseSizeSensor;
     private final Sensor requestLatencySensor;
     private final Sensor errorSensor;
+    private final Map<String, Sensor> responseLatencySloSlaSensor =
+        new HashMap<>(LATENCY_SLO_SLA_NAMES.length);
     private final Map<String, Sensor> errorSensorByStatus =
         new HashMap<>(HTTP_STATUS_CODE_TEXT.length);
+    private final boolean enableLatencySloSla;
+    private final long latencySloMs;
+    private final long latencySlaMs;
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags,
                          Map<String, String> requestTags) {
+      this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false, 0L, 0L);
+    }
+
+    public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
+                         String metricGrpPrefix, Map<String, String> metricTags,
+                         Map<String, String> requestTags, boolean enableLatencySloSla,
+                         long latencySloMs, long latencySlaMs) {
       String metricGrpName = metricGrpPrefix + "-metrics";
       // The tags will be used to generate MBean names if JmxReporter is used,
       // sort to get consistent names
@@ -256,6 +280,14 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "The maximum request latency in ms", allTags);
       this.requestLatencySensor.add(metricName, new Max());
 
+      this.enableLatencySloSla = enableLatencySloSla;
+      this.latencySloMs = latencySloMs;
+      this.latencySlaMs = latencySlaMs;
+      if (enableLatencySloSla) {
+        setResponseLatencySloSlaSensor(method, annotation, metrics,
+            requestTags, metricGrpName, allTags);
+      }
+
       Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
           0.0,
           PERCENTILE_MAX_LATENCY_IN_MS,
@@ -290,6 +322,23 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           "A cumulative count of requests that resulted in HTTP error responses",
           allTags);
       this.errorSensor.add(metricName, new CumulativeCount());
+    }
+
+    private void setResponseLatencySloSlaSensor(ResourceMethod method,
+        PerformanceMetric annotation, Metrics metrics, Map<String, String> requestTags,
+        String metricGrpName, Map<String, String> allTags) {
+      for (int i = 0; i < LATENCY_SLO_SLA_NAMES.length; i++) {
+        final Sensor sensor = metrics.sensor(
+            getName(method, annotation, LATENCY_SLO_SLA_NAMES[i], requestTags),
+            null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
+        MetricName metricName = new MetricName(
+            getName(method, annotation, LATENCY_SLO_SLA_NAMES[i] + "-total"), metricGrpName,
+            (i % 2 == 0 ? "Below" : "Above")
+                + " latency SLA request count, using a cumulative counter",
+            allTags);
+        sensor.add(metricName, new CumulativeCount());
+        responseLatencySloSlaSensor.put(LATENCY_SLO_SLA_NAMES[i], sensor);
+      }
     }
 
     private void setErrorSensorByStatus(ResourceMethod method, PerformanceMetric annotation,
@@ -331,6 +380,20 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       requestSizeSensor.record(requestSize);
       responseSizeSensor.record(responseSize);
       requestLatencySensor.record(latencyMs);
+
+      if (enableLatencySloSla) {
+        if (latencyMs < latencySloMs) {
+          responseLatencySloSlaSensor.get(LATENCY_SLO_SLA_NAMES[0]).record();
+        } else {
+          responseLatencySloSlaSensor.get(LATENCY_SLO_SLA_NAMES[1]).record();
+        }
+
+        if (latencyMs < latencySlaMs) {
+          responseLatencySloSlaSensor.get(LATENCY_SLO_SLA_NAMES[2]).record();
+        } else {
+          responseLatencySloSlaSensor.get(LATENCY_SLO_SLA_NAMES[3]).record();
+        }
+      }
     }
 
     /**
