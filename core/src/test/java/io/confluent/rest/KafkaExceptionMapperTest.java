@@ -30,6 +30,7 @@ import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.common.errors.InvalidPartitionsException;
 import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 import org.apache.kafka.common.errors.InvalidRequestException;
+import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.NotCoordinatorException;
 import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.PolicyViolationException;
@@ -110,7 +111,7 @@ public class KafkaExceptionMapperTest {
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidRequestException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
-    verifyMapperResponse(new UnknownServerException("some message"),Status.BAD_REQUEST,
+    verifyMapperResponse(new UnknownServerException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new UnknownTopicOrPartitionException("some message"), Status.NOT_FOUND,
         KAFKA_UNKNOWN_TOPIC_PARTITION_CODE);
@@ -120,11 +121,14 @@ public class KafkaExceptionMapperTest {
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidConfigurationException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new InvalidTopicException("some message"), Status.BAD_REQUEST,
+        KAFKA_BAD_REQUEST_ERROR_CODE);
 
     //test couple of retriable exceptions
     verifyMapperResponse(new NotCoordinatorException("some message"), Status.INTERNAL_SERVER_ERROR,
         KAFKA_RETRIABLE_ERROR_ERROR_CODE);
-    verifyMapperResponse(new NotEnoughReplicasException("some message"), Status.INTERNAL_SERVER_ERROR,
+    verifyMapperResponse(new NotEnoughReplicasException("some message"),
+        Status.INTERNAL_SERVER_ERROR,
         KAFKA_RETRIABLE_ERROR_ERROR_CODE);
     //Including the special case of a topic not being present (eg because it's not been defined yet)
     //not returning a 500 error

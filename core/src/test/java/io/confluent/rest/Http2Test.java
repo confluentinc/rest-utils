@@ -28,6 +28,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.http2.client.HTTP2Client;
 import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -110,11 +111,22 @@ public class Http2Test {
   }
 
   private TestRestConfig buildTestConfig(boolean enableHttp2) {
+    return buildTestConfig(enableHttp2, null, null);
+  }
+
+  private TestRestConfig buildTestConfig(boolean enableHttp2, String sslProtocol,
+      String sslProvider) {
     Properties props = new Properties();
     props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI + "," + HTTPS_URI);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     if (!enableHttp2) {
       props.put(RestConfig.HTTP2_ENABLED_CONFIG, false);
+    }
+    if (sslProtocol != null) {
+      props.put(RestConfig.SSL_PROTOCOL_CONFIG, sslProtocol);
+    }
+    if (sslProvider != null) {
+      props.put(RestConfig.SSL_PROVIDER_CONFIG, sslProvider);
     }
     configServerKeystore(props);
     return new TestRestConfig(props);
@@ -143,6 +155,33 @@ public class Http2Test {
       assertEquals(200, statusCode, EXPECTED_200_MSG);
       statusCode = makeGetRequestHttp(HTTPS_URI + "/test",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testHttp2WithConscrypt() throws Exception {
+    TestRestConfig config = buildTestConfig(true, "TLSv1.3", SslConfig.TLS_CONSCRYPT);
+    Http2TestApplication app = new Http2TestApplication(config);
+    try {
+      app.start();
+      // Should be true irrespective of java version as conscrypt is used as ssl provider.
+      assertTrue(ApplicationServer.isHttp2Compatible(config.getBaseSslConfig()));
+
+      int statusCode = makeGetRequestHttp2(HTTP_URI + "/test");
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      statusCode = makeGetRequestHttp2(HTTPS_URI + "/test",
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+
+      // HTTP/1.1 should work whether HTTP/2 is available or not
+      statusCode = makeGetRequestHttp(HTTP_URI + "/test");
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      statusCode = makeGetRequestHttp(HTTPS_URI + "/test",
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
     } finally {
