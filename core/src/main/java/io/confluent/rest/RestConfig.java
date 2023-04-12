@@ -461,6 +461,14 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
 
+  public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
+
+  protected static final String SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC =
+      "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
+          + "This ensures that no stack traces are included in responses to clients.";
+
+  protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -942,6 +950,12 @@ public class RestConfig extends AbstractConfig {
             NOSNIFF_PROTECTION_ENABLED_DEFAULT,
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
+        ).define(
+            SUPPRESS_STACK_TRACE_IN_RESPONSE,
+            Type.BOOLEAN,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
+            Importance.LOW,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC
         );
   }
 
@@ -1062,6 +1076,10 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final boolean getSuppressStackTraceInResponse() {
+    return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
   public final Map<String, String> getMap(String propertyName) {
