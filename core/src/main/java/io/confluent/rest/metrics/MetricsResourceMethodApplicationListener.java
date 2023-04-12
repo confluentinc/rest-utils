@@ -37,6 +37,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.Response.StatusType;
 
 import io.confluent.rest.annotations.PerformanceMetric;
 
@@ -69,7 +71,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   protected static final String HTTP_STATUS_CODE_TAG = "http_status_code";
   protected static final String[] HTTP_STATUS_CODE_TEXT = {
-      "unknown", "1xx", "2xx", "3xx", "4xx", "5xx"};
+      "unknown", "1xx", "2xx", "3xx", "4xx", "5xx", "429"};
   private static final int PERCENTILE_NUM_BUCKETS = 200;
   private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
@@ -77,7 +79,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   private final Metrics metrics;
   private final String metricGrpPrefix;
   private final Map<String, String> metricTags;
-  Time time;
+  private final Time time;
   private final Map<Method, RequestScopedMetrics> methodMetrics = new HashMap<>();
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
@@ -181,8 +183,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private final Sensor requestSizeSensor;
     private final Sensor responseSizeSensor;
     private final Sensor requestLatencySensor;
-    private Sensor errorSensor;
-    private final Sensor[] errorSensorByStatus = new Sensor[HTTP_STATUS_CODE_TEXT.length];
+    private final Sensor errorSensor;
+    private final Map<String, Sensor> errorSensorByStatus =
+        new HashMap<>(HTTP_STATUS_CODE_TEXT.length);
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags,
@@ -256,7 +259,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
           0.0,
           PERCENTILE_MAX_LATENCY_IN_MS,
-          Percentiles.BucketSizing.CONSTANT,
+          Percentiles.BucketSizing.LINEAR,
           new Percentile(new MetricName(
               getName(method, annotation, "request-latency-95"), metricGrpName,
               "The 95th percentile request latency in ms", allTags), 95),
@@ -265,32 +268,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
               "The 99th percentile request latency in ms", allTags), 99));
       this.requestLatencySensor.add(percs);
 
-      for (int i = 0; i < errorSensorByStatus.length; i++) {
-        errorSensorByStatus[i] = metrics.sensor(
-            getName(method, annotation, "errors" + i, requestTags),
-            null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
-        SortedMap<String, String> tags = new TreeMap<>(allTags);
-        tags.put(HTTP_STATUS_CODE_TAG, HTTP_STATUS_CODE_TEXT[i]);
-        metricName = new MetricName(getName(method, annotation, "request-error-rate"),
-            metricGrpName,
-            "The average number of requests"
-                + " per second that resulted in HTTP error responses with code "
-                + HTTP_STATUS_CODE_TEXT[i],
-            tags);
-        errorSensorByStatus[i].add(metricName, new Rate());
-
-        metricName = new MetricName(getName(method, annotation, "request-error-count"),
-            metricGrpName,
-            "A windowed count of requests that resulted in an HTTP error response with code - "
-                + HTTP_STATUS_CODE_TEXT[i], tags);
-        errorSensorByStatus[i].add(metricName, new WindowedCount());
-
-        metricName = new MetricName(getName(method, annotation, "request-error-total"),
-            metricGrpName,
-            "A cumulative count of requests that resulted in an HTTP error response with code - "
-                + HTTP_STATUS_CODE_TEXT[i], tags);
-        errorSensorByStatus[i].add(metricName, new CumulativeCount());
-      }
+      setErrorSensorByStatus(method, annotation, metrics, requestTags, metricGrpName, allTags);
 
       this.errorSensor = metrics.sensor(getName(method, annotation, "errors", requestTags),
           null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
@@ -314,6 +292,38 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.errorSensor.add(metricName, new CumulativeCount());
     }
 
+    private void setErrorSensorByStatus(ResourceMethod method, PerformanceMetric annotation,
+        Metrics metrics, Map<String, String> requestTags, String metricGrpName,
+        Map<String, String> allTags) {
+      for (int i = 0; i < HTTP_STATUS_CODE_TEXT.length; i++) {
+        final Sensor sensor = metrics.sensor(
+            getName(method, annotation, "errors" + i, requestTags),
+            null, SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
+        SortedMap<String, String> tags = new TreeMap<>(allTags);
+        tags.put(HTTP_STATUS_CODE_TAG, HTTP_STATUS_CODE_TEXT[i]);
+        MetricName metricName = new MetricName(getName(method, annotation, "request-error-rate"),
+            metricGrpName,
+            "The average number of requests"
+                + " per second that resulted in HTTP error responses with code "
+                + HTTP_STATUS_CODE_TEXT[i],
+            tags);
+        sensor.add(metricName, new Rate());
+
+        metricName = new MetricName(getName(method, annotation, "request-error-count"),
+            metricGrpName,
+            "A windowed count of requests that resulted in an HTTP error response with code - "
+                + HTTP_STATUS_CODE_TEXT[i], tags);
+        sensor.add(metricName, new WindowedCount());
+
+        metricName = new MetricName(getName(method, annotation, "request-error-total"),
+            metricGrpName,
+            "A cumulative count of requests that resulted in an HTTP error response with code - "
+                + HTTP_STATUS_CODE_TEXT[i], tags);
+        sensor.add(metricName, new CumulativeCount());
+        errorSensorByStatus.put(HTTP_STATUS_CODE_TEXT[i], sensor);
+      }
+    }
+
     /**
      * Indicate that a request has finished successfully.
      */
@@ -327,20 +337,37 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
      * Indicate that a request has failed with an exception.
      */
     public void exception(final RequestEvent event) {
-      //map the http status codes down to their classes (2xx, 4xx, 5xx)
-      // use the containerResponse status as it has the http status after ExceptionMappers
-      // are applied
-      int idx = event.getContainerResponse() != null
-          ? event.getContainerResponse().getStatus() / 100 : 5;
-
-      // Index 0 means "unknown" status codes.
-      if (idx <= 0 || idx >= HTTP_STATUS_CODE_TEXT.length) {
-        log.error("Unidentified exception to record metrics against", event.getException());
-        idx = 0;
+      if (event.getContainerResponse() != null) {
+        //map the http status codes down to their classes (2xx, 4xx, 5xx)
+        // use the containerResponse status as it has the http status after ExceptionMappers
+        // are applied
+        final StatusType status = event.getContainerResponse().getStatusInfo();
+        final String statusText = getHttpStatusText(status);
+        errorSensorByStatus.get(statusText).record();
+        if (status.equals(Status.TOO_MANY_REQUESTS)) {
+          errorSensorByStatus.get("429").record();
+        }
+      } else {
+        errorSensorByStatus.get("unknown").record();
       }
-
-      errorSensorByStatus[idx].record();
       errorSensor.record();
+    }
+
+    private static String getHttpStatusText(StatusType statusType) {
+      switch (statusType.getFamily()) {
+        case INFORMATIONAL:
+          return "1xx";
+        case SUCCESSFUL:
+          return "2xx";
+        case REDIRECTION:
+          return "3xx";
+        case CLIENT_ERROR:
+          return "4xx";
+        case SERVER_ERROR:
+          return "5xx";
+        default:
+          return "unknown";
+      }
     }
 
     private static String getName(final ResourceMethod method,
