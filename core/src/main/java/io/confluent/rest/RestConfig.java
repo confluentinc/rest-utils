@@ -1118,6 +1118,10 @@ public class RestConfig extends AbstractConfig {
     return getInt(CONNECTOR_CONNECTION_LIMIT);
   }
 
+  public final boolean getSuppressStackTraceInResponse() {
+    return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
+  }
+
   public final Map<String, String> getMap(String propertyName) {
     List<String> list = getList(propertyName);
     Map<String, String> map = new HashMap<>();
