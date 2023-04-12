@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,7 +78,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   
     final StringTokenizer st = new StringTokenizer(versionString, ".");
     int majorVersion = Integer.parseInt(st.nextToken());
-  
+
     return majorVersion >= 11;
   }
 
@@ -180,6 +181,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   protected final void doStart() throws Exception {
+    // set the default error handler
+    if (config.getSuppressStackTraceInResponse()) {
+      this.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
+    }
+
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
