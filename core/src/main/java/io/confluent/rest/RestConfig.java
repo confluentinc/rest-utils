@@ -166,13 +166,16 @@ public class RestConfig extends AbstractConfig {
   protected static final String METRICS_TAGS_DEFAULT = "";
   public static final String METRICS_ENABLE_LATENCY_SLO_SLA_CONFIG =
       "metrics.enable.latency.slo.sla";
-  protected static final String METRICS_ENABLE_LATENCY_SLO_SLA_DOC = "Enable latency SLO and SLA";
+  protected static final String METRICS_ENABLE_LATENCY_SLO_SLA_DOC = "Whether to enable metrics about the "
+      + "count of requests that meet or violate latency SLO/SLA in the Performance annotation";
   protected static final boolean METRICS_ENABLE_LATENCY_SLO_SLA_DEFAULT = false;
   public static final String METRICS_LATENCY_SLO_MS_CONFIG = "metrics.latency.slo.ms";
-  protected static final String METRICS_LATENCY_SLO_MS_DOC = "Latency SLO (in ms)";
+  protected static final String METRICS_LATENCY_SLO_MS_DOC = "The threshold (in ms) of whether request"
+      + " latency meets or violates SLO";
   protected static final long METRICS_LATENCY_SLO_MS_DEFAULT = 5;
   public static final String METRICS_LATENCY_SLA_MS_CONFIG = "metrics.latency.sla.ms";
-  protected static final String METRICS_LATENCY_SLA_MS_DOC = "Latency SLA (in ms)";
+  protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether request"
+      + " latency meets or violates SLA";
   protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
