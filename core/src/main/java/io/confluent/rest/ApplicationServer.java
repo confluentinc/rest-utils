@@ -29,6 +29,8 @@ import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
+import org.eclipse.jetty.server.ConnectionLimit;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -113,6 +115,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     this.sslContextFactory = createSslContextFactory(config);
     configureConnectors(sslContextFactory);
+    configureConnectionLimits();
   }
 
   static NamedURI constructNamedURI(
@@ -542,6 +545,17 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
 
     return connectionFactories.toArray(new ConnectionFactory[0]);
+  }
+
+  private void configureConnectionLimits() {
+    int serverConnectionLimit = config.getServerConnectionLimit();
+    if (serverConnectionLimit > 0) {
+      addBean(new ConnectionLimit(serverConnectionLimit, getServer()));
+    }
+    int connectorConnectionLimit = config.getConnectorConnectionLimit();
+    if (connectorConnectionLimit > 0) {
+      addBean(new ConnectionLimit(connectorConnectionLimit, connectors.toArray(new Connector[0])));
+    }
   }
 
   /**
