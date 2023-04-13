@@ -1,12 +1,12 @@
 package io.confluent.rest;
 
+import static io.confluent.rest.TestUtils.getFreePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
@@ -221,19 +221,6 @@ public class ErrorHandlerIntegrationTest {
     TestSslUtils.createKeyStore(file.getPath(), new Password(SSL_PASSWORD),
         new Password(SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
     certs.put(alias, cCert);
-  }
-
-  public static int getFreePort() {
-    for (int attempt = 0; attempt < 10; attempt++) {
-      try (ServerSocket socket = new ServerSocket(0)) {
-        int port = socket.getLocalPort();
-        assert port > 0;
-        return port;
-      } catch (IOException e) {
-        // skip for next retry
-      }
-    }
-    return 0;
   }
 
   private static class TestApplication extends Application<TestRestConfig> {
