@@ -190,10 +190,14 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   }
 
   private static class MethodMetrics {
-    private final static String RESPONSE_BELOW_LATENCY_SLO = "response-below-latency-slo";
-    private final static String RESPONSE_ABOVE_LATENCY_SLO = "response-above-latency-slo";
-    private final static String RESPONSE_BELOW_LATENCY_SLA = "response-below-latency-sla";
-    private final static String RESPONSE_ABOVE_LATENCY_SLA = "response-above-latency-sla";
+    private static final String RESPONSE_BELOW_LATENCY_SLO =
+        "response-below-latency-slo";
+    private static final String RESPONSE_ABOVE_LATENCY_SLO =
+        "response-above-latency-slo";
+    private static final String RESPONSE_BELOW_LATENCY_SLA =
+        "response-below-latency-sla";
+    private static final String RESPONSE_ABOVE_LATENCY_SLA =
+        "response-above-latency-sla";
     private final Sensor requestSizeSensor;
     private final Sensor responseSizeSensor;
     private final Sensor requestLatencySensor;
