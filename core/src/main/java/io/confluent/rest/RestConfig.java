@@ -495,6 +495,18 @@ public class RestConfig extends AbstractConfig {
       "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
           + "This ensures that no stack traces are included in responses to clients.";
 
+  protected static final String MAX_RESPONSE_HEADER_SIZE_CONFIG =
+      "max.response.header.size";
+  protected static final String MAX_RESPONSE_HEADER_SIZE_DOC =
+      "Maximum buffer size for jetty response headers in bytes";
+  protected static final int MAX_RESPONSE_HEADER_SIZE_DEFAULT = 8192;
+
+  protected static final String MAX_REQUEST_HEADER_SIZE_CONFIG =
+      "max.request.header.size";
+  protected static final String MAX_REQUEST_HEADER_SIZE_DOC =
+      "Maximum buffer size for jetty request headers in bytes";
+  protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
+
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
   static final List<String> SUPPORTED_URI_SCHEMES =
@@ -999,6 +1011,18 @@ public class RestConfig extends AbstractConfig {
             SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
             Importance.LOW,
             SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC
+        ).define(
+            MAX_RESPONSE_HEADER_SIZE_CONFIG,
+            Type.INT,
+            MAX_RESPONSE_HEADER_SIZE_DEFAULT,
+            Importance.LOW,
+            MAX_RESPONSE_HEADER_SIZE_DOC
+        ).define(
+            MAX_REQUEST_HEADER_SIZE_CONFIG,
+            Type.INT,
+            MAX_REQUEST_HEADER_SIZE_DEFAULT,
+            Importance.LOW,
+            MAX_REQUEST_HEADER_SIZE_DOC
         );
   }
 

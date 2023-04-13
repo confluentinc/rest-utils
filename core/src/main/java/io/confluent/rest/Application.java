@@ -21,7 +21,6 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 import static java.util.Collections.emptyMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.google.common.annotations.VisibleForTesting;
 import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
@@ -135,7 +134,6 @@ public abstract class Application<T extends RestConfig> {
     if (customRequestLog == null) {
       Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
       logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
-
       // %{ms}T logs request time in milliseconds
       requestLog = new CustomRequestLog(logWriter, requestLogFormat());
     } else {

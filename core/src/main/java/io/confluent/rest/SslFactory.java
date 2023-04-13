@@ -16,11 +16,14 @@
 
 package io.confluent.rest;
 
-import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.Security;
+import org.conscrypt.OpenSSLProvider;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SslFactory {
 
@@ -85,7 +88,7 @@ public final class SslFactory {
 
     sslContextFactory.setProtocol(sslConfig.getProtocol());
     if (!sslConfig.getProvider().isEmpty()) {
-      sslContextFactory.setProvider(sslConfig.getProvider());
+      configureSecurityProvider(sslContextFactory, sslConfig);
     }
 
     sslContextFactory.setRenegotiationAllowed(false);
@@ -103,6 +106,13 @@ public final class SslFactory {
         sslContextFactory.setWantClientAuth(true);
         break;
       default:
+    }
+  }
+
+  private static void configureSecurityProvider(Server sslContextFactory, SslConfig sslConfig) {
+    sslContextFactory.setProvider(sslConfig.getProvider());
+    if (SslConfig.TLS_CONSCRYPT.equalsIgnoreCase(sslConfig.getProvider())) {
+      Security.addProvider(new OpenSSLProvider());
     }
   }
 }

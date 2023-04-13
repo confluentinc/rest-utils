@@ -131,30 +131,36 @@ public class ApplicationServerTest {
     assertThat(makeGetRequest("/app2/index.html"), is(Code.OK));
   }
 
-  List<URL> getListeners() {
+  List<URL> getListeners(ApplicationServer<TestRestConfig> server) {
     return Arrays.stream(server.getConnectors())
-            .filter(ServerConnector.class::isInstance)
-            .map(ServerConnector.class::cast)
-            .map(connector -> {
-              try {
-                String protocol = new HashSet<>(connector.getProtocols())
-                        .stream()
-                        .map(String::toLowerCase)
-                        .anyMatch(s -> s.equals("ssl")) ? "https" : "http";
+      .filter(ServerConnector.class::isInstance)
+      .map(ServerConnector.class::cast)
+      .map(connector -> {
+        try {
+          String protocol = new HashSet<>(connector.getProtocols())
+            .stream()
+            .map(String::toLowerCase)
+            .anyMatch(s -> s.equals("ssl")) ? "https" : "http";
 
-                int localPort = connector.getLocalPort();
+          int localPort = connector.getLocalPort();
 
-                return new URL(protocol, "localhost", localPort, "");
-              } catch (final Exception e) {
-                throw new RuntimeException("Malformed listener", e);
-              }
-            })
-            .collect(Collectors.toList());
+          return new URL(protocol, "localhost", localPort, "");
+        } catch (final Exception e) {
+          throw new RuntimeException("Malformed listener", e);
+        }
+      })
+      .collect(Collectors.toList());
   }
 
   @SuppressWarnings("SameParameterValue")
   private HttpStatus.Code makeGetRequest(final String path) throws Exception {
-    final HttpGet httpget = new HttpGet(getListeners().get(0).toString() + path);
+    return makeGetRequest(path, this.server);
+  }
+
+  @SuppressWarnings("SameParameterValue")
+  private HttpStatus.Code makeGetRequest(final String path,
+      ApplicationServer<TestRestConfig> server) throws Exception {
+    final HttpGet httpget = new HttpGet(getListeners(server).get(0).toString() + path);
 
     try (CloseableHttpClient httpClient = HttpClients.createDefault();
          CloseableHttpResponse response = httpClient.execute(httpget)) {
@@ -239,6 +245,37 @@ public class ApplicationServerTest {
     assertEquals(9, applicationServer.getQueueCapacity());
     applicationServer.stop();
 
+  }
+
+  @Test
+  public void testMaxHeaderSize() throws Exception {
+    TestApp app1 = new TestApp("/app");
+    String path = "/app/resource?" + String.join("", Collections.nCopies(8192, "a"));
+    server.registerApplication(app1);
+    server.start();
+
+    // First check that a long URL will be rejected by
+    // the jetty web server with the default header size config
+    assertThat(makeGetRequest(path), is(Code.URI_TOO_LONG));
+    server.stop();
+
+    // Configure a second application server with a higher request size config
+    Properties props = new Properties();
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:0");
+    props.setProperty(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG, "16384");
+    RestConfig restConfig = new RestConfig(RestConfig.baseConfigDef(), props);
+    ApplicationServer applicationServer = new ApplicationServer(restConfig);
+
+    // Same app can't be registered multiple times.
+    TestApp app2 = new TestApp("/app");
+    applicationServer.registerApplication(app2);
+    applicationServer.start();
+
+    // The same large-url request from earlier should pass
+    // on the application server with a higher max request size
+    assertThat(makeGetRequest(path, applicationServer), is(Code.OK));
+
+    applicationServer.stop();
   }
 
   // There is additional testing of parseListeners in ApplictionTest
