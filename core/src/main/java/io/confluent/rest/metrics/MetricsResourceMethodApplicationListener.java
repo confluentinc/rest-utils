@@ -190,6 +190,10 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   }
 
   private static class MethodMetrics {
+    private final static String RESPONSE_BELOW_LATENCY_SLO = "response-below-latency-slo";
+    private final static String RESPONSE_ABOVE_LATENCY_SLO = "response-above-latency-slo";
+    private final static String RESPONSE_BELOW_LATENCY_SLA = "response-below-latency-sla";
+    private final static String RESPONSE_ABOVE_LATENCY_SLA = "response-above-latency-sla";
     private final Sensor requestSizeSensor;
     private final Sensor responseSizeSensor;
     private final Sensor requestLatencySensor;
@@ -327,40 +331,40 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       MetricName metricName;
 
       final Sensor belowLatencySloSensor = metrics.sensor(
-          getName(method, annotation, "response-below-latency-slo", requestTags), null,
+          getName(method, annotation, RESPONSE_BELOW_LATENCY_SLO, requestTags), null,
           SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
-          getName(method, annotation, "response-below-latency-slo-total"), metricGrpName,
+          getName(method, annotation, RESPONSE_BELOW_LATENCY_SLO + "-total"), metricGrpName,
           "Below latency SLO request count, using a cumulative counter", allTags);
       belowLatencySloSensor.add(metricName, new CumulativeCount());
-      responseLatencySloSlaSensors.put("response-below-latency-slo", belowLatencySloSensor);
+      responseLatencySloSlaSensors.put(RESPONSE_BELOW_LATENCY_SLO, belowLatencySloSensor);
 
       final Sensor aboveLatencySloSensor = metrics.sensor(
-          getName(method, annotation, "response-above-latency-slo", requestTags), null,
+          getName(method, annotation, RESPONSE_ABOVE_LATENCY_SLO, requestTags), null,
           SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
-          getName(method, annotation, "response-above-latency-slo-total"), metricGrpName,
+          getName(method, annotation, RESPONSE_ABOVE_LATENCY_SLO + "-total"), metricGrpName,
           "Above latency SLO request count, using a cumulative counter", allTags);
       aboveLatencySloSensor.add(metricName, new CumulativeCount());
-      responseLatencySloSlaSensors.put("response-above-latency-slo", aboveLatencySloSensor);
+      responseLatencySloSlaSensors.put(RESPONSE_ABOVE_LATENCY_SLO, aboveLatencySloSensor);
 
       final Sensor belowLatencySlaSensor = metrics.sensor(
-          getName(method, annotation, "response-below-latency-sla", requestTags), null,
+          getName(method, annotation, RESPONSE_BELOW_LATENCY_SLA, requestTags), null,
           SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
-          getName(method, annotation, "response-below-latency-sla-total"), metricGrpName,
+          getName(method, annotation, RESPONSE_BELOW_LATENCY_SLA + "-total"), metricGrpName,
           "Below latency SLA request count, using a cumulative counter", allTags);
       belowLatencySlaSensor.add(metricName, new CumulativeCount());
-      responseLatencySloSlaSensors.put("response-below-latency-sla", belowLatencySlaSensor);
+      responseLatencySloSlaSensors.put(RESPONSE_BELOW_LATENCY_SLA, belowLatencySlaSensor);
 
       final Sensor aboveLatencySlaSensor = metrics.sensor(
-          getName(method, annotation, "response-above-latency-sla", requestTags), null,
+          getName(method, annotation, RESPONSE_ABOVE_LATENCY_SLA, requestTags), null,
           SENSOR_EXPIRY_SECONDS, Sensor.RecordingLevel.INFO, (Sensor[]) null);
       metricName = new MetricName(
-          getName(method, annotation, "response-above-latency-sla-total"), metricGrpName,
+          getName(method, annotation, RESPONSE_ABOVE_LATENCY_SLA + "-total"), metricGrpName,
           "Above latency SLA request count, using a cumulative counter", allTags);
       aboveLatencySlaSensor.add(metricName, new CumulativeCount());
-      responseLatencySloSlaSensors.put("response-above-latency-sla", aboveLatencySlaSensor);
+      responseLatencySloSlaSensors.put(RESPONSE_ABOVE_LATENCY_SLA, aboveLatencySlaSensor);
     }
 
     private void setErrorSensorByStatus(ResourceMethod method, PerformanceMetric annotation,
@@ -405,15 +409,15 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       if (enableLatencySloSla) {
         if (latencyMs < latencySloMs) {
-          responseLatencySloSlaSensors.get("response-below-latency-slo").record();
+          responseLatencySloSlaSensors.get(RESPONSE_BELOW_LATENCY_SLO).record();
         } else {
-          responseLatencySloSlaSensors.get("response-above-latency-slo").record();
+          responseLatencySloSlaSensors.get(RESPONSE_ABOVE_LATENCY_SLO).record();
         }
 
         if (latencyMs < latencySlaMs) {
-          responseLatencySloSlaSensors.get("response-below-latency-sla").record();
+          responseLatencySloSlaSensors.get(RESPONSE_BELOW_LATENCY_SLA).record();
         } else {
-          responseLatencySloSlaSensors.get("response-above-latency-sla").record();
+          responseLatencySloSlaSensors.get(RESPONSE_ABOVE_LATENCY_SLA).record();
         }
       }
     }

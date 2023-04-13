@@ -66,6 +66,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     if (info.getDisplayName().contains("testMetricLatencySloSlaEnabled")) {
       props.put(RestConfig.METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG, "true");
+      props.put(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG, "0");
+      props.put(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG, "10000");
     }
 
     config = new TestRestConfig(props);
@@ -380,9 +382,13 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-slo-total")).intValue()
         + Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
-
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue()
         + Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
+
+    assertEquals(0, Double.valueOf(allMetrics.get("response-below-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue());
+    assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
   }
 
   private void makeSuccessfulCall() {
