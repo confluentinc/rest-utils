@@ -608,7 +608,7 @@ public abstract class Application<T extends RestConfig> {
 
     config.register(new MetricsResourceMethodApplicationListener(getMetrics(), "jersey",
         metricTags, restConfig.getTime(),
-        restConfig.getBoolean(RestConfig.METRICS_ENABLE_LATENCY_SLO_SLA_CONFIG),
+        restConfig.getBoolean(RestConfig.METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG),
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG),
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG)));
 
