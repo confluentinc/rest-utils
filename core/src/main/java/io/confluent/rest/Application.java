@@ -18,7 +18,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -123,6 +123,11 @@ public abstract class Application<T extends RestConfig> {
   }
 
   public Application(T config, String path, String listenerName) {
+    this(config, path, listenerName, null);
+  }
+
+  @VisibleForTesting
+  Application(T config, String path, String listenerName, CustomRequestLog customRequestLog) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
@@ -130,11 +135,16 @@ public abstract class Application<T extends RestConfig> {
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
 
-    Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
-    logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    if (customRequestLog == null) {
+      Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
+      logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
 
-    // %{ms}T logs request time in milliseconds
-    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
+      // %{ms}T logs request time in milliseconds
+      requestLog = new CustomRequestLog(logWriter,
+          CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
+    } else {
+      requestLog = customRequestLog;
+    }
   }
 
   public final String getPath() {
@@ -308,10 +318,6 @@ public abstract class Application<T extends RestConfig> {
       context.setBaseResource(staticResources);
     }
 
-    if (isErrorStackTraceSuppressionEnabled()) {
-      context.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
-    }
-
     configureSecurityHandler(context);
 
     if (isCorsEnabled()) {
@@ -374,9 +380,10 @@ public abstract class Application<T extends RestConfig> {
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
+    context.insertHandler(requestLogHandler);
 
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler});
+    handlers.setHandlers(new Handler[]{context});
 
     return handlers;
   }
@@ -430,10 +437,6 @@ public abstract class Application<T extends RestConfig> {
 
   private boolean isCsrfProtectionEnabled() {
     return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
-  }
-
-  private boolean isErrorStackTraceSuppressionEnabled() {
-    return config.getBoolean(RestConfig.SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
   @SuppressWarnings("unchecked")
@@ -684,7 +687,7 @@ public abstract class Application<T extends RestConfig> {
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
-  
+
   private void configureGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new GlobalDosFilter();
     String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
