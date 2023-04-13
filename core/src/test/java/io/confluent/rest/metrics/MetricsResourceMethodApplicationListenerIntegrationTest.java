@@ -385,8 +385,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         + Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
   }
 
-
-
   private void makeSuccessfulCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
