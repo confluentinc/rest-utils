@@ -16,17 +16,24 @@
 
 package io.confluent.rest;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
-
-import org.apache.kafka.common.config.ConfigException;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
-import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
+import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -44,44 +51,26 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
-import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.management.ManagementFactory;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
-import java.util.concurrent.BlockingQueue;
-import java.util.stream.Collectors;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
 
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class ApplicationServer<T extends RestConfig> extends Server {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
   private final T config;
   private final List<Application<?>> applications;
-  private final SslContextFactory sslContextFactory;
+  private final ImmutableMap<NamedURI, SslContextFactory> sslContextFactories;
 
   private static volatile int threadPoolRequestQueueCapacity;
 
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
+  private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
-
-  static final List<String> SUPPORTED_URI_SCHEMES =
-      Collections.unmodifiableList(Arrays.asList("http", "https"));
 
   // Package-visible for tests
   static boolean isJava11Compatible() {
@@ -113,86 +102,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     super.addEventListener(mbContainer);
     super.addBean(mbContainer);
 
-    this.sslContextFactory = createSslContextFactory(config);
-    configureConnectors(sslContextFactory);
+    listeners = config.getListeners();
+
+    sslContextFactories = ImmutableMap.copyOf(
+        Maps.transformValues(config.getSslConfigs(), SslFactory::createSslContextFactory));
+
+    configureConnectors();
     configureConnectionLimits();
   }
 
-  static NamedURI constructNamedURI(
-          String listener,
-          Map<String,String> listenerProtocolMap,
-          List<String> supportedSchemes) {
-    URI uri;
-    try {
-      uri = new URI(listener);
-    } catch (URISyntaxException e) {
-      throw new ConfigException(
-          "Listener '" + listener + "' is not a valid URI.");
-    }
-    if (uri.getPort() == -1) {
-      throw new ConfigException(
-          "Listener '" + listener + "' must specify a port.");
-    }
-    if (supportedSchemes.contains(uri.getScheme())) {
-      return new NamedURI(uri, null); // unnamed.
-    }
-    String uriName = uri.getScheme().toLowerCase();
-    String protocol = listenerProtocolMap.get(uriName);
-    if (protocol == null) {
-      throw new ConfigException(
-          "Listener '" + uri + "' has an unsupported scheme '" + uri.getScheme() + "'");
-    }
-    try {
-      return new NamedURI(
-          UriBuilder.fromUri(listener).scheme(protocol).build(),
-          uriName);
-    } catch (UriBuilderException e) {
-      throw new ConfigException(
-          "Listener '" + listener + "' with protocol '" + protocol + "' is not a valid URI.");
-    }
-  }
-
-  /**
-   * TODO: delete deprecatedPort parameter when `PORT_CONFIG` is deprecated.
-   * It's only used to support the deprecated configuration.
-   */
-  static List<NamedURI> parseListeners(
-          List<String> listeners,
-          Map<String,String> listenerProtocolMap,
-          int deprecatedPort,
-          List<String> supportedSchemes,
-          String defaultScheme) {
-
-    // handle deprecated case, using PORT_CONFIG.
-    // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG
-    // will have a default value which includes the default port.
-    if (listeners.isEmpty() || listeners.get(0).isEmpty()) {
-      log.warn(
-          "DEPRECATION warning: `listeners` configuration is not configured. "
-          + "Falling back to the deprecated `port` configuration.");
-      listeners = new ArrayList<>(1);
-      listeners.add(defaultScheme + "://0.0.0.0:" + deprecatedPort);
-    }
-
-    List<NamedURI> uris = listeners.stream()
-        .map(listener -> constructNamedURI(listener, listenerProtocolMap, supportedSchemes))
-        .collect(Collectors.toList());
-    List<NamedURI> namedUris =
-        uris.stream().filter(uri -> uri.getName() != null).collect(Collectors.toList());
-    List<NamedURI> unnamedUris =
-        uris.stream().filter(uri -> uri.getName() == null).collect(Collectors.toList());
-
-    if (namedUris.stream().map(a -> a.getName()).distinct().count() != namedUris.size()) {
-      throw new ConfigException(
-          "More than one listener was specified with same name. Listener names must be unique.");
-    }
-    if (namedUris.isEmpty() && unnamedUris.isEmpty()) {
-      throw new ConfigException(
-          "No listeners are configured. At least one listener must be configured.");
-    }
-
-    return uris;
-  }
 
   public void registerApplication(Application application) {
     application.setServer(this);
@@ -262,7 +180,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
-  @Override
   protected final void doStart() throws Exception {
     // set the default error handler
     if (config.getSuppressStackTraceInResponse()) {
@@ -282,145 +199,19 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     super.doStart();
   }
 
-  @SuppressWarnings("deprecation")
-  private void configureClientAuth(SslContextFactory sslContextFactory, RestConfig config) {
-    String clientAuthentication = config.getString(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG);
-
-    if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTH_CONFIG)) {
-      if (config.originals().containsKey(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG)) {
-        log.warn(
-                "The {} configuration is deprecated. Since a value has been supplied for the {} "
-                        + "configuration, that will be used instead",
-                RestConfig.SSL_CLIENT_AUTH_CONFIG,
-                RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
-        );
-      } else {
-        log.warn(
-                "The configuration {} is deprecated and should be replaced with {}",
-                RestConfig.SSL_CLIENT_AUTH_CONFIG,
-                RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG
-        );
-        clientAuthentication = config.getBoolean(RestConfig.SSL_CLIENT_AUTH_CONFIG)
-                ? RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED
-                : RestConfig.SSL_CLIENT_AUTHENTICATION_NONE;
-      }
-    }
-
-    switch (clientAuthentication) {
-      case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED:
-        sslContextFactory.setNeedClientAuth(true);
-        break;
-      case RestConfig.SSL_CLIENT_AUTHENTICATION_REQUESTED:
-        sslContextFactory.setWantClientAuth(true);
-        break;
-      case RestConfig.SSL_CLIENT_AUTHENTICATION_NONE:
-        break;
-      default:
-        throw new ConfigException(
-                "Unexpected value for {} configuration: {}",
-                RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
-                clientAuthentication
-        );
-    }
-  }
-
-  private Path getWatchLocation(RestConfig config) {
-    Path keystorePath = Paths.get(config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG));
-    String watchLocation = config.getString(RestConfig.SSL_KEYSTORE_WATCH_LOCATION_CONFIG);
-    if (!watchLocation.isEmpty()) {
-      keystorePath = Paths.get(watchLocation);
-    }
-    return keystorePath;
-  }
-
-  private SslContextFactory createSslContextFactory(RestConfig config) {
-    SslContextFactory sslContextFactory = new SslContextFactory.Server();
-    if (!config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG).isEmpty()) {
-      sslContextFactory.setKeyStorePath(
-              config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
-      );
-      sslContextFactory.setKeyStorePassword(
-              config.getPassword(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG).value()
-      );
-      sslContextFactory.setKeyManagerPassword(
-              config.getPassword(RestConfig.SSL_KEY_PASSWORD_CONFIG).value()
-      );
-      sslContextFactory.setKeyStoreType(
-              config.getString(RestConfig.SSL_KEYSTORE_TYPE_CONFIG)
-      );
-
-      if (!config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-        sslContextFactory.setKeyManagerFactoryAlgorithm(
-                config.getString(RestConfig.SSL_KEYMANAGER_ALGORITHM_CONFIG));
-      }
-
-      if (config.getBoolean(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG)) {
-        Path watchLocation = getWatchLocation(config);
-        try {
-          FileWatcher.onFileChange(watchLocation, () -> {
-                // Need to reset the key store path for symbolic link case
-                sslContextFactory.setKeyStorePath(
-                    config.getString(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG)
-                );
-                sslContextFactory.reload(scf -> log.info("Reloaded SSL cert"));
-              }
-          );
-          log.info("Enabled SSL cert auto reload for: " + watchLocation);
-        } catch (java.io.IOException e) {
-          log.error("Can not enabled SSL cert auto reload", e);
-        }
-      }
-    }
-
-    configureClientAuth(sslContextFactory, config);
-
-    List<String> enabledProtocols = config.getList(RestConfig.SSL_ENABLED_PROTOCOLS_CONFIG);
-    if (!enabledProtocols.isEmpty()) {
-      sslContextFactory.setIncludeProtocols(enabledProtocols.toArray(new String[0]));
-    }
-
-    List<String> cipherSuites = config.getList(RestConfig.SSL_CIPHER_SUITES_CONFIG);
-    if (!cipherSuites.isEmpty()) {
-      sslContextFactory.setIncludeCipherSuites(cipherSuites.toArray(new String[0]));
-    }
-
-    sslContextFactory.setEndpointIdentificationAlgorithm(
-            config.getString(RestConfig.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG));
-
-    if (!config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG).isEmpty()) {
-      sslContextFactory.setTrustStorePath(
-              config.getString(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG)
-      );
-      sslContextFactory.setTrustStorePassword(
-              config.getPassword(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG).value()
-      );
-      sslContextFactory.setTrustStoreType(
-              config.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG)
-      );
-
-      if (!config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG).isEmpty()) {
-        sslContextFactory.setTrustManagerFactoryAlgorithm(
-                config.getString(RestConfig.SSL_TRUSTMANAGER_ALGORITHM_CONFIG)
-        );
-      }
-    }
-
-    sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROTOCOL_CONFIG));
-    if (!config.getString(RestConfig.SSL_PROVIDER_CONFIG).isEmpty()) {
-      sslContextFactory.setProtocol(config.getString(RestConfig.SSL_PROVIDER_CONFIG));
-    }
-
-    sslContextFactory.setRenegotiationAllowed(false);
-
-    return sslContextFactory;
-  }
-
+  @Deprecated
   SslContextFactory getSslContextFactory() {
-    return this.sslContextFactory;
+    return sslContextFactories.values()
+        .stream()
+        .findAny()
+        .orElse(SslFactory.createSslContextFactory(SslConfig.defaultConfig()));
   }
 
-  private void configureConnectors(SslContextFactory sslContextFactory) {
+  public Map<NamedURI, SslContextFactory> getSslContextFactories() {
+    return sslContextFactories;
+  }
 
+  private void configureConnectors() {
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
@@ -433,13 +224,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     final boolean proxyProtocolEnabled =
         config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
-
-    @SuppressWarnings("deprecation")
-    List<NamedURI> listeners = parseListeners(
-        config.getList(RestConfig.LISTENERS_CONFIG),
-        config.getListenerProtocolMap(),
-        config.getInt(RestConfig.PORT_CONFIG),
-        SUPPORTED_URI_SCHEMES, "http");
 
     for (NamedURI listener : listeners) {
       if (listener.getUri().getScheme().equals("https")) {
@@ -512,8 +296,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         ALPNServerConnectionFactory alpnConnectionFactory = new ALPNServerConnectionFactory();
         alpnConnectionFactory.setDefaultProtocol(HttpVersion.HTTP_1_1.asString());
 
-        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
-            alpnConnectionFactory.getProtocol());
+        SslConnectionFactory sslConnectionFactory =
+            new SslConnectionFactory(
+                sslContextFactories.get(listener), alpnConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
@@ -526,14 +311,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       }
     } else {
       log.info("Adding listener: " + listener);
-      if (listener.uri.getScheme().equals("http")) {
+      if (listener.getUri().getScheme().equals("http")) {
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
         }
 
       } else {
-        SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory,
-            httpConnectionFactory.getProtocol());
+        SslConnectionFactory sslConnectionFactory =
+            new SslConnectionFactory(
+                sslContextFactories.get(listener), httpConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
@@ -640,31 +426,5 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
             requestQueue);
-  }
-
-  static final class NamedURI {
-    private final URI uri;
-    private final String name;
-
-    NamedURI(URI uri, String name) {
-      this.uri = uri;
-      this.name = name;
-    }
-
-    URI getUri() {
-      return uri;
-    }
-
-    String getName() {
-      return name;
-    }
-
-    @Override
-    public String toString() {
-      if (name == null) {
-        return uri.toString();
-      }
-      return "'" + name + "' " + uri.toString();
-    }
   }
 }

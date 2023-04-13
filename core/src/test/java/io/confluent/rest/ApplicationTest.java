@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.metrics.RestMetricsContext;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
@@ -50,8 +51,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
-
-import io.confluent.rest.metrics.RestMetricsContext;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -99,7 +98,7 @@ public class ApplicationTest {
     List<String> listenersConfig = new ArrayList<>();
     List<URI> listeners = Application.parseListeners(listenersConfig,
         RestConfig.PORT_CONFIG_DEFAULT,
-        ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
+        RestConfig.SUPPORTED_URI_SCHEMES, "http");
     assertEquals(1, listeners.size(), "Should have only one listener.");
     assertExpectedUri(listeners.get(0), "http", "0.0.0.0", RestConfig.PORT_CONFIG_DEFAULT);
   }
@@ -110,7 +109,7 @@ public class ApplicationTest {
     listenersConfig.add("http://localhost:123");
     listenersConfig.add("https://localhost:124");
     List<URI> listeners = Application.parseListeners(listenersConfig, -1,
-        ApplicationServer.SUPPORTED_URI_SCHEMES, "http");
+        RestConfig.SUPPORTED_URI_SCHEMES, "http");
     assertEquals(2, listeners.size(), "Should have two listeners.");
     assertExpectedUri(listeners.get(0), "http", "localhost", 123);
     assertExpectedUri(listeners.get(1), "https", "localhost", 124);
@@ -122,7 +121,7 @@ public class ApplicationTest {
     listenersConfig.add("!");
     assertThrows(ConfigException.class,
         () ->
-            Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES,
+            Application.parseListeners(listenersConfig, -1, RestConfig.SUPPORTED_URI_SCHEMES,
                 "http"));
   }
 
@@ -133,7 +132,7 @@ public class ApplicationTest {
     listenersConfig.add("foo://localhost:8081");
     assertThrows(ConfigException.class,
         () ->
-            Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES,
+            Application.parseListeners(listenersConfig, -1, RestConfig.SUPPORTED_URI_SCHEMES,
                 "http"));
   }
 
@@ -143,7 +142,7 @@ public class ApplicationTest {
     listenersConfig.add("bar://localhost:8081");
     assertThrows(ConfigException.class,
         () ->
-            Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES,
+            Application.parseListeners(listenersConfig, -1, RestConfig.SUPPORTED_URI_SCHEMES,
                 "http"));
   }
 
@@ -153,7 +152,7 @@ public class ApplicationTest {
     listenersConfig.add("http://localhost");
     assertThrows(ConfigException.class,
         () ->
-            Application.parseListeners(listenersConfig, -1, ApplicationServer.SUPPORTED_URI_SCHEMES,
+            Application.parseListeners(listenersConfig, -1, RestConfig.SUPPORTED_URI_SCHEMES,
                 "http"));
   }
 
