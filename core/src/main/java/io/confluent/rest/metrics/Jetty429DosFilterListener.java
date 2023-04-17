@@ -44,7 +44,7 @@ public class Jetty429DosFilterListener extends DoSFilter.Listener {
   public Jetty429DosFilterListener(Metrics metrics, Map<String, String> metricTags,
       String jmxPrefix) {
     if (metrics != null) {
-      String sensorNamePrefix = jmxPrefix + ":" + GROUP_NAME + "";
+      String sensorNamePrefix = jmxPrefix + ":" + GROUP_NAME;
       SortedMap<String, String> instanceMetricsTags = new TreeMap<>(metricTags);
       instanceMetricsTags.put("http_status_code", "429");
       String sensorTags =
@@ -75,7 +75,7 @@ public class Jetty429DosFilterListener extends DoSFilter.Listener {
   public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
       DoSFilter dosFilter) {
     Action action = super.onRequestOverLimit(request, overlimit, dosFilter);
-    if (action.equals(Action.REJECT)) {
+    if (fourTwoNineSensor != null && action.equals(Action.REJECT)) {
       fourTwoNineSensor.record();
     }
     return action;

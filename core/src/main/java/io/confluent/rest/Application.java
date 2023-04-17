@@ -132,6 +132,8 @@ public abstract class Application<T extends RestConfig> {
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
+    jetty429DosFilterListener = new Jetty429DosFilterListener(this.metrics, this.getMetricsTags(),
+        config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
 
     if (customRequestLog == null) {
       Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
@@ -141,9 +143,6 @@ public abstract class Application<T extends RestConfig> {
     } else {
       requestLog = customRequestLog;
     }
-
-    jetty429DosFilterListener = new Jetty429DosFilterListener(metrics, getMetricsTags(),
-        config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
   }
 
   protected String requestLogFormat() {
