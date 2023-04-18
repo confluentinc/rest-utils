@@ -48,13 +48,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class Jetty429DosFilterListenerTest {
+class Jetty429MetricsDosFilterListenerTest {
 
   private static final String TEST_JMX_PREFIX = "test-kafka-rest";
   private final Metrics metrics = mock(Metrics.class);
   private final Sensor fourTwoNineSensor = mock(Sensor.class);
   private final DoSFilter mockDoSFiler = mock(DoSFilter.class);
-  private Jetty429DosFilterListener jetty429DosFilterListener;
+  private Jetty429MetricsDosFilterListener jetty429MetricsDosFilterListener;
   private final Map<String, String> allTags = new HashMap<String, String>() {{
     put("http_status_code", "429");
   }};
@@ -74,9 +74,9 @@ class Jetty429DosFilterListenerTest {
     when(mockDoSFiler.getDelayMs()).thenReturn(delayMs);
 
     // Act
-    jetty429DosFilterListener = new Jetty429DosFilterListener(null, ImmutableMap.of(),
+    jetty429MetricsDosFilterListener = new Jetty429MetricsDosFilterListener(null, ImmutableMap.of(),
         TEST_JMX_PREFIX);
-    Action action = jetty429DosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
+    Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
         mock(OverLimit.class), mockDoSFiler);
 
     // Check
@@ -101,9 +101,9 @@ class Jetty429DosFilterListenerTest {
     when(mockDoSFiler.getDelayMs()).thenReturn(delayMs);
 
     // Act
-    jetty429DosFilterListener = new Jetty429DosFilterListener(metrics, allTags,
+    jetty429MetricsDosFilterListener = new Jetty429MetricsDosFilterListener(metrics, allTags,
         TEST_JMX_PREFIX);
-    Action action = jetty429DosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
+    Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
         mock(OverLimit.class), mockDoSFiler);
 
     // Check
@@ -121,9 +121,9 @@ class Jetty429DosFilterListenerTest {
     when(mockDoSFiler.getDelayMs()).thenReturn(-1L);
 
     // Act
-    jetty429DosFilterListener = new Jetty429DosFilterListener(metrics, ImmutableMap.of(),
+    jetty429MetricsDosFilterListener = new Jetty429MetricsDosFilterListener(metrics, ImmutableMap.of(),
         TEST_JMX_PREFIX);
-    Action action = jetty429DosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
+    Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
         mock(OverLimit.class), mockDoSFiler);
 
     // Check

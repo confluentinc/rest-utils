@@ -33,15 +33,18 @@ import org.apache.kafka.common.metrics.stats.WindowedCount;
 import org.eclipse.jetty.servlets.DoSFilter;
 import org.eclipse.jetty.servlets.DoSFilter.Action;
 import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class Jetty429DosFilterListener extends DoSFilter.Listener {
+public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
+  private static final Logger log = LoggerFactory.getLogger(Jetty429MetricsDosFilterListener.class);
 
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
   private static final String GROUP_NAME = "jetty-metrics";
 
   private Sensor fourTwoNineSensor = null;
 
-  public Jetty429DosFilterListener(Metrics metrics, Map<String, String> metricTags,
+  public Jetty429MetricsDosFilterListener(Metrics metrics, Map<String, String> metricTags,
       String jmxPrefix) {
     if (metrics != null) {
       String sensorNamePrefix = jmxPrefix + ":" + GROUP_NAME;
@@ -75,6 +78,7 @@ public class Jetty429DosFilterListener extends DoSFilter.Listener {
   public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
       DoSFilter dosFilter) {
     Action action = super.onRequestOverLimit(request, overlimit, dosFilter);
+
     if (fourTwoNineSensor != null && action.equals(Action.REJECT)) {
       fourTwoNineSensor.record();
     }
