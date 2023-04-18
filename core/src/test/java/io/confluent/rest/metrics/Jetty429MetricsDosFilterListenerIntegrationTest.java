@@ -98,7 +98,61 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
   }
 
   @Test
-  public void testDosFilterRateLimitMetrics() {
+  public void testDosFilterRateLimitMetrics_noRejected() {
+    // send 20 requests, 10 are warmup (not counted), in theory, all the requests are accepted
+    final int warmupRequests = 10;
+    final int totalRequests = 20;
+
+    int response200s = hammerAtConstantRate(server.getURI(),
+        "/public/hello", Duration.ofMillis(1),
+        warmupRequests, totalRequests
+    );
+
+    // check for 200s
+    assertEquals(totalRequests - warmupRequests, response200s);
+    // Check 429 metrics, should be all 0 values
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-count")
+          && metric.metricName().group().equals("jetty-metrics")
+          && metric.metricName().tags()
+          .getOrDefault("http_status_code", "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
+        double errorCountValue = (double) metricValue;
+        assertEquals(0,
+            errorCountValue, "Actual: " + errorCountValue);
+      }
+
+      if (metric.metricName().name().equals("request-error-total")
+          && metric.metricName().group().equals("jetty-metrics")
+          && metric.metricName().tags()
+          .getOrDefault("http_status_code", "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("cumulativesum"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error total metrics should be measurable");
+        double errorTotalValue = (double) metricValue;
+        assertEquals(0, errorTotalValue, "Actual: " + errorTotalValue);
+      }
+
+      if (metric.metricName().name().equals("request-error-rate")
+          && metric.metricName().group().equals("jetty-metrics")
+          && metric.metricName().tags()
+          .getOrDefault("http_status_code", "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
+        double errorRateValue = (double) metricValue;
+        assertEquals(0.0, errorRateValue, "Actual: " + errorRateValue);
+      }
+    }
+  }
+
+  @Test
+  public void testDosFilterRateLimitMetrics_withRejected() {
+    // send 100 requests, in which 20 are warmup, in theory,
+    // - the first 25 (including warmups) are accepted, so response200s=5
+    // - the rest of 75 are rejected
     final int warmupRequests = 20;
     final int totalRequests = 100;
 
@@ -107,6 +161,8 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
         warmupRequests, totalRequests
     );
 
+    // check for 200s
+    assertEquals(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC - warmupRequests, response200s);
     // Check 429 metrics
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-count")
@@ -117,7 +173,6 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
         double errorCountValue = (double) metricValue;
-        assertEquals(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC - warmupRequests, response200s);
         assertEquals(totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC,
             errorCountValue, "Actual: " + errorCountValue);
       }
@@ -130,7 +185,6 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error total metrics should be measurable");
         double errorTotalValue = (double) metricValue;
-        assertEquals(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC - warmupRequests, response200s);
         assertEquals(totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC,
             errorTotalValue, "Actual: " + errorTotalValue);
       }
@@ -143,7 +197,6 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
         double errorRateValue = (double) metricValue;
-        assertEquals(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC - warmupRequests, response200s);
         assertEquals(
             // 30 seconds is the approximate window size for Rate that comes from the calculation of
             // org.apache.kafka.common.metrics.stats.Rate.windowSize
