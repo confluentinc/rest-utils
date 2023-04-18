@@ -36,6 +36,10 @@ import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Jetty DosFilterListener that records 429 metrics on DoSFilter of Jetty layer.
+ * Note: the metrics are independent of Jersey metrics in MetricsResourceMethodApplicationListener
+ */
 public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
   private static final Logger log = LoggerFactory.getLogger(Jetty429MetricsDosFilterListener.class);
 
