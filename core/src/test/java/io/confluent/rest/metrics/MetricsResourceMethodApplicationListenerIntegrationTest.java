@@ -2,7 +2,10 @@ package io.confluent.rest.metrics;
 
 import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
-import io.confluent.rest.*;
+import io.confluent.rest.Application;
+import io.confluent.rest.RestConfig;
+import io.confluent.rest.TestMetricsReporter;
+import io.confluent.rest.TestRestConfig;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
@@ -18,6 +21,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
@@ -47,8 +51,11 @@ import javax.ws.rs.core.Response;
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TEXT;
 import static java.util.Objects.requireNonNull;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Tag("IntegrationTest")
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   TestRestConfig config;
@@ -177,7 +184,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     int anyErrorWindowCheckpoint = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-error-rate")) {
+      if (metric.metricName().name().equals("request-error-rate")
+          && metric.metricName().group().equals("jersey-metrics")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
@@ -198,7 +206,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           //average rate is not consistently above 0 here, so not validating
         }
       }
-      if (metric.metricName().name().equals("request-error-count")) {
+      if (metric.metricName().name().equals("request-error-count")
+          && metric.metricName().group().equals("jersey-metrics")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
@@ -246,7 +255,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     Thread.sleep(500);
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      if (metric.metricName().name().equals("request-error-rate") && metric.metricName().tags()
+      if (metric.metricName().name().equals("request-error-rate")
+          && metric.metricName().group().equals("jersey-metrics")
+          && metric.metricName().tags()
           .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
         Object metricValue = metric.metricValue();
@@ -256,7 +267,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
       }
 
-      if (metric.metricName().name().equals("request-error-count") && metric.metricName().tags()
+      if (metric.metricName().name().equals("request-error-count")
+          && metric.metricName().group().equals("jersey-metrics")
+          && metric.metricName().tags()
           .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
         assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
         Object metricValue = metric.metricValue();
@@ -286,49 +299,51 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     int caughtTag2CheckpointNon5xx = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      Map<String, String> tags = metric.metricName().tags();
-      switch (metric.metricName().name()) {
-        case "request-error-count": // global metrics
-        case "request-error-total": // global metrics
-          if (is5xxError(tags)) {
-            assertMetric(metric, totalRequests);
-            totalCheckpoint5xx++;
-          } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
-            assertMetric(metric, 0);
-            totalCheckpointNon5xx++;
-          } else if (tags.isEmpty()) {
-            assertMetric(metric, totalRequests);
-            totalCheckpoint++;
-          }
-          break;
-        case "caught.request-error-count": // method metrics
-        case "caught.request-error-total": // method metrics
-          if (tags.containsValue("value1")) {
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        Map<String, String> tags = metric.metricName().tags();
+        switch (metric.metricName().name()) {
+          case "request-error-count": // global metrics
+          case "request-error-total": // global metrics
             if (is5xxError(tags)) {
-              assertMetric(metric, (totalRequests + 1) / 3);
-              caughtTag1Checkpoint5xx++;
+              assertMetric(metric, totalRequests);
+              totalCheckpoint5xx++;
             } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
               assertMetric(metric, 0);
-              caughtTag1CheckpointNon5xx++;
+              totalCheckpointNon5xx++;
+            } else if (tags.isEmpty()) {
+              assertMetric(metric, totalRequests);
+              totalCheckpoint++;
             }
-          } else if (tags.containsValue("value2")) {
-            if (is5xxError(tags)) {
-              assertMetric(metric, totalRequests / 3);
-              caughtTag2Checkpoint5xx++;
-            } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
-              assertMetric(metric, 0);
-              caughtTag2CheckpointNon5xx++;
+            break;
+          case "caught.request-error-count": // method metrics
+          case "caught.request-error-total": // method metrics
+            if (tags.containsValue("value1")) {
+              if (is5xxError(tags)) {
+                assertMetric(metric, (totalRequests + 1) / 3);
+                caughtTag1Checkpoint5xx++;
+              } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+                assertMetric(metric, 0);
+                caughtTag1CheckpointNon5xx++;
+              }
+            } else if (tags.containsValue("value2")) {
+              if (is5xxError(tags)) {
+                assertMetric(metric, totalRequests / 3);
+                caughtTag2Checkpoint5xx++;
+              } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+                assertMetric(metric, 0);
+                caughtTag2CheckpointNon5xx++;
+              }
+            } else {
+              if (is5xxError(tags)) {
+                assertMetric(metric, (totalRequests + 2) / 3);
+                caughtCheckpoint5xx++;
+              } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+                assertMetric(metric, 0);
+                caughtCheckpointNon5xx++;
+              }
             }
-          } else {
-            if (is5xxError(tags)) {
-              assertMetric(metric, (totalRequests + 2) / 3);
-              caughtCheckpoint5xx++;
-            } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
-              assertMetric(metric, 0);
-              caughtCheckpointNon5xx++;
-            }
-          }
-          break;
+            break;
+        }
       }
     }
     int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 2;
