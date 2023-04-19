@@ -2,7 +2,10 @@ package io.confluent.rest.metrics;
 
 import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
-import io.confluent.rest.*;
+import io.confluent.rest.Application;
+import io.confluent.rest.RestConfig;
+import io.confluent.rest.TestMetricsReporter;
+import io.confluent.rest.TestRestConfig;
 import io.confluent.rest.annotations.PerformanceMetric;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
@@ -20,12 +23,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import javax.servlet.RequestDispatcher;
@@ -60,11 +65,18 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   private AtomicInteger counter;
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(TestInfo info) throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
     props.setProperty("debug", "false");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+
+    if (info.getDisplayName().contains("testMetricLatencySloSlaEnabled")) {
+      props.put(RestConfig.METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG, "true");
+      props.put(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG, "0");
+      props.put(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG, "10000");
+    }
+
     config = new TestRestConfig(props);
     app = new ApplicationWithFilter(config);
     server = app.createServer();
@@ -365,6 +377,33 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertTrue(reporter.getConfigs().containsKey("prop1"));
     assertTrue(reporter.getConfigs().containsKey("prop2"));
     assertEquals(reporter.getConfigs().get("prop3"), "override");
+  }
+
+  @Test
+  public void testMetricLatencySloSlaEnabled() {
+    makeSuccessfulCall();
+
+    Map<String, String> allMetrics = TestMetricsReporter.getMetricTimeseries()
+        .stream()
+        .collect(Collectors.toMap(
+            x -> x.metricName().name(),
+            x -> x.metricValue().toString(),
+            (a, b) -> a));
+
+    assertTrue(allMetrics.containsKey("response-below-latency-slo-total"));
+    assertTrue(allMetrics.containsKey("response-above-latency-slo-total"));
+    assertTrue(allMetrics.containsKey("response-below-latency-sla-total"));
+    assertTrue(allMetrics.containsKey("response-above-latency-sla-total"));
+
+    assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-slo-total")).intValue()
+        + Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue()
+        + Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
+
+    assertEquals(0, Double.valueOf(allMetrics.get("response-below-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue());
+    assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
   }
 
   private void makeSuccessfulCall() {

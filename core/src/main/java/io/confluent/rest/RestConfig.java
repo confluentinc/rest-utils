@@ -164,6 +164,20 @@ public class RestConfig extends AbstractConfig {
       + " be used to specify additional tags during deployment like data center, instance "
       + "details, etc.";
   protected static final String METRICS_TAGS_DEFAULT = "";
+  public static final String METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG =
+      "metrics.latency.slo.sla.enable";
+  protected static final String METRICS_LATENCY_SLO_SLA_ENABLE_DOC = "Whether to enable metrics"
+      + " about the count of requests that meet or violate latency SLO/SLA"
+      + " in the Performance annotation";
+  protected static final boolean METRICS_LATENCY_SLO_SLA_ENABLE_DEFAULT = false;
+  public static final String METRICS_LATENCY_SLO_MS_CONFIG = "metrics.latency.slo.ms";
+  protected static final String METRICS_LATENCY_SLO_MS_DOC = "The threshold (in ms) of whether"
+      + " request latency meets or violates SLO";
+  protected static final long METRICS_LATENCY_SLO_MS_DEFAULT = 5;
+  public static final String METRICS_LATENCY_SLA_MS_CONFIG = "metrics.latency.sla.ms";
+  protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether"
+      + " request latency meets or violates SLA";
+  protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
@@ -667,6 +681,24 @@ public class RestConfig extends AbstractConfig {
             METRICS_TAGS_DEFAULT,
             Importance.LOW,
             METRICS_TAGS_DOC
+        ).define(
+            METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            METRICS_LATENCY_SLO_SLA_ENABLE_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLO_SLA_ENABLE_DOC
+        ).define(
+            METRICS_LATENCY_SLO_MS_CONFIG,
+            Type.LONG,
+            METRICS_LATENCY_SLO_MS_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLO_MS_DOC
+        ).define(
+            METRICS_LATENCY_SLA_MS_CONFIG,
+            Type.LONG,
+            METRICS_LATENCY_SLA_MS_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLA_MS_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
