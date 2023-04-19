@@ -50,8 +50,8 @@ import org.eclipse.jetty.server.Server;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 
 @Tag("IntegrationTest")
 class Jetty429MetricsDosFilterListenerIntegrationTest {
@@ -97,7 +97,7 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
     awaitTerminationAfterShutdown(executor);
   }
 
-  @Test
+  @RepeatedTest(10)
   public void testDosFilterRateLimitMetrics_noRejected() {
     // send 20 requests, 10 are warmup (not counted), in theory, all the requests are accepted
     final int warmupRequests = 10;
@@ -148,7 +148,7 @@ class Jetty429MetricsDosFilterListenerIntegrationTest {
     }
   }
 
-  @Test
+  @RepeatedTest(10)
   public void testDosFilterRateLimitMetrics_withRejected() {
     // send 100 requests, in which 20 are warmup, in theory,
     // - the first 25 (including warmups) are accepted, so response200s=5
