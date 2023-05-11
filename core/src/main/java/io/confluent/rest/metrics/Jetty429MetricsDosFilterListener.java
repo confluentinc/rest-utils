@@ -81,8 +81,9 @@ public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
   @Override
   public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
       DoSFilter dosFilter) {
-    Action action = super.onRequestOverLimit(request, overlimit, dosFilter);
-
+    // KREST-10418: we don't use super function to get action object because
+    // it will log a WARN line, in order to reduce verbosity
+    Action action = Action.fromDelay(dosFilter.getDelayMs());
     if (fourTwoNineSensor != null && action.equals(Action.REJECT)) {
       fourTwoNineSensor.record();
     }
