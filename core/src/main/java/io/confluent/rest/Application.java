@@ -129,7 +129,7 @@ public abstract class Application<T extends RestConfig> {
     this(config, path, listenerName, null);
   }
 
-  public Application(T config, String path, String listenerName, RequestLog inputRequestLog) {
+  public Application(T config, String path, String listenerName, RequestLog customRequestLog) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
@@ -140,13 +140,13 @@ public abstract class Application<T extends RestConfig> {
         this.getMetricsTags(),
         config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
 
-    if (inputRequestLog == null) {
+    if (customRequestLog == null) {
       Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
       logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
       // %{ms}T logs request time in milliseconds
       requestLog = new CustomRequestLog(logWriter, requestLogFormat());
     } else {
-      requestLog = inputRequestLog;
+      requestLog = customRequestLog;
     }
   }
 
@@ -829,10 +829,6 @@ public abstract class Application<T extends RestConfig> {
    * A rate-limiter that applies a single limit to the entire server.
    */
   private static final class GlobalDosFilter extends DoSFilter {
-
-    public GlobalDosFilter() {
-      super();
-    }
 
     @Override
     protected String extractUserId(ServletRequest request) {

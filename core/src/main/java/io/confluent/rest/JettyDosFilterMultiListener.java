@@ -49,7 +49,7 @@ public class JettyDosFilterMultiListener extends DoSFilter.Listener {
       try {
         listener.onRequestOverLimit(request, overlimit, dosFilter);
       } catch (Exception ex) {
-        log.error("DosFilter.Listener threw exception {}", ex);
+        log.debug("{} threw exception {}", listener.getClass(), ex);
       }
     }
     return action;
