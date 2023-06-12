@@ -53,8 +53,6 @@ import org.apache.kafka.common.metrics.stats.WindowedCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.Time;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static java.util.Collections.emptyMap;
 
@@ -64,9 +62,12 @@ import static java.util.Collections.emptyMap;
  * latency (average, 90th, 99th, etc).
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
-  private static final Logger log = LoggerFactory.getLogger(
-      MetricsResourceMethodApplicationListener.class);
 
+  // This controls whether we should use request tags in global stats, i.e., those without resource
+  // method in the names, introducing this variable to keep the compatibility with downstream
+  // dependencies, e.g., some applications may not want to report request tags in global stats
+  public static final String GLOBAL_STATS_REQUEST_TAGS_ENABLED_PROP_KEY
+      = "_global_stats_request_tags_enabled";
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
   protected static final String HTTP_STATUS_CODE_TAG = "http_status_code";
@@ -162,6 +163,23 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       return requestMetrics.computeIfAbsent(key, (k) ->
           new MethodMetrics(context.method, context.performanceMetric, context.metrics,
               context.metricGrpPrefix, context.metricTags, k));
+    }
+
+    private MethodMetrics getMethodMetrics(RequestEvent event) {
+      Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
+      if (tagsObj == null) {
+        // Method metrics without request tags don't necessarily represent method level aggregations
+        // e.g., when invocations of a method have both requests w/ and w/o tags
+        return this.metrics();
+      }
+      if (!(tagsObj instanceof Map<?, ?>)) {
+        throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
+            + " to be a " + Map.class + ", but it is " + tagsObj.getClass());
+      }
+      @SuppressWarnings("unchecked")
+      Map<String, String> tags = (Map<String, String>) tagsObj;
+      // we have additional tags, find the appropriate metrics holder
+      return this.metrics(tags);
     }
   }
 
@@ -537,7 +555,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
         // Handle exceptions
         if (event.getException() != null) {
-          this.metrics.get(null).metrics().exception(event);
+          final MethodMetrics globalMetrics = getGlobalMetrics(event);
+          if (globalMetrics != null) {
+            globalMetrics.exception(event);
+          }
+
+          // get RequestScopedMetrics for a single resource method
           final MethodMetrics metrics = getMethodMetrics(event);
           if (metrics != null) {
             metrics.exception(event);
@@ -552,33 +575,30 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       }
     }
 
+    private MethodMetrics getGlobalMetrics(RequestEvent event) {
+      // (null key) RequestScopedMetrics is the global metrics for ALL resource methods, see
+      // io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.onEvent in this file
+      RequestScopedMetrics globalRequestScopedMetrics = this.metrics.get(null);
+      Object enabledGlobalStatsTasObj = event.getContainerRequest()
+          .getProperty(GLOBAL_STATS_REQUEST_TAGS_ENABLED_PROP_KEY);
+      return (enabledGlobalStatsTasObj instanceof Boolean
+          && ((Boolean) enabledGlobalStatsTasObj)) ? globalRequestScopedMetrics.getMethodMetrics(
+          event) : globalRequestScopedMetrics.metrics();
+    }
+
     private MethodMetrics getMethodMetrics(RequestEvent event) {
       ResourceMethod method = event.getUriInfo().getMatchedResourceMethod();
       if (method == null) {
         return null;
       }
 
-      RequestScopedMetrics metrics = this.metrics.get(method.getInvocable().getDefinitionMethod());
-      if (metrics == null) {
+      RequestScopedMetrics requestScopedMetrics = this.metrics.get(method.getInvocable()
+          .getDefinitionMethod());
+      if (requestScopedMetrics == null) {
         return null;
       }
 
-      Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
-
-      if (tagsObj == null) {
-        // Method metrics without request tags don't necessarily represent method level aggregations
-        // e.g., when invocations of a method have both requests w/ and w/o tags
-        return metrics.metrics();
-      }
-      if (!(tagsObj instanceof Map<?, ?>)) {
-        throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
-            + " to be a " + Map.class + ", but it is " + tagsObj.getClass());
-      }
-      @SuppressWarnings("unchecked")
-      Map<String, String> tags = (Map<String, String>) tagsObj;
-
-      // we have additional tags, find the appropriate metrics holder
-      return metrics.metrics(tags);
+      return requestScopedMetrics.getMethodMetrics(event);
     }
 
     private static class CountingInputStream extends FilterInputStream {
