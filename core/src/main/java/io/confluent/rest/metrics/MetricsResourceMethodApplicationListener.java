@@ -16,6 +16,7 @@
 
 package io.confluent.rest.metrics;
 
+import java.util.Objects;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -553,12 +554,10 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           responseSize = 0;
         }
 
+        final MethodMetrics globalMetrics = Objects.requireNonNull(getGlobalMetrics(event));
         // Handle exceptions
         if (event.getException() != null) {
-          final MethodMetrics globalMetrics = getGlobalMetrics(event);
-          if (globalMetrics != null) {
-            globalMetrics.exception(event);
-          }
+          globalMetrics.exception(event);
 
           // get RequestScopedMetrics for a single resource method
           final MethodMetrics metrics = getMethodMetrics(event);
@@ -567,7 +566,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
           }
         }
 
-        this.metrics.get(null).metrics().finished(requestSize, responseSize, elapsed);
+        globalMetrics.finished(requestSize, responseSize, elapsed);
         final MethodMetrics metrics = getMethodMetrics(event);
         if (metrics != null) {
           metrics.finished(requestSize, responseSize, elapsed);
