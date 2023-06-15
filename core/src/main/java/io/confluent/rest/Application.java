@@ -153,19 +153,21 @@ public abstract class Application<T extends RestConfig> {
   }
 
   /**
-   * Set DosFilter.listeners for global-dosfilter
+   * Add DosFilter.listener to be called with all other listeners for global-dosfilter. This should
+   * be called before configureHandler() is called.
    */
-  public void setGlobalDosfilterListeners(
-      List<Listener> listeners) {
-    this.globalDosfilterListeners = Objects.requireNonNull(listeners);
+  public void addGlobalDosfilterListener(
+      Listener listener) {
+    this.globalDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
   /**
-   * Set DosFilter.listeners for non-global-dosfilter
+   * Add DosFilter.listener to be called with all other listeners for non-global-dosfilter.This
+   * should be called before configureHandler() is called.
    */
-  public void setNonGlobalDosfilterListeners(
-      List<Listener> listeners) {
-    this.nonGlobalDosfilterListeners = Objects.requireNonNull(listeners);
+  public void addNonGlobalDosfilterListener(
+      Listener listener) {
+    this.nonGlobalDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
   protected String requestLogFormat() {

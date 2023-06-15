@@ -111,12 +111,8 @@ class JettyDosFilterMultiListenerIntegrationTest {
 
     TestRestConfig config = new TestRestConfig(props);
     ApplicationWithDoSFilterEnabled app = new ApplicationWithDoSFilterEnabled(config);
-    ArrayList<Listener> nonGlobalListeners = new ArrayList(
-        Arrays.asList(nonGlobalDosFilterListener));
-    app.setNonGlobalDosfilterListeners(nonGlobalListeners);
-    ArrayList<Listener> globalListeners = new ArrayList(
-        Arrays.asList(globalDosFilterListener));
-    app.setGlobalDosfilterListeners(globalListeners);
+    app.addNonGlobalDosfilterListener(nonGlobalDosFilterListener);
+    app.addGlobalDosfilterListener(globalDosFilterListener);
     app.createServer();
     server = app.createServer();
     server.start();
