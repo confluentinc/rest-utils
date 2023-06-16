@@ -21,7 +21,6 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 import static java.util.Collections.emptyMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
@@ -66,6 +65,7 @@ import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -76,6 +76,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.servlets.DoSFilter;
+import org.eclipse.jetty.servlets.DoSFilter.Listener;
 import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -103,7 +104,7 @@ public abstract class Application<T extends RestConfig> {
 
   protected ApplicationServer<?> server;
   protected Metrics metrics;
-  protected final CustomRequestLog requestLog;
+  protected final RequestLog requestLog;
   protected final Jetty429MetricsDosFilterListener jetty429MetricsListener;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -111,6 +112,10 @@ public abstract class Application<T extends RestConfig> {
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
+
+  private List<DoSFilter.Listener> globalDosfilterListeners = new ArrayList();
+
+  private List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList();
 
   public Application(T config) {
     this(config, "/");
@@ -124,8 +129,7 @@ public abstract class Application<T extends RestConfig> {
     this(config, path, listenerName, null);
   }
 
-  @VisibleForTesting
-  Application(T config, String path, String listenerName, CustomRequestLog customRequestLog) {
+  public Application(T config, String path, String listenerName, RequestLog customRequestLog) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
@@ -144,6 +148,24 @@ public abstract class Application<T extends RestConfig> {
     } else {
       requestLog = customRequestLog;
     }
+  }
+
+  /**
+   * Add DosFilter.listener to be called with all other listeners for global-dosfilter. This should
+   * be called before configureHandler() is called.
+   */
+  public void addGlobalDosfilterListener(
+      Listener listener) {
+    this.globalDosfilterListeners.add(Objects.requireNonNull(listener));
+  }
+
+  /**
+   * Add DosFilter.listener to be called with all other listeners for non-global-dosfilter.This
+   * should be called before configureHandler() is called.
+   */
+  public void addNonGlobalDosfilterListener(
+      Listener listener) {
+    this.nonGlobalDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
   protected String requestLogFormat() {
@@ -684,6 +706,7 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
+
     // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
     configureGlobalDosFilter(context);
@@ -691,7 +714,10 @@ public abstract class Application<T extends RestConfig> {
 
   private void configureNonGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new DoSFilter();
-    dosFilter.setListener(jetty429MetricsListener);
+    nonGlobalDosfilterListeners.add(jetty429MetricsListener);
+    JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
+        nonGlobalDosfilterListeners);
+    dosFilter.setListener(multiListener);
     FilterHolder filterHolder = configureFilter(dosFilter,
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
@@ -699,7 +725,10 @@ public abstract class Application<T extends RestConfig> {
 
   private void configureGlobalDosFilter(ServletContextHandler context) {
     DoSFilter dosFilter = new GlobalDosFilter();
-    dosFilter.setListener(jetty429MetricsListener);
+    globalDosfilterListeners.add(jetty429MetricsListener);
+    JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
+        globalDosfilterListeners);
+    dosFilter.setListener(multiListener);
     String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
     FilterHolder filterHolder = configureFilter(dosFilter, globalLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
