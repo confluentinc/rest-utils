@@ -21,7 +21,6 @@ import static io.confluent.rest.RestConfig.WEBSOCKET_SERVLET_INITIALIZERS_CLASSE
 import static java.util.Collections.emptyMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import io.confluent.rest.auth.AuthUtil;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
@@ -105,7 +104,7 @@ public abstract class Application<T extends RestConfig> {
 
   protected ApplicationServer<?> server;
   protected Metrics metrics;
-  protected RequestLog requestLog;
+  protected final RequestLog requestLog;
   protected final Jetty429MetricsDosFilterListener jetty429MetricsListener;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -130,8 +129,7 @@ public abstract class Application<T extends RestConfig> {
     this(config, path, listenerName, null);
   }
 
-  @VisibleForTesting
-  Application(T config, String path, String listenerName, RequestLog customRequestLog) {
+  public Application(T config, String path, String listenerName, RequestLog customRequestLog) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
