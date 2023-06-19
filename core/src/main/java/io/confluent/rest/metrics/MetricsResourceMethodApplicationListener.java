@@ -64,11 +64,6 @@ import static java.util.Collections.emptyMap;
  */
 public class MetricsResourceMethodApplicationListener implements ApplicationEventListener {
 
-  // This controls whether we should use request tags in global stats, i.e., those without resource
-  // method in the names, introducing this variable to keep the compatibility with downstream
-  // dependencies, e.g., some applications may not want to report request tags in global stats
-  public static final String GLOBAL_STATS_REQUEST_TAGS_ENABLED_PROP_KEY
-      = "_global_stats_request_tags_enabled";
   public static final String REQUEST_TAGS_PROP_KEY = "_request_tags";
 
   protected static final String HTTP_STATUS_CODE_TAG = "http_status_code";
@@ -86,11 +81,23 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   private final boolean enableLatencySloSla;
   private final long latencySloMs;
   private final long latencySlaMs;
+  // This controls whether we should use request tags in global stats, i.e., those without resource
+  // method in the names, introducing this variable to keep the compatibility with downstream
+  // dependencies, e.g., some applications may not want to report request tags in global stats
+  private final boolean enableGlobalStatsRequestTags;
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-                                                  Map<String,String> metricTags, Time time,
-                                                  boolean enableLatencySloSla,
-                                                  long latencySloMs, long latencySlaMs) {
+      Map<String, String> metricTags, Time time,
+      boolean enableLatencySloSla,
+      long latencySloMs, long latencySlaMs) {
+    this(metrics, metricGrpPrefix, metricTags, time, enableLatencySloSla, latencySloMs,
+        latencySlaMs, false);
+  }
+
+  public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
+      Map<String, String> metricTags, Time time,
+      boolean enableLatencySloSla,
+      long latencySloMs, long latencySlaMs, boolean enableGlobalStatsRequestTags) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
@@ -99,6 +106,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     this.enableLatencySloSla = enableLatencySloSla;
     this.latencySloMs = latencySloMs;
     this.latencySlaMs = latencySlaMs;
+    this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
   }
 
   @Override
@@ -139,7 +147,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   @Override
   public RequestEventListener onRequest(final RequestEvent event) {
-    return new MetricsRequestEventListener(methodMetrics, time);
+    return new MetricsRequestEventListener(methodMetrics, time, this.enableGlobalStatsRequestTags);
   }
 
   private static class RequestScopedMetrics {
@@ -515,15 +523,19 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   }
 
   private static class MetricsRequestEventListener implements RequestEventListener {
+
     private final Time time;
     private final Map<Method, RequestScopedMetrics> metrics;
     private long started;
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
+    private final boolean enableGlobalStatsRequestTags;
 
-    public MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time) {
+    private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
+        boolean enableGlobalStatsRequestTags) {
       this.metrics = metrics;
       this.time = time;
+      this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
     }
 
     @Override
@@ -578,10 +590,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       // (null key) RequestScopedMetrics is the global metrics for ALL resource methods, see
       // io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.onEvent in this file
       RequestScopedMetrics globalRequestScopedMetrics = this.metrics.get(null);
-      Object enabledGlobalStatsTasObj = event.getContainerRequest()
-          .getProperty(GLOBAL_STATS_REQUEST_TAGS_ENABLED_PROP_KEY);
-      return (enabledGlobalStatsTasObj instanceof Boolean
-          && ((Boolean) enabledGlobalStatsTasObj)) ? globalRequestScopedMetrics.getMethodMetrics(
+      return this.enableGlobalStatsRequestTags ? globalRequestScopedMetrics.getMethodMetrics(
           event) : globalRequestScopedMetrics.metrics();
     }
 

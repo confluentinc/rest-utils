@@ -77,10 +77,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       props.put(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG, "0");
       props.put(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG, "10000");
     }
+    if (info.getDisplayName().contains("WithGlobalStatsRequestTagsEnabled")) {
+      props.put(RestConfig.METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG, "true");
+    }
 
     config = new TestRestConfig(props);
-    app = new ApplicationWithFilter(config,
-        info.getDisplayName().contains("WithGlobalStatsRequestTagsEnabledPropKey"));
+    app = new ApplicationWithFilter(config);
     server = app.createServer();
     server.start();
     counter = new AtomicInteger();
@@ -284,9 +286,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(1, windowCheckpoint429); ///A single windowed metric for the two 4xx errors
   }
 
-  @DisplayName("WithGlobalStatsRequestTagsEnabledPropKey")
+  @DisplayName("WithGlobalStatsRequestTagsEnabled")
   @Test
-  public void test429Metrics_WithGlobalStatsRequestTagsEnabledPropKey() throws InterruptedException {
+  public void test429Metrics_WithGlobalStatsRequestTagsEnabled() throws InterruptedException {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> make429Call());
 
@@ -414,9 +416,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals((non5xxCount + 1) * 2, caughtTag2CheckpointNon5xx); //include 429s
   }
 
-  @DisplayName("WithGlobalStatsRequestTagsEnabledPropKey")
+  @DisplayName("WithGlobalStatsRequestTagsEnabled")
   @Test
-  public void testException5xxMetrics_WithGlobalStatsRequestTagsEnabledPropKey() {
+  public void testException5xxMetrics_WithGlobalStatsRequestTagsEnabled() {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> makeFailedCall());
 
@@ -516,7 +518,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     props.put("not.prefixed.config", "val3");
 
-    app = new ApplicationWithFilter(new TestRestConfig(props), false);
+    app = new ApplicationWithFilter(new TestRestConfig(props));
     TestMetricsReporter reporter = (TestMetricsReporter) app.getMetrics().reporters().get(0);
 
     assertTrue(reporter.getConfigs().containsKey("not.prefixed.config"));
@@ -593,11 +595,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   private class ApplicationWithFilter extends Application<TestRestConfig> {
 
     Configurable resourceConfig;
-    private final boolean useFilterWithGlobalStatsRequestTags;
 
-    ApplicationWithFilter(TestRestConfig props, boolean useFilterWithGlobalStatsRequestTags) {
+    ApplicationWithFilter(TestRestConfig props) {
       super(props);
-      this.useFilterWithGlobalStatsRequestTags = useFilterWithGlobalStatsRequestTags;
     }
 
     @Override
@@ -605,11 +605,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       resourceConfig = config;
       config.register(PrivateResource.class);
       config.register(new PublicResource());
-      if (this.useFilterWithGlobalStatsRequestTags) {
-        config.register(new FilterWithGlobalStatsRequestTagsEnabled());
-      } else {
-        config.register(new Filter());
-      }
+      config.register(new Filter());
       config.register(new MyExceptionMapper(appConfig));
 
       // ensures the dispatch error message gets shown in the response
@@ -694,17 +690,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         maps.put("tag", value);
       }
       context.setProperty(MetricsResourceMethodApplicationListener.REQUEST_TAGS_PROP_KEY, maps);
-    }
-  }
-
-  private class FilterWithGlobalStatsRequestTagsEnabled extends Filter {
-
-    @Override
-    public void filter(ContainerRequestContext context) {
-      super.filter(context);
-      context.setProperty(
-          MetricsResourceMethodApplicationListener.GLOBAL_STATS_REQUEST_TAGS_ENABLED_PROP_KEY,
-          true);
     }
   }
 

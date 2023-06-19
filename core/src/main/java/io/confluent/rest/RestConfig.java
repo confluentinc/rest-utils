@@ -178,6 +178,11 @@ public class RestConfig extends AbstractConfig {
   protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether"
       + " request latency meets or violates SLA";
   protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
+  public static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG =
+      "metrics.global.stats.request.tags.enable";
+  protected static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC = "Whether to use "
+      + " runtime request tags in global stats.";
+  protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
@@ -699,6 +704,12 @@ public class RestConfig extends AbstractConfig {
             METRICS_LATENCY_SLA_MS_DEFAULT,
             Importance.LOW,
             METRICS_LATENCY_SLA_MS_DOC
+        ).define(
+            METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT,
+            Importance.LOW,
+            METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
