@@ -288,6 +288,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @DisplayName("WithGlobalStatsRequestTagsEnabled")
   @Test
+  // This tests validates that with METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG enabled true,
+  // the request-tags "value1" "value2" are on the global metrics for 429
   public void test429Metrics_WithGlobalStatsRequestTagsEnabled() throws InterruptedException {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> make429Call());
@@ -418,6 +420,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @DisplayName("WithGlobalStatsRequestTagsEnabled")
   @Test
+  // This tests validates that with METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG enabled true,
+  // the request-tags "value1" "value2" are on the global metrics for 5XX
   public void testException5xxMetrics_WithGlobalStatsRequestTagsEnabled() {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> makeFailedCall());
