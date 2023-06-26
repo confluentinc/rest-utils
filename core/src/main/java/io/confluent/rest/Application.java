@@ -347,6 +347,11 @@ public abstract class Application<T extends RestConfig> {
 
     configureSecurityHandler(context);
 
+    // General jetty "filter" that is used for getting the requests count
+    FilterHolder generalFilterHolder = new FilterHolder(JettyRequestsSimpleFilter.class);
+    generalFilterHolder.setName("jetty-level-requests-count");
+    context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+
     if (isCorsEnabled()) {
       String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
       FilterHolder filterHolder = new FilterHolder(CrossOriginFilter.class);
@@ -708,11 +713,6 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
-    // General jetty "filter" that is used for getting the requests count
-    FilterHolder generalFilterHolder = new FilterHolder(JettyRequestsSimpleFilter.class);
-    generalFilterHolder.setName("Jetty level requests count filter");
-    context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-
     // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
     configureGlobalDosFilter(context);
