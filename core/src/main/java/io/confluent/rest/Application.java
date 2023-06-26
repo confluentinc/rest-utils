@@ -707,6 +707,10 @@ public abstract class Application<T extends RestConfig> {
     if (!config.isDosFilterEnabled()) {
       return;
     }
+    // General jetty "filter" that is used for getting the requests count
+    FilterHolder generalFilterHolder = new FilterHolder(CsrfTokenProtectionFilter.class);
+    generalFilterHolder.setName("Jetty level requests count filter");
+    context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
