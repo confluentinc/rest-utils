@@ -29,6 +29,7 @@ import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
+import io.confluent.rest.filters.JettyRequestsSimpleFilter;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
@@ -708,7 +709,7 @@ public abstract class Application<T extends RestConfig> {
       return;
     }
     // General jetty "filter" that is used for getting the requests count
-    FilterHolder generalFilterHolder = new FilterHolder(CsrfTokenProtectionFilter.class);
+    FilterHolder generalFilterHolder = new FilterHolder(JettyRequestsSimpleFilter.class);
     generalFilterHolder.setName("Jetty level requests count filter");
     context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
 
