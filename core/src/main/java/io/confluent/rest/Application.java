@@ -346,11 +346,7 @@ public abstract class Application<T extends RestConfig> {
     }
 
     configureSecurityHandler(context);
-
-    // General jetty "filter" that is used for getting the requests count
-    FilterHolder generalFilterHolder = new FilterHolder(JettyRequestsSimpleFilter.class);
-    generalFilterHolder.setName("jetty-level-requests-count");
-    context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    configureJettySimpleFilter(context);
 
     if (isCorsEnabled()) {
       String allowedOrigins = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG);
@@ -727,6 +723,13 @@ public abstract class Application<T extends RestConfig> {
     FilterHolder filterHolder = configureFilter(dosFilter,
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureJettySimpleFilter(ServletContextHandler context) {
+    // General jetty "filter" that is used for getting the requests count
+    FilterHolder generalFilterHolder = new FilterHolder(JettyRequestsSimpleFilter.class);
+    generalFilterHolder.setName("jetty-level-requests-count");
+    context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   private void configureGlobalDosFilter(ServletContextHandler context) {
