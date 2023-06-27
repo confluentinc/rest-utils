@@ -31,6 +31,7 @@ import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.filters.JettyRequestsSimpleFilter;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
+import io.confluent.rest.metrics.JettyAllRequestsListener;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 import java.io.IOException;
@@ -107,7 +108,7 @@ public abstract class Application<T extends RestConfig> {
   protected Metrics metrics;
   protected final RequestLog requestLog;
   protected final Jetty429MetricsDosFilterListener jetty429MetricsListener;
-
+  protected final JettyAllRequestsListener jettyAllRequestsListener;
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   @SuppressWarnings("unchecked")
   protected final List<ResourceExtension> resourceExtensions = new ArrayList<>();
@@ -137,7 +138,12 @@ public abstract class Application<T extends RestConfig> {
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
+
     jetty429MetricsListener = new Jetty429MetricsDosFilterListener(this.metrics,
+        this.getMetricsTags(),
+        config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
+
+    jettyAllRequestsListener = new JettyAllRequestsListener(this.metrics,
         this.getMetricsTags(),
         config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
 
@@ -727,9 +733,12 @@ public abstract class Application<T extends RestConfig> {
 
   private void configureJettySimpleFilter(ServletContextHandler context) {
     // General jetty "filter" that is used for getting the requests count
-    FilterHolder generalFilterHolder = new FilterHolder(JettyRequestsSimpleFilter.class);
-    generalFilterHolder.setName("jetty-level-requests-count");
-    context.addFilter(generalFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    JettyRequestsSimpleFilter generalSimpleFilter = new JettyRequestsSimpleFilter();
+    generalSimpleFilter.setListener(jettyAllRequestsListener);
+
+    FilterHolder generalSimpleFilterHolder = new FilterHolder(generalSimpleFilter);
+    generalSimpleFilterHolder.setName("jetty-level-requests-count");
+    context.addFilter(generalSimpleFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   private void configureGlobalDosFilter(ServletContextHandler context) {

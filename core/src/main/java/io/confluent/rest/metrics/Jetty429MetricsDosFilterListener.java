@@ -82,7 +82,7 @@ public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
   public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
       DoSFilter dosFilter) {
     // KREST-10418: we don't use super function to get action object because
-    // it will log a WARN line, in order to reduce verbosity
+    // it will log  a WARN line, in order to reduce verbosity
     Action action = Action.fromDelay(dosFilter.getDelayMs());
     if (fourTwoNineSensor != null && action.equals(Action.REJECT)) {
       fourTwoNineSensor.record();
@@ -90,7 +90,7 @@ public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
     return action;
   }
 
-  private MetricName getMetricName(Metrics metrics, String name, String doc,
+  public static MetricName getMetricName(Metrics metrics, String name, String doc,
       Map<String, String> metricsTags) {
     return metrics.metricInstance(
         new MetricNameTemplate(name, GROUP_NAME, doc, metricsTags.keySet()), metricsTags);
