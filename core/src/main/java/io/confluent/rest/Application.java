@@ -732,7 +732,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureJettySimpleFilter(ServletContextHandler context) {
-    // General jetty "filter" that is used for getting the requests count
+    // A general jetty "filter" that is used for getting the requests count
     JettyRequestsSimpleFilter generalSimpleFilter = new JettyRequestsSimpleFilter();
     generalSimpleFilter.setListener(jettyAllRequestsListener);
 
