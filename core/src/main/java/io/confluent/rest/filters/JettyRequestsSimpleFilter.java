@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 public class JettyRequestsSimpleFilter implements Filter {
   private static final Logger log = LoggerFactory.getLogger(JettyRequestsSimpleFilter.class);
   private JettyAllRequestsListener _listener;
-
   @Override
   public void init(final FilterConfig filterConfig) throws ServletException {
   }
@@ -40,6 +39,5 @@ public class JettyRequestsSimpleFilter implements Filter {
 
   @Override
   public void destroy() {
-
   }
 }
