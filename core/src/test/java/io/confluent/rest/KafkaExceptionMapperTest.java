@@ -39,6 +39,7 @@ import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicAuthorizationException;
+import org.apache.kafka.common.errors.TopicDeletionDisabledException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.TransactionalIdAuthorizationException;
 import org.apache.kafka.common.errors.UnknownServerException;
@@ -120,6 +121,8 @@ public class KafkaExceptionMapperTest {
     verifyMapperResponse(new TopicExistsException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidConfigurationException("some message"), Status.BAD_REQUEST,
+        KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new TopicDeletionDisabledException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidTopicException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
