@@ -32,6 +32,7 @@ import org.apache.kafka.common.errors.PolicyViolationException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.errors.TopicDeletionDisabledException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
@@ -94,6 +95,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
     errorMap.put(TopicExistsException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
     errorMap.put(InvalidConfigurationException.class, new ResponsePair(Status.BAD_REQUEST,
+        KAFKA_BAD_REQUEST_ERROR_CODE));
+    errorMap.put(TopicDeletionDisabledException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
     return errorMap;
   }
