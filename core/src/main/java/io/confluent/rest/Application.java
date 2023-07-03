@@ -47,8 +47,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.servlet.DispatcherType;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
@@ -113,9 +115,9 @@ public abstract class Application<T extends RestConfig> {
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
-  private List<DoSFilter.Listener> globalDosfilterListeners = new ArrayList();
+  private final List<DoSFilter.Listener> globalDosfilterListeners = new ArrayList<>();
 
-  private List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList();
+  private final List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList<>();
 
   public Application(T config) {
     this(config, "/");
@@ -714,7 +716,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureNonGlobalDosFilter(ServletContextHandler context) {
-    DoSFilter dosFilter = new DoSFilter();
+    DoSFilter dosFilter = new AppListenerAwareDosFilter();
     nonGlobalDosfilterListeners.add(jetty429MetricsListener);
     JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
         nonGlobalDosfilterListeners);
@@ -828,10 +830,22 @@ public abstract class Application<T extends RestConfig> {
 
   }
 
+  private static class AppListenerAwareDosFilter extends DoSFilter {
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response,
+        FilterChain chain)
+        throws IOException, ServletException {
+      log.info("[{}] listener is: {}", this.getClass().getSimpleName(),
+          request.getServletContext().getVirtualServerName());
+      super.doFilter(request, response, chain);
+    }
+  }
+
   /**
    * A rate-limiter that applies a single limit to the entire server.
    */
-  private static final class GlobalDosFilter extends DoSFilter {
+  private static final class GlobalDosFilter extends AppListenerAwareDosFilter {
 
     @Override
     protected String extractUserId(ServletRequest request) {
