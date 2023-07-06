@@ -135,25 +135,27 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     int helloTag2RequestsCheckpoint = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      switch (metric.metricName().name()) {
-        case "request-count": // global metrics
-        case "request-total": // global metrics
-          assertMetric(metric, totalRequests);
-          totalRequestsCheckpoint++;
-          break;
-        case "hello.request-count": // method metrics
-        case "hello.request-total": // method metrics
-          if (metric.metricName().tags().containsValue("value1")) {
-            assertMetric(metric, (totalRequests + 1) / 3);
-            helloTag1RequestsCheckpoint++;
-          } else if (metric.metricName().tags().containsValue("value2")) {
-            assertMetric(metric, totalRequests / 3);
-            helloTag2RequestsCheckpoint++;
-          } else if (metric.metricName().tags().isEmpty()) {
-            assertMetric(metric, (totalRequests + 2) / 3);
-            helloRequestsCheckpoint++;
-          }
-          break;
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        switch (metric.metricName().name()) {
+          case "request-count": // global metrics
+          case "request-total": // global metrics
+            assertMetric(metric, totalRequests);
+            totalRequestsCheckpoint++;
+            break;
+          case "hello.request-count": // method metrics
+          case "hello.request-total": // method metrics
+            if (metric.metricName().tags().containsValue("value1")) {
+              assertMetric(metric, (totalRequests + 1) / 3);
+              helloTag1RequestsCheckpoint++;
+            } else if (metric.metricName().tags().containsValue("value2")) {
+              assertMetric(metric, totalRequests / 3);
+              helloTag2RequestsCheckpoint++;
+            } else if (metric.metricName().tags().isEmpty()) {
+              assertMetric(metric, (totalRequests + 2) / 3);
+              helloRequestsCheckpoint++;
+            }
+            break;
+        }
       }
     }
     assertEquals(2, totalRequestsCheckpoint);
