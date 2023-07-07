@@ -37,6 +37,7 @@ import org.apache.kafka.common.errors.PolicyViolationException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
+import org.apache.kafka.common.errors.ThrottlingQuotaExceededException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicAuthorizationException;
 import org.apache.kafka.common.errors.TopicDeletionDisabledException;
@@ -59,6 +60,7 @@ import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_BAD_REQUES
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_ERROR_ERROR_CODE;
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_RETRIABLE_ERROR_ERROR_CODE;
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_UNKNOWN_TOPIC_PARTITION_CODE;
+import static io.confluent.rest.exceptions.KafkaExceptionMapper.TOO_MANY_REQUESTS_ERROR_CODE;
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.TOPIC_NOT_FOUND_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -126,6 +128,8 @@ public class KafkaExceptionMapperTest {
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidTopicException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new ThrottlingQuotaExceededException("some message"), Status.TOO_MANY_REQUESTS,
+        TOO_MANY_REQUESTS_ERROR_CODE);
 
     //test couple of retriable exceptions
     verifyMapperResponse(new NotCoordinatorException("some message"), Status.INTERNAL_SERVER_ERROR,
