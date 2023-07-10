@@ -30,6 +30,7 @@ import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
+import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
 import java.io.IOException;
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.ws.rs.core.Configurable;
@@ -105,7 +107,7 @@ public abstract class Application<T extends RestConfig> {
   protected ApplicationServer<?> server;
   protected Metrics metrics;
   protected final RequestLog requestLog;
-  protected final Jetty429MetricsDosFilterListener jetty429MetricsListener;
+  protected final DoSFilter.Listener jetty429MetricsListener;
 
   protected CountDownLatch shutdownLatch = new CountDownLatch(1);
   @SuppressWarnings("unchecked")
@@ -113,9 +115,9 @@ public abstract class Application<T extends RestConfig> {
 
   private static final Logger log = LoggerFactory.getLogger(Application.class);
 
-  private List<DoSFilter.Listener> globalDosfilterListeners = new ArrayList();
+  private final List<DoSFilter.Listener> globalDosfilterListeners = new ArrayList<>();
 
-  private List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList();
+  private final List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList<>();
 
   public Application(T config) {
     this(config, "/");
@@ -394,6 +396,8 @@ public abstract class Application<T extends RestConfig> {
             && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
       configureHttpResponseHeaderFilter(context);
     }
+
+    configureJettyRequestMetricsFilter(context);
 
     configureDosFilters(context);
 
@@ -703,6 +707,13 @@ public abstract class Application<T extends RestConfig> {
     context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
+  private void configureJettyRequestMetricsFilter(ServletContextHandler context) {
+    Filter filter = new JettyRequestMetricsFilter(this.metrics, this.getMetricsTags(),
+        config.getString(RestConfig.METRICS_JMX_PREFIX_CONFIG));
+    FilterHolder filterHolder = new FilterHolder(filter);
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
   private void configureDosFilters(ServletContextHandler context) {
     if (!config.isDosFilterEnabled()) {
       return;
@@ -719,7 +730,7 @@ public abstract class Application<T extends RestConfig> {
     JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
         nonGlobalDosfilterListeners);
     dosFilter.setListener(multiListener);
-    FilterHolder filterHolder = configureFilter(dosFilter,
+    FilterHolder filterHolder = configureDosFilter(dosFilter,
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
@@ -731,11 +742,11 @@ public abstract class Application<T extends RestConfig> {
         globalDosfilterListeners);
     dosFilter.setListener(multiListener);
     String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
-    FilterHolder filterHolder = configureFilter(dosFilter, globalLimit);
+    FilterHolder filterHolder = configureDosFilter(dosFilter, globalLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
-  private FilterHolder configureFilter(DoSFilter dosFilter, String rate) {
+  private FilterHolder configureDosFilter(DoSFilter dosFilter, String rate) {
 
     FilterHolder filterHolder = new FilterHolder(dosFilter);
     filterHolder.setInitParameter(
