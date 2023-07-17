@@ -342,12 +342,12 @@ public class RestConfig extends AbstractConfig {
 
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =
-          "The minimum number of threads will be startred for HTTP Servlet server.";
+          "The minimum number of threads will be started for HTTP Servlet server.";
   public static final int THREAD_POOL_MIN_DEFAULT = 8;
 
   public static final String THREAD_POOL_MAX_CONFIG = "thread.pool.max";
   public static final String THREAD_POOL_MAX_DOC =
-          "The maxinum number of threads will be startred for HTTP Servlet server.";
+          "The maximum number of threads will be started for HTTP Servlet server.";
   public static final int THREAD_POOL_MAX_DEFAULT = 200;
 
   public static final String REQUEST_QUEUE_CAPACITY_CONFIG = "request.queue.capacity";

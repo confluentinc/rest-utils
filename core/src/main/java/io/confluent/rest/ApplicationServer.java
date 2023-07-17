@@ -69,7 +69,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static volatile int threadPoolRequestQueueCapacity;
 
-  private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
+  private final List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
   private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
