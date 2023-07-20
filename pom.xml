@@ -8,13 +8,13 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>common</artifactId>
-        <version>[6.2.12-0, 6.2.13-0)</version>
+        <version>6.2.12-1</version>
     </parent>
 
     <artifactId>rest-utils-parent</artifactId>
     <packaging>pom</packaging>
     <name>rest-utils-parent</name>
-    <version>6.2.12-0</version>
+    <version>6.2.12-1</version>
     <organization>
         <name>Confluent, Inc.</name>
         <url>https://confluent.io</url>
@@ -56,7 +56,7 @@
         <jetty.version>9.4.51.v20230217</jetty.version>
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
-        <io.confluent.rest-utils.version>6.2.12-0</io.confluent.rest-utils.version>
+        <io.confluent.rest-utils.version>6.2.12-1</io.confluent.rest-utils.version>
     </properties>
 
     <repositories>
