@@ -709,7 +709,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     public Response toResponse(Throwable exception) {
       if (exception instanceof StatusCodeException) {
         return Response.status(Status.TOO_MANY_REQUESTS)
-            .entity(new ErrorMessage(429, exception.getMessage())).build();
+            .entity(new ErrorMessage(429, exception.getMessage()))
+            .type(MediaType.APPLICATION_JSON_TYPE)
+            .build();
       } else {
         return super.toResponse(exception); // Need this to ensure return 500 for 5XX test
       }
