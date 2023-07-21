@@ -67,6 +67,10 @@ public class ErrorMessageIntegrationTest {
     client.close();
   }
 
+  /**
+   * This test is purely a demonstration that if we don't explicitly set MediaType, we will get
+   * 500 response on option request
+   */
   @Test
   @DisplayName("testOPTIONS_WithoutMediaType_return500")
   public void testOPTIONS_WithoutMediaType_return500() {
