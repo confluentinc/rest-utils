@@ -21,6 +21,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -46,5 +47,6 @@ public class JsonParseExceptionMapperTest {
       ErrorMessage out = (ErrorMessage)response.getEntity();
       assertEquals(400, out.getErrorCode());
       assertEquals("Json parse error", out.getMessage());
+      assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
   }
 }

@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ public class JsonMappingExceptionMapperTest {
       assertEquals(400, response.getStatus());
       ErrorMessage out = (ErrorMessage) response.getEntity();
       assertEquals(400, out.getErrorCode());
+      assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
     } catch (Exception e) {
       fail("A JsonMappingException is expected.");
     }
@@ -67,6 +69,7 @@ public class JsonMappingExceptionMapperTest {
     ErrorMessage out = (ErrorMessage) response.getEntity();
     assertEquals(400, out.getErrorCode());
     assertEquals("Json mapping error", out.getMessage());
+    assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
   }
 
   @Test
@@ -81,6 +84,7 @@ public class JsonMappingExceptionMapperTest {
     ErrorMessage out = (ErrorMessage) response.getEntity();
     assertEquals(400, out.getErrorCode());
     assertEquals("Cannot construct instance of `CreateAclRequest`, problem: Null resourceType", out.getMessage());
+    assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
   }
 
   @Test
@@ -99,6 +103,7 @@ public class JsonMappingExceptionMapperTest {
         "values accepted for Enum class: [TRANSACTIONAL_ID, DELEGATION_TOKEN, UNKNOWN, ANY, " +
         "GROUP, CLUSTER, TOPIC]",
         out.getMessage());
+    assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
   }
 
   @Test

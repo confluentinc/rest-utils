@@ -18,6 +18,7 @@ package io.confluent.rest.exceptions;
 
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.entities.ErrorMessage;
+import javax.ws.rs.core.MediaType;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.AuthenticationException;
@@ -153,14 +154,18 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
                                final int errorCode) {
     ErrorMessage errorMessage = new ErrorMessage(errorCode, exception.getMessage());
     return Response.status(status)
-        .entity(errorMessage).build();
+        .entity(errorMessage)
+        .type(MediaType.APPLICATION_JSON_TYPE)
+        .build();
   }
 
   private Response getResponse(final Throwable cause) {
     ResponsePair responsePair = HANDLED.get(cause.getClass());
     ErrorMessage errorMessage = new ErrorMessage(responsePair.errorCode, cause.getMessage());
     return Response.status(responsePair.status)
-        .entity(errorMessage).build();
+        .entity(errorMessage)
+        .type(MediaType.APPLICATION_JSON_TYPE)
+        .build();
   }
 
   private static class ResponsePair {
