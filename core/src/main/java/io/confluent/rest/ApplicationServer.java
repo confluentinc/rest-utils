@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.confluent.rest.connectors.LowResourceServerConnector;
 import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -260,7 +261,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                                        boolean proxyProtocolEnabled) {
     ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
         httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled);
-    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
+    NetworkTrafficServerConnector connector = new LowResourceServerConnector(this, null, null,
         null, 0, 0, connectionFactories);
     if (http2Enabled) {
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
