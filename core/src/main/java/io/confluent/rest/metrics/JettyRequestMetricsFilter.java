@@ -85,7 +85,7 @@ public class JettyRequestMetricsFilter implements Filter {
     }
 
     long memory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-    if (memory >= 2684354560L) {
+    if (memory >= 1073741824L) {
       ((HttpServletResponse) response).sendError(Status.SERVICE_UNAVAILABLE.getStatusCode(),
           "Server is under high load, please try again later");
       return;
