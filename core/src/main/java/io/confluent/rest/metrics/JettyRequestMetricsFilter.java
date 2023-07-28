@@ -30,6 +30,8 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
@@ -81,6 +83,14 @@ public class JettyRequestMetricsFilter implements Filter {
     if (sensor != null) {
       sensor.record();
     }
+
+    long memory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    if (memory >= 2684354560L) {
+      ((HttpServletResponse) response).sendError(Status.SERVICE_UNAVAILABLE.getStatusCode(),
+          "Server is under high load, please try again later");
+      return;
+    }
+
     chain.doFilter(request, response);
   }
 
