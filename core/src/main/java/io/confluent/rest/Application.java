@@ -80,6 +80,7 @@ import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.servlets.DoSFilter;
 import org.eclipse.jetty.servlets.DoSFilter.Listener;
 import org.eclipse.jetty.servlets.HeaderFilter;
+import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.StringUtil;
@@ -399,6 +400,8 @@ public abstract class Application<T extends RestConfig> {
 
     configureJettyRequestMetricsFilter(context);
 
+    configureQoSFilter(context);
+
     configureDosFilters(context);
 
     configurePreResourceHandling(context);
@@ -705,6 +708,13 @@ public abstract class Application<T extends RestConfig> {
     FilterHolder headerFilterHolder = new FilterHolder(HeaderFilter.class);
     headerFilterHolder.setInitParameter("headerConfig", headerConfig);
     context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureQoSFilter(ServletContextHandler context) {
+    Filter filter = new QoSFilter();
+    FilterHolder filterHolder = new FilterHolder(filter);
+    filterHolder.setInitParameter("maxRequests", String.valueOf(10));
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
   private void configureJettyRequestMetricsFilter(ServletContextHandler context) {
