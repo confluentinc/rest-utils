@@ -99,7 +99,7 @@ public class MetricsListener implements NetworkTrafficListener {
 
   @Override
   public void incoming(final Socket socket, final ByteBuffer bytes) {
-    log.info("Rate limiting on socket {}, #info {}", socket, BufferUtil.toDetailString(bytes));
-    rateLimiter.acquire(bytes.position());
+    log.info("Rate limiting on socket {}, #info {}", socket, BufferUtil.toSummaryString(bytes));
+    rateLimiter.acquire(bytes.limit());
   }
 }
