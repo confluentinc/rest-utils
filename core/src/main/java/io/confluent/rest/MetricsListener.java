@@ -46,7 +46,7 @@ public class MetricsListener implements NetworkTrafficListener {
   private final Sensor disconnects;
   private final Sensor connections;
   // 21MiB/s
-  private final RateLimiter rateLimiter = RateLimiter.create(21 * 1024 * 1024);
+  private final RateLimiter rateLimiter = RateLimiter.create(1 * 1024 * 1024);
 
   public MetricsListener(Metrics metrics, String metricGrpPrefix, Map<String, String> metricTags) {
     String metricGrpName = metricGrpPrefix + "-metrics";
@@ -99,7 +99,7 @@ public class MetricsListener implements NetworkTrafficListener {
 
   @Override
   public void incoming(final Socket socket, final ByteBuffer bytes) {
-    log.info("Rate limiting on socket {}, #info {}", socket, BufferUtil.toSummaryString(bytes));
-    rateLimiter.acquire(bytes.limit());
+    log.info("Rate limiting on socket: {}, #info: {}, time: {}s", socket,
+        BufferUtil.toSummaryString(bytes), rateLimiter.acquire(bytes.limit()));
   }
 }
