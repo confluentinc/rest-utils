@@ -16,7 +16,9 @@
 
 package io.confluent.rest;
 
+import com.google.common.util.concurrent.RateLimiter;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.Map;
 
 import org.apache.kafka.common.MetricName;
@@ -25,8 +27,11 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.eclipse.jetty.io.NetworkTrafficListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MetricsListener implements NetworkTrafficListener {
+  private static final Logger log = LoggerFactory.getLogger(MetricsListener.class);
 
   /*
    * `NetworkTrafficListener` in Jetty 9.2 doesn't expose `accepted`
@@ -39,6 +44,8 @@ public class MetricsListener implements NetworkTrafficListener {
   private final Sensor connects;
   private final Sensor disconnects;
   private final Sensor connections;
+  // 21MiB/s
+  private final RateLimiter rateLimiter = RateLimiter.create(21 * 1024 * 1024);
 
   public MetricsListener(Metrics metrics, String metricGrpPrefix, Map<String, String> metricTags) {
     String metricGrpName = metricGrpPrefix + "-metrics";
@@ -76,8 +83,6 @@ public class MetricsListener implements NetworkTrafficListener {
     this.connections.add(metricName, new CumulativeSum());
   }
 
-
-
   @Override
   public void opened(Socket socket) {
     this.connects.record();
@@ -91,4 +96,9 @@ public class MetricsListener implements NetworkTrafficListener {
     this.connections.record(-1);
   }
 
+  @Override
+  public void incoming(final Socket socket, final ByteBuffer bytes) {
+    log.info("Rate limiting on socket {}, #bytes {}", socket, bytes.position());
+    rateLimiter.acquire(bytes.position());
+  }
 }
