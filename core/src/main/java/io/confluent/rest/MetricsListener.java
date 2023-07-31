@@ -27,6 +27,7 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.eclipse.jetty.io.NetworkTrafficListener;
+import org.eclipse.jetty.util.BufferUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +99,7 @@ public class MetricsListener implements NetworkTrafficListener {
 
   @Override
   public void incoming(final Socket socket, final ByteBuffer bytes) {
-    log.info("Rate limiting on socket {}, #bytes {}", socket, bytes.position());
+    log.info("Rate limiting on socket {}, #info {}", socket, BufferUtil.toDetailString(bytes));
     rateLimiter.acquire(bytes.position());
   }
 }
