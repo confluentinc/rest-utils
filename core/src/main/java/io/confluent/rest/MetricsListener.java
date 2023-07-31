@@ -16,9 +16,11 @@
 
 package io.confluent.rest;
 
-import com.google.common.util.concurrent.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Map;
 
 import org.apache.kafka.common.MetricName;
@@ -32,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MetricsListener implements NetworkTrafficListener {
+
   private static final Logger log = LoggerFactory.getLogger(MetricsListener.class);
 
   /*
@@ -45,8 +48,14 @@ public class MetricsListener implements NetworkTrafficListener {
   private final Sensor connects;
   private final Sensor disconnects;
   private final Sensor connections;
-  // 21MiB/s
-  private final RateLimiter rateLimiter = RateLimiter.create(1 * 1024 * 1024);
+  // 20MiB/s
+  private final RateLimiter rateLimiter =
+      RateLimiter.of("Resilience4JRateLimiter",
+          RateLimiterConfig.custom()
+              .limitRefreshPeriod(Duration.ofSeconds(1))
+              .limitForPeriod(20 * 1024 * 1024)
+              .build());
+  //  private final RateLimiter rateLimiter = RateLimiter.create(20 * 1024 * 1024);
 
   public MetricsListener(Metrics metrics, String metricGrpPrefix, Map<String, String> metricTags) {
     String metricGrpName = metricGrpPrefix + "-metrics";
@@ -62,7 +71,7 @@ public class MetricsListener implements NetworkTrafficListener {
     metricName = new MetricName(
         "connections-opened-rate",
         metricGrpName,
-       "The average rate per second of opened Jetty TCP connections",
+        "The average rate per second of opened Jetty TCP connections",
         metricTags
     );
     this.connects.add(metricName, new Rate());
@@ -100,6 +109,6 @@ public class MetricsListener implements NetworkTrafficListener {
   @Override
   public void incoming(final Socket socket, final ByteBuffer bytes) {
     log.info("Rate limiting on socket: {}, #info: {}, time: {}s", socket,
-        BufferUtil.toSummaryString(bytes), rateLimiter.acquire(bytes.limit()));
+        BufferUtil.toSummaryString(bytes), rateLimiter.acquirePermission(bytes.limit()));
   }
 }
