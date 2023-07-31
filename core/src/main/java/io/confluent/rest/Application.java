@@ -29,6 +29,7 @@ import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
+import io.confluent.rest.filters.SafeQoSFilter;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -49,8 +50,10 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
@@ -711,7 +714,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureQoSFilter(ServletContextHandler context) {
-    Filter filter = new QoSFilter();
+    Filter filter = new SafeQoSFilter();
     FilterHolder filterHolder = new FilterHolder(filter);
     filterHolder.setInitParameter("maxRequests", String.valueOf(10));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
