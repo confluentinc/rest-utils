@@ -24,6 +24,7 @@ import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFI
 
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.metrics.RestMetricsContext;
+import io.confluent.rest.ratelimit.NetworkTrafficRateLimitBackend;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -525,6 +526,26 @@ public class RestConfig extends AbstractConfig {
   protected static final String MAX_REQUEST_HEADER_SIZE_DOC =
       "Maximum buffer size for jetty request headers in bytes";
   protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
+
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG =
+      "network.traffic.rate.limit.enable";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC =
+      "Whether to enable network traffic rate-limiting. Default is false";
+  protected static final boolean NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DEFAULT = false;
+
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG =
+      "network.traffic.rate.limit.backend";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DOC =
+      "The rate-limiting backend to use. The options are 'guava', 'resilience4j', and 'bucket4j'. "
+          + "Default is 'guava'.";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DEFAULT = "guava";
+
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG =
+      "network.traffic.rate.limit.bytes.per.sec";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC =
+      "The maximum number of bytes to emit per second for the network traffic. Default is 20MiB.";
+  protected static final Integer NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT =
+      20 * 1024 * 1024;
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
@@ -1066,6 +1087,24 @@ public class RestConfig extends AbstractConfig {
             MAX_REQUEST_HEADER_SIZE_DEFAULT,
             Importance.LOW,
             MAX_REQUEST_HEADER_SIZE_DOC
+        ).define(
+            NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DEFAULT,
+            Importance.LOW,
+            NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC
+        ).define(
+            NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG,
+            Type.STRING,
+            NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DEFAULT,
+            Importance.LOW,
+            NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DOC
+        ).define(
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG,
+            Type.INT,
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT,
+            Importance.LOW,
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
         );
   }
 
@@ -1334,6 +1373,19 @@ public class RestConfig extends AbstractConfig {
       }
     }
     return result;
+  }
+
+  public final boolean getNetworkTrafficRateLimitEnable() {
+    return getBoolean(NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG);
+  }
+
+  public final NetworkTrafficRateLimitBackend getNetworkTrafficRateLimitBackend() {
+    return NetworkTrafficRateLimitBackend.valueOf(
+        getString(NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG).toUpperCase());
+  }
+
+  public final int getNetworkTrafficRateLimitBytesPerSec() {
+    return getInt(NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG);
   }
 
   /**
