@@ -129,11 +129,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
-    if (config.getNetworkTrafficRateLimitEnable()) {
-      NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
-      for (NetworkTrafficServerConnector connector : connectors) {
-        connector.addNetworkTrafficListener(rateLimitListener);
-      }
+    NetworkTrafficListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+    for (NetworkTrafficServerConnector connector : connectors) {
+      connector.addNetworkTrafficListener(metricsListener);
     }
   }
 
