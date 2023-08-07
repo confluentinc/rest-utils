@@ -17,7 +17,6 @@
 package io.confluent.rest.exceptions;
 
 import javax.validation.ConstraintViolationException;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
@@ -68,7 +67,6 @@ public class ConstraintViolationExceptionMapper
 
     return Response.status(UNPROCESSABLE_ENTITY_CODE)
         .entity(message)
-        .type(MediaType.APPLICATION_JSON_TYPE)
         .build();
   }
 }

@@ -18,7 +18,6 @@ package io.confluent.rest;
 
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
-import javax.ws.rs.core.MediaType;
 import org.apache.kafka.clients.consumer.CommitFailedException;
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.AuthorizationException;
@@ -173,6 +172,5 @@ public class KafkaExceptionMapperTest {
     assertEquals(status.getStatusCode(), response.getStatus());
     ErrorMessage errorMessage = (ErrorMessage) response.getEntity();
     assertEquals(errorCode, errorMessage.getErrorCode());
-    assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
   }
 }
