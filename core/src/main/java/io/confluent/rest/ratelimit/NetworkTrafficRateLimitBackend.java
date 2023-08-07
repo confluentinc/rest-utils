@@ -18,6 +18,5 @@ package io.confluent.rest.ratelimit;
 
 public enum NetworkTrafficRateLimitBackend {
   GUAVA,
-  RESILIENCE4J,
-  BUCKET4J
+  RESILIENCE4J
 }

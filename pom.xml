@@ -238,12 +238,6 @@
                 <artifactId>resilience4j-ratelimiter</artifactId>
                 <version>1.7.1</version>
             </dependency>
-            <!-- TODO: move this to JDK11 version when we migrate -->
-            <dependency>
-                <groupId>com.bucket4j</groupId>
-                <artifactId>bucket4j_jdk8-core</artifactId>
-                <version>8.3.0</version>
-            </dependency>
             <!--test-->
             <dependency>
                 <groupId>org.glassfish.jersey.test-framework</groupId>

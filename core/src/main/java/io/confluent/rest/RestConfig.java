@@ -536,7 +536,7 @@ public class RestConfig extends AbstractConfig {
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG =
       "network.traffic.rate.limit.backend";
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DOC =
-      "The rate-limiting backend to use. The options are 'guava', 'resilience4j', and 'bucket4j'. "
+      "The rate-limiting backend to use. The options are 'guava', and 'resilience4j'."
           + "Default is 'guava'.";
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DEFAULT = "guava";
 

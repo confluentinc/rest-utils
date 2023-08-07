@@ -129,10 +129,6 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.bucket4j</groupId>
-            <artifactId>bucket4j_jdk8-core</artifactId>
-        </dependency>
         <!--test-->
         <dependency>
             <groupId>org.bouncycastle</groupId>

@@ -18,15 +18,13 @@ package io.confluent.rest.ratelimit;
 
 import com.google.common.util.concurrent.RateLimiter;
 import io.confluent.rest.RestConfig;
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.BlockingBucket;
-import io.github.bucket4j.Bucket;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import java.time.Duration;
 
 public final class NetworkTrafficRateLimiterFactory {
 
   private NetworkTrafficRateLimiterFactory() {
+    // prevent instantiation
   }
 
   public static NetworkTrafficRateLimiter create(RestConfig restConfig) {
@@ -36,8 +34,6 @@ public final class NetworkTrafficRateLimiterFactory {
         return GuavaNetworkTrafficRateLimiter.create(bytesPerSecond);
       case RESILIENCE4J:
         return Resilience4JNetworkTrafficRateLimiter.create(bytesPerSecond);
-      case BUCKET4J:
-        return Bucket4JNetworkTrafficRateLimiter.create(bytesPerSecond);
       default:
         throw new AssertionError("Unknown enum constant: "
             + restConfig.getNetworkTrafficRateLimitBackend());
@@ -90,27 +86,6 @@ public final class NetworkTrafficRateLimiterFactory {
     @Override
     public void rateLimit(final int cost) {
       delegate.acquirePermission(cost);
-    }
-  }
-
-  static final class Bucket4JNetworkTrafficRateLimiter extends NetworkTrafficRateLimiter {
-
-    private final BlockingBucket delegate;
-
-    Bucket4JNetworkTrafficRateLimiter(BlockingBucket delegate) {
-      this.delegate = delegate;
-    }
-
-    static Bucket4JNetworkTrafficRateLimiter create(int bytesPerSecond) {
-      BlockingBucket blockingBucket = Bucket.builder()
-          .addLimit(Bandwidth.simple(bytesPerSecond, Duration.ofSeconds(1)))
-          .build().asBlocking();
-      return new Bucket4JNetworkTrafficRateLimiter(blockingBucket);
-    }
-
-    @Override
-    public void rateLimit(final int cost) {
-      delegate.tryConsumeUninterruptibly(cost, Duration.ofSeconds(1));
     }
   }
 
