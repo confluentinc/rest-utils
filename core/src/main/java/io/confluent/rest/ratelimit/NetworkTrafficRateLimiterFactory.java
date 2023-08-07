@@ -40,12 +40,7 @@ public final class NetworkTrafficRateLimiterFactory {
     }
   }
 
-  public abstract static class NetworkTrafficRateLimiter {
-
-    public abstract void rateLimit(int cost);
-  }
-
-  static final class GuavaNetworkTrafficRateLimiter extends NetworkTrafficRateLimiter {
+  static final class GuavaNetworkTrafficRateLimiter implements NetworkTrafficRateLimiter {
 
     private final RateLimiter delegate;
 
@@ -63,7 +58,7 @@ public final class NetworkTrafficRateLimiterFactory {
     }
   }
 
-  static final class Resilience4JNetworkTrafficRateLimiter extends NetworkTrafficRateLimiter {
+  static final class Resilience4JNetworkTrafficRateLimiter implements NetworkTrafficRateLimiter {
 
     private final io.github.resilience4j.ratelimiter.RateLimiter delegate;
 
@@ -88,5 +83,4 @@ public final class NetworkTrafficRateLimiterFactory {
       delegate.acquirePermission(cost);
     }
   }
-
 }

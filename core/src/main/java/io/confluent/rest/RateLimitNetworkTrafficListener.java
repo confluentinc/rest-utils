@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.ratelimit.NetworkTrafficRateLimiter;
 import io.confluent.rest.ratelimit.NetworkTrafficRateLimiterFactory;
-import io.confluent.rest.ratelimit.NetworkTrafficRateLimiterFactory.NetworkTrafficRateLimiter;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import org.eclipse.jetty.io.NetworkTrafficListener;
@@ -28,7 +28,6 @@ public class RateLimitNetworkTrafficListener implements NetworkTrafficListener {
   public RateLimitNetworkTrafficListener(RestConfig restConfig) {
     rateLimiter = NetworkTrafficRateLimiterFactory.create(restConfig);
   }
-
 
   @Override
   public void incoming(final Socket socket, final ByteBuffer bytes) {
