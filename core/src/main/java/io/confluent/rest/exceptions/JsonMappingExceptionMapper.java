@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.confluent.rest.entities.ErrorMessage;
 
 import javax.annotation.Priority;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
@@ -48,7 +47,6 @@ public class JsonMappingExceptionMapper implements ExceptionMapper<JsonMappingEx
 
     return Response.status(BAD_REQUEST_CODE)
         .entity(message)
-        .type(MediaType.APPLICATION_JSON_TYPE)
         .build();
   }
 

@@ -20,7 +20,6 @@ import com.fasterxml.jackson.core.JsonParseException;
 import io.confluent.rest.entities.ErrorMessage;
 
 import javax.annotation.Priority;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
@@ -41,7 +40,6 @@ public class JsonParseExceptionMapper implements ExceptionMapper<JsonParseExcept
 
     return Response.status(BAD_REQUEST_CODE)
         .entity(message)
-        .type(MediaType.APPLICATION_JSON_TYPE)
         .build();
   }
 }
