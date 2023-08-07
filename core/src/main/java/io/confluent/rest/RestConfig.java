@@ -546,6 +546,8 @@ public class RestConfig extends AbstractConfig {
       "The maximum number of bytes to emit per second for the network traffic. Default is 20MiB.";
   protected static final Integer NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT =
       20 * 1024 * 1024;
+  protected static final ConfigDef.Range NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR =
+      ConfigDef.Range.between(1, Integer.MAX_VALUE);
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
@@ -1103,6 +1105,7 @@ public class RestConfig extends AbstractConfig {
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG,
             Type.INT,
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT,
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR,
             Importance.LOW,
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
         );

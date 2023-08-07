@@ -129,7 +129,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
-    NetworkTrafficListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
     for (NetworkTrafficServerConnector connector : connectors) {
       connector.addNetworkTrafficListener(metricsListener);
     }
