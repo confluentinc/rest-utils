@@ -66,7 +66,7 @@ public class RateLimitNetworkTrafficListenerTest {
 
     if (info.getDisplayName().contains("NetworkTrafficRateLimitEnabled")) {
       props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG, "true");
-      props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG, 90000);
+      props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG, 10000);
       if (info.getDisplayName().contains("Resilience4j")) {
         props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG, "Resilience4j");
       }
@@ -111,7 +111,8 @@ public class RateLimitNetworkTrafficListenerTest {
     hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
     double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
     // with rate limiting, 1000 requests should finish in more than 2 seconds
-    assertThat("Duration must be greater than 2 seconds", durationMillis >= 2000);
+    assertThat("Duration must be greater than 10 seconds",
+        durationMillis >= Duration.ofSeconds(10).toMillis());
   }
 
   @Test
@@ -122,7 +123,8 @@ public class RateLimitNetworkTrafficListenerTest {
     hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
     double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
     // with rate limiting, 1000 requests should finish in more than 2 seconds
-    assertThat("Duration must be greater than 2 seconds", durationMillis >= 2000);
+    assertThat("Duration must be greater than 10 seconds",
+        durationMillis >= Duration.ofSeconds(10).toMillis());
   }
 
   // Send many concurrent requests and return the number of requests with "200" status

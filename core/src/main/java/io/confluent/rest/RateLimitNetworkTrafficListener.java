@@ -21,8 +21,17 @@ import io.confluent.rest.ratelimit.NetworkTrafficRateLimiterFactory;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import org.eclipse.jetty.io.NetworkTrafficListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * This class is used as a way to apply back-pressure on all the network traffic sockets when
+ * incoming rate exceeds a threshold
+ */
 public class RateLimitNetworkTrafficListener implements NetworkTrafficListener {
+
+  private static final Logger log = LoggerFactory.getLogger(RateLimitNetworkTrafficListener.class);
+
   private final NetworkTrafficRateLimiter rateLimiter;
 
   public RateLimitNetworkTrafficListener(RestConfig restConfig) {
@@ -33,6 +42,7 @@ public class RateLimitNetworkTrafficListener implements NetworkTrafficListener {
   public void incoming(final Socket socket, final ByteBuffer bytes) {
     int cost = bytes.limit() - bytes.position();
     if (cost > 0) {
+      log.debug("Applying network traffic rate limit on socket: {} with cost: {}", socket, cost);
       rateLimiter.rateLimit(cost);
     }
   }
