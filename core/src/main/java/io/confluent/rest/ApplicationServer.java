@@ -36,6 +36,7 @@ import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
+import org.eclipse.jetty.io.NetworkTrafficListener;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -134,6 +135,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
+  private void attachNetworkTrafficRateLimitListener() {
+    if (config.getNetworkTrafficRateLimitEnable()) {
+      NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
+      for (NetworkTrafficServerConnector connector : connectors) {
+        connector.addNetworkTrafficListener(rateLimitListener);
+      }
+    }
+  }
+
   private void addJettyThreadPoolMetrics(Metrics metrics, Map<String, String> tags) {
     //add metric for jetty thread pool queue size
     String requestQueueSizeName = "request-queue-size";
@@ -197,6 +207,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
       attachMetricsListener(app.getMetrics(), app.getMetricsTags());
+      attachNetworkTrafficRateLimitListener();
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
