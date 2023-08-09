@@ -547,7 +547,7 @@ public class RestConfig extends AbstractConfig {
   protected static final Integer NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT =
       20 * 1024 * 1024;
   protected static final ConfigDef.Range NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR =
-      ConfigDef.Range.between(1, Integer.MAX_VALUE);
+      ConfigDef.Range.atLeast(1);
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 

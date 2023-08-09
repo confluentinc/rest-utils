@@ -110,7 +110,7 @@ public class RateLimitNetworkTrafficListenerTest {
     // send 1000 POST requests in 1 second
     hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
     double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
-    // with rate limiting, 1000 requests should finish in more than 2 seconds
+    // with rate limiting, 1000 requests should finish in more than 10 seconds
     assertThat("Duration must be greater than 10 seconds",
         durationMillis >= Duration.ofSeconds(10).toMillis());
   }
@@ -122,7 +122,7 @@ public class RateLimitNetworkTrafficListenerTest {
     // send 1000 POST requests in 1 second
     hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
     double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
-    // with rate limiting, 1000 requests should finish in more than 2 seconds
+    // with rate limiting, 1000 requests should finish in more than 10 seconds
     assertThat("Duration must be greater than 10 seconds",
         durationMillis >= Duration.ofSeconds(10).toMillis());
   }
