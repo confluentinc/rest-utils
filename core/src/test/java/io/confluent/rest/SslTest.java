@@ -36,7 +36,6 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,7 +201,6 @@ public class SslTest {
     }
   }
 
-  @Disabled //Flakey locally
   @Test
   public void testHttpsWithAutoReload() throws Exception {
     TestMetricsReporter.reset();

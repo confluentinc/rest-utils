@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,10 +57,14 @@ public class FileWatcher implements Runnable {
   public FileWatcher(Path file, Callback callback) throws IOException {
     this.file = file;
     this.watchService = FileSystems.getDefault().newWatchService();
-    // Listen to both CREATE and MODIFY to reload, so taking care of delete then create.
+
+    // This uses k8s secrets, and the way they are updated is by writing them to a new directory,
+    // creating a symlink to it, then renaming it to DATA_DIR_NAME. So we only watch for that
+    // event, which should be the last one caused by an update.
     file.getParent().register(watchService,
         StandardWatchEventKinds.ENTRY_CREATE,
-        StandardWatchEventKinds.ENTRY_MODIFY);
+        StandardWatchEventKinds.ENTRY_MODIFY,
+        StandardWatchEventKinds.OVERFLOW);
     this.callback = callback;
   }
 
@@ -68,7 +73,7 @@ public class FileWatcher implements Runnable {
     * A shutdown hook is registered to stop watching.
   */
   public static void onFileChange(Path file, Callback callback) throws IOException {
-    log.info("Configure watch file change: " + file);
+    log.info("Constructing a new watch service: " + file);
     FileWatcher fileWatcher = new FileWatcher(file, callback);
     executor.submit(fileWatcher);
   }
@@ -80,6 +85,8 @@ public class FileWatcher implements Runnable {
           handleNextWatchNotification();
         } catch (InterruptedException e) {
           throw e;
+        } catch (ClosedWatchServiceException e) {
+          shutdown = true;
         } catch (Exception e) {
           log.info("Watch service caught exception, will continue:" + e);
         }
@@ -90,10 +97,13 @@ public class FileWatcher implements Runnable {
   }
 
   private void handleNextWatchNotification() throws InterruptedException {
-    log.debug("Watching file change: " + file);
+    log.debug("Waiting for watch key to be signalled: " + file);
+
     // wait for key to be signalled
     WatchKey key = watchService.take();
-    log.info("Watch Key notified");
+    log.info("Watch key signalled");
+
+    boolean runCallback = false;
     for (WatchEvent<?> event : key.pollEvents()) {
       WatchEvent.Kind<?> kind = event.kind();
       if (kind == StandardWatchEventKinds.OVERFLOW) {
@@ -108,19 +118,29 @@ public class FileWatcher implements Runnable {
 
       Path context = (Path) event.context();
       Path changed = this.file.getParent().resolve(context);
-      log.info("Watch file change: " + context + "=>" + changed);
-      // Need to use path equals than isSameFile
-      if (Files.exists(changed) && changed.equals(this.file)) {
-        log.debug("Watch matching file: " + file);
-        try {
-          callback.run();
-        } catch (Exception e) {
-          log.warn("Hit error callback on file change", e);
+      log.info("Watch event is " + event.kind() + ": " + context + " => " + changed);
+
+      if (changed.equals(this.file)) {
+        if (Files.exists(changed)) {
+          log.debug("Watch resolved path exists: " + file);
+          runCallback = true;
+        } else {
+          log.debug("Watch resolved path does not exist: " + file);
         }
-        break;
+      } else {
+        log.debug("Watch resolved path is not the same");
       }
     }
+
     key.reset();
+
+    if (runCallback) {
+      try {
+        callback.run();
+      } catch (Exception e) {
+        log.warn("Hit exception in callback on file watcher", e);
+      }
+    }
   }
 
   public void shutdown() {
