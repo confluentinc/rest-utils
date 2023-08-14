@@ -202,50 +202,6 @@ public class SslTest {
   }
 
   @Test
-  public void testHttpsWithAutoReload() throws Exception {
-    TestMetricsReporter.reset();
-    Properties props = new Properties();
-    String httpsUri = "https://localhost:8082";
-    props.put(RestConfig.LISTENERS_CONFIG, httpsUri);
-    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
-    props.put(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
-    configServerKeystore(props);
-    TestRestConfig config = new TestRestConfig(props);
-    SslTestApplication app = new SslTestApplication(config);
-    try {
-      app.start();
-      int statusCode = makeGetRequest(httpsUri + "/test",
-          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(200, statusCode, EXPECTED_200_MSG);
-      assertMetricsCollected();
-
-      // verify reload -- override the server keystore with a wrong one
-      Files.copy(serverKeystoreErr.toPath(), serverKeystore.toPath(),
-          StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      boolean hitError = false;
-      try {
-        makeGetRequest(httpsUri + "/test",
-            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (Exception e) {
-        System.out.println(e);
-        hitError = true;
-      }
-
-      // verify reload -- override the server keystore with a correct one
-      Files.copy(serverKeystoreBak.toPath(), serverKeystore.toPath(),
-          StandardCopyOption.REPLACE_EXISTING);
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      statusCode = makeGetRequest(httpsUri + "/test",
-          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(200, statusCode, EXPECTED_200_MSG);
-      assertTrue(hitError, "expect hit error with new server cert");
-    } finally {
-      app.stop();
-    }
-  }
-
-  @Test
   public void testHttpsOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();

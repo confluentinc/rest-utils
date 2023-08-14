@@ -50,8 +50,10 @@ public final class SslFactory {
           FileWatcher.onFileChange(watchLocation, () -> {
                 // Need to reset the key store path for symbolic link case
                 sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
-                sslContextFactory.reload(scf -> log.info("SSL cert auto reload begun"));
-                log.info("SSL cert auto reload done");
+                sslContextFactory.reload(scf -> {
+                  log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
+                });
+                log.info("SSL cert auto reload complete");
               }
           );
           log.info("Enabled SSL cert auto reload for: " + watchLocation);
