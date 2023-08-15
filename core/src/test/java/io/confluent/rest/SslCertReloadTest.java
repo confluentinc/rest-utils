@@ -99,7 +99,6 @@ public class SslCertReloadTest {
 
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
-  public static final int CERT_RELOAD_WAIT_TIME = 30000;
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -177,7 +176,6 @@ public class SslCertReloadTest {
 
   @Test
   public void testHttpsWithAutoReload() throws Exception {
-    TestMetricsReporter.reset();
     Properties props = new Properties();
     String httpsUri = "https://localhost:8082";
     props.put(RestConfig.LISTENERS_CONFIG, httpsUri);
@@ -199,25 +197,37 @@ public class SslCertReloadTest {
       serverKeystore.delete();
       Files.delete(dataDir);
       Files.createSymbolicLink(dataDir, Paths.get("err"));
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
       boolean hitError = false;
-      try {
-        makeGetRequest(httpsUri + "/test",
-            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      } catch (Exception e) {
-        System.out.println(e);
-        hitError = true;
+      for (int i = 0; i < 10; i++) {
+        Thread.sleep(5000);
+        try {
+          makeGetRequest(httpsUri + "/test",
+              clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        } catch (Exception e) {
+          log.info("Exception with broken server cert: {}", e.toString());
+          hitError = true;
+          break;
+        }
       }
+      assertTrue(hitError, "expect hit error with broken server cert");
 
       // verify reload -- override the server keystore with a correct one
       serverKeystoreErr.delete();
       Files.delete(dataDir);
       Files.createSymbolicLink(dataDir, Paths.get("new"));
-      Thread.sleep(CERT_RELOAD_WAIT_TIME);
-      statusCode = makeGetRequest(httpsUri + "/test",
-          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(200, statusCode, EXPECTED_200_MSG);
-      assertTrue(hitError, "expect hit error with new server cert");
+      for (int i = 0; i < 10; i++) {
+        Thread.sleep(5000);
+        try {
+          statusCode = makeGetRequest(httpsUri + "/test",
+              clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+          assertEquals(200, statusCode, EXPECTED_200_MSG);
+          hitError = false;
+          break;
+        } catch (Exception e) {
+          log.info("Exception waiting for correct server cert: {}", e.toString());
+        }
+      }
+      assertTrue(!hitError, "expect no hit error with correct server cert");
     } catch (Exception e) {
       log.info(e.toString());
     } finally {
