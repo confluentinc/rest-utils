@@ -30,19 +30,10 @@ import java.nio.file.WatchEvent;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 // reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
 public class FileWatcher implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
-  private static final ExecutorService executor = Executors.newFixedThreadPool(1,
-        new ThreadFactory() {
-          public Thread newThread(Runnable r) {
-            Thread t = Executors.defaultThreadFactory().newThread(r);
-            t.setDaemon(true);
-            return t;
-          }
-        });
 
   public interface Callback {
     void run() throws Exception;
@@ -52,6 +43,12 @@ public class FileWatcher implements Runnable {
   private final WatchService watchService;
   private final Path file;
   private final Callback callback;
+  private final ExecutorService executorService = Executors.newSingleThreadExecutor(
+      r -> {
+        Thread thread = new Thread(r, "file-watcher");
+        thread.setDaemon(true);
+        return thread;
+      });
 
   public FileWatcher(Path file, Callback callback) throws IOException {
     this.file = file;
@@ -70,10 +67,11 @@ public class FileWatcher implements Runnable {
   public static void onFileChange(Path file, Callback callback) throws IOException {
     log.info("Configure watch file change: " + file);
     FileWatcher fileWatcher = new FileWatcher(file, callback);
-    executor.submit(fileWatcher);
+    fileWatcher.executorService.submit(fileWatcher);
   }
 
   public void run() {
+    log.info("Running file watcher service thread");
     try {
       while (!shutdown) {
         try {
@@ -127,6 +125,7 @@ public class FileWatcher implements Runnable {
     shutdown = true;
     try {
       watchService.close();
+      executorService.shutdown();
     } catch (IOException e) {
       log.info("Error closing watch service", e);
     }
