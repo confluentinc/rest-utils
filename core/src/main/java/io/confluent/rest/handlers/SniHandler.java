@@ -16,6 +16,8 @@
 
 package io.confluent.rest.handlers;
 
+import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
+
 import java.io.IOException;
 import java.util.List;
 import javax.net.ssl.ExtendedSSLSession;
@@ -44,7 +46,7 @@ public class SniHandler extends AbstractHandler {
     if (sniServerName != null && !sniServerName.equals(serverName)) {
       log.error("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
       baseRequest.setHandled(true);
-      response.sendError(421, "Misdirected Request");
+      response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
   }
 
