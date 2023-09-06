@@ -44,7 +44,7 @@ public class SniHandler extends AbstractHandler {
     String serverName = request.getServerName();
     String sniServerName = getSniServerName(baseRequest);
     if (sniServerName != null && !sniServerName.equals(serverName)) {
-      log.error("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
+      log.debug("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
       baseRequest.setHandled(true);
       response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }

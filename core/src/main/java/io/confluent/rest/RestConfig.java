@@ -495,6 +495,13 @@ public class RestConfig extends AbstractConfig {
           + "Java 11 JVM or later. Default is true.";
   protected static final boolean HTTP2_ENABLED_DEFAULT = true;
 
+  public static final String SNI_CHECK_ENABLED_CONFIG = "sni.check.enabled";
+  protected static final String SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check the SNI against the Host header. If the values don't match, "
+          + "returns a 421 misdirected response. Default is false. NOTE: this check should "
+          + "not be enabled if servers have mutual TLS enabled.";
+  protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -1054,6 +1061,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             HTTP2_ENABLED_DOC
         ).define(
+            SNI_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SNI_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            SNI_CHECK_ENABLED_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1389,6 +1402,10 @@ public class RestConfig extends AbstractConfig {
 
   public final int getNetworkTrafficRateLimitBytesPerSec() {
     return getInt(NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG);
+  }
+
+  public final boolean getSniCheckEnable() {
+    return getBoolean(SNI_CHECK_ENABLED_CONFIG);
   }
 
   /**
