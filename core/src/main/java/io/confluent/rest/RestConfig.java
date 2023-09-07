@@ -498,8 +498,7 @@ public class RestConfig extends AbstractConfig {
   public static final String SNI_CHECK_ENABLED_CONFIG = "sni.check.enabled";
   protected static final String SNI_CHECK_ENABLED_DOC =
       "Whether or not to check the SNI against the Host header. If the values don't match, "
-          + "returns a 421 misdirected response. Default is false. NOTE: this check should "
-          + "not be enabled if servers have mutual TLS enabled.";
+          + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
