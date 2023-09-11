@@ -29,6 +29,7 @@ import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
+import io.confluent.rest.handlers.SniHandler;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -411,6 +412,10 @@ public abstract class Application<T extends RestConfig> {
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
     context.insertHandler(requestLogHandler);
+
+    if (config.getSniCheckEnable()) {
+      context.insertHandler(new SniHandler());
+    }
 
     HandlerCollection handlers = new HandlerCollection();
     handlers.setHandlers(new Handler[]{context});
