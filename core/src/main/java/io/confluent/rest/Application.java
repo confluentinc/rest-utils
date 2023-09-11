@@ -413,12 +413,14 @@ public abstract class Application<T extends RestConfig> {
     requestLogHandler.setRequestLog(requestLog);
     context.insertHandler(requestLogHandler);
 
-    HandlerCollection handlerCollection = new HandlerCollection();
-    Handler[] handlers = config.getSniCheckEnable() ? new Handler[]{new SniHandler(), context}
-        : new Handler[]{context};
-    handlerCollection.setHandlers(handlers);
+    if (config.getSniCheckEnable()) {
+      context.insertHandler(new SniHandler());
+    }
 
-    return handlerCollection;
+    HandlerCollection handlers = new HandlerCollection();
+    handlers.setHandlers(new Handler[]{context});
+
+    return handlers;
   }
 
   /**

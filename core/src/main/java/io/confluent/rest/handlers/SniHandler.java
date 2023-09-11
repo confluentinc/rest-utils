@@ -30,11 +30,11 @@ import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection.DecryptedEndPoint;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SniHandler extends AbstractHandler {
+public class SniHandler extends HandlerWrapper {
   private static final Logger log = LoggerFactory.getLogger(SniHandler.class);
 
   @Override
@@ -48,6 +48,7 @@ public class SniHandler extends AbstractHandler {
       baseRequest.setHandled(true);
       response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
+    super.handle(target, baseRequest, request, response);
   }
 
   private static String getSniServerName(Request baseRequest) {
