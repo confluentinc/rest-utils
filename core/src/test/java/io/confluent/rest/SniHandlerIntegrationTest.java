@@ -30,6 +30,7 @@ import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -48,9 +49,10 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @Tag("IntegrationTest")
@@ -77,8 +79,10 @@ public class SniHandlerIntegrationTest {
     server.join();
   }
 
-  @Test
-  public void test_http_SniHandlerEnabled_no_effect() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  public void test_http_SniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
+    props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
     props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
     // http doesn't have SNI concept, SNI is an extension for TLS
     startHttpServer("http");
@@ -95,13 +99,15 @@ public class SniHandlerIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  public void test_https_SniHandlerDisabled_wrong_host_pass(boolean mTLSEnabled) throws Exception {
+  @MethodSource("provideParameters")
+  public void test_https_SniHandlerDisabled_wrong_host_pass(boolean mTLSEnabled,
+      boolean http2Enabled) throws Exception {
     props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
     }
+    props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
     startHttpServer("https");
     startHttpClient("https");
 
@@ -117,13 +123,15 @@ public class SniHandlerIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  public void test_https_SniHandlerEnabled_wrong_host_421(boolean mTLSEnabled) throws Exception {
+  @MethodSource("provideParameters")
+  public void test_https_SniHandlerEnabled_wrong_host_421(boolean mTLSEnabled, boolean http2Enabled)
+      throws Exception {
     props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
     }
+    props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
     startHttpServer("https");
     startHttpClient("https");
 
@@ -141,13 +149,15 @@ public class SniHandlerIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  public void test_https_SniHandlerEnabled_same_host_pass(boolean mTLSEnabled) throws Exception {
+  @MethodSource("provideParameters")
+  public void test_https_SniHandlerEnabled_same_host_pass(boolean mTLSEnabled, boolean http2Enabled)
+      throws Exception {
     props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
     }
+    props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
     startHttpServer("https");
     startHttpClient("https");
 
@@ -165,6 +175,16 @@ public class SniHandlerIntegrationTest {
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
+  }
+
+  // generate mTLS enablement and http2 enablement parameters for tests
+  private static Stream<Arguments> provideParameters() {
+    return Stream.of(
+        Arguments.of(false, false),
+        Arguments.of(false, true),
+        Arguments.of(true, false),
+        Arguments.of(true, true)
+    );
   }
 
   private void startHttpClient(String scheme) throws Exception {
