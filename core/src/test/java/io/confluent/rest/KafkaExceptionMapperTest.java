@@ -34,6 +34,7 @@ import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.NotCoordinatorException;
 import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
@@ -106,6 +107,9 @@ public class KafkaExceptionMapperTest {
 
     verifyMapperResponse(new InvalidReplicationFactorException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new RecordTooLargeException("some message"),
+        Status.REQUEST_ENTITY_TOO_LARGE,
+        Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode());
     verifyMapperResponse(new SecurityDisabledException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new UnsupportedVersionException("some message"), Status.BAD_REQUEST,

@@ -29,6 +29,7 @@ import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.errors.ThrottlingQuotaExceededException;
@@ -79,6 +80,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
         BROKER_NOT_AVAILABLE_ERROR_CODE));
     errorMap.put(InvalidReplicationFactorException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
+    errorMap.put(RecordTooLargeException.class, new ResponsePair(Status.REQUEST_ENTITY_TOO_LARGE,
+        Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()));
     // thrown when ACLs are not enabled
     errorMap.put(SecurityDisabledException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
