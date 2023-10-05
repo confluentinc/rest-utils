@@ -115,6 +115,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     configureConnectors();
     configureConnectionLimits();
+    log.info("MSN: Application ctor");
   }
 
 

@@ -19,12 +19,15 @@ package io.confluent.rest;
 import java.net.Socket;
 import java.util.Map;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.eclipse.jetty.io.NetworkTrafficListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MetricsListener implements NetworkTrafficListener {
 
@@ -40,6 +43,10 @@ public class MetricsListener implements NetworkTrafficListener {
   private final Sensor disconnects;
   private final Sensor connections;
 
+  private static final Logger log = LoggerFactory.getLogger(MetricsListener.class);
+
+  private AtomicInteger activeConnCounter = new AtomicInteger(0);
+
   public MetricsListener(Metrics metrics, String metricGrpPrefix, Map<String, String> metricTags) {
     String metricGrpName = metricGrpPrefix + "-metrics";
     this.accepts = metrics.sensor("connections-accepted");
@@ -54,7 +61,7 @@ public class MetricsListener implements NetworkTrafficListener {
     metricName = new MetricName(
         "connections-opened-rate",
         metricGrpName,
-       "The average rate per second of opened Jetty TCP connections",
+        "The average rate per second of opened Jetty TCP connections",
         metricTags
     );
     this.connects.add(metricName, new Rate());
@@ -83,12 +90,16 @@ public class MetricsListener implements NetworkTrafficListener {
     this.connects.record();
     this.connections.record(1);
     this.accepts.record();
+    activeConnCounter.incrementAndGet();
+    log.info("MSN:[open-conn] active-conn is {}", activeConnCounter.get());
   }
 
   @Override
   public void closed(Socket socket) {
     this.disconnects.record();
     this.connections.record(-1);
+    activeConnCounter.decrementAndGet();
+    log.info("MSN:[close-conn] active-conn is {}", activeConnCounter.get());
   }
 
 }
