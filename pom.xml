@@ -53,7 +53,6 @@
         <confluent.maven.repo>https://packages.confluent.io/maven/</confluent.maven.repo>
         <jersey.version>2.36</jersey.version>
         <hibernate.validator.version>6.1.7.Final</hibernate.validator.version>
-        <jetty.version>9.4.51.v20230217</jetty.version>
         <asynchttpclient.version>2.2.0</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <io.confluent.rest-utils.version>7.3.6-0</io.confluent.rest-utils.version>
