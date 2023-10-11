@@ -24,6 +24,7 @@ import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFI
 
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.metrics.RestMetricsContext;
+import io.confluent.rest.ratelimit.NetworkTrafficRateLimitBackend;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -178,6 +179,11 @@ public class RestConfig extends AbstractConfig {
   protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether"
       + " request latency meets or violates SLA";
   protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
+  public static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG =
+      "metrics.global.stats.request.tags.enable";
+  protected static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC = "Whether to use "
+      + " runtime request tags in global stats.";
+  protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
@@ -337,12 +343,12 @@ public class RestConfig extends AbstractConfig {
 
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =
-          "The minimum number of threads will be startred for HTTP Servlet server.";
+          "The minimum number of threads will be started for HTTP Servlet server.";
   public static final int THREAD_POOL_MIN_DEFAULT = 8;
 
   public static final String THREAD_POOL_MAX_CONFIG = "thread.pool.max";
   public static final String THREAD_POOL_MAX_DOC =
-          "The maxinum number of threads will be startred for HTTP Servlet server.";
+          "The maximum number of threads will be started for HTTP Servlet server.";
   public static final int THREAD_POOL_MAX_DEFAULT = 200;
 
   public static final String REQUEST_QUEUE_CAPACITY_CONFIG = "request.queue.capacity";
@@ -489,6 +495,12 @@ public class RestConfig extends AbstractConfig {
           + "Java 11 JVM or later. Default is true.";
   protected static final boolean HTTP2_ENABLED_DEFAULT = true;
 
+  public static final String SNI_CHECK_ENABLED_CONFIG = "sni.check.enabled";
+  protected static final String SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check the SNI against the Host header. If the values don't match, "
+          + "returns a 421 misdirected response. Default is false.";
+  protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -520,6 +532,28 @@ public class RestConfig extends AbstractConfig {
   protected static final String MAX_REQUEST_HEADER_SIZE_DOC =
       "Maximum buffer size for jetty request headers in bytes";
   protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
+
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG =
+      "network.traffic.rate.limit.enable";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC =
+      "Whether to enable network traffic rate-limiting. Default is false";
+  protected static final boolean NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DEFAULT = false;
+
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG =
+      "network.traffic.rate.limit.backend";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DOC =
+      "The rate-limiting backend to use. The options are 'guava', and 'resilience4j'."
+          + "Default is 'guava'.";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DEFAULT = "guava";
+
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG =
+      "network.traffic.rate.limit.bytes.per.sec";
+  protected static final String NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC =
+      "The maximum number of bytes to emit per second for the network traffic. Default is 20MiB.";
+  protected static final Integer NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT =
+      20 * 1024 * 1024;
+  protected static final ConfigDef.Range NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR =
+      ConfigDef.Range.atLeast(1);
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
@@ -699,6 +733,12 @@ public class RestConfig extends AbstractConfig {
             METRICS_LATENCY_SLA_MS_DEFAULT,
             Importance.LOW,
             METRICS_LATENCY_SLA_MS_DOC
+        ).define(
+            METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT,
+            Importance.LOW,
+            METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
@@ -1020,6 +1060,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             HTTP2_ENABLED_DOC
         ).define(
+            SNI_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SNI_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            SNI_CHECK_ENABLED_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1055,6 +1101,25 @@ public class RestConfig extends AbstractConfig {
             MAX_REQUEST_HEADER_SIZE_DEFAULT,
             Importance.LOW,
             MAX_REQUEST_HEADER_SIZE_DOC
+        ).define(
+            NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DEFAULT,
+            Importance.LOW,
+            NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC
+        ).define(
+            NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG,
+            Type.STRING,
+            NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DEFAULT,
+            Importance.LOW,
+            NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_DOC
+        ).define(
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG,
+            Type.INT,
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DEFAULT,
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR,
+            Importance.LOW,
+            NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
         );
   }
 
@@ -1323,6 +1388,23 @@ public class RestConfig extends AbstractConfig {
       }
     }
     return result;
+  }
+
+  public final boolean getNetworkTrafficRateLimitEnable() {
+    return getBoolean(NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG);
+  }
+
+  public final NetworkTrafficRateLimitBackend getNetworkTrafficRateLimitBackend() {
+    return NetworkTrafficRateLimitBackend.valueOf(
+        getString(NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG).toUpperCase());
+  }
+
+  public final int getNetworkTrafficRateLimitBytesPerSec() {
+    return getInt(NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG);
+  }
+
+  public final boolean getSniCheckEnable() {
+    return getBoolean(SNI_CHECK_ENABLED_CONFIG);
   }
 
   /**

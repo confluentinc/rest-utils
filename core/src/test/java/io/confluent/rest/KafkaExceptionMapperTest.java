@@ -34,11 +34,14 @@ import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.NotCoordinatorException;
 import org.apache.kafka.common.errors.NotEnoughReplicasException;
 import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
+import org.apache.kafka.common.errors.ThrottlingQuotaExceededException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicAuthorizationException;
+import org.apache.kafka.common.errors.TopicDeletionDisabledException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.TransactionalIdAuthorizationException;
 import org.apache.kafka.common.errors.UnknownServerException;
@@ -58,6 +61,7 @@ import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_BAD_REQUES
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_ERROR_ERROR_CODE;
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_RETRIABLE_ERROR_ERROR_CODE;
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.KAFKA_UNKNOWN_TOPIC_PARTITION_CODE;
+import static io.confluent.rest.exceptions.KafkaExceptionMapper.TOO_MANY_REQUESTS_ERROR_CODE;
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.TOPIC_NOT_FOUND_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -103,6 +107,9 @@ public class KafkaExceptionMapperTest {
 
     verifyMapperResponse(new InvalidReplicationFactorException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new RecordTooLargeException("some message"),
+        Status.REQUEST_ENTITY_TOO_LARGE,
+        Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode());
     verifyMapperResponse(new SecurityDisabledException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new UnsupportedVersionException("some message"), Status.BAD_REQUEST,
@@ -121,8 +128,12 @@ public class KafkaExceptionMapperTest {
         KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidConfigurationException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new TopicDeletionDisabledException("some message"), Status.BAD_REQUEST,
+        KAFKA_BAD_REQUEST_ERROR_CODE);
     verifyMapperResponse(new InvalidTopicException("some message"), Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE);
+    verifyMapperResponse(new ThrottlingQuotaExceededException("some message"), Status.TOO_MANY_REQUESTS,
+        TOO_MANY_REQUESTS_ERROR_CODE);
 
     //test couple of retriable exceptions
     verifyMapperResponse(new NotCoordinatorException("some message"), Status.INTERNAL_SERVER_ERROR,
