@@ -4,7 +4,7 @@ Confluent REST Utils
 Confluent REST Utils provides a small framework and utilities for writing Java
 REST APIs using Jersey, Jackson, Jetty, and Hibernate Validator.
 
-See the [`examples/`](examples/) directory for a simple demo service.
+See the [`examples/`](examples/) directory for a simple demo service.,
 
 Security
 --------
