@@ -23,7 +23,7 @@ is 50ms and the maximum latency for a https listener is 100ms, the `request-late
 across all listeners..
 
 Contribute
-----------
+-----------
 
 - Source Code: https://github.com/confluentinc/rest-utils
 - Issue Tracker: https://github.com/confluentinc/rest-utils/issues
