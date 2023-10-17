@@ -15,7 +15,7 @@ The https implementation is similar to Kafka, where the server specifies a keyst
 client auth is configured, the client must authenticate -- the key in the client's keystore must be trusted by
 the server's trust store.
 
-Metrics
+Metric
 -------
 One metrics group exists that spans all listeners. Meaning, when using multiple listeners and observing metrics, the
 values of each metric are a combination of all listeners. For example, if the maximum latency for a http listener
