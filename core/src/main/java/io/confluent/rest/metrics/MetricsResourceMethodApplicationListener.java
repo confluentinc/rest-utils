@@ -544,7 +544,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     @Override
     public void onEvent(RequestEvent event) {
       if (event.getType() == RequestEvent.Type.MATCHING_START) {
-        started = time.milliseconds();
         final ContainerRequest request = event.getContainerRequest();
         wrappedRequestStream = new CountingInputStream(request.getEntityStream());
         request.setEntityStream(wrappedRequestStream);
