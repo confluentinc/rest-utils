@@ -562,19 +562,27 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void testValidLatencyMetricsForErrorBeforeResourceMatching() {
-    makeFilterError();
+  public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() {
+    // call service that fails before resource matching
+    long start = System.currentTimeMillis();
+    makeFilterErrorCall();
+    long elapsed = System.currentTimeMillis() - start + 100; // add buffer of a 100 ms
 
-    Map<String, String> allMetrics = TestMetricsReporter.getMetricTimeseries()
-        .stream()
-        .collect(Collectors.toMap(
-            x -> x.metricName().name(),
-            x -> x.metricValue().toString(),
-            (a, b) -> a));
-
-    assertTrue(Double.valueOf(allMetrics.get("request-latency-avg")) < 1000);
-    assertTrue(Double.valueOf(allMetrics.get("request-latency-max")) < 1000);
-   }
+    // assert that global request latency metrics should all be under client elapsed time
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        switch (metric.metricName().name()) {
+          // the below metrics are global request latency metrics
+          case "request-latency-avg":
+          case "request-latency-max":
+          case "request-latency-95":
+          case "request-latency-99":
+            assertTrue(Double.valueOf(metric.metricValue().toString()) < elapsed);
+            break;
+        }
+      }
+    }
+  }
 
   private void makeSuccessfulCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
@@ -603,7 +611,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(500, response.getStatus());
   }
 
-  private void makeFilterError() {
+  private void makeFilterErrorCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
         .path("/public/filterError")
