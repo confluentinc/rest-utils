@@ -13,7 +13,7 @@ parameter to control which protocol is used.
 
 The https implementation is similar to Kafka, where the server specifies a keystore and trust store. When SSL
 client auth is configured, the client must authenticate -- the key in the client's keystore must be trusted by
-the server's trust store.
+the server's trust store..
 
 Metrics
 -------
