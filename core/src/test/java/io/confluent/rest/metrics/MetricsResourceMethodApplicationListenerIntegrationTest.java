@@ -12,6 +12,7 @@ import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 
+import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
@@ -560,6 +561,29 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
   }
 
+  @Test
+  public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() {
+    // call service that fails before resource matching
+    long start = System.currentTimeMillis();
+    makeFilterErrorCall();
+    long elapsed = System.currentTimeMillis() - start + 100; // add buffer of a 100 ms
+
+    // assert that global request latency metrics should all be under client elapsed time
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        switch (metric.metricName().name()) {
+          // the below metrics are global request latency metrics
+          case "request-latency-avg":
+          case "request-latency-max":
+          case "request-latency-95":
+          case "request-latency-99":
+            assertTrue(Double.valueOf(metric.metricValue().toString()) < elapsed);
+            break;
+        }
+      }
+    }
+  }
+
   private void makeSuccessfulCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
@@ -582,6 +606,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
         .path("/public/caught")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(500, response.getStatus());
+  }
+
+  private void makeFilterErrorCall() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target(server.getURI())
+        .path("/public/filterError")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
     assertEquals(500, response.getStatus());
@@ -612,6 +645,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       config.register(PrivateResource.class);
       config.register(new PublicResource());
       config.register(new Filter());
+      config.register(new PreMatchingErrorFilter());
       config.register(new MyExceptionMapper(appConfig));
 
       // ensures the dispatch error message gets shown in the response
@@ -682,6 +716,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       throw new StatusCodeException(Status.TOO_MANY_REQUESTS, new RuntimeException("kaboom"));
     }
 
+    @GET
+    @Path("/filterError")
+    @PerformanceMetric("filterError")
+    public String filterError() {
+      return "should never get here";
+    }
   }
 
   private class Filter implements ContainerRequestFilter {
@@ -696,6 +736,17 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         maps.put("tag", value);
       }
       context.setProperty(MetricsResourceMethodApplicationListener.REQUEST_TAGS_PROP_KEY, maps);
+    }
+  }
+
+  @PreMatching
+  private class PreMatchingErrorFilter implements ContainerRequestFilter {
+    @Override
+    public void filter(ContainerRequestContext context) {
+      String path = context.getUriInfo().getPath();
+      if (path.equals("public/filterError")) {
+        throw new RuntimeException("Error before resource matching");
+      }
     }
   }
 
