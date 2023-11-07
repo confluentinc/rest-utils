@@ -8,3 +8,5 @@ semaphore:
   downstream_projects: ["schema-registry", "metadata-service", "kafka-rest",
     "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
     "confluent-cloud-plugins"]
+git:
+  enable: true
