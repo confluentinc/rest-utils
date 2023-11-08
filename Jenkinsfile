@@ -7,5 +7,4 @@ common {
     "confluent-cloud-plugins"]
   nanoVersion = true
   pinnedNanoVersions = true
-  mvnSkipDeploy = true
 }
