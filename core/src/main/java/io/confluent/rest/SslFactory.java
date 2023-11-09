@@ -115,6 +115,7 @@ public final class SslFactory {
   private static void configureSecurityProvider(Server sslContextFactory, SslConfig sslConfig) {
     sslContextFactory.setProvider(sslConfig.getProvider());
     if (SslConfig.TLS_CONSCRYPT.equalsIgnoreCase(sslConfig.getProvider())) {
+// Detected the use of a crypographic function. Please review this for compliance. https://go/fips-compliance
       Security.addProvider(new OpenSSLProvider());
     }
   }
