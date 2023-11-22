@@ -103,10 +103,10 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
                                                  Response.StatusType status, String msg) {
     if (status.getFamily() == Family.SERVER_ERROR) {
       // Always log 5xx errors, as they indicate server-side issues.
-      log.error("Request Failed with exception " ,  exc);
+      log.error("Request Failed with exception ",  exc);
     } else {
       // Only log other errors, including user-errors 4xx, if debugging enabled.
-      log.debug("Request Failed with exception " ,  exc);
+      log.debug("Request Failed with exception ",  exc);
     }
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
