@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status.Family;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
@@ -100,7 +101,13 @@ public abstract class DebuggableExceptionMapper<E extends Throwable> implements 
    */
   public Response.ResponseBuilder createResponse(Throwable exc, int errorCode,
                                                  Response.StatusType status, String msg) {
-    log.error("Request Failed with exception " ,  exc);
+    if (status.getFamily() == Family.SERVER_ERROR) {
+      // Always log 5xx errors, as they indicate server-side issues.
+      log.error("Request Failed with exception ",  exc);
+    } else {
+      // Only log other errors, including user-errors 4xx, if debugging enabled.
+      log.debug("Request Failed with exception ",  exc);
+    }
     String readableMessage = msg;
     if (restConfig != null && restConfig.getBoolean(RestConfig.DEBUG_CONFIG)) {
       readableMessage += " " + exc.getClass().getName() + ": " + exc.getMessage();
