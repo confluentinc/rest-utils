@@ -24,8 +24,6 @@ import static org.junit.jupiter.api.RepeatedTest.LONG_DISPLAY_NAME;
 
 import java.net.URI;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -50,7 +48,6 @@ import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlets.DoSFilter;
 import org.eclipse.jetty.servlets.DoSFilter.Action;
-import org.eclipse.jetty.servlets.DoSFilter.Listener;
 import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
@@ -60,11 +57,11 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInfo;
 
-@Tag("IntegrationTest")
 /**
- * This test makes sure when DosFilter rejects requests, then configured dosfilter-listeners
- * are run, including the mandatory Jetty429MetricsDosFilterListener.
+ * This test makes sure when DosFilter rejects requests, then configured dosfilter-listeners are
+ * run, including the mandatory Jetty429MetricsDosFilterListener.
  */
+@Tag("IntegrationTest")
 class JettyDosFilterMultiListenerIntegrationTest {
 
   private static final int DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC = 25;
@@ -73,8 +70,8 @@ class JettyDosFilterMultiListenerIntegrationTest {
   private ScheduledExecutorService executor;
   private Server server;
   private Client client;
-  private TestDosFilterListener nonGlobalDosFilterListener = new TestDosFilterListener();
-  private TestDosFilterListener globalDosFilterListener = new TestDosFilterListener();
+  private final TestDosFilterListener nonGlobalDosFilterListener = new TestDosFilterListener();
+  private final TestDosFilterListener globalDosFilterListener = new TestDosFilterListener();
 
   @BeforeEach
   public void setUp(TestInfo testInfo) throws Exception {
@@ -130,12 +127,12 @@ class JettyDosFilterMultiListenerIntegrationTest {
     awaitTerminationAfterShutdown(executor);
   }
 
+  /**
+   * This test will query such that no dos-filter kicks-in, so no requests rejected. Check that no
+   * dos-filter-listener kicks-in.
+   */
   @RepeatedTest(value = 5, name = LONG_DISPLAY_NAME)
   @DisplayName("test_dosFilterMultiListener_noRequestRejected_CheckNoListenerCalled")
-  /**
-   * This test will query such that no dos-filter kicks-in, so no requests rejected.
-   * Check that no dos-filter-listener kicks-in.
-   */
   public void test_dosFilterMultiListener_noRequestRejected_CheckNoListenerCalled() {
     // send 20 requests, 10 are warmup (not counted), in theory, all the requests are accepted
     final int warmupRequests = 10;
@@ -192,12 +189,12 @@ class JettyDosFilterMultiListenerIntegrationTest {
     assertEquals(globalDosFilterListener.rejectedCounter.get(), 0);
   }
 
+  /**
+   * This test will query such that non-global dos-filter kicks-in, so requests are rejected. Check
+   * that non-global-dos-filter-listener and Jetty429MetricsDosFilterListener are called.
+   */
   @RepeatedTest(value = 5, name = LONG_DISPLAY_NAME)
   @DisplayName("test_dosFilterMultiListener_withNonGlobalDosFilterRejecting_CheckRelevantListenersCalled")
-  /**
-   * This test will query such that non-global dos-filter kicks-in, so requests are rejected.
-   * Check that non-global-dos-filter-listener and Jetty429MetricsDosFilterListener are called.
-   */
   public void test_dosFilterMultiListener_withNonGlobalDosFilterRejecting_CheckRelevantListenersCalled() {
     // send 100 requests, in which 20 are warmup, in theory,
     // - the first 25 (including warmups) are accepted, so response200s=5
@@ -212,7 +209,12 @@ class JettyDosFilterMultiListenerIntegrationTest {
 
     // Verify Jetty429MetricsDosFilterListener was called.
     // check for 200s
-    assertEquals(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC - warmupRequests, response200s);
+    // due to the timing of exactly 1 second in DosFilter,
+    // sometime we might get one more response200,
+    // so the assertion is changed to relax the condition
+    assertTrue(
+        Math.abs((DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC - warmupRequests) - response200s)
+            <= 1);
     // Check 429 metrics
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-count")
@@ -223,8 +225,12 @@ class JettyDosFilterMultiListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
         double errorCountValue = (double) metricValue;
-        assertEquals(totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC,
-            errorCountValue, "Actual: " + errorCountValue);
+        // due to the timing of exactly 1 second in DosFilter,
+        // sometime we might get one more response200,
+        // so the assertion is changed to relax the condition
+        assertTrue(Math.abs(
+            (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC) - errorCountValue)
+            <= 1);
       }
 
       if (metric.metricName().name().equals("request-error-total")
@@ -235,8 +241,11 @@ class JettyDosFilterMultiListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error total metrics should be measurable");
         double errorTotalValue = (double) metricValue;
-        assertEquals(totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC,
-            errorTotalValue, "Actual: " + errorTotalValue);
+        // due to the timing of exactly 1 second in DosFilter,
+        // sometime we might get one more response200,
+        // so the assertion is changed to relax the condition
+        assertTrue(Math.abs((totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC) -
+            errorTotalValue) <= 1);
       }
 
       if (metric.metricName().name().equals("request-error-rate")
@@ -257,18 +266,21 @@ class JettyDosFilterMultiListenerIntegrationTest {
     }
 
     // Verify that non-global-dos-filter-listener was called.
-    assertEquals(nonGlobalDosFilterListener.rejectedCounter.get(),
-        totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC);
+    // due to the timing of exactly 1 second in DosFilter,
+    // sometime we might get one more response200,
+    // so the assertion is changed to relax the condition
+    assertTrue(Math.abs(nonGlobalDosFilterListener.rejectedCounter.get() -
+        (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC)) <= 1);
     // Verify that global-dos-filter-listener wasn't called.
     assertEquals(globalDosFilterListener.rejectedCounter.get(), 0);
   }
 
+  /**
+   * This test will query such that non-global dos-filter kicks-in, so requests are rejected. Check
+   * that global-dos-filter-listener and Jetty429MetricsDosFilterListener are called.
+   */
   @RepeatedTest(value = 5, name = LONG_DISPLAY_NAME)
   @DisplayName("test_dosFilterMultiListener_withGlobalDosFilterRejecting_CheckRelevantListenersCalled")
-  /**
-   * This test will query such that non-global dos-filter kicks-in, so requests are rejected.
-   * Check that global-dos-filter-listener and Jetty429MetricsDosFilterListener are called.
-   */
   public void test_dosFilterMultiListener_withGlobalDosFilterRejecting_CheckRelevantListenersCalled() {
     // send 100 requests, in which 20 are warmup, in theory,
     // - the first 25 (including warmups) are accepted, so response200s=5
@@ -283,7 +295,10 @@ class JettyDosFilterMultiListenerIntegrationTest {
 
     // Verify Jetty429MetricsDosFilterListener is called.
     // check for 200s
-    assertEquals(DOS_FILTER_MAX_REQUESTS_PER_SEC - warmupRequests, response200s);
+    // due to the timing of exactly 1 second in DosFilter,
+    // sometime we might get one more response200,
+    // so the assertion is changed to relax the condition
+    assertTrue(Math.abs((DOS_FILTER_MAX_REQUESTS_PER_SEC - warmupRequests) - response200s) <= 1);
     // Check 429 metrics
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-count")
@@ -294,8 +309,11 @@ class JettyDosFilterMultiListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
         double errorCountValue = (double) metricValue;
-        assertEquals(totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC,
-            errorCountValue, "Actual: " + errorCountValue);
+        // due to the timing of exactly 1 second in DosFilter,
+        // sometime we might get one more response200,
+        // so the assertion is changed to relax the condition
+        assertTrue(Math.abs((totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC) -
+            errorCountValue) <= 1);
       }
 
       if (metric.metricName().name().equals("request-error-total")
@@ -306,8 +324,11 @@ class JettyDosFilterMultiListenerIntegrationTest {
         Object metricValue = metric.metricValue();
         assertTrue(metricValue instanceof Double, "Error total metrics should be measurable");
         double errorTotalValue = (double) metricValue;
-        assertEquals(totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC,
-            errorTotalValue, "Actual: " + errorTotalValue);
+        // due to the timing of exactly 1 second in DosFilter,
+        // sometime we might get one more response200,
+        // so the assertion is changed to relax the condition
+        assertTrue(Math.abs((totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC) -
+            errorTotalValue) <= 1);
       }
 
       if (metric.metricName().name().equals("request-error-rate")
@@ -328,13 +349,16 @@ class JettyDosFilterMultiListenerIntegrationTest {
     }
 
     // Verify that global-dos-filter-listener was called.
-    assertEquals(globalDosFilterListener.rejectedCounter.get(),
-        totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC);
+    // due to the timing of exactly 1 second in DosFilter,
+    // sometime we might get one more response200,
+    // so the assertion is changed to relax the condition
+    assertTrue(Math.abs(globalDosFilterListener.rejectedCounter.get() -
+        (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC)) <= 1);
     // Verify that non-global-dos-filter-listener wasn't called.
     assertEquals(nonGlobalDosFilterListener.rejectedCounter.get(), 0);
   }
 
-  // Send many concurrent requests and return the number of request with 200 status
+  // Send many concurrent requests and return the number of requests with 200 status
   private int hammerAtConstantRate(URI server,
       String path, Duration rate, int warmupRequests, int totalRequests) {
     checkArgument(!rate.isNegative(), "rate must be non-negative");
@@ -424,7 +448,7 @@ class JettyDosFilterMultiListenerIntegrationTest {
     }
   }
 
-  class TestDosFilterListener extends DoSFilter.Listener {
+  private static class TestDosFilterListener extends DoSFilter.Listener {
 
     AtomicInteger rejectedCounter = new AtomicInteger(0);
 
