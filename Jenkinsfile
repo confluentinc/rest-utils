@@ -6,5 +6,6 @@ common {
     "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
     "confluent-cloud-plugins"]
   nanoVersion = true
+  mvnSkipDeploy = true
 }
 //change
