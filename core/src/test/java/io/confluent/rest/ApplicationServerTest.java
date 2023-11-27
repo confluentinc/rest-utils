@@ -169,10 +169,7 @@ public class ApplicationServerTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
 
     // Should not throw, since http is not considered a listener name.
-    List<ApplicationServer.NamedURI> listeners = ApplicationServer.parseListeners(
-      config.getList(RestConfig.LISTENERS_CONFIG),
-      config.getListenerProtocolMap(),
-      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+    List<NamedURI> listeners = config.getListeners();
 
     assertEquals(2, listeners.size());
 
@@ -190,12 +187,7 @@ public class ApplicationServerTest {
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http");
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
 
-    assertThrows(ConfigException.class,
-        () ->
-    ApplicationServer.parseListeners(
-      config.getList(RestConfig.LISTENERS_CONFIG),
-      config.getListenerProtocolMap(),
-      0, ApplicationServer.SUPPORTED_URI_SCHEMES, ""));
+    assertThrows(ConfigException.class, config::getListeners);
   }
 
   @Test
@@ -205,10 +197,7 @@ public class ApplicationServerTest {
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,EXTERNAL:https");
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
 
-    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
-      config.getList(RestConfig.LISTENERS_CONFIG),
-      config.getListenerProtocolMap(),
-      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+    List<NamedURI> namedListeners = config.getListeners();
 
     assertEquals(2, namedListeners.size());
 
@@ -225,10 +214,7 @@ public class ApplicationServerTest {
     props.put(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:4000,https://0.0.0.0:443");
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
 
-    List<ApplicationServer.NamedURI> namedListeners = ApplicationServer.parseListeners(
-      config.getList(RestConfig.LISTENERS_CONFIG),
-      config.getListenerProtocolMap(),
-      0, ApplicationServer.SUPPORTED_URI_SCHEMES, "");
+    List<NamedURI> namedListeners = config.getListeners();
 
     assertEquals(2, namedListeners.size());
 
