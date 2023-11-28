@@ -94,6 +94,12 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+            <dependency>
+                <groupId>jakarta.xml.bind</groupId>
+                <artifactId>jakarta.xml.bind-api</artifactId>
+                <!-- 2.3.3 is the closest major version to the EoL javaee/jaxb-api 2.3.0 -->
+                <version>2.3.3</version>
+            </dependency>
             <!-- Jersey dependency that was available in the JDK before Java 9 -->
             <dependency>
                 <groupId>javax.activation</groupId>
