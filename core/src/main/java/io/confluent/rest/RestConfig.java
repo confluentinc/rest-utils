@@ -47,7 +47,7 @@ import org.apache.kafka.common.utils.Time;
 
 public class RestConfig extends AbstractConfig {
 
-  private final RestMetricsContext metricsContext;
+  protected final RestMetricsContext metricsContext;
 
   public static final String METRICS_REPORTER_CONFIG_PREFIX = "metric.reporters.";
 
