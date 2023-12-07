@@ -5,6 +5,7 @@ common {
   downStreamRepos = ["schema-registry", "metadata-service", "kafka-rest",
     "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
     "confluent-cloud-plugins"]
+  pintMerge = true
   nanoVersion = true
   mvnSkipDeploy = true
 }
