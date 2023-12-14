@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.net.SocketException;
 import java.util.Objects;
+import javax.net.ssl.SSLHandshakeException;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.core.Context;
@@ -227,6 +228,36 @@ public class SslTest {
   }
 
   @Test
+  public void test_WhenCalledWithRestrictedCipher_ConnFails() throws Exception {
+    TestMetricsReporter.reset();
+    Properties props = new Properties();
+    String uri = "https://localhost:8080";
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    configServerKeystore(props);
+    // Restrict HTTPs Server to cipher TLS_AES_128_GCM_SHA256
+    props.put(RestConfig.SSL_CIPHER_SUITES_CONFIG, "TLS_AES_128_GCM_SHA256");
+    TestRestConfig config = new TestRestConfig(props);
+    SslTestApplication app = new SslTestApplication(config);
+    try {
+      app.start();
+
+      // Correct Cipher, returns 200.
+      int statusCode = makeGetRequest(uri + "/test",
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, "TLSv1.3", "TLS_AES_128_GCM_SHA256");
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      assertMetricsCollected();
+      // Incorrect Cipher, throws an exception.
+      assertThrows(SSLHandshakeException.class,
+          () ->
+              makeGetRequest("https://localhost:8080/test",
+                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, "TLSv1.3", "TLS_AES_256_GCM_SHA384"));
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
   public void testHttpOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
@@ -352,6 +383,16 @@ public class SslTest {
       String clientKeystorePassword,
       String clientKeyPassword)
       throws Exception {
+    return makeGetRequest(url, clientKeystoreLocation, clientKeystorePassword, clientKeyPassword, "TLSv1.2", null);
+  }
+
+  // returns the http response status code.
+  private int makeGetRequest(String url, String clientKeystoreLocation,
+      String clientKeystorePassword,
+      String clientKeyPassword,
+      String tlsProtocol,
+      String cipherSuite)
+      throws Exception {
     log.debug("Making GET " + url);
     HttpGet httpget = new HttpGet(url);
     CloseableHttpClient httpclient;
@@ -370,9 +411,12 @@ public class SslTest {
       }
       SSLContext sslContext = sslContextBuilder.build();
 
+      //      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
+      //          new String[]{"TLSv1.2"},
+      //          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
       SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
-          new String[]{"TLSv1.2"},
-          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+          new String[]{tlsProtocol},
+          new String[]{cipherSuite}, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
       httpclient = HttpClients.custom()
           .setSSLSocketFactory(sslSf)
