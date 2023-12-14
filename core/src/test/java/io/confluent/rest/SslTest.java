@@ -243,6 +243,8 @@ public class SslTest {
       app.start();
 
       // Correct Cipher, returns 200.
+      // TLSv1.3 should be specified with TLS_AES_128_GCM_SHA256 only for test-setup, as this cipher is specific to TLSv1.3.
+      // NOTE - the behaviour of restricting cipher in REST is agnostic of TLS protocols.
       int statusCode = makeGetRequest(uri + "/test",
           clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, "TLSv1.3", "TLS_AES_128_GCM_SHA256");
       assertEquals(200, statusCode, EXPECTED_200_MSG);
