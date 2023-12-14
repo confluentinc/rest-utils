@@ -71,7 +71,6 @@ public final class SslFactory {
     }
 
     if (!sslConfig.getIncludeCipherSuites().isEmpty()) {
-      log.info("MSN: setting cipher to {}", sslConfig.getIncludeCipherSuites());
       sslContextFactory.setIncludeCipherSuites(
           sslConfig.getIncludeCipherSuites().toArray(new String[0]));
     }

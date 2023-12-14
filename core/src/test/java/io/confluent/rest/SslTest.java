@@ -383,7 +383,7 @@ public class SslTest {
       String clientKeystorePassword,
       String clientKeyPassword)
       throws Exception {
-    return makeGetRequest(url, clientKeystoreLocation, clientKeystorePassword, clientKeyPassword, "TLSv1.2", null);
+    return makeGetRequest(url, clientKeystoreLocation, clientKeystorePassword, clientKeyPassword, null, null);
   }
 
   // returns the http response status code.
@@ -410,13 +410,11 @@ public class SslTest {
             clientKeyPassword.toCharArray());
       }
       SSLContext sslContext = sslContextBuilder.build();
-
-      //      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
-      //          new String[]{"TLSv1.2"},
-      //          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+      String ctxTlsProtocol = tlsProtocol == null ? "TLSv1.2" : tlsProtocol;
       SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
-          new String[]{tlsProtocol},
-          new String[]{cipherSuite}, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+          new String[]{ctxTlsProtocol},
+          cipherSuite != null ? new String[]{cipherSuite}: null,
+          SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
       httpclient = HttpClients.custom()
           .setSSLSocketFactory(sslSf)
