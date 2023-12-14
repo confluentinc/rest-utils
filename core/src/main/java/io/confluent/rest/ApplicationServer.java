@@ -306,7 +306,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     SslContextFactory sslConnFactory = sslContextFactories.get(listener);
     log.info("MSN: for listener {}", listener);
-    log.info("MSN: {}" + sslConnFactory.getIncludeCipherSuites());
+    for (String s : sslConnFactory.getIncludeCipherSuites()) {
+      log.info("MSN: Restricting cipher to {}", s);
+    }
     if (http2Enabled) {
       log.info("Adding listener with HTTP/2: " + listener);
       if (listener.getUri().getScheme().equals("http")) {

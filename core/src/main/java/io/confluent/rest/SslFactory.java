@@ -73,8 +73,9 @@ public final class SslFactory {
     if (!sslConfig.getIncludeCipherSuites().isEmpty()) {
       sslContextFactory.setIncludeCipherSuites(
           sslConfig.getIncludeCipherSuites().toArray(new String[0]));
+      log.info("MSN: Restricting input ciphers {}" + sslConfig.getIncludeCipherSuites());
     } else {
-      log.info("MSN: Adding customer ciphers.");
+      log.info("MSN: Restricting to customer cipher");
       String[] ciphers = {"TLS_AES_128_GCM_SHA256"};
       sslContextFactory.setIncludeCipherSuites(ciphers);
     }

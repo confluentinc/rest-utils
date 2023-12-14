@@ -369,10 +369,12 @@ public class SslTest {
             clientKeyPassword.toCharArray());
       }
       SSLContext sslContext = sslContextBuilder.build();
-
       SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
           new String[]{"TLSv1.2"},
-          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+          new String[]{"TLS_CHACHA20_POLY1305_SHA256"}, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+      //      SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
+      //          new String[]{"TLSv1.2"},
+      //          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
       httpclient = HttpClients.custom()
           .setSSLSocketFactory(sslSf)
