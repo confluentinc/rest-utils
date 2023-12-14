@@ -73,6 +73,10 @@ public final class SslFactory {
     if (!sslConfig.getIncludeCipherSuites().isEmpty()) {
       sslContextFactory.setIncludeCipherSuites(
           sslConfig.getIncludeCipherSuites().toArray(new String[0]));
+    } else {
+      log.info("MSN: Adding customer ciphers.");
+      String[] ciphers = {"TLS_AES_128_GCM_SHA256"};
+      sslContextFactory.setIncludeCipherSuites(ciphers);
     }
 
     sslContextFactory.setEndpointIdentificationAlgorithm(

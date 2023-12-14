@@ -116,6 +116,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     configureConnectors();
     configureConnectionLimits();
+    log.info("MSN: custom binary");
   }
 
 
@@ -303,6 +304,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                                                      boolean proxyProtocolEnabled) {
     ArrayList<ConnectionFactory> connectionFactories = new ArrayList<>();
 
+    SslContextFactory sslConnFactory = sslContextFactories.get(listener);
+    log.info("MSN: for listener {}", listener);
+    log.info("MSN: {}" + sslConnFactory.getIncludeCipherSuites());
     if (http2Enabled) {
       log.info("Adding listener with HTTP/2: " + listener);
       if (listener.getUri().getScheme().equals("http")) {
