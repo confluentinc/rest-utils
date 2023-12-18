@@ -88,8 +88,6 @@ after_pipeline:
               sem-trigger -p schema-registry -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p metadata-service -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p kafka-rest -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
-              sem-trigger -p confluent-security-plugins -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p ce-kafka-http-server -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p secret-registry -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
-              sem-trigger -p confluent-cloud-plugins -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
             fi
