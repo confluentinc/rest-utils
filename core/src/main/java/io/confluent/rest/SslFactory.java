@@ -19,6 +19,9 @@ package io.confluent.rest;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
+
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.ssl.DefaultSslEngineFactory;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
@@ -31,14 +34,40 @@ public final class SslFactory {
 
   private SslFactory() {}
 
+  private static boolean useBcfks(String provider) {
+    if(provider == null) {
+      return false;
+    }
+    return provider.equals(SslConfigs.FIPS_SSL_PROVIDER);
+  }
+
+  private static String getKeyStoreType(SslConfig config) {
+    return useBcfks(config.getProvider()) ? SslConfigs.FIPS_KEYSTORE_TYPE : config.getKeyStoreType();
+  }
+
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
-      sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
-      sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());
+      if (useBcfks(sslConfig.getProvider())) {
+        log.info("Will use {} keystore type as provider is {}", SslConfigs.FIPS_KEYSTORE_TYPE, SslConfigs.FIPS_SSL_PROVIDER);
+        if (!sslConfig.getKeyStoreType().equals(DefaultSslEngineFactory.PEM_TYPE)) {
+          log.error("The config supplied keystore is {} but {} was expected, exiting...",
+                  sslConfig.getKeyStoreType(), DefaultSslEngineFactory.PEM_TYPE);
+          throw new RuntimeException("Only " + DefaultSslEngineFactory.PEM_TYPE
+                  + " keystore supported in approved mode.");
+        }
+
+        // we need to parse the PEM store to BCFKS store
+        DefaultSslEngineFactory.FileBasedPemStore store = new DefaultSslEngineFactory.FileBasedPemStore(
+                sslConfig.getKeyStorePath(), null, true, true);
+        sslContextFactory.setKeyStore(store.get());
+      } else {
+        sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
+        sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());
+        sslContextFactory.setKeyStoreType(sslConfig.getKeyStoreType());
+      }
       sslContextFactory.setKeyManagerPassword(sslConfig.getKeyManagerPassword());
-      sslContextFactory.setKeyStoreType(sslConfig.getKeyStoreType());
 
       if (!sslConfig.getKeyManagerFactoryAlgorithm().isEmpty()) {
         sslContextFactory.setKeyManagerFactoryAlgorithm(sslConfig.getKeyManagerFactoryAlgorithm());
