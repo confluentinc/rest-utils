@@ -6,8 +6,7 @@ codeowners:
 semaphore:
   enable: true
   pipeline_type: cp
-  downstream_projects: ["schema-registry", "metadata-service", "kafka-rest",
-    "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
-    "confluent-cloud-plugins"]
+  downstream_projects: ["schema-registry", "metadata-service",
+    "ce-kafka-http-server", "secret-registry"]
 git:
   enable: true
