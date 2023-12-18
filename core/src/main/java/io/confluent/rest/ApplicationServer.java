@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import static java.util.function.Function.identity;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -24,10 +26,12 @@ import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
@@ -36,7 +40,6 @@ import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
-import org.eclipse.jetty.io.NetworkTrafficListener;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -70,8 +73,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static volatile int threadPoolRequestQueueCapacity;
 
-  private final List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
-  private final List<NamedURI> listeners;
+  // map listener name to connector, HashMap must be used to allow null as a key
+  private final Map<String, NetworkTrafficServerConnector> connectors = new HashMap<>();
+  // map listener name to NamedURI, HashMap must be used to allow null as a key
+  private final Map<String, NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
@@ -109,7 +114,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     super.addEventListener(mbContainer);
     super.addBean(mbContainer);
 
-    listeners = config.getListeners();
+    listeners = config.getListeners().stream()
+        .collect(Collectors.toMap(NamedURI::getName, identity()));
 
     sslContextFactories = ImmutableMap.copyOf(
         Maps.transformValues(config.getSslConfigs(), SslFactory::createSslContextFactory));
@@ -128,18 +134,22 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return Collections.unmodifiableList(applications);
   }
 
-  private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
-    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
-    for (NetworkTrafficServerConnector connector : connectors) {
-      connector.addNetworkTrafficListener(metricsListener);
+  private void attachMetricsListener(String listenerName, Metrics metrics,
+      Map<String, String> tags) {
+    NetworkTrafficServerConnector connector = connectors.get(listenerName);
+    if (connector != null) {
+      log.info("Attaching MetricsListener to connector on listener: {}", listenerName);
+      connector.addNetworkTrafficListener(new MetricsListener(metrics, "jetty", tags));
     }
   }
 
-  private void attachNetworkTrafficRateLimitListener() {
+  private void attachNetworkTrafficRateLimitListener(String listenerName) {
     if (config.getNetworkTrafficRateLimitEnable()) {
-      NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
-      for (NetworkTrafficServerConnector connector : connectors) {
-        connector.addNetworkTrafficListener(rateLimitListener);
+      NetworkTrafficServerConnector connector = connectors.get(listenerName);
+      if (connector != null) {
+        log.info("Attaching NetworkTrafficRateLimitListener to connector on listener: {}",
+            listenerName);
+        connector.addNetworkTrafficListener(new RateLimitNetworkTrafficListener(config));
       }
     }
   }
@@ -206,8 +216,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
-      attachMetricsListener(app.getMetrics(), app.getMetricsTags());
-      attachNetworkTrafficRateLimitListener();
+      attachMetricsListener(app.getListenerName(), app.getMetrics(), app.getMetricsTags());
+      attachNetworkTrafficRateLimitListener(app.getListenerName());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
@@ -249,7 +259,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final boolean proxyProtocolEnabled =
         config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
 
-    for (NamedURI listener : listeners) {
+    for (NamedURI listener : listeners.values()) {
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
           SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
@@ -292,7 +302,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       connector.setName(listener.getName());
     }
 
-    connectors.add(connector);
+    connectors.put(listener.getName(), connector);
     super.addConnector(connector);
   }
 
@@ -368,7 +378,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
     int connectorConnectionLimit = config.getConnectorConnectionLimit();
     if (connectorConnectionLimit > 0) {
-      addBean(new ConnectionLimit(connectorConnectionLimit, connectors.toArray(new Connector[0])));
+      addBean(new ConnectionLimit(connectorConnectionLimit,
+          connectors.values().toArray(new Connector[0])));
     }
   }
 
