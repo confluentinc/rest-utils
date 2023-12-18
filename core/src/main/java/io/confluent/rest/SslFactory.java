@@ -16,57 +16,66 @@
 
 package io.confluent.rest;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.Security;
-
-import org.apache.kafka.common.config.SslConfigs;
-import org.apache.kafka.common.security.ssl.DefaultSslEngineFactory;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.Security;
+
 public final class SslFactory {
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
 
-  private SslFactory() {}
-
-  private static boolean useBcfks(String provider) {
-    if(provider == null) {
-      return false;
-    }
-    return provider.equals(SslConfigs.FIPS_SSL_PROVIDER);
+  private SslFactory() {
   }
 
-  private static String getKeyStoreType(SslConfig config) {
-    return useBcfks(config.getProvider()) ? SslConfigs.FIPS_KEYSTORE_TYPE : config.getKeyStoreType();
+  private static void setSecurityStoreProps(SslConfig sslConfig,
+                                            SslContextFactory.Server sslContextFactory,
+                                            boolean isKeyStore,
+                                            boolean setPathOnly) {
+    boolean isPem = SslFactoryPemHelper.isPemSecurityStore(
+        isKeyStore ? sslConfig.getKeyStoreType() : sslConfig.getTrustStoreType());
+
+    if (isPem) {
+      log.info("PEM security store detected! Converting to {} - isKeyStore {}",
+          SslFactoryPemHelper.getKeyStoreType(sslConfig.getKeyStoreType(), sslConfig.getProvider()),
+          isKeyStore);
+      KeyStore ks = SslFactoryPemHelper.getKeyStoreFromPem(
+          sslConfig.getKeyStorePath(), sslConfig.getKeyStoreType(),
+          sslConfig.getProvider(), isKeyStore);
+
+      if (isKeyStore) {
+        sslContextFactory.setKeyStore(ks);
+      } else {
+        sslContextFactory.setTrustStore(ks);
+      }
+    } else {
+      if (isKeyStore) {
+        sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
+        if (!setPathOnly) {
+          sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());
+          sslContextFactory.setKeyStoreType(sslConfig.getKeyStoreType());
+        }
+      } else {
+        sslContextFactory.setTrustStorePath(sslConfig.getTrustStorePath());
+        if (!setPathOnly) {
+          sslContextFactory.setTrustStorePassword(sslConfig.getTrustStorePassword());
+          sslContextFactory.setTrustStoreType(sslConfig.getTrustStoreType());
+        }
+      }
+    }
   }
 
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
-      if (useBcfks(sslConfig.getProvider())) {
-        log.info("Will use {} keystore type as provider is {}", SslConfigs.FIPS_KEYSTORE_TYPE, SslConfigs.FIPS_SSL_PROVIDER);
-        if (!sslConfig.getKeyStoreType().equals(DefaultSslEngineFactory.PEM_TYPE)) {
-          log.error("The config supplied keystore is {} but {} was expected, exiting...",
-                  sslConfig.getKeyStoreType(), DefaultSslEngineFactory.PEM_TYPE);
-          throw new RuntimeException("Only " + DefaultSslEngineFactory.PEM_TYPE
-                  + " keystore supported in approved mode.");
-        }
-
-        // we need to parse the PEM store to BCFKS store
-        DefaultSslEngineFactory.FileBasedPemStore store = new DefaultSslEngineFactory.FileBasedPemStore(
-                sslConfig.getKeyStorePath(), null, true, true);
-        sslContextFactory.setKeyStore(store.get());
-      } else {
-        sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
-        sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());
-        sslContextFactory.setKeyStoreType(sslConfig.getKeyStoreType());
-      }
+      setSecurityStoreProps(sslConfig, sslContextFactory, true, false);
       sslContextFactory.setKeyManagerPassword(sslConfig.getKeyManagerPassword());
 
       if (!sslConfig.getKeyManagerFactoryAlgorithm().isEmpty()) {
@@ -77,14 +86,13 @@ public final class SslFactory {
         Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
         try {
           FileWatcher.onFileChange(watchLocation, () -> {
-                // Need to reset the key store path for symbolic link case
-                sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
-                sslContextFactory.reload(scf -> {
-                  log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
-                });
-                log.info("SSL cert auto reload complete");
-              }
-          );
+            // Need to reset the key store path for symbolic link case
+            setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
+            sslContextFactory.reload(scf -> {
+              log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
+            });
+            log.info("SSL cert auto reload complete");
+          });
           log.info("Enabled SSL cert auto reload for: " + watchLocation);
         } catch (java.io.IOException e) {
           log.error("Cannot enable SSL cert auto reload", e);
@@ -108,10 +116,7 @@ public final class SslFactory {
         sslConfig.getEndpointIdentificationAlgorithm());
 
     if (!sslConfig.getTrustStorePath().isEmpty()) {
-      sslContextFactory.setTrustStorePath(sslConfig.getTrustStorePath());
-      sslContextFactory.setTrustStorePassword(sslConfig.getTrustStorePassword());
-      sslContextFactory.setTrustStoreType(sslConfig.getTrustStoreType());
-
+      setSecurityStoreProps(sslConfig, sslContextFactory, false, false);
       if (!sslConfig.getTrustManagerFactoryAlgorithm().isEmpty()) {
         sslContextFactory.setTrustManagerFactoryAlgorithm(
             sslConfig.getTrustManagerFactoryAlgorithm());
