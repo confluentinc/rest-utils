@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
@@ -128,18 +129,27 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return Collections.unmodifiableList(applications);
   }
 
-  private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
-    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+  private void attachMetricsListener(String listenerName, Metrics metrics,
+      Map<String, String> tags) {
     for (NetworkTrafficServerConnector connector : connectors) {
-      connector.addNetworkTrafficListener(metricsListener);
+      if (Objects.equals(connector.getName(), listenerName)) {
+        MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+        connector.addNetworkTrafficListener(metricsListener);
+        log.info("Registered {} to connector of listener: {}",
+            metricsListener.getClass().getSimpleName(), listenerName);
+      }
     }
   }
 
-  private void attachNetworkTrafficRateLimitListener() {
+  private void attachNetworkTrafficRateLimitListener(String listenerName) {
     if (config.getNetworkTrafficRateLimitEnable()) {
-      NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
       for (NetworkTrafficServerConnector connector : connectors) {
-        connector.addNetworkTrafficListener(rateLimitListener);
+        if (Objects.equals(connector.getName(), listenerName)) {
+          NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
+          connector.addNetworkTrafficListener(rateLimitListener);
+          log.info("Registered {} to connector of listener: {}",
+              rateLimitListener.getClass().getSimpleName(), listenerName);
+        }
       }
     }
   }
@@ -206,8 +216,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
-      attachMetricsListener(app.getMetrics(), app.getMetricsTags());
-      attachNetworkTrafficRateLimitListener();
+      attachMetricsListener(app.getListenerName(), app.getMetrics(), app.getMetricsTags());
+      attachNetworkTrafficRateLimitListener(app.getListenerName());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
