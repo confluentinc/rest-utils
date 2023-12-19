@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
@@ -47,6 +48,7 @@ public final class SslFactory {
           isKeyStore);
       KeyStore ks = SslFactoryPemHelper.getKeyStoreFromPem(
           sslConfig.getKeyStorePath(), sslConfig.getKeyStoreType(),
+          new Password(sslConfig.getKeyManagerPassword()),
           sslConfig.getProvider(), isKeyStore);
 
       if (isKeyStore) {
