@@ -3,13 +3,13 @@ package io.confluent.rest;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
+import org.apache.kafka.test.TestUtils;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.FileWriter;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,8 +32,7 @@ public class SslFactoryTest {
   private static String KEY;
   private static String ENCRYPTED_KEY;
   private static final String PEM_TYPE = "PEM";
-  private static final String PEM_KEYSTORE_NAME_PREFIX = "pemKeyStore";
-  private static final String PEM_KEYSTORE_NAME_SUFFIX = ".pem";
+  private static final Password KEY_PASSWORD = new Password("key-password");
 
   static {
     try {
@@ -61,12 +60,16 @@ public class SslFactoryTest {
     }
   }
 
+  @AfterEach
+  public void tearDown() {
+    Security.removeProvider(SslConfigs.FIPS_PROVIDER);
+    Security.removeProvider(SslConfigs.FIPS_SSL_PROVIDER);
+  }
+
   @Test
   public void testPemStoreSuccessNonFIPS() throws Exception {
-    Path pemPath = getPemStorePath("");
-    writePemFile(pemPath, true);
     Map<String, String> rawConfig = new HashMap<>();
-    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, pemPath.toAbsolutePath().toString());
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
@@ -76,11 +79,22 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testBadPemStoreFailureNonFIPS() throws Exception {
-    Path pemPath = getPemStorePath("");
-    writePemFile(pemPath, false);
+  public void testPemStoreSuccessKeyPasswordNonFIPS() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
-    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, pemPath.toAbsolutePath().toString());
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getKeyStore());
+    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
+  }
+
+  @Test
+  public void testBadPemStoreFailureNonFIPS() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     assertThrows(InvalidConfigurationException.class, () -> SslFactory.createSslContextFactory(new SslConfig(rConfig)));
@@ -91,11 +105,10 @@ public class SslFactoryTest {
     Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
     Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
 
-    Path pemPath = getPemStorePath("");
-    writePemFile(pemPath, true);
     Map<String, String> rawConfig = new HashMap<>();
-    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, pemPath.toAbsolutePath().toString());
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     KeyStore ks = factory.getKeyStore();
@@ -104,22 +117,33 @@ public class SslFactoryTest {
     verifyKeyStore(ks, null, true);
   }
 
-  private Path getPemStorePath(String prefix) throws IOException {
-    prefix = prefix == null ? "" : prefix;
-    return Files.createTempFile(prefix + PEM_KEYSTORE_NAME_PREFIX,
-        PEM_KEYSTORE_NAME_SUFFIX);
+  @Test
+  public void testPemStoreSuccessKeyPasswordFIPS() throws Exception {
+    Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
+    Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
+
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getKeyStore());
+    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
   }
 
-  private void writePemFile(Path path, boolean isValid) throws IOException {
-    try (FileWriter fw = new FileWriter(path.toFile())) {
-      if (!isValid) {
-        fw.write("garbage");
-      } else {
-        fw.write(CA1);
-        fw.write(CA2);
-        fw.write(KEY);
-      }
+  private String asString(String... pems) {
+    StringBuilder builder = new StringBuilder();
+    for (String pem : pems) {
+      builder.append(pem);
+      builder.append("\n");
     }
+    return builder.toString().trim();
+  }
+
+  private String asFile(String pem) throws Exception {
+    return TestUtils.tempFile(pem).getAbsolutePath();
   }
 
   private void verifyKeyStore(KeyStore ks, Password keyPassword, boolean isBcfks) throws Exception {

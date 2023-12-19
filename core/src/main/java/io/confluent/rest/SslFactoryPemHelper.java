@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.security.ssl.DefaultSslEngineFactory;
 
 import java.security.KeyStore;
@@ -34,7 +35,7 @@ public class SslFactoryPemHelper {
   }
 
   public static KeyStore getKeyStoreFromPem(String keyStorePath, String keyStoreType,
-                                            String provider, boolean isKeyStore) {
+                                            Password keyPassword, String provider, boolean isKeyStore) {
     if (Objects.equals(SslConfigs.FIPS_SSL_PROVIDER, provider)) {
       if (!Objects.equals(DefaultSslEngineFactory.PEM_TYPE, keyStoreType)) {
         throw new RuntimeException(
@@ -42,8 +43,11 @@ public class SslFactoryPemHelper {
                 DefaultSslEngineFactory.PEM_TYPE, SslConfigs.FIPS_SSL_PROVIDER));
       }
     }
+    if (keyPassword.value().equals("")) {
+      keyPassword = null;
+    }
     DefaultSslEngineFactory.FileBasedPemStore store = new DefaultSslEngineFactory.FileBasedPemStore(
-        keyStorePath, null, isKeyStore, useBcfks(provider));
+        keyStorePath, keyPassword, isKeyStore, useBcfks(provider));
     return store.get();
   }
 
