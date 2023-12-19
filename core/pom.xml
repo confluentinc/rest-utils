@@ -118,6 +118,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+            <version>7.7.0-901-ce</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -159,6 +160,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+            <version>7.7.0-901-ce</version>
             <classifier>test</classifier>
             <scope>test</scope>
         </dependency>
@@ -250,6 +252,18 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-inline</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bc-fips</artifactId>
+            <version>1.0.2.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bctls-fips</artifactId>
+            <version>1.0.17</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
