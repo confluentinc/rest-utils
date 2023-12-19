@@ -3,6 +3,8 @@ package io.confluent.rest;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
+import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.security.Security;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -81,6 +84,24 @@ public class SslFactoryTest {
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     assertThrows(InvalidConfigurationException.class, () -> SslFactory.createSslContextFactory(new SslConfig(rConfig)));
+  }
+
+  @Test
+  public void testPemSuccessFIPSProvider() throws Exception {
+    Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
+    Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
+
+    Path pemPath = getPemStorePath("");
+    writePemFile(pemPath, true);
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, pemPath.toAbsolutePath().toString());
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    KeyStore ks = factory.getKeyStore();
+    assertNotNull(ks);
+    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, ks.getType());
+    verifyKeyStore(ks, null, true);
   }
 
   private Path getPemStorePath(String prefix) throws IOException {
