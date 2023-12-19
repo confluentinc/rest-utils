@@ -33,7 +33,8 @@ public class SslFactoryPemHelper {
     return Objects.equals(DefaultSslEngineFactory.PEM_TYPE, keyStoreType);
   }
 
-  private static void checkAndThrowRuntimeException(String keyStoreType, String provider) {
+  public static KeyStore getKeyStoreFromPem(String keyStorePath, String keyStoreType,
+                                            String provider, boolean isKeyStore) {
     if (Objects.equals(SslConfigs.FIPS_SSL_PROVIDER, provider)) {
       if (!Objects.equals(DefaultSslEngineFactory.PEM_TYPE, keyStoreType)) {
         throw new RuntimeException(
@@ -41,11 +42,6 @@ public class SslFactoryPemHelper {
                 DefaultSslEngineFactory.PEM_TYPE, SslConfigs.FIPS_SSL_PROVIDER));
       }
     }
-  }
-
-  public static KeyStore getKeyStoreFromPem(String keyStorePath, String keyStoreType,
-                                            String provider, boolean isKeyStore) {
-    checkAndThrowRuntimeException(keyStoreType, provider);
     DefaultSslEngineFactory.FileBasedPemStore store = new DefaultSslEngineFactory.FileBasedPemStore(
         keyStorePath, null, isKeyStore, useBcfks(provider));
     return store.get();
@@ -56,6 +52,6 @@ public class SslFactoryPemHelper {
   }
 
   public static String getKeyStoreType(String keyStoreType, String provider) {
-    return useBcfks(provider) ? SslConfigs.FIPS_KEYSTORE_TYPE : keyStoreType;
+    return useBcfks(provider) ? SslConfigs.FIPS_KEYSTORE_TYPE : SslConfigs.NONFIPS_KEYSTORE_TYPE;
   }
 }
