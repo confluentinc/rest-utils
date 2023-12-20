@@ -35,7 +35,8 @@ public class SslFactoryPemHelper {
   }
 
   public static KeyStore getKeyStoreFromPem(String keyStorePath, String keyStoreType,
-                                            Password keyPassword, String provider, boolean isKeyStore) {
+                                            Password keyPassword, String provider,
+                                            boolean isKeyStore) {
     if (Objects.equals(SslConfigs.FIPS_SSL_PROVIDER, provider)) {
       if (!Objects.equals(DefaultSslEngineFactory.PEM_TYPE, keyStoreType)) {
         throw new RuntimeException(
@@ -55,7 +56,7 @@ public class SslFactoryPemHelper {
     return Objects.equals(SslConfigs.FIPS_SSL_PROVIDER, provider);
   }
 
-  public static String getKeyStoreType(String keyStoreType, String provider) {
+  public static String getKeyStoreType(String provider) {
     return useBcfks(provider) ? SslConfigs.FIPS_KEYSTORE_TYPE : SslConfigs.NONFIPS_KEYSTORE_TYPE;
   }
 }

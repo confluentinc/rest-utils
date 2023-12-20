@@ -10,6 +10,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -67,7 +68,7 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testPemStoreSuccessNonFIPS() throws Exception {
+  public void testPemKeyStoreSuccessKeyNoPasswordNonFIPS() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
@@ -79,7 +80,7 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testPemStoreSuccessKeyPasswordNonFIPS() throws Exception {
+  public void testPemKeyStoreSuccessKeyPasswordNonFIPS() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
@@ -92,7 +93,7 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testBadPemStoreFailureNonFIPS() throws Exception {
+  public void testBadPemKeyStoreFailureNonFIPS() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
@@ -101,7 +102,40 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testPemSuccessFIPSProvider() throws Exception {
+  public void testPemKeyStoreReloadNonFIPS() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    String storeLocation = asFile(asString(ENCRYPTED_KEY, CERTCHAIN));
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, storeLocation);
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getKeyStore());
+    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
+
+    TestUtils.waitForCondition(() -> SslFactory.getFileWatcher() != null, "filewatcher not ready");
+
+    // rewrite file (invalid)
+    try (FileWriter writer = new FileWriter(storeLocation)) {
+      writer.write(asFile(asString(KEY, CERTCHAIN)));
+      writer.flush();
+    }
+    TestUtils.waitForCondition(() -> SslFactory.getFileWatcher().maybeGetException().isPresent(),
+        "expected exception to be thrown");
+
+    // rewrite file (valid)
+    try (FileWriter writer = new FileWriter(storeLocation)) {
+      writer.write(asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
+      writer.flush();
+    }
+
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
+  }
+
+  @Test
+  public void testPemKeyStoreSuccessKeyNoPasswordFIPS() throws Exception {
     Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
     Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
 
@@ -118,7 +152,7 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testPemStoreSuccessKeyPasswordFIPS() throws Exception {
+  public void testPemKeyStoreSuccessKeyPasswordFIPS() throws Exception {
     Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
     Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
 
@@ -126,11 +160,110 @@ public class SslFactoryTest {
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
     rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getKeyStore());
-    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
-    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
+    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, true);
+  }
+
+  @Test
+  public void testPemKeyStoreReloadFIPS() throws Exception {
+    Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
+    Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
+
+    Map<String, String> rawConfig = new HashMap<>();
+    String storeLocation = asFile(asString(ENCRYPTED_KEY, CERTCHAIN));
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, storeLocation);
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    rawConfig.put(TestRestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
+
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getKeyStore());
+    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, true);
+
+    TestUtils.waitForCondition(() -> SslFactory.getFileWatcher() != null, "filewatcher not ready");
+    // rewrite file (invalid)
+    try (FileWriter writer = new FileWriter(storeLocation)) {
+      writer.write(asFile(asString(KEY, CERTCHAIN)));
+      writer.flush();
+    }
+    TestUtils.waitForCondition(() -> SslFactory.getFileWatcher().maybeGetException().isPresent(),
+        "expected exception to be thrown");
+    // rewrite file (valid)
+    try (FileWriter writer = new FileWriter(storeLocation)) {
+      writer.write(asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
+      writer.flush();
+    }
+
+    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, true);
+  }
+
+  @Test
+  public void testPemTrustStoreSuccessSingleCertNonFIPS() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(CA1)));
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getTrustStore());
+    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+  }
+
+  @Test
+  public void testPemTrustStoreSuccessMultiCertNonFIPS() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(CA1, CA2)));
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getTrustStore());
+    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+  }
+
+  @Test
+  public void testBadPemTrustStoreFailureNonFIPS() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(KEY)));
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    assertThrows(InvalidConfigurationException.class, () -> SslFactory.createSslContextFactory(new SslConfig(rConfig)));
+  }
+
+  @Test
+  public void testPemTrustStoreSuccessSingleCertFIPS() throws Exception {
+    Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
+    Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
+
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(CA1)));
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    KeyStore ks = factory.getTrustStore();
+    assertNotNull(factory.getTrustStore());
+    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+  }
+
+  @Test
+  public void testPemTrustStoreSuccessMultiCertFIPS() throws Exception {
+    Security.insertProviderAt(new BouncyCastleFipsProvider(), 1); //security provider
+    Security.insertProviderAt(new BouncyCastleJsseProvider(), 2); //ssl provider
+
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(CA1, CA2)));
+    rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    RestConfig rConfig = new TestRestConfig(rawConfig);
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
+    assertNotNull(factory.getTrustStore());
+    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
   }
 
   private String asString(String... pems) {

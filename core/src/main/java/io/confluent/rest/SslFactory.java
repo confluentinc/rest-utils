@@ -25,12 +25,12 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.KeyStore;
 import java.security.Security;
 
 public final class SslFactory {
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
+  private static FileWatcher fileWatcher;
 
   private SslFactory() {
   }
@@ -44,17 +44,21 @@ public final class SslFactory {
 
     if (isPem) {
       log.info("PEM security store detected! Converting to {} - isKeyStore {}",
-          SslFactoryPemHelper.getKeyStoreType(sslConfig.getKeyStoreType(), sslConfig.getProvider()),
+          SslFactoryPemHelper.getKeyStoreType(sslConfig.getProvider()),
           isKeyStore);
-      KeyStore ks = SslFactoryPemHelper.getKeyStoreFromPem(
-          sslConfig.getKeyStorePath(), sslConfig.getKeyStoreType(),
-          new Password(sslConfig.getKeyManagerPassword()),
-          sslConfig.getProvider(), isKeyStore);
 
       if (isKeyStore) {
-        sslContextFactory.setKeyStore(ks);
+        sslContextFactory.setKeyStore(
+            SslFactoryPemHelper.getKeyStoreFromPem(
+                sslConfig.getKeyStorePath(), sslConfig.getKeyStoreType(),
+                new Password(sslConfig.getKeyManagerPassword()),
+                sslConfig.getProvider(), isKeyStore));
       } else {
-        sslContextFactory.setTrustStore(ks);
+        sslContextFactory.setTrustStore(
+            SslFactoryPemHelper.getKeyStoreFromPem(
+                sslConfig.getTrustStorePath(), sslConfig.getTrustStoreType(),
+                new Password(sslConfig.getKeyManagerPassword()),
+                sslConfig.getProvider(), isKeyStore));
       }
     } else {
       if (isKeyStore) {
@@ -73,6 +77,11 @@ public final class SslFactory {
     }
   }
 
+  // test visibility
+  static FileWatcher getFileWatcher() {
+    return fileWatcher;
+  }
+
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
@@ -87,7 +96,7 @@ public final class SslFactory {
       if (sslConfig.getReloadOnKeyStoreChange()) {
         Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
         try {
-          FileWatcher.onFileChange(watchLocation, () -> {
+          fileWatcher = FileWatcher.onFileChange(watchLocation, () -> {
             // Need to reset the key store path for symbolic link case
             setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
             sslContextFactory.reload(scf -> {

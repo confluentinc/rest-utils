@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package io.confluent.rest;
 
 import org.slf4j.Logger;
@@ -29,12 +29,15 @@ import java.nio.file.WatchService;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchEvent;
 
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 // reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
 public class FileWatcher implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
+  private final AtomicReference<Exception> callbackExecException = new AtomicReference<>();
 
   public interface Callback {
     void run() throws Exception;
@@ -66,13 +69,14 @@ public class FileWatcher implements Runnable {
   }
 
   /**
-    * Starts watching a file calls the callback when it is changed.
-    * A shutdown hook is registered to stop watching.
-  */
-  public static void onFileChange(Path file, Callback callback) throws IOException {
+   * Starts watching a file calls the callback when it is changed.
+   * A shutdown hook is registered to stop watching.
+   */
+  public static FileWatcher onFileChange(Path file, Callback callback) throws IOException {
     log.info("Constructing a new watch service: " + file);
     FileWatcher fileWatcher = new FileWatcher(file, callback);
     fileWatcher.executorService.submit(fileWatcher);
+    return fileWatcher;
   }
 
   public void run() {
@@ -120,6 +124,7 @@ public class FileWatcher implements Runnable {
 
       if (changed.equals(this.file)) {
         if (Files.exists(changed)) {
+          callbackExecException.set(null);
           log.debug("Watch resolved path exists: " + file);
           runCallback = true;
         } else {
@@ -136,9 +141,14 @@ public class FileWatcher implements Runnable {
       try {
         callback.run();
       } catch (Exception e) {
+        callbackExecException.set(e);
         log.warn("Hit exception in callback on file watcher", e);
       }
     }
+  }
+
+  public Optional<Exception> maybeGetException() {
+    return Optional.ofNullable(callbackExecException.get());
   }
 
   public void shutdown() {
