@@ -151,12 +151,12 @@
             <artifactId>http2-http-client-transport</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka_${kafka.scala.version}</artifactId>
-            <classifier>test</classifier>
-            <scope>test</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.kafka</groupId>-->
+<!--            <artifactId>kafka_${kafka.scala.version}</artifactId>-->
+<!--            <classifier>test</classifier>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -264,5 +264,10 @@
             <artifactId>bctls-fips</artifactId>
             <scope>test</scope>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.bouncycastle</groupId>-->
+<!--            <artifactId>bcpkix-fips</artifactId>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
    </dependencies>
 </project>
