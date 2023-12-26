@@ -129,12 +129,12 @@
             <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
         <!--test-->
-         <dependency>
-             <groupId>org.bouncycastle</groupId>
-             <artifactId>bcpkix-jdk18on</artifactId>
-             <version>${bouncycastle.jdk18.version}</version>
-             <scope>test</scope>
-         </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>${bouncycastle.jdk18.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
