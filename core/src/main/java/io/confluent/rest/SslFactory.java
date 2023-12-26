@@ -26,11 +26,17 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class SslFactory {
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
-  private static FileWatcher fileWatcher;
+  private static AtomicReference<Exception> watcherExecException = new AtomicReference<>(null);
+
+  public static Optional<Exception> lastLoadFailure() {
+    return Optional.ofNullable(watcherExecException.get());
+  }
 
   private SslFactory() {
   }
@@ -77,11 +83,6 @@ public final class SslFactory {
     }
   }
 
-  // test visibility
-  static FileWatcher getFileWatcher() {
-    return fileWatcher;
-  }
-
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
@@ -96,13 +97,19 @@ public final class SslFactory {
       if (sslConfig.getReloadOnKeyStoreChange()) {
         Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
         try {
-          fileWatcher = FileWatcher.onFileChange(watchLocation, () -> {
+          FileWatcher.onFileChange(watchLocation, () -> {
             // Need to reset the key store path for symbolic link case
-            setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
-            sslContextFactory.reload(scf -> {
-              log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
-            });
-            log.info("SSL cert auto reload complete");
+            try {
+              setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
+              sslContextFactory.reload(scf -> {
+                log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
+              });
+              log.info("SSL cert auto reload complete");
+              watcherExecException.set(null);
+            } catch (Exception e) {
+              watcherExecException.set(e);
+              throw e;
+            }
           });
           log.info("Enabled SSL cert auto reload for: " + watchLocation);
         } catch (java.io.IOException e) {
