@@ -114,7 +114,8 @@ public class SslFactoryPemHelper {
     private KeyStore keyStore;
     protected final boolean useBcfks;
 
-    FileBasedStore(String type, String path, Password password, Password keyPassword, boolean isKeyStore, boolean useBcfks) {
+    FileBasedStore(String type, String path, Password password, Password keyPassword,
+                   boolean isKeyStore, boolean useBcfks) {
       Objects.requireNonNull(type, "type must not be null");
       this.type = type;
       this.path = path;
@@ -145,12 +146,14 @@ public class SslFactoryPemHelper {
      *
      * @return the keystore
      * @throws KafkaException if the file could not be read or if the keystore could not be loaded
-     *                        using the specified configs (e.g. if the password or keystore type is invalid)
+     *                        using the specified configs (e.g. if the pass or ks type is invalid)
      */
     protected KeyStore load(boolean isKeyStore) {
       try (InputStream in = Files.newInputStream(Paths.get(path))) {
-        KeyStore ks = useBcfks ? KeyStore.getInstance(type, FIPS_PROVIDER) : KeyStore.getInstance(type);
-        // If a password is not set access to the truststore is still available, but integrity checking is disabled.
+        KeyStore ks = useBcfks ? KeyStore.getInstance(type, FIPS_PROVIDER) :
+            KeyStore.getInstance(type);
+        // If a password is not set access to the truststore is still available,
+        // but integrity checking is disabled.
         char[] passwordChars = password != null ? password.value().toCharArray() : null;
         ks.load(in, passwordChars);
         return ks;
@@ -175,14 +178,16 @@ public class SslFactoryPemHelper {
 
     @Override
     public String toString() {
-      return "SecurityStore(" +
-          "path=" + path +
-          ", modificationTime=" + (fileLastModifiedMs == null ? null : new Date(fileLastModifiedMs)) + ")";
+      return "SecurityStore("
+          + "path=" + path
+          + ", modificationTime="
+          + (fileLastModifiedMs == null ? null : new Date(fileLastModifiedMs)) + ")";
     }
   }
 
   public static class FileBasedPemStore extends FileBasedStore {
-    public FileBasedPemStore(String path, Password keyPassword, boolean isKeyStore, boolean useBcfks) {
+    public FileBasedPemStore(String path, Password keyPassword,
+                             boolean isKeyStore, boolean useBcfks) {
       super(PEM_TYPE, path, null, keyPassword, isKeyStore, useBcfks);
     }
 
@@ -190,8 +195,9 @@ public class SslFactoryPemHelper {
     protected KeyStore load(boolean isKeyStore) {
       try {
         Password storeContents = new Password(Utils.readFileAsString(path));
-        PemStore pemStore = isKeyStore ? new PemStore(storeContents, storeContents, keyPassword, useBcfks) :
-            new PemStore(storeContents, useBcfks);
+        PemStore pemStore = isKeyStore
+            ? new PemStore(storeContents, storeContents, keyPassword, useBcfks)
+            : new PemStore(storeContents, useBcfks);
         return pemStore.keyStore;
       } catch (Exception e) {
         log.error("Failed to load store, isKeyStore : {}, path {}", isKeyStore, path, e);
@@ -213,10 +219,12 @@ public class SslFactoryPemHelper {
     private final KeyStore keyStore;
     private final boolean useBcfks;
 
-    public PemStore(Password certificateChain, Password privateKey, Password keyPassword, boolean useBcfks) {
+    public PemStore(Password certificateChain, Password privateKey, Password keyPassword,
+                    boolean useBcfks) {
       this.keyPassword = keyPassword == null ? null : keyPassword.value().toCharArray();
       this.useBcfks = useBcfks;
-      keyStore = createKeyStoreFromPem(privateKey.value(), certificateChain.value(), this.keyPassword);
+      keyStore = createKeyStoreFromPem(privateKey.value(), certificateChain.value(),
+          this.keyPassword);
     }
 
     public PemStore(Password trustStoreCerts, boolean useBcfks) {
@@ -245,7 +253,8 @@ public class SslFactoryPemHelper {
           KeyStore.getInstance(NONFIPS_KEYSTORE_TYPE);
     }
 
-    private KeyStore createKeyStoreFromPem(String privateKeyPem, String certChainPem, char[] keyPassword) {
+    private KeyStore createKeyStoreFromPem(String privateKeyPem, String certChainPem,
+                                           char[] keyPassword) {
       try {
         KeyStore ks = getIntermediateStore();
         ks.load(null, null);
@@ -276,8 +285,10 @@ public class SslFactoryPemHelper {
 
     private Certificate[] certs(String pem) throws GeneralSecurityException {
       List<byte[]> certEntries = CERTIFICATE_PARSER.pemEntries(pem);
-      if (certEntries.isEmpty())
-        throw new InvalidConfigurationException("At least one certificate expected, but none found");
+      if (certEntries.isEmpty()) {
+        throw new InvalidConfigurationException(
+            "At least one certificate expected, but none found");
+      }
 
       Certificate[] certs = new Certificate[certEntries.size()];
       for (int i = 0; i < certs.length; i++) {
@@ -289,10 +300,13 @@ public class SslFactoryPemHelper {
 
     private PrivateKey privateKey(String pem, char[] keyPassword) throws Exception {
       List<byte[]> keyEntries = PRIVATE_KEY_PARSER.pemEntries(pem);
-      if (keyEntries.isEmpty())
+      if (keyEntries.isEmpty()) {
         throw new InvalidConfigurationException("Private key not provided");
-      if (keyEntries.size() != 1)
-        throw new InvalidConfigurationException("Expected one private key, but found " + keyEntries.size());
+      }
+      if (keyEntries.size() != 1) {
+        throw new InvalidConfigurationException(
+            "Expected one private key, but found " + keyEntries.size());
+      }
 
       byte[] keyBytes = keyEntries.get(0);
       PKCS8EncodedKeySpec keySpec;
@@ -313,8 +327,9 @@ public class SslFactoryPemHelper {
         try {
           return factory.generatePrivate(keySpec);
         } catch (InvalidKeySpecException e) {
-          if (firstException == null)
+          if (firstException == null) {
             firstException = e;
+          }
         }
       }
       throw new InvalidConfigurationException("Private key could not be loaded", firstException);
@@ -324,7 +339,8 @@ public class SslFactoryPemHelper {
       try {
         return KeyFactory.getInstance(algorithm);
       } catch (Exception e) {
-        throw new InvalidConfigurationException("Could not create key factory for algorithm " + algorithm, e);
+        throw new InvalidConfigurationException(
+            "Could not create key factory for algorithm " + algorithm, e);
       }
     }
   }
@@ -335,7 +351,6 @@ public class SslFactoryPemHelper {
    * -----BEGIN CERTIFICATE-----
    * Base64 cert
    * -----END CERTIFICATE-----
-   * <p>
    * -----BEGIN ENCRYPTED PRIVATE KEY-----
    * Base64 private key
    * -----END ENCRYPTED PRIVATE KEY-----
@@ -352,10 +367,10 @@ public class SslFactoryPemHelper {
 
       String encodingParams = "\\s*[^\\r\\n]*:[^\\r\\n]*[\\r\\n]+";
       String base64Pattern = "([a-zA-Z0-9/+=\\s]*)";
-      String patternStr = String.format(beginOrEndFormat, "BEGIN", nameIgnoreSpace) +
-          String.format("(?:%s)*", encodingParams) +
-          base64Pattern +
-          String.format(beginOrEndFormat, "END", nameIgnoreSpace);
+      String patternStr = String.format(beginOrEndFormat, "BEGIN", nameIgnoreSpace)
+          + String.format("(?:%s)*", encodingParams)
+          + base64Pattern
+          + String.format(beginOrEndFormat, "END", nameIgnoreSpace);
       pattern = Pattern.compile(patternStr);
     }
 
@@ -366,8 +381,9 @@ public class SslFactoryPemHelper {
         String base64Str = matcher.group(1).replaceAll("\\s", "");
         entries.add(Base64.getDecoder().decode(base64Str));
       }
-      if (entries.isEmpty())
+      if (entries.isEmpty()) {
         throw new InvalidConfigurationException("No matching " + name + " entries in PEM file");
+      }
       return entries;
     }
   }
