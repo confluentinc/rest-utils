@@ -83,6 +83,24 @@ public final class SslFactory {
     }
   }
 
+  private static FileWatcher.Callback getCallback(SslConfig sslConfig,
+                                                  SslContextFactory.Server sslContextFactory) {
+    return () -> {
+      // Need to reset the key store path for symbolic link case
+      try {
+        setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
+        sslContextFactory.reload(scf -> {
+          log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
+        });
+        log.info("SSL cert auto reload complete");
+        watcherExecException.set(null);
+      } catch (Exception e) {
+        watcherExecException.set(e);
+        throw e;
+      }
+    };
+  }
+
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
@@ -97,20 +115,7 @@ public final class SslFactory {
       if (sslConfig.getReloadOnKeyStoreChange()) {
         Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
         try {
-          FileWatcher.onFileChange(watchLocation, () -> {
-            // Need to reset the key store path for symbolic link case
-            try {
-              setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
-              sslContextFactory.reload(scf -> {
-                log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
-              });
-              log.info("SSL cert auto reload complete");
-              watcherExecException.set(null);
-            } catch (Exception e) {
-              watcherExecException.set(e);
-              throw e;
-            }
-          });
+          FileWatcher.onFileChange(watchLocation, getCallback(sslConfig, sslContextFactory));
           log.info("Enabled SSL cert auto reload for: " + watchLocation);
         } catch (java.io.IOException e) {
           log.error("Cannot enable SSL cert auto reload", e);
