@@ -150,12 +150,12 @@
             <artifactId>http2-http-client-transport</artifactId>
             <scope>test</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.apache.kafka</groupId>-->
-<!--            <artifactId>kafka_${kafka.scala.version}</artifactId>-->
-<!--            <classifier>test</classifier>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka_${kafka.scala.version}</artifactId>
+            <classifier>test</classifier>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
