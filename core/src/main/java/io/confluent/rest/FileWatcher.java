@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 // reference https://gist.github.com/danielflower/f54c2fe42d32356301c68860a4ab21ed
 public class FileWatcher implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
+
   public interface Callback {
     void run() throws Exception;
   }
