@@ -118,7 +118,6 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>7.7.0-901-ce</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -160,7 +159,6 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>7.7.0-901-ce</version>
             <classifier>test</classifier>
             <scope>test</scope>
         </dependency>
