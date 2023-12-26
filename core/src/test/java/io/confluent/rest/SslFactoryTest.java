@@ -113,19 +113,23 @@ public class SslFactoryTest {
     Assertions.assertEquals(getKeyStoreType(), factory.getKeyStore().getType());
     verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD);
 
-    TestUtils.waitForCondition(() -> SslFactory.getFileWatcher() != null, "filewatcher not ready");
+    TestUtils.waitForCondition(() -> !SslFactory.lastLoadFailure().isPresent(), "could not load keystore");
 
     // rewrite file (invalid)
     try (FileWriter writer = new FileWriter(storeLocation)) {
-      writer.write(asFile(asString(KEY, CERTCHAIN)));
+      writer.write(asString(KEY, CERTCHAIN));
       writer.flush();
     }
 
+    TestUtils.waitForCondition(() -> SslFactory.lastLoadFailure().isPresent(), "keystore loaded unexpectedly");
+
     // rewrite file (valid)
     try (FileWriter writer = new FileWriter(storeLocation)) {
-      writer.write(asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
+      writer.write(asString(ENCRYPTED_KEY, CERTCHAIN));
       writer.flush();
     }
+
+    TestUtils.waitForCondition(() -> !SslFactory.lastLoadFailure().isPresent(), "keystore not loaded unexpectedly");
 
     verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD);
   }
