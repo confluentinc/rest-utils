@@ -5,6 +5,7 @@ import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.test.TestUtils;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.FileWriter;
@@ -19,17 +20,18 @@ import java.util.Map;
 import java.util.Objects;
 
 public class SslFactoryTest {
-  private static String CA1;
-  private static String CA2;
-  private static String CERTCHAIN;
-  private static String KEY;
-  private static String ENCRYPTED_KEY;
+  protected String CA1;
+  protected String CA2;
+  protected String CERTCHAIN;
+  protected String KEY;
+  protected String ENCRYPTED_KEY;
   private static final String PEM_TYPE = "PEM";
   private static final Password KEY_PASSWORD = new Password("key-password");
 
   protected RestConfig config;
 
-  static {
+  @BeforeEach
+  public void setUp() {
     try {
       Path path = Paths.get(Objects.requireNonNull(
           SslFactory.class.getClassLoader().getResource("certs/cert1.pem").toURI()));
@@ -58,7 +60,7 @@ public class SslFactoryTest {
   protected void setConfigs(Map<String, String> configs) {
     config = new RestConfig(RestConfig.baseConfigDef(), configs);
   }
-  
+
   protected String getKeyStoreType() {
     return SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE;
   }
