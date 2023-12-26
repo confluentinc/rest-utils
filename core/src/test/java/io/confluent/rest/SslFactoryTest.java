@@ -1,6 +1,5 @@
 package io.confluent.rest;
 
-import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.test.TestUtils;
@@ -63,8 +62,8 @@ public class SslFactoryTest {
 
   @AfterEach
   public void tearDown() {
-    Security.removeProvider(SslConfigs.FIPS_PROVIDER);
-    Security.removeProvider(SslConfigs.FIPS_SSL_PROVIDER);
+    Security.removeProvider(SslFactoryPemHelper.FIPS_PROVIDER);
+    Security.removeProvider(SslFactoryPemHelper.FIPS_SSL_PROVIDER);
   }
 
   @Test
@@ -75,7 +74,7 @@ public class SslFactoryTest {
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getKeyStore());
-    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    assertEquals(SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
     verifyKeyStore(factory.getKeyStore(), null, false);
   }
 
@@ -88,7 +87,7 @@ public class SslFactoryTest {
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getKeyStore());
-    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    assertEquals(SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
     verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
   }
 
@@ -112,7 +111,7 @@ public class SslFactoryTest {
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getKeyStore());
-    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    assertEquals(SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
     verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, false);
 
     TestUtils.waitForCondition(() -> SslFactory.getFileWatcher() != null, "filewatcher not ready");
@@ -142,12 +141,12 @@ public class SslFactoryTest {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslFactoryPemHelper.FIPS_SSL_PROVIDER);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     KeyStore ks = factory.getKeyStore();
     assertNotNull(ks);
-    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, ks.getType());
+    assertEquals(SslFactoryPemHelper.FIPS_KEYSTORE_TYPE, ks.getType());
     verifyKeyStore(ks, null, true);
   }
 
@@ -160,11 +159,11 @@ public class SslFactoryTest {
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
     rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
-    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslFactoryPemHelper.FIPS_SSL_PROVIDER);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getKeyStore());
-    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    assertEquals(SslFactoryPemHelper.FIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
     verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, true);
   }
 
@@ -178,13 +177,13 @@ public class SslFactoryTest {
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_LOCATION_CONFIG, storeLocation);
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
     rawConfig.put(TestRestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
-    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslFactoryPemHelper.FIPS_SSL_PROVIDER);
     rawConfig.put(TestRestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
 
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getKeyStore());
-    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
+    assertEquals(SslFactoryPemHelper.FIPS_KEYSTORE_TYPE, factory.getKeyStore().getType());
     verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD, true);
 
     TestUtils.waitForCondition(() -> SslFactory.getFileWatcher() != null, "filewatcher not ready");
@@ -212,7 +211,7 @@ public class SslFactoryTest {
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getTrustStore());
-    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+    assertEquals(SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
   }
 
   @Test
@@ -223,7 +222,7 @@ public class SslFactoryTest {
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getTrustStore());
-    assertEquals(SslConfigs.NONFIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+    assertEquals(SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
   }
 
   @Test
@@ -243,12 +242,12 @@ public class SslFactoryTest {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(CA1)));
     rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslFactoryPemHelper.FIPS_SSL_PROVIDER);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     KeyStore ks = factory.getTrustStore();
     assertNotNull(factory.getTrustStore());
-    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+    assertEquals(SslFactoryPemHelper.FIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
   }
 
   @Test
@@ -259,11 +258,11 @@ public class SslFactoryTest {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, asFile(asString(CA1, CA2)));
     rawConfig.put(TestRestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslConfigs.FIPS_SSL_PROVIDER);
+    rawConfig.put(TestRestConfig.SSL_PROVIDER_CONFIG, SslFactoryPemHelper.FIPS_SSL_PROVIDER);
     RestConfig rConfig = new TestRestConfig(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(rConfig));
     assertNotNull(factory.getTrustStore());
-    assertEquals(SslConfigs.FIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
+    assertEquals(SslFactoryPemHelper.FIPS_KEYSTORE_TYPE, factory.getTrustStore().getType());
   }
 
   private String asString(String... pems) {
@@ -285,6 +284,6 @@ public class SslFactoryTest {
     assertNotNull(ks.getCertificate("kafka"), "Certificate not loaded");
     assertNotNull(ks.getKey("kafka", keyPassword == null ? null : keyPassword.value().toCharArray()),
         "Private key not loaded");
-    assertEquals(isBcfks ? SslConfigs.FIPS_KEYSTORE_TYPE : SslConfigs.NONFIPS_KEYSTORE_TYPE, ks.getType());
+    assertEquals(isBcfks ? SslFactoryPemHelper.FIPS_KEYSTORE_TYPE : SslFactoryPemHelper.NONFIPS_KEYSTORE_TYPE, ks.getType());
   }
 }
