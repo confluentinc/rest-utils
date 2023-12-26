@@ -129,12 +129,12 @@
             <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
         <!--test-->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk18on</artifactId>
-            <version>${bouncycastle.jdk18.version}</version>
-            <scope>test</scope>
-        </dependency>
+        <!-- <dependency> -->
+        <!--     <groupId>org.bouncycastle</groupId> -->
+        <!--     <artifactId>bcpkix-jdk18on</artifactId> -->
+        <!--     <version>${bouncycastle.jdk18.version}</version> -->
+        <!--     <scope>test</scope> -->
+        <!-- </dependency> -->
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
@@ -150,12 +150,12 @@
             <artifactId>http2-http-client-transport</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka_${kafka.scala.version}</artifactId>
-            <classifier>test</classifier>
-            <scope>test</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.kafka</groupId>-->
+<!--            <artifactId>kafka_${kafka.scala.version}</artifactId>-->
+<!--            <classifier>test</classifier>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -252,5 +252,20 @@
             <artifactId>mockito-inline</artifactId>
             <scope>test</scope>
         </dependency>
-    </dependencies>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bc-fips</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bctls-fips</artifactId>
+            <scope>test</scope>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.bouncycastle</groupId>-->
+<!--            <artifactId>bcpkix-fips</artifactId>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
+   </dependencies>
 </project>
