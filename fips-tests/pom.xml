@@ -20,6 +20,13 @@
             <version>${io.confluent.rest-utils.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>rest-utils</artifactId>
+            <version>${io.confluent.rest-utils.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.glassfish.jersey.test-framework</groupId>
             <artifactId>jersey-test-framework-core</artifactId>
             <version>${jersey.version}</version>
