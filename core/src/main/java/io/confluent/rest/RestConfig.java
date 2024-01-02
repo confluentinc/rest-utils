@@ -16,26 +16,34 @@
 
 package io.confluent.rest;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
+import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
+
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.metrics.RestMetricsContext;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriBuilderException;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.utils.Time;
-
-import static java.util.Collections.emptyList;
-import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
 
 public class RestConfig extends AbstractConfig {
 
@@ -269,7 +277,7 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_ROLES_CONFIG = "authentication.roles";
   public static final String AUTHENTICATION_ROLES_DOC = "Valid roles to authenticate against.";
   public static final List<String> AUTHENTICATION_ROLES_DEFAULT =
-      Collections.unmodifiableList(Arrays.asList("*"));
+      unmodifiableList(Arrays.asList("*"));
 
   public static final String AUTHENTICATION_SKIP_PATHS = "authentication.skip.paths";
   public static final String AUTHENTICATION_SKIP_PATHS_DOC = "Comma separated list of paths that "
@@ -488,6 +496,9 @@ public class RestConfig extends AbstractConfig {
           + "This ensures that no stack traces are included in responses to clients.";
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
+
+  static final List<String> SUPPORTED_URI_SCHEMES =
+      unmodifiableList(Arrays.asList("http", "https"));
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -1122,6 +1133,35 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
+  public final List<NamedURI> getListeners() {
+    return parseListeners(
+        getList(RestConfig.LISTENERS_CONFIG),
+        getListenerProtocolMap(),
+        getInt(RestConfig.PORT_CONFIG),
+        SUPPORTED_URI_SCHEMES,
+        "http");
+  }
+
+  public final SslConfig getBaseSslConfig() {
+    return new SslConfig(this);
+  }
+
+  private SslConfig getSslConfig(NamedURI listener) {
+    String prefix =
+        "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
+
+    Map<String, Object> overridden = originals();
+    overridden.putAll(filterByAndStripPrefix(originals(), prefix));
+
+    return new SslConfig(new RestConfig(baseConfigDef(), overridden));
+  }
+
+  public final Map<NamedURI, SslConfig> getSslConfigs() {
+    return getListeners().stream()
+        .filter(listener -> listener.getUri().getScheme().equals("https"))
+        .collect(toImmutableMap(Function.identity(), this::getSslConfig));
+  }
+
   public final Map<String, String> getMap(String propertyName) {
     List<String> list = getList(propertyName);
     Map<String, String> map = new HashMap<>();
@@ -1143,6 +1183,66 @@ public class RestConfig extends AbstractConfig {
     return map;
   }
 
+  static List<NamedURI> parseListeners(
+      List<String> listeners,
+      Map<String,String> listenerProtocolMap,
+      int deprecatedPort,
+      List<String> supportedSchemes,
+      String defaultScheme) {
+
+    // handle deprecated case, using PORT_CONFIG.
+    // TODO: remove this when `PORT_CONFIG` is deprecated, because LISTENER_CONFIG
+    // will have a default value which includes the default port.
+    if (listeners.isEmpty() || listeners.get(0).isEmpty()) {
+      listeners = singletonList(defaultScheme + "://0.0.0.0:" + deprecatedPort);
+    }
+
+    List<NamedURI> uris = listeners.stream()
+        .map(listener -> constructNamedURI(listener, listenerProtocolMap, supportedSchemes))
+        .collect(Collectors.toList());
+    List<NamedURI> namedUris =
+        uris.stream().filter(uri -> uri.getName() != null).collect(Collectors.toList());
+
+    if (namedUris.stream().map(NamedURI::getName).distinct().count() != namedUris.size()) {
+      throw new ConfigException(
+          "More than one listener was specified with same name. Listener names must be unique.");
+    }
+
+    return uris;
+  }
+
+  private static NamedURI constructNamedURI(
+      String listener, Map<String,String> listenerProtocolMap, List<String> supportedSchemes) {
+    URI uri;
+    try {
+      uri = new URI(listener);
+    } catch (URISyntaxException e) {
+      throw new ConfigException(
+          "Listener '" + listener + "' is not a valid URI: " + e.getMessage());
+    }
+    if (uri.getPort() == -1) {
+      throw new ConfigException(
+          "Listener '" + listener + "' must specify a port.");
+    }
+    if (supportedSchemes.contains(uri.getScheme())) {
+      return new NamedURI(uri, null); // unnamed.
+    }
+    String uriName = uri.getScheme().toLowerCase();
+    String protocol = listenerProtocolMap.get(uriName);
+    if (protocol == null) {
+      throw new ConfigException(
+          "Listener '" + uri + "' has an unsupported scheme '" + uri.getScheme() + "'");
+    }
+    try {
+      return new NamedURI(
+          UriBuilder.fromUri(listener).scheme(protocol).build(),
+          uriName);
+    } catch (UriBuilderException e) {
+      throw new ConfigException(
+          "Listener '" + listener + "' with protocol '" + protocol + "' is not a valid URI.");
+    }
+  }
+
   public final Map<String, String> getListenerProtocolMap() {
     Map<String, String> result = getMap(LISTENER_PROTOCOL_MAP_CONFIG)
         .entrySet()
@@ -1151,12 +1251,12 @@ public class RestConfig extends AbstractConfig {
             e -> e.getKey().toLowerCase(),
             e -> e.getValue().toLowerCase()));
     for (Map.Entry<String, String> entry : result.entrySet()) {
-      if (!ApplicationServer.SUPPORTED_URI_SCHEMES.contains(entry.getValue())) {
+      if (!SUPPORTED_URI_SCHEMES.contains(entry.getValue())) {
         throw new ConfigException(
             "Listener '" + entry.getKey()
             + "' specifies an unsupported protocol: " + entry.getValue());
       }
-      if (ApplicationServer.SUPPORTED_URI_SCHEMES.contains(entry.getKey())) {
+      if (SUPPORTED_URI_SCHEMES.contains(entry.getKey())) {
         // forbid http:https and https:http
         if (!entry.getKey().equals(entry.getValue())) {
           throw new ConfigException(

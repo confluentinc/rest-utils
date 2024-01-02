@@ -6,6 +6,7 @@ common {
     "secret-registry"]
   pintMerge = true
   nanoVersion = true
+  pinnedNanoVersions = true
   mvnSkipDeploy = true
 }
 //change
