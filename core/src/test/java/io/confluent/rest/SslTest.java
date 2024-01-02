@@ -235,25 +235,38 @@ public class SslTest {
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     configServerKeystore(props);
+    // TLSv1.3 should be specified with TLS_AES_128_GCM_SHA256 only for test-setup, as this cipher is specific to TLSv1.3.
+    final String tlsV1_3 = "TLSv1.3";
+
+    String cipherAllowed = "TLS_AES_128_GCM_SHA256";
+    String cipherNotAllowed = "TLS_AES_256_GCM_SHA384";
+
     // Restrict HTTPs Server to cipher TLS_AES_128_GCM_SHA256
-    props.put(RestConfig.SSL_CIPHER_SUITES_CONFIG, "TLS_AES_128_GCM_SHA256");
+    props.put(RestConfig.SSL_CIPHER_SUITES_CONFIG, cipherAllowed);
     TestRestConfig config = new TestRestConfig(props);
     SslTestApplication app = new SslTestApplication(config);
     try {
       app.start();
 
-      // Correct Cipher, returns 200.
-      // TLSv1.3 should be specified with TLS_AES_128_GCM_SHA256 only for test-setup, as this cipher is specific to TLSv1.3.
-      // NOTE - the behaviour of restricting cipher in REST is agnostic of TLS protocols.
+      // Request with allowed cipher returns 200.
+      // NOTE - the behaviour of restricting cipher in REST is agnostic of TLS protocol version.
       int statusCode = makeGetRequest(uri + "/test",
-          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, "TLSv1.3", "TLS_AES_128_GCM_SHA256");
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, tlsV1_3, cipherAllowed);
       assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
-      // Incorrect Cipher, throws an exception.
-      assertThrows(SSLHandshakeException.class,
+      // Request with cipher not allowed, throws an exception.
+      SSLHandshakeException ex = assertThrows(SSLHandshakeException.class,
           () ->
               makeGetRequest("https://localhost:8080/test",
-                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, "TLSv1.3", "TLS_AES_256_GCM_SHA384"));
+                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, tlsV1_3, cipherNotAllowed));
+      assertTrue(ex.getMessage().contains("handshake_failure"));
+
+      // Request with cipher allowed, but incompatible tls protocol version, throws an exception.
+      ex = assertThrows(SSLHandshakeException.class,
+          () ->
+              makeGetRequest("https://localhost:8080/test",
+                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, null , cipherAllowed));
+      assertTrue(ex.getMessage().contains("No appropriate protocol (protocol is disabled or cipher suites are inappropriate)"));
     } finally {
       app.stop();
     }
