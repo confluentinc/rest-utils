@@ -2,11 +2,11 @@
 
 common {
   slackChannel = '#c3-alerts'
-  downStreamRepos = ["metadata-service", "kafka-rest",
-    "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
-    "confluent-cloud-plugins"]
+  downStreamRepos = ["metadata-service", "kafka-rest", "ce-kafka-http-server",
+    "secret-registry"]
   pintMerge = true
   nanoVersion = true
   pinnedNanoVersions = true
   mvnSkipDeploy = true
 }
+//change
