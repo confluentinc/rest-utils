@@ -40,7 +40,7 @@ blocks:
             - pip install confluent-release-tools -q
             - . sem-pint -c
             - . ci-tools ci-update-version
-            - mvn -U -Dmaven.wagon.http.retryHandler.count=10 --batch-mode --no-transfer-progress clean verify install dependency:analyze validate
+            - mvn -U -Dmaven.wagon.http.retryHandler.count=10 --batch-mode --no-transfer-progress clean verify install dependency:analyze validate -X
             - . cache-maven store
       epilogue:
         always:
