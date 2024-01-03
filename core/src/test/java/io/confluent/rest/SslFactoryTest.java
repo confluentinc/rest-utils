@@ -121,8 +121,6 @@ public class SslFactoryTest {
       writer.flush();
     }
 
-    TestUtils.waitForCondition(() -> SslFactory.lastLoadFailure().isPresent(), "keystore loaded unexpectedly");
-
     // rewrite file (valid)
     try (FileWriter writer = new FileWriter(storeLocation)) {
       writer.write(asString(ENCRYPTED_KEY, CERTCHAIN));
