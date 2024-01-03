@@ -147,12 +147,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
-  private void attachNetworkTrafficRateLimitListener(String listenerName) {
-    if (config.getNetworkTrafficRateLimitEnable()) {
+  private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String listenerName) {
+    if (appConfig.getNetworkTrafficRateLimitEnable()) {
       boolean hasNetworkConnector = false;
       for (NetworkTrafficServerConnector connector : connectors) {
         if (Objects.equals(connector.getName(), listenerName)) {
-          NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
+          NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(appConfig);
           connector.addNetworkTrafficListener(rateLimitListener);
           log.info("Registered {} to connector of listener: {}",
               rateLimitListener.getClass().getSimpleName(), listenerName);
@@ -228,7 +228,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
       attachMetricsListener(app.getListenerName(), app.getMetrics(), app.getMetricsTags());
-      attachNetworkTrafficRateLimitListener(app.getListenerName());
+      attachNetworkTrafficRateLimitListener(app.getConfiguration(), app.getListenerName());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());

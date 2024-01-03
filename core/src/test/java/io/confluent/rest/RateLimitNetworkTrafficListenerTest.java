@@ -17,7 +17,9 @@
 package io.confluent.rest;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.confluent.rest.TestUtils.getFreePort;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URI;
@@ -43,6 +45,8 @@ import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,35 +55,53 @@ import org.junit.jupiter.api.TestInfo;
 
 public class RateLimitNetworkTrafficListenerTest {
 
-  private static TestRestConfig testConfig;
-  private static ApplicationServer<TestRestConfig> server;
   private static final String TEST_MESSAGE = "Test message";
+  private static ApplicationServer<TestRestConfig> server;
 
+  private String internalEndpoint;
+  private String externalEndpoint;
   private ScheduledExecutorService executor;
-  private TestApp app;
   private Client client;
 
   @BeforeEach
-  public void setup(TestInfo info) throws Exception {
+  public void setup(TestInfo testInfo) throws Exception {
     Properties props = new Properties();
-    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:0");
+    props.put(RestConfig.LISTENERS_CONFIG, "internal://localhost:" + getFreePort() + ","
+        + "external://localhost:" + getFreePort());
+    props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "internal:http,external:http");
 
-    if (info.getDisplayName().contains("NetworkTrafficRateLimitEnabled")) {
-      props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG, "true");
-      props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG, 10000);
-      if (info.getDisplayName().contains("Resilience4j")) {
-        props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG, "Resilience4j");
+    server = new ApplicationServer<>(new TestRestConfig(props));
+    TestApp externalApp = createApp("external", testInfo);
+    server.registerApplication(externalApp);
+    server.registerApplication(createApp("internal", testInfo));
+    server.start();
+
+    for (Connector connector : server.getConnectors()) {
+      if (connector.getName().equals("internal")) {
+        internalEndpoint =
+            "http://localhost:" + ((NetworkTrafficServerConnector) connector).getLocalPort();
+      } else if (connector.getName().equals("external")) {
+        externalEndpoint =
+            "http://localhost:" + ((NetworkTrafficServerConnector) connector).getLocalPort();
       }
     }
 
-    testConfig = new TestRestConfig(props);
-    server = new ApplicationServer<>(testConfig);
-    app = new TestApp("/app");
-    server.registerApplication(app);
-    server.start();
-
     executor = Executors.newScheduledThreadPool(4);
     client = ClientBuilder.newClient();
+  }
+
+  private TestApp createApp(String name, TestInfo testInfo) {
+    Properties props = new Properties();
+    if (name.equals("external") && // only set network traffic limit on external app
+        testInfo.getDisplayName().contains("NetworkTrafficRateLimitEnabled")) {
+      props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG, "true");
+      props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_CONFIG, 10000);
+      if (testInfo.getDisplayName().contains("Resilience4j")) {
+        props.put(RestConfig.NETWORK_TRAFFIC_RATE_LIMIT_BACKEND_CONFIG, "Resilience4j");
+      }
+    }
+    TestRestConfig config = new TestRestConfig(props);
+    return new TestApp(config, name);
   }
 
   @AfterEach
@@ -94,37 +116,91 @@ public class RateLimitNetworkTrafficListenerTest {
   @Test
   @DisplayName("NetworkTrafficRateLimitDisabled")
   public void testNetworkTrafficRateLimitDisabled_unlimited() throws Exception {
-    long startTime = System.nanoTime();
-    // send 1000 POST requests in 1 second
-    hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
-    double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
-    // with no rate limit, 1000 requests should finish less than 2 seconds
-    assertThat("Duration must be greater than 1 second", durationMillis >= 1000);
-    assertThat("Duration must be smaller than 2 seconds", durationMillis < 2000);
+    { // validate for external endpoint
+      long startTime = System.nanoTime();
+      // send 1000 POST requests in 1 second
+      int response200s = hammerAtConstantRate(URI.create(externalEndpoint), "/resource",
+          Duration.ofMillis(1), 10,
+          1000);
+      assertEquals(1000 - 10, response200s);
+      double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
+      // with no rate limit, 1000 requests should finish less than 2 seconds
+      assertThat("Duration must be greater than 1 second", durationMillis >= 1000);
+      assertThat("Duration must be smaller than 2 seconds", durationMillis < 2000);
+    }
+
+    { // validate for internal endpoint
+      long startTime = System.nanoTime();
+      // send 1000 POST requests in 1 second
+      int response200s = hammerAtConstantRate(URI.create(internalEndpoint), "/resource",
+          Duration.ofMillis(1), 10,
+          1000);
+      assertEquals(1000 - 10, response200s);
+      double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
+      // with no rate limit, 1000 requests should finish less than 2 seconds
+      assertThat("Duration must be greater than 1 second", durationMillis >= 1000);
+      assertThat("Duration must be smaller than 2 seconds", durationMillis < 2000);
+    }
   }
 
   @Test
   @DisplayName("NetworkTrafficRateLimitEnabled")
   public void testNetworkTrafficRateLimitEnabled_Guava_slowdown() throws Exception {
-    long startTime = System.nanoTime();
-    // send 1000 POST requests in 1 second
-    hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
-    double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
-    // with rate limiting, 1000 requests should finish in more than 10 seconds
-    assertThat("Duration must be greater than 10 seconds",
-        durationMillis >= Duration.ofSeconds(10).toMillis());
+    { // validate for external endpoint
+      long startTime = System.nanoTime();
+      // send 1000 POST requests in 1 second
+      int response200s = hammerAtConstantRate(URI.create(externalEndpoint), "/resource",
+          Duration.ofMillis(1), 10,
+          1000);
+      assertEquals(1000 - 10, response200s);
+      double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
+      // with rate limiting, 1000 requests should finish in more than 10 seconds
+      assertThat("Duration must be greater than 10 seconds",
+          durationMillis >= Duration.ofSeconds(10).toMillis());
+    }
+
+    { // validate for internal endpoint
+      long startTime = System.nanoTime();
+      // send 1000 POST requests in 1 second
+      int response200s = hammerAtConstantRate(URI.create(internalEndpoint), "/resource",
+          Duration.ofMillis(1), 10,
+          1000);
+      assertEquals(1000 - 10, response200s);
+      double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
+      // with no rate limit, 1000 requests should finish less than 2 seconds
+      assertThat("Duration must be greater than 1 second", durationMillis >= 1000);
+      assertThat("Duration must be smaller than 2 seconds", durationMillis < 2000);
+    }
   }
 
   @Test
   @DisplayName("NetworkTrafficRateLimitEnabled_Resilience4j")
   public void testNetworkTrafficRateLimitEnabled_Resilience4j_slowdown() throws Exception {
-    long startTime = System.nanoTime();
-    // send 1000 POST requests in 1 second
-    hammerAtConstantRate(app.getServer().getURI(), "/resource", Duration.ofMillis(1), 10, 1000);
-    double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
-    // with rate limiting, 1000 requests should finish in more than 10 seconds
-    assertThat("Duration must be greater than 10 seconds",
-        durationMillis >= Duration.ofSeconds(10).toMillis());
+    { // validate for external endpoint
+      long startTime = System.nanoTime();
+      // send 1000 POST requests in 1 second
+      int response200s = hammerAtConstantRate(URI.create(externalEndpoint), "/resource",
+          Duration.ofMillis(1), 10,
+          1000);
+      assertEquals(1000 - 10, response200s);
+      double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
+      // with rate limiting, 1000 requests should finish in more than 10 seconds
+      assertThat("Duration must be greater than 10 seconds",
+          durationMillis >= Duration.ofSeconds(10).toMillis());
+    }
+
+    { // validate for internal endpoint
+      long startTime = System.nanoTime();
+      // send 1000 POST requests in 1 second
+      int response200s = hammerAtConstantRate(URI.create(internalEndpoint), "/resource",
+          Duration.ofMillis(1), 10,
+          1000);
+      assertEquals(1000 - 10, response200s);
+      double durationMillis = (System.nanoTime() - startTime) / 1_000_000.0;
+      // with no rate limit, 1000 requests should finish less than 2 seconds
+      assertThat("Duration must be greater than 1 second", durationMillis >= 1000);
+      assertThat("Duration must be smaller than 2 seconds", durationMillis < 2000);
+    }
   }
 
   // Send many concurrent requests and return the number of requests with "200" status
@@ -185,12 +261,8 @@ public class RateLimitNetworkTrafficListenerTest {
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
 
-    TestApp(String path) {
-      this(testConfig, path);
-    }
-
-    TestApp(TestRestConfig config, String path) {
-      super(config, path);
+    TestApp(TestRestConfig config, String listenerName) {
+      super(config, "/", listenerName);
     }
 
     @Override
