@@ -83,7 +83,7 @@ public final class SslFactory {
     }
   }
 
-  private static FileWatcher.Callback getCallback(SslConfig sslConfig,
+  private static FileWatcher.Callback onFileChangeCallback(SslConfig sslConfig,
                                                   SslContextFactory.Server sslContextFactory) {
     return () -> {
       // Need to reset the key store path for symbolic link case
@@ -115,7 +115,8 @@ public final class SslFactory {
       if (sslConfig.getReloadOnKeyStoreChange()) {
         Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
         try {
-          FileWatcher.onFileChange(watchLocation, getCallback(sslConfig, sslContextFactory));
+          FileWatcher.onFileChange(watchLocation,
+              onFileChangeCallback(sslConfig, sslContextFactory));
           log.info("Enabled SSL cert auto reload for: " + watchLocation);
         } catch (java.io.IOException e) {
           log.error("Cannot enable SSL cert auto reload", e);

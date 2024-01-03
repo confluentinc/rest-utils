@@ -16,5 +16,8 @@
 
 package io.confluent.rest;
 
-public class DummyClass {
+/**
+ * Interface to mark classes as FIPS compliant
+ */
+public interface FipsCompliant {
 }
