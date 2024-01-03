@@ -122,6 +122,8 @@ class MetricsListenerIntegrationTest {
             .equals("app2")) {
           // 1 connections-active in app2
           assertConnectionsActiveMetrics(metric, /*expected value*/ 1.0);
+        } else {
+          throw new RuntimeException("This should never be thrown");
         }
       }
     }
