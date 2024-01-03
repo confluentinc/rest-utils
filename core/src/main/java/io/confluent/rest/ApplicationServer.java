@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
@@ -131,25 +132,35 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private void attachMetricsListener(String listenerName, Metrics metrics,
       Map<String, String> tags) {
+    boolean hasNetworkConnector = false;
     for (NetworkTrafficServerConnector connector : connectors) {
       if (Objects.equals(connector.getName(), listenerName)) {
         MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
         connector.addNetworkTrafficListener(metricsListener);
         log.info("Registered {} to connector of listener: {}",
             metricsListener.getClass().getSimpleName(), listenerName);
+        hasNetworkConnector = true;
       }
+    }
+    if (!hasNetworkConnector) {
+      throw new ConfigException("No network connector found for listener: " + listenerName);
     }
   }
 
   private void attachNetworkTrafficRateLimitListener(String listenerName) {
     if (config.getNetworkTrafficRateLimitEnable()) {
+      boolean hasNetworkConnector = false;
       for (NetworkTrafficServerConnector connector : connectors) {
         if (Objects.equals(connector.getName(), listenerName)) {
           NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
           connector.addNetworkTrafficListener(rateLimitListener);
           log.info("Registered {} to connector of listener: {}",
               rateLimitListener.getClass().getSimpleName(), listenerName);
+          hasNetworkConnector = true;
         }
+      }
+      if (!hasNetworkConnector) {
+        throw new ConfigException("No network connector found for listener: " + listenerName);
       }
     }
   }
