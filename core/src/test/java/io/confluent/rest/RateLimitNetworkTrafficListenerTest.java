@@ -116,6 +116,13 @@ public class RateLimitNetworkTrafficListenerTest {
     awaitTerminationAfterShutdown(executor);
   }
 
+  /**
+   * All the tests below run with two rest applications "external" & "internal". This is intentional
+   * to check the behavior that both apps are independently rate-limited.
+   * In the setup below:
+   * 1. "external" app's network rate-limits are enabled, disabled, and changed.
+   * 2. "internal" app's network rate-limit is disabled.
+   */
   @Test
   @DisplayName("NetworkTrafficRateLimitDisabled")
   public void testNetworkTrafficRateLimitDisabled_unlimited() throws Exception {
