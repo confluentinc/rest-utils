@@ -18,15 +18,16 @@ package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -35,6 +36,7 @@ import javax.ws.rs.core.MediaType;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.server.CustomRequestLog;
+import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,11 +70,9 @@ public class RequestLogHandlerIntegrationTest {
 
   @Test
   public void test_CustomRequestLog_registeredToCorrectListener() throws Exception {
-    int internalPort = getFreePort();
-    int externalPort = getFreePort();
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENERS_CONFIG,
-        "INTERNAL://127.0.0.1:" + internalPort + ",EXTERNAL://127.0.0.1:" + externalPort);
+        "INTERNAL://127.0.0.1:" + getFreePort() + ",EXTERNAL://127.0.0.1:" + getFreePort());
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,EXTERNAL:http");
     TestRestConfig config = new TestRestConfig(props);
 
@@ -87,6 +87,16 @@ public class RequestLogHandlerIntegrationTest {
     ((ApplicationServer<TestRestConfig>) server).registerApplication(externalApp);
     server.start();
 
+    // get internal application port
+    int internalPort =
+    Arrays.stream(server.getConnectors())
+        .filter(connector -> connector.getName().equals("internal"))
+        .findAny()
+        .map(NetworkTrafficServerConnector.class::cast)
+        .map(NetworkTrafficServerConnector::getLocalPort)
+        .orElse(0);
+    assertTrue(internalPort > 0);
+
     // send a request to internal application
     ContentResponse response = httpClient
         .newRequest("http://127.0.0.1:" + internalPort)
@@ -95,7 +105,7 @@ public class RequestLogHandlerIntegrationTest {
 
     // check that only internal application logs the request
     verify(mockLogInternal, times(1)).log(requestCaptor.capture(), responseCaptor.capture());
-    // check that external application never log the request
+    // check that external application never logs the request
     verify(mockLogExternal, never()).log(any(), any());
     assertEquals("127.0.0.1", requestCaptor.getValue().getServerName());
     assertEquals(200, responseCaptor.getValue().getStatus());
@@ -103,13 +113,12 @@ public class RequestLogHandlerIntegrationTest {
 
     // stop server
     server.stop();
+    server.join();
   }
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
 
-    private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
-
-    public TestApp(TestRestConfig config, String path, String listenerName,
+    TestApp(TestRestConfig config, String path, String listenerName,
         CustomRequestLog customRequestLog) {
       super(config, path, listenerName, customRequestLog);
     }
@@ -122,11 +131,6 @@ public class RequestLogHandlerIntegrationTest {
     @Override
     public void close() throws Exception {
       stop();
-    }
-
-    @Override
-    public void onShutdown() {
-      SHUTDOWN_CALLED.set(true);
     }
   }
 
