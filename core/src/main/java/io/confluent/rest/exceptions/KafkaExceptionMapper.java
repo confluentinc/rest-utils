@@ -135,6 +135,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
         log.debug("Topic not present in metadata exception");
         return getResponse(exception, Status.NOT_FOUND, TOPIC_NOT_FOUND_ERROR_CODE);
       }
+      log.error("Internal Server Error returned to REST client after TimeoutException", exception);
       return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
           KAFKA_RETRIABLE_ERROR_ERROR_CODE);
     } else if (exception instanceof InvalidTopicException) {
