@@ -20,8 +20,8 @@ import static io.confluent.rest.TestUtils.getFreePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -38,6 +38,7 @@ import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -77,12 +78,12 @@ public class RequestLogHandlerIntegrationTest {
     TestRestConfig config = new TestRestConfig(props);
 
     // internal application
-    CustomRequestLog mockLogInternal = mock(CustomRequestLog.class);
+    CustomRequestLog mockLogInternal = createSpiedCustomRequestLog(config);
     TestApp internalApp = new TestApp(config, "/", "internal", mockLogInternal);
     Server server = internalApp.createServer();
 
     // external application
-    CustomRequestLog mockLogExternal = mock(CustomRequestLog.class);
+    CustomRequestLog mockLogExternal = createSpiedCustomRequestLog(config);
     TestApp externalApp = new TestApp(config, "/", "external", mockLogExternal);
     ((ApplicationServer<TestRestConfig>) server).registerApplication(externalApp);
     server.start();
@@ -114,6 +115,12 @@ public class RequestLogHandlerIntegrationTest {
     // stop server
     server.stop();
     server.join();
+  }
+
+  private CustomRequestLog createSpiedCustomRequestLog(RestConfig config) {
+    Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
+    logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    return spy(new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT));
   }
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
