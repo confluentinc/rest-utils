@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -78,11 +79,15 @@ public class RequestLogHandlerIntegrationTest {
 
     // internal application
     CustomRequestLog mockLogInternal = mock(CustomRequestLog.class);
+    when(mockLogInternal.isRunning()).thenReturn(false);
+    when(mockLogInternal.isStopped()).thenReturn(true);
     TestApp internalApp = new TestApp(config, "/", "internal", mockLogInternal);
     Server server = internalApp.createServer();
 
     // external application
     CustomRequestLog mockLogExternal = mock(CustomRequestLog.class);
+    when(mockLogExternal.isRunning()).thenReturn(false);
+    when(mockLogExternal.isStopped()).thenReturn(true);
     TestApp externalApp = new TestApp(config, "/", "external", mockLogExternal);
     ((ApplicationServer<TestRestConfig>) server).registerApplication(externalApp);
     server.start();
