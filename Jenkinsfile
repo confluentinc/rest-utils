@@ -8,5 +8,6 @@ common {
   nanoVersion = true
   pinnedNanoVersions = true
   mvnSkipDeploy = true
+  nodeLabel = 'docker-debian-jdk17'
 }
 //change
