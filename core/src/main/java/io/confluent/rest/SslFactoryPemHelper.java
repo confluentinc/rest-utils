@@ -209,7 +209,7 @@ public class SslFactoryPemHelper {
   public static class PemStore implements SecurityStore {
     private static final PemParser CERTIFICATE_PARSER = new PemParser("CERTIFICATE");
     private static final PemParser PRIVATE_KEY_PARSER = new PemParser("PRIVATE KEY");
-    private static final List<KeyFactory> KEY_FACTORIES = Arrays.asList(
+    private final List<KeyFactory> keyFactories = Arrays.asList(
         keyFactory("RSA"),
         keyFactory("DSA"),
         keyFactory("EC")
@@ -292,8 +292,11 @@ public class SslFactoryPemHelper {
 
       Certificate[] certs = new Certificate[certEntries.size()];
       for (int i = 0; i < certs.length; i++) {
-        certs[i] = CertificateFactory.getInstance("X.509")
-            .generateCertificate(new ByteArrayInputStream(certEntries.get(i)));
+        CertificateFactory certificateFactory = useBcfks
+            ? CertificateFactory.getInstance("X.509", FIPS_PROVIDER)
+            : CertificateFactory.getInstance("X.509");
+        certs[i] = certificateFactory.generateCertificate(
+            new ByteArrayInputStream(certEntries.get(i)));
       }
       return certs;
     }
@@ -315,15 +318,19 @@ public class SslFactoryPemHelper {
       } else {
         EncryptedPrivateKeyInfo keyInfo = new EncryptedPrivateKeyInfo(keyBytes);
         String algorithm = keyInfo.getAlgName();
-        SecretKeyFactory keyFactory = SecretKeyFactory.getInstance(algorithm);
+        SecretKeyFactory keyFactory = useBcfks
+            ? SecretKeyFactory.getInstance(algorithm, FIPS_PROVIDER)
+            : SecretKeyFactory.getInstance(algorithm);
         SecretKey pbeKey = keyFactory.generateSecret(new PBEKeySpec(keyPassword));
-        Cipher cipher = Cipher.getInstance(algorithm);
+        Cipher cipher = useBcfks
+            ? Cipher.getInstance(algorithm, FIPS_PROVIDER)
+            : Cipher.getInstance(algorithm);
         cipher.init(Cipher.DECRYPT_MODE, pbeKey, keyInfo.getAlgParameters());
         keySpec = keyInfo.getKeySpec(cipher);
       }
 
       InvalidKeySpecException firstException = null;
-      for (KeyFactory factory : KEY_FACTORIES) {
+      for (KeyFactory factory : keyFactories) {
         try {
           return factory.generatePrivate(keySpec);
         } catch (InvalidKeySpecException e) {
@@ -335,9 +342,11 @@ public class SslFactoryPemHelper {
       throw new InvalidConfigurationException("Private key could not be loaded", firstException);
     }
 
-    private static KeyFactory keyFactory(String algorithm) {
+    private KeyFactory keyFactory(String algorithm) {
       try {
-        return KeyFactory.getInstance(algorithm);
+        return useBcfks
+            ? KeyFactory.getInstance(algorithm, FIPS_PROVIDER)
+            : KeyFactory.getInstance(algorithm);
       } catch (Exception e) {
         throw new InvalidConfigurationException(
             "Could not create key factory for algorithm " + algorithm, e);

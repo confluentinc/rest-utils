@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import org.apache.kafka.common.config.types.Password;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 import org.junit.jupiter.api.AfterAll;
@@ -80,5 +81,14 @@ public class SslFactoryFipsTest extends SslFactoryTest {
   @Override
   protected String getKeyStoreType() {
     return SslFactoryPemHelper.FIPS_KEYSTORE_TYPE;
+  }
+
+  @Override
+  protected String getEncryptedKey() {
+    return KEY;
+  }
+
+  protected Password getKeyPassword() {
+    return null;
   }
 }
