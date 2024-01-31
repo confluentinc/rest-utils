@@ -73,6 +73,14 @@ public class SslFactoryTest {
     }
   }
 
+  protected String getEncryptedKey() {
+    return ENCRYPTED_KEY;
+  }
+
+  protected Password getKeyPassword() {
+    return KEY_PASSWORD;
+  }
+
   protected void setConfigs(Map<String, String> configs) {
     config = new RestConfig(RestConfig.baseConfigDef(), configs);
   }
@@ -96,14 +104,16 @@ public class SslFactoryTest {
   @Test
   public void testPemKeyStoreSuccessKeyPassword() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
-    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(ENCRYPTED_KEY, CERTCHAIN)));
+    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(getEncryptedKey(), CERTCHAIN)));
     rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    if (getKeyPassword() != null) {
+      rawConfig.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, getKeyPassword().value());
+    }
     setConfigs(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(config));
     Assertions.assertNotNull(factory.getKeyStore());
     Assertions.assertEquals(getKeyStoreType(), factory.getKeyStore().getType());
-    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD);
+    verifyKeyStore(factory.getKeyStore(), getKeyPassword());
   }
 
   @Test
@@ -118,16 +128,18 @@ public class SslFactoryTest {
   @Test
   public void testPemKeyStoreReload() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
-    String storeLocation = asFile(asString(ENCRYPTED_KEY, CERTCHAIN));
+    String storeLocation = asFile(asString(getEncryptedKey(), CERTCHAIN));
     rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, storeLocation);
     rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, KEY_PASSWORD.value());
+    if (getKeyPassword() != null) {
+      rawConfig.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, getKeyPassword().value());
+    }
     rawConfig.put(RestConfig.SSL_KEYSTORE_RELOAD_CONFIG, "true");
     setConfigs(rawConfig);
     SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(config));
     Assertions.assertNotNull(factory.getKeyStore());
     Assertions.assertEquals(getKeyStoreType(), factory.getKeyStore().getType());
-    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD);
+    verifyKeyStore(factory.getKeyStore(), getKeyPassword());
 
     TestUtils.waitForCondition(() -> !SslFactory.lastLoadFailure().isPresent(), "could not load keystore");
 
@@ -139,13 +151,13 @@ public class SslFactoryTest {
 
     // rewrite file (valid)
     try (FileWriter writer = new FileWriter(storeLocation)) {
-      writer.write(asString(ENCRYPTED_KEY, CERTCHAIN));
+      writer.write(asString(getEncryptedKey(), CERTCHAIN));
       writer.flush();
     }
 
     TestUtils.waitForCondition(() -> !SslFactory.lastLoadFailure().isPresent(), "keystore not loaded unexpectedly");
 
-    verifyKeyStore(factory.getKeyStore(), KEY_PASSWORD);
+    verifyKeyStore(factory.getKeyStore(), getKeyPassword());
   }
 
   @Test
