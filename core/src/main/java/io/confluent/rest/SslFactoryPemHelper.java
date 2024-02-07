@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.crypto.Cipher;
 import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -37,8 +38,12 @@ import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -150,8 +155,7 @@ public class SslFactoryPemHelper {
      */
     protected KeyStore load(boolean isKeyStore) {
       try (InputStream in = Files.newInputStream(Paths.get(path))) {
-        KeyStore ks = useBcfks ? KeyStore.getInstance(type, FIPS_PROVIDER) :
-            KeyStore.getInstance(type);
+        KeyStore ks = SecurityFactory.getKeyStoreInstance(type, useBcfks);
         // If a password is not set access to the truststore is still available,
         // but integrity checking is disabled.
         char[] passwordChars = password != null ? password.value().toCharArray() : null;
@@ -248,15 +252,10 @@ public class SslFactoryPemHelper {
       return false;
     }
 
-    private KeyStore getIntermediateStore() throws Exception {
-      return useBcfks ? KeyStore.getInstance(FIPS_KEYSTORE_TYPE, FIPS_PROVIDER) :
-          KeyStore.getInstance(NONFIPS_KEYSTORE_TYPE);
-    }
-
     private KeyStore createKeyStoreFromPem(String privateKeyPem, String certChainPem,
                                            char[] keyPassword) {
       try {
-        KeyStore ks = getIntermediateStore();
+        KeyStore ks = SecurityFactory.getKeyStoreInstance(useBcfks);
         ks.load(null, null);
         Key key = privateKey(privateKeyPem, keyPassword);
         Certificate[] certChain = certs(certChainPem);
@@ -269,7 +268,7 @@ public class SslFactoryPemHelper {
 
     private KeyStore createTrustStoreFromPem(String trustedCertsPem) {
       try {
-        KeyStore ts = getIntermediateStore();
+        KeyStore ts = SecurityFactory.getKeyStoreInstance(useBcfks);
         ts.load(null, null);
         Certificate[] certs = certs(trustedCertsPem);
         for (int i = 0; i < certs.length; i++) {
@@ -292,9 +291,8 @@ public class SslFactoryPemHelper {
 
       Certificate[] certs = new Certificate[certEntries.size()];
       for (int i = 0; i < certs.length; i++) {
-        CertificateFactory certificateFactory = useBcfks
-            ? CertificateFactory.getInstance("X.509", FIPS_PROVIDER)
-            : CertificateFactory.getInstance("X.509");
+        CertificateFactory certificateFactory =
+            SecurityFactory.getCertificateFactoryInstance("X.509", useBcfks);
         certs[i] = certificateFactory.generateCertificate(
             new ByteArrayInputStream(certEntries.get(i)));
       }
@@ -318,13 +316,10 @@ public class SslFactoryPemHelper {
       } else {
         EncryptedPrivateKeyInfo keyInfo = new EncryptedPrivateKeyInfo(keyBytes);
         String algorithm = keyInfo.getAlgName();
-        SecretKeyFactory keyFactory = useBcfks
-            ? SecretKeyFactory.getInstance(algorithm, FIPS_PROVIDER)
-            : SecretKeyFactory.getInstance(algorithm);
+        SecretKeyFactory keyFactory =
+            SecurityFactory.getSecretKeyFactoryInstance(algorithm, useBcfks);
         SecretKey pbeKey = keyFactory.generateSecret(new PBEKeySpec(keyPassword));
-        Cipher cipher = useBcfks
-            ? Cipher.getInstance(algorithm, FIPS_PROVIDER)
-            : Cipher.getInstance(algorithm);
+        Cipher cipher = SecurityFactory.getCipherInstance(algorithm, useBcfks);
         cipher.init(Cipher.DECRYPT_MODE, pbeKey, keyInfo.getAlgParameters());
         keySpec = keyInfo.getKeySpec(cipher);
       }
@@ -344,9 +339,7 @@ public class SslFactoryPemHelper {
 
     private KeyFactory keyFactory(String algorithm) {
       try {
-        return useBcfks
-            ? KeyFactory.getInstance(algorithm, FIPS_PROVIDER)
-            : KeyFactory.getInstance(algorithm);
+        return SecurityFactory.getKeyFactoryInstance(algorithm, useBcfks);
       } catch (Exception e) {
         throw new InvalidConfigurationException(
             "Could not create key factory for algorithm " + algorithm, e);
@@ -360,9 +353,9 @@ public class SslFactoryPemHelper {
    * -----BEGIN CERTIFICATE-----
    * Base64 cert
    * -----END CERTIFICATE-----
-   * -----BEGIN ENCRYPTED PRIVATE KEY-----
+   * -----BEGIN [ENCRYPTED] PRIVATE KEY-----
    * Base64 private key
-   * -----END ENCRYPTED PRIVATE KEY-----
+   * -----END [ENCRYPTED] PRIVATE KEY-----
    * Additional data may be included before headers, so we match all entries within the PEM.
    */
   static class PemParser {
@@ -394,6 +387,48 @@ public class SslFactoryPemHelper {
         throw new InvalidConfigurationException("No matching " + name + " entries in PEM file");
       }
       return entries;
+    }
+  }
+
+  private static class SecurityFactory {
+    public static KeyStore getKeyStoreInstance(String type, boolean isFips)
+        throws KeyStoreException, NoSuchProviderException {
+      return isFips ? KeyStore.getInstance(type, FIPS_PROVIDER) :
+          KeyStore.getInstance(type);
+    }
+
+    public static KeyStore getKeyStoreInstance(boolean isFips)
+        throws KeyStoreException, NoSuchProviderException {
+      String type = isFips ? FIPS_KEYSTORE_TYPE : NONFIPS_KEYSTORE_TYPE;
+      return getKeyStoreInstance(type, isFips);
+    }
+
+    public static CertificateFactory getCertificateFactoryInstance(String type, boolean isFips)
+        throws CertificateException, NoSuchProviderException {
+      return isFips
+          ? CertificateFactory.getInstance(type, FIPS_PROVIDER)
+          : CertificateFactory.getInstance(type);
+    }
+
+    public static SecretKeyFactory getSecretKeyFactoryInstance(String algorithm, boolean isFips)
+        throws NoSuchAlgorithmException, NoSuchProviderException {
+      return isFips
+          ? SecretKeyFactory.getInstance(algorithm, FIPS_PROVIDER)
+          : SecretKeyFactory.getInstance(algorithm);
+    }
+
+    public static Cipher getCipherInstance(String algorithm, boolean isFips)
+        throws NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException {
+      return isFips
+          ? Cipher.getInstance(algorithm, FIPS_PROVIDER)
+          : Cipher.getInstance(algorithm);
+    }
+
+    public static KeyFactory getKeyFactoryInstance(String algorithm, boolean isFips)
+        throws NoSuchAlgorithmException, NoSuchProviderException {
+      return isFips
+          ? KeyFactory.getInstance(algorithm, FIPS_PROVIDER)
+          : KeyFactory.getInstance(algorithm);
     }
   }
 }
