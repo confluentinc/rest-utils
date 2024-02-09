@@ -121,8 +121,7 @@ public class SslFactoryPemHelper {
 
     FileBasedStore(String type, String path, Password password, Password keyPassword,
                    boolean isKeyStore, boolean useBcfks) {
-      Objects.requireNonNull(type, "type must not be null");
-      this.type = type;
+      this.type = Objects.requireNonNull(type, "type must not be null");
       this.path = path;
       this.password = password;
       this.keyPassword = keyPassword;
