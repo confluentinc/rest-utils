@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -34,6 +35,7 @@ public final class SslFactory {
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
   private static AtomicReference<Exception> watcherExecException = new AtomicReference<>(null);
 
+  @VisibleForTesting
   public static Optional<Exception> lastLoadFailure() {
     return Optional.ofNullable(watcherExecException.get());
   }
