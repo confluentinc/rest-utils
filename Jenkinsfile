@@ -7,6 +7,7 @@ common {
   pintMerge = true
   nanoVersion = true
   pinnedNanoVersions = true
-  mvnSkipDeploy = true
+  // commenting out this line to temporarily enable Jenkins to build artifacts
+  //  mvnSkipDeploy = true
 }
 //change
