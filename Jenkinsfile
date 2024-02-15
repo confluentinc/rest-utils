@@ -8,6 +8,6 @@ common {
   nanoVersion = true
   pinnedNanoVersions = true
   // commenting out this line to temporarily enable Jenkins to build artifacts
-  //  mvnSkipDeploy = true
+  // mvnSkipDeploy = true
 }
 //change
