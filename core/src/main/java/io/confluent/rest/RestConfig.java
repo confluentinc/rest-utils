@@ -1125,11 +1125,15 @@ public class RestConfig extends AbstractConfig {
 
   private static Time defaultTime = Time.SYSTEM;
 
-  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
-    super(definition, originals);
+  public RestConfig(ConfigDef definition, Map<?, ?> originals, boolean doLog) {
+    super(definition, originals, doLog);
     metricsContext = new RestMetricsContext(
             this.getString(METRICS_JMX_PREFIX_CONFIG),
             originalsWithPrefix(METRICS_CONTEXT_PREFIX));
+  }
+
+  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
+    this(definition, originals, true);
   }
 
   public RestConfig(ConfigDef definition) {
