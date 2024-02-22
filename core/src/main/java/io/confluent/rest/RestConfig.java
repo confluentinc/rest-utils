@@ -560,6 +560,8 @@ public class RestConfig extends AbstractConfig {
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
 
+  protected final boolean doLog;
+
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
         PORT_CONFIG_DEFAULT,
@@ -1125,11 +1127,16 @@ public class RestConfig extends AbstractConfig {
 
   private static Time defaultTime = Time.SYSTEM;
 
-  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
-    super(definition, originals);
+  public RestConfig(ConfigDef definition, Map<?, ?> originals, boolean doLog) {
+    super(definition, originals, doLog);
+    this.doLog = doLog;
     metricsContext = new RestMetricsContext(
             this.getString(METRICS_JMX_PREFIX_CONFIG),
             originalsWithPrefix(METRICS_CONTEXT_PREFIX));
+  }
+
+  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
+    this(definition, originals, true);
   }
 
   public RestConfig(ConfigDef definition) {
@@ -1274,7 +1281,7 @@ public class RestConfig extends AbstractConfig {
     Map<String, Object> overridden = originals();
     overridden.putAll(filterByAndStripPrefix(originals(), prefix));
 
-    return new SslConfig(new RestConfig(baseConfigDef(), overridden));
+    return new SslConfig(new RestConfig(baseConfigDef(), overridden, doLog));
   }
 
   public final Map<NamedURI, SslConfig> getSslConfigs() {

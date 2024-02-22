@@ -15,25 +15,27 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.kafka.common.config.ConfigException;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class RestConfigTest {
 
   // getListenerProtocolMap tests
 
-  @Test
-  public void testValidProtocolMapCases() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testValidProtocolMapCases(boolean doLog) {
     // empty LISTENER_PROTOCOL_MAP_CONFIG
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "");
-    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     Map<String, String> protocolMap = config.getListenerProtocolMap();
     assertEquals(0, protocolMap.size());
 
     // LISTENER_PROTOCOL_MAP_CONFIG not set
     props = new HashMap<>();
-    config = new RestConfig(RestConfig.baseConfigDef(), props);
+    config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     protocolMap = config.getListenerProtocolMap();
     assertNotNull(protocolMap);
     assertEquals(0, protocolMap.size());
@@ -41,7 +43,7 @@ public class RestConfigTest {
     // single mapping
     props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http");
-    config = new RestConfig(RestConfig.baseConfigDef(), props);
+    config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     protocolMap = config.getListenerProtocolMap();
     assertEquals(1, protocolMap.size());
     assertTrue(protocolMap.containsKey("internal"));
@@ -50,7 +52,7 @@ public class RestConfigTest {
     // multiple mappings
     props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,EXTERNAL:https");
-    config = new RestConfig(RestConfig.baseConfigDef(), props);
+    config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     protocolMap = config.getListenerProtocolMap();
     assertEquals(2, protocolMap.size());
     assertTrue(protocolMap.containsKey("internal"));
@@ -61,7 +63,7 @@ public class RestConfigTest {
     // listener name is a protocol
     props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "http:http,EXTERNAL:https");
-    config = new RestConfig(RestConfig.baseConfigDef(), props);
+    config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     protocolMap = config.getListenerProtocolMap();
     assertEquals(2, protocolMap.size());
     assertTrue(protocolMap.containsKey("http"));
@@ -70,47 +72,52 @@ public class RestConfigTest {
     assertEquals("https", protocolMap.get("external"));
   }
 
-  @Test
-  public void testHttpSetToHttps() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testHttpSetToHttps(boolean doLog) {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "HTTP:https");
-    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
   }
 
-  @Test
-  public void testInvalidProtocolMapping() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testInvalidProtocolMapping(boolean doLog) {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "internal");
-    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
   }
 
-  @Test
-  public void testInvalidProtocolMappingList() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testInvalidProtocolMappingList(boolean doLog) {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http;EXTERNAL:https");
-    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
   }
 
-  @Test
-  public void testEmptyProtocolMappingListenerName() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testEmptyProtocolMappingListenerName(boolean doLog) {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,:https");
-    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
   }
 
-  @Test
-  public void testDuplicateProtocolMappingListenerName() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testDuplicateProtocolMappingListenerName(boolean doLog) {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,INTERNAL:https");
-    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
   }
@@ -206,8 +213,9 @@ public class RestConfigTest {
     assertEquals(0, conf.get("").size());
   }
 
-  @Test
-  public void testPerListenerSslConfig() throws URISyntaxException {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testPerListenerSslConfig(boolean doLog) throws URISyntaxException {
     RestConfig restConfig =
         new RestConfig(
             RestConfig.baseConfigDef(),
@@ -216,7 +224,8 @@ public class RestConfigTest {
                 .put("listener.protocol.map", "A:https,B:https")
                 .put("ssl.keystore.location", "default.jks")
                 .put("listener.name.A.ssl.keystore.location", "a.jks")
-                .build());
+                .build(),
+            doLog);
 
     Map<NamedURI, SslConfig> sslConfigs = restConfig.getSslConfigs();
 
@@ -229,8 +238,9 @@ public class RestConfigTest {
     assertEquals("default.jks", bSslConfig.getKeyStorePath()); // no listener override
   }
 
-  @Test
-  public void testPerListenerSslConfigHttpsName() throws URISyntaxException {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testPerListenerSslConfigHttpsName(boolean doLog) throws URISyntaxException {
     RestConfig restConfig =
         new RestConfig(
             RestConfig.baseConfigDef(),
@@ -240,7 +250,8 @@ public class RestConfigTest {
                 .put("ssl.keystore.location", "default.jks")
                 .put("listener.name.https.ssl.keystore.location", "https.jks")
                 .put("listener.name.A.ssl.keystore.location", "a.jks")
-                .build());
+                .build(),
+            doLog);
 
     Map<NamedURI, SslConfig> sslConfigs = restConfig.getSslConfigs();
 
@@ -258,8 +269,9 @@ public class RestConfigTest {
     assertEquals("a.jks", aSslConfig.getKeyStorePath()); // listener override
   }
 
-  @Test
-  public void testPerListenerSslConfigRepeatedConfig() throws URISyntaxException {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testPerListenerSslConfigRepeatedConfig(boolean doLog) throws URISyntaxException {
     RestConfig restConfig =
         new RestConfig(
             RestConfig.baseConfigDef(),
@@ -269,7 +281,8 @@ public class RestConfigTest {
                 .put("ssl.keystore.location", "default.jks")
                 .put("listener.name.a.ssl.keystore.location", "a1.jks")
                 .put("listener.name.A.ssl.keystore.location", "a2.jks")
-                .build());
+                .build(),
+            doLog);
 
     Map<NamedURI, SslConfig> sslConfigs = restConfig.getSslConfigs();
 
