@@ -1,0 +1,34 @@
+version: v1.0
+name: build-test-release
+agent:
+  machine:
+    type: s1-prod-ubuntu20-04-arm64-0
+
+fail_fast:
+  cancel:
+    when: "true"
+
+execution_time_limit:
+  hours: 1
+
+queue:
+  - when: "branch != 'master' and branch !~ '[0-9]+\\.[0-9]+\\.x'"
+    processing: parallel
+
+global_job_config:
+  prologue:
+    commands:
+      - checkout
+      - . set-cp-java-version
+
+blocks:
+  - name: Test
+    dependencies: []
+    run:
+      # don't run the tests on non-functional changes...
+      when: "change_in('/', {exclude: ['/.deployed-versions/', '.github/']})"
+    task:
+      jobs:
+        - name: Test
+          commands:
+            - echo "Noop"
