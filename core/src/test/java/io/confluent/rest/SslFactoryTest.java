@@ -35,6 +35,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Non-FIPS specific tests for SslFactory, please see SslFactoryFipsTest for FIPS tests.
+ * Please also keep tests in this class in sync with SslFactoryFipsTest.
+ */
 public class SslFactoryTest {
   protected String CA1;
   protected String CA2;
