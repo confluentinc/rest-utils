@@ -29,18 +29,28 @@ import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.ServerConnector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
@@ -49,6 +59,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class ProxyProtocolTest {
@@ -93,25 +104,47 @@ public class ProxyProtocolTest {
 
   @Test
   public void testConnectionFactoriesHttp() throws Exception {
-    testConnectionFactories("http", false);
+    testConnectionFactories("http", false, false);
   }
 
   @Test
   public void testConnectionFactoriesHttpWithHttp2() throws Exception {
-    testConnectionFactories("http", true);
+    testConnectionFactories("http", true, false);
   }
 
   @Test
   public void testConnectionFactoriesHttps() throws Exception {
-    testConnectionFactories("https", false);
+    testConnectionFactories("https", false, false);
   }
 
   @Test
   public void testConnectionFactoriesHttpsWithHttp2() throws Exception {
-    testConnectionFactories("https", true);
+    testConnectionFactories("https", true, false);
   }
 
-  private void testConnectionFactories(String scheme, boolean http2Enabled) throws Exception {
+
+  @Test
+  public void testConnectionFactoriesHttpWithPpv2() throws Exception {
+    testConnectionFactories("http", false, true);
+  }
+
+  @Test
+  public void testConnectionFactoriesHttpWithHttp2WithPpv2() throws Exception {
+    testConnectionFactories("http", true, true);
+  }
+
+  @Test
+  public void testConnectionFactoriesHttpsWithPpv2() throws Exception {
+    testConnectionFactories("https", false, true);
+  }
+
+  @Test
+  public void testConnectionFactoriesHttpsWithHttp2WithPpv2() throws Exception {
+    testConnectionFactories("https", true, true);
+  }
+
+
+  private void testConnectionFactories(String scheme, boolean http2Enabled, boolean isPpv2) throws Exception {
     String url = scheme + "://localhost:9000";
     props.setProperty(RestConfig.LISTENERS_CONFIG, url);
     props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, Boolean.toString(http2Enabled));
@@ -153,6 +186,7 @@ public class ProxyProtocolTest {
 
     assertThat("ProxyConnectionFactory was not found in server's connection factories",
         proxyConnectionFactoryFound);
+    makeProxyProtocolGetRequest("/app/resource", isPpv2, scheme.equals("https"));
     assertThat(makeGetRequest(url + "/app/resource"), is(HttpStatus.Code.OK.getCode()));
   }
 
@@ -195,6 +229,151 @@ public class ProxyProtocolTest {
     return statusCode;
   }
 
+  public static byte[] fromHexString(String s)
+  {
+    if (s.length() % 2 != 0)
+      throw new IllegalArgumentException(s);
+    byte[] array = new byte[s.length() / 2];
+    for (int i = 0; i < array.length; i++)
+    {
+      int b = Integer.parseInt(s.substring(i * 2, i * 2 + 2), 16);
+      array[i] = (byte)(0xff & b);
+    }
+    return array;
+  }
+
+
+  private byte[] getProxyProtocolHeader(boolean isPpv2, String remoteAddr, String remotePort) {
+    if (!isPpv2) {
+      String header = "PROXY TCP4 " + remoteAddr + " 127.0.0.0 " + remotePort + " 8080\r\n";
+      return header.getBytes();
+    }
+    String proxy =
+      // Preamble
+      "0D0A0D0A000D0A515549540A" +
+      // V2, PROXY
+      "21" +
+      // 0x1 : AF_INET    0x1 : STREAM.  Address length is 2*4 + 2*2 = 12 bytes.
+      "11" +
+      // length of remaining header (4+4+2+2+3+6+5+6 = 32)
+      "0020" +
+      // uint32_t src_addr; uint32_t dst_addr; uint16_t src_port; uint16_t dst_port;
+      // remoteAddr = 192.168.0.1 remotePort = 12345
+      "C0A80001" +
+      "7f000001" +
+      "3039" +
+      "1F90" +
+      // NOOP value 0
+      "040000" +
+      // NOOP value ABCDEF
+      "040003ABCDEF" +
+      // Custom 0xEO {0x01,0x02}
+      "E000020102" +
+      // Custom 0xE1 {0xFF,0xFF,0xFF}
+      "E10003FFFFFF";
+    return fromHexString(proxy);
+  }
+    // returns the http response status code.
+  private void makeProxyProtocolGetRequest(String path, boolean isPpv2) throws Exception {
+    final String remoteAddr = "192.168.0.1";
+    final String remotePort = "12345";
+
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+
+    try (Socket socket = new Socket("localhost", connector.getLocalPort())) {
+
+      byte[] header = getProxyProtocolHeader(isPpv2, remoteAddr, remotePort);
+      String httpString = "HTTP/1.1";
+      String request1 =
+              String.format("GET %s %s\r\n" +
+                      "Host: localhost\r\n" +
+                      "Connection: close\r\n" +
+                      "\r\n", path, httpString);
+      OutputStream output = socket.getOutputStream();
+      output.write(header);
+      output.write(request1.getBytes(StandardCharsets.UTF_8));
+      output.flush();
+
+      InputStream input = socket.getInputStream();
+      BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
+      String response1 = reader.readLine();
+      assertThat(response1, startsWith(httpString + " 200 "));
+      String lastLine = response1;
+      while (true) {
+        String l = reader.readLine();
+        if (l == null)
+          break;
+        lastLine = l;
+      }
+      String[] tokens = lastLine.split(":", 2);
+      assertThat(tokens.length, is(2));
+      assertThat(tokens[0], is(remoteAddr));
+      assertThat(tokens[1], is(remotePort));
+    }
+  }
+
+  private void makeProxyProtocolGetRequest(String path, boolean isPpv2, boolean sslEnabled) throws Exception {
+    final String remoteAddr = "192.168.0.1";
+    final String remotePort = "12345";
+
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+
+    // write the proxy protocol headers
+    try (Socket proxySocket = new Socket("localhost", connector.getLocalPort())) {
+      byte[] header = getProxyProtocolHeader(isPpv2, remoteAddr, remotePort);
+      OutputStream proxyWriter = proxySocket.getOutputStream();
+      proxyWriter.write(header);
+      proxyWriter.flush();
+
+      Socket requestSocket = proxySocket;
+
+      // if ssl enabled, the rest of the message needs to be done in ssl and sent over the sslSocket
+      if (sslEnabled) {
+        // trust all self-signed certs.
+        SSLContextBuilder sslContextBuilder = SSLContexts.custom()
+                .loadTrustMaterial(new TrustSelfSignedStrategy())
+                .setProtocol("TLSv1.2");
+
+        // add the client keystore if it's configured.
+        sslContextBuilder.loadKeyMaterial(new File(clientKeystore.getAbsolutePath()),
+                SSL_PASSWORD.toCharArray(),
+                SSL_PASSWORD.toCharArray());
+        SSLContext sslContext = sslContextBuilder.build();
+
+        SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+
+        requestSocket =sslSocketFactory.createSocket(proxySocket, "localhost", connector.getLocalPort(), true);
+      }
+
+      String httpString = "HTTP/1.1";
+      String request1 =
+              String.format("GET %s %s\r\n" +
+                      "Host: localhost\r\n" +
+                      "Connection: close\r\n" +
+                      "\r\n", path, httpString);
+      OutputStream output = requestSocket.getOutputStream();
+      output.write(request1.getBytes(StandardCharsets.UTF_8));
+      output.flush();
+
+      InputStream input = requestSocket.getInputStream();
+      BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
+      String response1 = reader.readLine();
+      assertThat(response1, startsWith(httpString + " 200 "));
+      String lastLine = response1;
+      while (true) {
+        String l = reader.readLine();
+        if (l == null)
+          break;
+        lastLine = l;
+      }
+      String[] tokens = lastLine.split(":", 2);
+      assertThat(tokens.length, is(2));
+      assertThat(tokens[0], is(remoteAddr));
+      assertThat(tokens[1], is(remotePort));
+    }
+  }
+
+
     private static class ProxyTestApp extends Application<TestRestConfig> implements AutoCloseable {
       private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
 
@@ -208,7 +387,7 @@ public class ProxyProtocolTest {
 
     @Override
     public void setupResources(final Configurable<?> config, final TestRestConfig appConfig) {
-      config.register(ApplicationServerTest.RestResource.class);
+      config.register(RestResource.class);
     }
 
     @Override
@@ -225,10 +404,13 @@ public class ProxyProtocolTest {
   @Path("/")
   @Produces(MediaType.TEXT_PLAIN)
   public static class RestResource {
+    @Context
+    HttpServletRequest httpServletRequest;
+
     @GET
     @Path("/resource")
-    public String get() {
-      return "Hello";
+    public String get(@Context HttpServletRequest request) {
+      return request.getRemoteAddr() + ":" + request.getRemotePort()  + "\r\n";
     }
   }
 }
