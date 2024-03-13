@@ -16,13 +16,16 @@
 
 package io.confluent.rest.alpn.server;
 
+import com.google.auto.service.AutoService;
 import javax.net.ssl.SSLEngine;
 import org.eclipse.jetty.alpn.java.server.JDK9ServerALPNProcessor;
+import org.eclipse.jetty.io.ssl.ALPNProcessor;
 
 /**
  * A server ALPN processor that works with BouncyCastle's JSSE provider.
  */
 @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+@AutoService(ALPNProcessor.Server.class)
 public class BouncyCastleServerALPNProcessor extends JDK9ServerALPNProcessor {
 
   @Override

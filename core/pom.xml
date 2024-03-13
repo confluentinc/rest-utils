@@ -128,6 +128,12 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.1.1</version>
+            <optional>true</optional>
+        </dependency>
         <!--test-->
         <dependency>
             <groupId>org.bouncycastle</groupId>
