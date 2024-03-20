@@ -22,7 +22,14 @@ import org.eclipse.jetty.alpn.java.server.JDK9ServerALPNProcessor;
 import org.eclipse.jetty.io.ssl.ALPNProcessor;
 
 /**
- * A server ALPN processor that works with BouncyCastle's JSSE provider.
+ * This class implements Server ALPN processor and is available as a service so that Jetty http/2
+ * can work with BouncyCastle's JSSE provider FIPS driver.
+ * Support for ALPN in BouncyCastle's JSSE
+ * provider is available since bc-fips-1.0.2, but there isn't an implementation of
+ * ALPNProcessor.Server available in Jetty server.
+ * This class leverages JDK9ServerALPNProcessor in
+ * Jetty server to make a service that implements ALPNProcessor.Server and is compatible with
+ * BouncyCastle's JSSE provider FIPS driver.
  */
 @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
 @AutoService(ALPNProcessor.Server.class)
