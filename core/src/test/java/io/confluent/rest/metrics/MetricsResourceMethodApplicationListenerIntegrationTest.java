@@ -1,15 +1,34 @@
 package io.confluent.rest.metrics;
 
+import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
+import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 import io.confluent.rest.*;
 import io.confluent.rest.annotations.PerformanceMetric;
+import io.confluent.rest.entities.ErrorMessage;
+import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
+import io.confluent.rest.exceptions.KafkaExceptionMapper;
+import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
+
+import java.lang.management.ManagementFactory;
+import java.util.Iterator;
+import java.util.Set;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
+import javax.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -36,6 +55,7 @@ import javax.ws.rs.core.Response;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TEXT;
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MetricsResourceMethodApplicationListenerIntegrationTest {
@@ -151,6 +171,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     //checkpoints ensure that all the assertions are tested
     int rateCheckpoint4xx = 0;
     int windowCheckpoint4xx = 0;
+    int rateCheckpoint429 = 0;
+    int windowCheckpoint429 = 0;
     int rateCheckpointNot4xx = 0;
     int windowCheckpointNot4xx = 0;
     int anyErrorRateCheckpoint = 0;
@@ -165,6 +187,10 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           rateCheckpoint4xx++;
           assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
+        } else if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+          rateCheckpoint429++;
+          assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
+              String.format("Actual: %f (%s)", errorRateValue, metric.metricName()));
         } else if (!metric.metricName().tags().isEmpty()) {
           rateCheckpointNot4xx++;
           assertTrue(errorRateValue == 0.0 || Double.isNaN(errorRateValue),
@@ -182,6 +208,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("4xx")) {
           windowCheckpoint4xx++;
           assertTrue(errorCountValue == 2.0, "Actual: " + errorCountValue);
+        } else if (metric.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+          windowCheckpoint429++;
         } else if (!metric.metricName().tags().isEmpty()) {
           windowCheckpointNot4xx++;
           assertTrue(
@@ -193,13 +221,55 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         }
       }
     }
-    int non4xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
+    int non4xxCount = HTTP_STATUS_CODE_TEXT.length - 2; // excluded 4xx and 429
     assertEquals(1, anyErrorRateCheckpoint); //A Single rate metric for the two errors
     assertEquals(1, anyErrorWindowCheckpoint); //A single windowed metric for the two errors
     assertEquals(1, rateCheckpoint4xx); //Single rate metric for the two 4xx errors
-    assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the two 4xx errors
-    assertEquals(non4xxCount, rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx
-    assertEquals(non4xxCount, windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
+    assertEquals(1, windowCheckpoint429); ///A single windowed metric for the two 4xx errors
+    assertEquals(1, rateCheckpoint429); //Single rate metric for the 429 errors
+    assertEquals(1, windowCheckpoint4xx); ///A single windowed metric for the 429 errors
+    assertEquals(non4xxCount ,
+        rateCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx and 429 (which is not in the HTTP_STATUS_CODE_TEXT array)
+    assertEquals(non4xxCount,
+        windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
+  }
+
+  @Test
+  public void test429Metrics() throws InterruptedException {
+
+    make429Call();
+    make429Call();
+
+    //checkpoints ensure that all the assertions are tested
+    int windowCheckpoint429 = 0;
+    int rateCheckpoint429 = 0;
+
+    // Frustrating, but we get a concurrent modification exception if we don't wait for the metrics to finish writing before querying the metrics list
+    Thread.sleep(500);
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-rate") && metric.metricName().tags()
+          .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
+        double errorRateValue = (double) metricValue;
+        rateCheckpoint429++;
+        assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
+      }
+
+      if (metric.metricName().name().equals("request-error-count") && metric.metricName().tags()
+          .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
+        double errorCountValue = (double) metricValue;
+        windowCheckpoint429++;
+        assertEquals(2.0, errorCountValue, "Actual: " + errorCountValue);
+      }
+    }
+    assertEquals(1, rateCheckpoint429); //Single rate metric for the two 429 error
+    assertEquals(1, windowCheckpoint429); ///A single windowed metric for the two 4xx errors
   }
 
   @Test
@@ -263,16 +333,16 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
           break;
       }
     }
-    int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 1;
+    int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 2;
     assertEquals(2, totalCheckpoint);
     assertEquals(2, totalCheckpoint5xx);
-    assertEquals(non5xxCount * 2, totalCheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, totalCheckpointNon5xx); //include 429s
     assertEquals(2, caughtCheckpoint5xx);
-    assertEquals(non5xxCount * 2, caughtCheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtCheckpointNon5xx); //include 429s
     assertEquals(2, caughtTag1Checkpoint5xx);
-    assertEquals(non5xxCount * 2, caughtTag1CheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtTag1CheckpointNon5xx); //include 429s
     assertEquals(2, caughtTag2Checkpoint5xx);
-    assertEquals(non5xxCount * 2, caughtTag2CheckpointNon5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtTag2CheckpointNon5xx); //include 429s
   }
 
   @Test
@@ -298,19 +368,28 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   private void makeSuccessfulCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target(server.getURI())
-            .path("/public/hello")
-            .request(MediaType.APPLICATION_JSON_TYPE)
-            .get();
+        .target(server.getURI())
+        .path("/public/hello")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
     assertEquals(200, response.getStatus());
+  }
+
+  private void make429Call() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target(server.getURI())
+        .path("/public/fourTwoNine")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(429, response.getStatus());
   }
 
   private void makeFailedCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
-            .target(server.getURI())
-            .path("/public/caught")
-            .request(MediaType.APPLICATION_JSON_TYPE)
-            .get();
+        .target(server.getURI())
+        .path("/public/caught")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
     assertEquals(500, response.getStatus());
   }
 
@@ -339,10 +418,20 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       config.register(PrivateResource.class);
       config.register(new PublicResource());
       config.register(new Filter());
+      config.register(new MyExceptionMapper(appConfig));
 
       // ensures the dispatch error message gets shown in the response
       // as opposed to a generic error page
       config.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true);
+    }
+
+    @Override
+    protected void registerExceptionMappers(Configurable<?> config, TestRestConfig restConfig) {
+      config.register(JsonParseExceptionMapper.class);
+      config.register(JsonMappingExceptionMapper.class);
+      config.register(ConstraintViolationExceptionMapper.class);
+      config.register(new WebApplicationExceptionMapper(restConfig));
+      config.register(new MyExceptionMapper(restConfig));
     }
 
     @Override
@@ -391,10 +480,20 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     public String hello() {
       return "hello";
     }
+
+    @GET
+    @Path("/fourTwoNine")
+    @PerformanceMetric("fourTwoNine")
+    public String fourTwoNine() {
+      throw new StatusCodeException(Status.TOO_MANY_REQUESTS, new RuntimeException("kaboom"));
+    }
+
   }
 
   public class Filter implements ContainerRequestFilter {
+
     private final String[] tags = new String[]{"", "value1", "value2"};
+
     @Override
     public void filter(ContainerRequestContext context) {
       Map<String, String> maps = new HashMap<>();
@@ -405,4 +504,42 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       context.setProperty(MetricsResourceMethodApplicationListener.REQUEST_TAGS_PROP_KEY, maps);
     }
   }
+
+  public final class MyExceptionMapper extends KafkaExceptionMapper {
+
+    public MyExceptionMapper(final RestConfig restConfig) {
+      super(restConfig);
+    }
+
+    @Override
+    public Response toResponse(Throwable exception) {
+      if (exception instanceof StatusCodeException) {
+        return Response.status(Status.TOO_MANY_REQUESTS)
+            .entity(new ErrorMessage(429, exception.getMessage())).build();
+      } else {
+        return super.toResponse(exception); // Need this to ensure return 500 for 5XX test
+      }
+    }
+  }
+
+  public static class StatusCodeException extends RuntimeException {
+
+    private final Status status;
+    private final int code;
+
+    StatusCodeException(Status status, Throwable cause) {
+      super(cause);
+      this.status = requireNonNull(status);
+      this.code = status.getStatusCode();
+    }
+
+    public Status getStatus() {
+      return status;
+    }
+
+    public int getCode() {
+      return code;
+    }
+  }
+
 }
