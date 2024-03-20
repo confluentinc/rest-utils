@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -1155,6 +1156,10 @@ public class RestConfig extends AbstractConfig {
     return metricsContext;
   }
 
+  public boolean getDoLog() {
+    return doLog;
+  }
+
   public static void validateHttpResponseHeaderConfig(String config) {
     try {
       // validate format
@@ -1517,5 +1522,33 @@ public class RestConfig extends AbstractConfig {
       }
     }
     return stripped;
+  }
+
+  protected static boolean getBooleanOrDefault(
+      Map<String, ?> configs, String configKey, boolean defaultValue) {
+    boolean configValue = defaultValue;
+    if (configKey != null && configs != null) {
+      Object value = configs.get(configKey);
+      if (value instanceof Boolean) {
+        configValue = (boolean) value;
+      } else if (value instanceof String) {
+        configValue = Boolean.parseBoolean((String) value);
+      }
+    }
+    return configValue;
+  }
+
+  protected static boolean getBooleanOrDefault(
+      Properties props, String configKey, boolean defaultValue) {
+    boolean configValue = defaultValue;
+    if (configKey != null && props != null) {
+      Object value = props.get(configKey);
+      if (value instanceof Boolean) {
+        configValue = (boolean) value;
+      } else if (value instanceof String) {
+        configValue = Boolean.parseBoolean((String) value);
+      }
+    }
+    return configValue;
   }
 }
