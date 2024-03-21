@@ -36,38 +36,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service</artifactId>
-            <version>1.1.1</version>
-            <optional>true</optional>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-alpn-java-server</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-alpn-java-client</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.http2</groupId>
-            <artifactId>http2-client</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.http2</groupId>
-            <artifactId>http2-http-client-transport</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bc-fips</artifactId>
             <version>1.0.2.4</version>
@@ -77,12 +45,6 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bctls-fips</artifactId>
             <version>1.0.17</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-fips</artifactId>
-            <version>1.0.7</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
