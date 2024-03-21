@@ -1,5 +1,6 @@
 package io.confluent.rest;
 
+import static io.confluent.rest.RestConfig.getBooleanOrDefault;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,6 +14,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import org.apache.kafka.common.config.ConfigException;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class RestConfigTest {
+  private static final String PROPERTY_KEY = "property.key";
 
   // getListenerProtocolMap tests
 
@@ -32,6 +35,7 @@ public class RestConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     Map<String, String> protocolMap = config.getListenerProtocolMap();
     assertEquals(0, protocolMap.size());
+    assertEquals(doLog, config.getDoLog());
 
     // LISTENER_PROTOCOL_MAP_CONFIG not set
     props = new HashMap<>();
@@ -39,6 +43,7 @@ public class RestConfigTest {
     protocolMap = config.getListenerProtocolMap();
     assertNotNull(protocolMap);
     assertEquals(0, protocolMap.size());
+    assertEquals(doLog, config.getDoLog());
 
     // single mapping
     props = new HashMap<>();
@@ -48,6 +53,7 @@ public class RestConfigTest {
     assertEquals(1, protocolMap.size());
     assertTrue(protocolMap.containsKey("internal"));
     assertEquals("http", protocolMap.get("internal"));
+    assertEquals(doLog, config.getDoLog());
 
     // multiple mappings
     props = new HashMap<>();
@@ -59,6 +65,7 @@ public class RestConfigTest {
     assertEquals("http", protocolMap.get("internal"));
     assertTrue(protocolMap.containsKey("external"));
     assertEquals("https", protocolMap.get("external"));
+    assertEquals(doLog, config.getDoLog());
 
     // listener name is a protocol
     props = new HashMap<>();
@@ -70,6 +77,7 @@ public class RestConfigTest {
     assertEquals("http", protocolMap.get("http"));
     assertTrue(protocolMap.containsKey("external"));
     assertEquals("https", protocolMap.get("external"));
+    assertEquals(doLog, config.getDoLog());
   }
 
   @ParameterizedTest
@@ -80,6 +88,7 @@ public class RestConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
+    assertEquals(doLog, config.getDoLog());
   }
 
   @ParameterizedTest
@@ -90,6 +99,7 @@ public class RestConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
+    assertEquals(doLog, config.getDoLog());
   }
 
   @ParameterizedTest
@@ -100,6 +110,7 @@ public class RestConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
+    assertEquals(doLog, config.getDoLog());
   }
 
   @ParameterizedTest
@@ -110,6 +121,7 @@ public class RestConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
+    assertEquals(doLog, config.getDoLog());
   }
 
   @ParameterizedTest
@@ -120,6 +132,7 @@ public class RestConfigTest {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props, doLog);
     assertThrows(ConfigException.class,
         () -> config.getListenerProtocolMap());
+    assertEquals(doLog, config.getDoLog());
   }
 
   // getInstanceConfig tests
@@ -236,6 +249,7 @@ public class RestConfigTest {
     assertEquals("default.jks", baseSslConfig.getKeyStorePath()); // default config
     assertEquals("a.jks", aSslConfig.getKeyStorePath()); // listener override
     assertEquals("default.jks", bSslConfig.getKeyStorePath()); // no listener override
+    assertEquals(doLog, restConfig.getDoLog());
   }
 
   @ParameterizedTest
@@ -267,6 +281,7 @@ public class RestConfigTest {
     assertEquals("https.jks", https1SslConfig.getKeyStorePath()); // listener override
     assertEquals("https.jks", https2SslConfig.getKeyStorePath()); // listener override
     assertEquals("a.jks", aSslConfig.getKeyStorePath()); // listener override
+    assertEquals(doLog, restConfig.getDoLog());
   }
 
   @ParameterizedTest
@@ -291,5 +306,138 @@ public class RestConfigTest {
 
     assertEquals("default.jks", baseSslConfig.getKeyStorePath()); // default config
     assertTrue(aSslConfig.getKeyStorePath().matches("a[12]\\.jks")); // any listener override
+    assertEquals(doLog, restConfig.getDoLog());
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromMap_Default() {
+    assertFalse(getBooleanOrDefault(ImmutableMap.of(), PROPERTY_KEY, false));
+    assertTrue(getBooleanOrDefault(ImmutableMap.of(), PROPERTY_KEY, true));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromMap_InvalidValue_DefaultToFalse() {
+    Map<String, Object> config = new HashMap<>();
+    config.put(PROPERTY_KEY, "invalid");
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, false));
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, true));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromMap_EnabledByBoolean() {
+    Map<String, Object> config = new HashMap<>();
+    config.put(PROPERTY_KEY, true);
+    assertTrue(getBooleanOrDefault(config, PROPERTY_KEY, false));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromMap_EnabledByString() {
+    Map<String, Object> config = new HashMap<>();
+    config.put(PROPERTY_KEY, "true");
+    assertTrue(getBooleanOrDefault(config, PROPERTY_KEY, false));
+
+    config = new HashMap<>();
+    config.put(PROPERTY_KEY, "TRUE");
+    assertTrue(getBooleanOrDefault(config, PROPERTY_KEY, false));
+
+    config = new HashMap<>();
+    config.put(PROPERTY_KEY, "True");
+    assertTrue(getBooleanOrDefault(config, PROPERTY_KEY, false));
+
+    config = new HashMap<>();
+    config.put(PROPERTY_KEY, "TrUe");
+    assertTrue(getBooleanOrDefault(config, PROPERTY_KEY, false));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromMap_DisabledByBoolean() {
+    Map<String, Object> config = new HashMap<>();
+    config.put(PROPERTY_KEY, false);
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, false));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromMap_DisabledByString() {
+    Map<String, Object> config = new HashMap<>();
+    config.put(PROPERTY_KEY, "false");
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, true));
+
+    config = new HashMap<>();
+    config.put(PROPERTY_KEY, "FALSE");
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, true));
+
+    config = new HashMap<>();
+    config.put(PROPERTY_KEY, "False");
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, true));
+
+    config = new HashMap<>();
+    config.put(PROPERTY_KEY, "FaLse");
+    assertFalse(getBooleanOrDefault(config, PROPERTY_KEY, true));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromProps_Default() {
+    assertFalse(getBooleanOrDefault(new Properties(), PROPERTY_KEY, false));
+    assertTrue(getBooleanOrDefault(new Properties(), PROPERTY_KEY, true));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromProps_InvalidValue_DefaultToFalse() {
+    Properties props = new Properties();
+    props.put(PROPERTY_KEY, "invalid");
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, false));
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromProps_EnabledByBoolean() {
+    Properties props = new Properties();
+    props.put(PROPERTY_KEY, true);
+    assertTrue(getBooleanOrDefault(props, PROPERTY_KEY, false));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromProps_EnabledByString() {
+    Properties props = new Properties();
+    props.put(PROPERTY_KEY, "true");
+    assertTrue(getBooleanOrDefault(props, PROPERTY_KEY, false));
+
+    props = new Properties();
+    props.put(PROPERTY_KEY, "TRUE");
+    assertTrue(getBooleanOrDefault(props, PROPERTY_KEY, false));
+
+    props = new Properties();
+    props.put(PROPERTY_KEY, "True");
+    assertTrue(getBooleanOrDefault(props, PROPERTY_KEY, false));
+
+    props = new Properties();
+    props.put(PROPERTY_KEY, "TrUe");
+    assertTrue(getBooleanOrDefault(props, PROPERTY_KEY, false));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromProps_DisabledByBoolean() {
+    Properties props = new Properties();
+    props.put(PROPERTY_KEY, false);
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, false));
+  }
+
+  @Test
+  public void test_getBooleanOrDefault_FromProps_DisabledByString() {
+    Properties props = new Properties();
+    props.put(PROPERTY_KEY, "false");
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
+
+    props = new Properties();
+    props.put(PROPERTY_KEY, "FALSE");
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
+
+    props = new Properties();
+    props.put(PROPERTY_KEY, "False");
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
+
+    props = new Properties();
+    props.put(PROPERTY_KEY, "FaLse");
+    assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
   }
 }
