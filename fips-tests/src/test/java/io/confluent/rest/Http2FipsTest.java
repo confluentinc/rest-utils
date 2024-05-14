@@ -66,8 +66,8 @@ class Http2FipsTest {
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
 
-  private static final String HTTP_URI = "http://localhost:8080";
-  private static final String HTTPS_URI = "https://localhost:8081";
+  private static final String HTTP_URI = "http://localhost:8090";
+  private static final String HTTPS_URI = "https://localhost:8091";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
 
   private String SERVER_CERT;
