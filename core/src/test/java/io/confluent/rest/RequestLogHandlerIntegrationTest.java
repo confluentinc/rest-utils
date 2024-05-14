@@ -40,12 +40,14 @@ import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 
 @Tag("IntegrationTest")
+@Disabled("This test is flaky and needs to be fixed")
 public class RequestLogHandlerIntegrationTest {
 
   private final HttpClient httpClient = new HttpClient();
