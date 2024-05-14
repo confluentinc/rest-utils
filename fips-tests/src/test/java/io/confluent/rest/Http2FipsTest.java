@@ -53,7 +53,6 @@ import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.io.ssl.ALPNProcessor;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -66,15 +65,14 @@ class Http2FipsTest {
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
 
-  private static final String HTTP_URI = "http://localhost:8080";
-  private static final String HTTPS_URI = "https://localhost:8081";
+  private static final String HTTP_URI = "http://localhost:8090";
+  private static final String HTTPS_URI = "https://localhost:8091";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
 
   private String SERVER_CERT;
   private String SERVER_KEY;
 
-  @BeforeAll
-  public static void setupAll() {
+  static {
     // set fips approved mode for the system
     System.setProperty(BC_FIPS_APPROVED_ONLY_PROP, "true");
     Security.insertProviderAt(new BouncyCastleFipsProvider(), 1);
