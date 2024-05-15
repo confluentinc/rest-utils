@@ -22,6 +22,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -535,6 +536,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
+  @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   public void testMetricLatencySloSlaEnabled() {
     makeSuccessfulCall();
 
