@@ -53,7 +53,6 @@ import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.io.ssl.ALPNProcessor;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -73,8 +72,7 @@ class Http2FipsTest {
   private String SERVER_CERT;
   private String SERVER_KEY;
 
-  @BeforeAll
-  public static void setupAll() {
+  static {
     // set fips approved mode for the system
     System.setProperty(BC_FIPS_APPROVED_ONLY_PROP, "true");
     Security.insertProviderAt(new BouncyCastleFipsProvider(), 1);
