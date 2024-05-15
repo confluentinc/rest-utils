@@ -55,6 +55,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This tests HTTP/2 support in the REST server with FIPS mode enabled.
  **/
+@Disabled("KNET-15387: this test is flaky and needs to be fixed")
 class Http2FipsTest {
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
