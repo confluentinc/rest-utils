@@ -132,35 +132,31 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private void attachMetricsListener(String listenerName, Metrics metrics,
       Map<String, String> tags) {
-    boolean hasNetworkConnector = false;
     for (NetworkTrafficServerConnector connector : connectors) {
       if (Objects.equals(connector.getName(), listenerName)) {
         MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
         connector.addNetworkTrafficListener(metricsListener);
         log.info("Registered {} to connector of listener: {}",
             metricsListener.getClass().getSimpleName(), listenerName);
-        hasNetworkConnector = true;
       }
     }
-    if (!hasNetworkConnector) {
-      throw new ConfigException("No network connector found for listener: " + listenerName);
+    if (connectors.isEmpty()) {
+      log.warn("No network connector configured for listener: {}", listenerName);
     }
   }
 
   private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String listenerName) {
     if (appConfig.getNetworkTrafficRateLimitEnable()) {
-      boolean hasNetworkConnector = false;
       for (NetworkTrafficServerConnector connector : connectors) {
         if (Objects.equals(connector.getName(), listenerName)) {
           NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(appConfig);
           connector.addNetworkTrafficListener(rateLimitListener);
           log.info("Registered {} to connector of listener: {}",
               rateLimitListener.getClass().getSimpleName(), listenerName);
-          hasNetworkConnector = true;
         }
       }
-      if (!hasNetworkConnector) {
-        throw new ConfigException("No network connector found for listener: " + listenerName);
+      if (connectors.isEmpty()) {
+        log.warn("No network connector configured for listener: {}", listenerName);
       }
     }
   }
