@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
