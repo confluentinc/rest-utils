@@ -59,6 +59,7 @@
         <io.confluent.rest-utils.version>7.8.0-0</io.confluent.rest-utils.version>
         <conscrypt.version>2.5.2</conscrypt.version>
         <jetty.servlets.version>9.4.53.v20231009</jetty.servlets.version>
+        <okhttp.version>4.9.2</okhttp.version>
     </properties>
 
     <repositories>
@@ -295,6 +296,12 @@
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-inline</artifactId>
                 <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
