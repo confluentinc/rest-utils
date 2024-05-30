@@ -24,9 +24,7 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Response;
 import org.slf4j.Logger;
@@ -57,8 +55,8 @@ public class ConnectionDurationFilter implements Filter {
 
   @Override
   public void doFilter(
-    ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
-    throws IOException, ServletException {
+      ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+      throws IOException, ServletException {
 
     HttpServletResponse httpServletResponse = (HttpServletResponse) servletResponse;
 
