@@ -28,6 +28,7 @@ import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.filters.ConnectionDurationFilter;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.handlers.SniHandler;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
@@ -402,6 +403,8 @@ public abstract class Application<T extends RestConfig> {
 
     configureDosFilters(context);
 
+    configureConnectionDurationFilter(context);
+
     configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
@@ -749,6 +752,16 @@ public abstract class Application<T extends RestConfig> {
     String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
     FilterHolder filterHolder = configureDosFilter(dosFilter, globalLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureConnectionDurationFilter(ServletContextHandler context) {
+    if (config.getMaxConnectionDuration() > 0) {
+      FilterHolder filterHolder = new FilterHolder(ConnectionDurationFilter.class);
+      filterHolder.setName("connection-duration-filter");
+      filterHolder.setInitParameter(RestConfig.MAX_CONNECTION_DURATION_MS,
+          String.valueOf(config.getMaxConnectionDuration()));
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
   }
 
   private FilterHolder configureDosFilter(DoSFilter dosFilter, String rate) {
