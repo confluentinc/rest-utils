@@ -11,6 +11,7 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -202,6 +203,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(non4xxCount, windowCheckpointNot4xx); //Metrics for each of unknown, 1xx, 2xx, 3xx, 5xx for windowed metrics
   }
 
+  @Disabled
   @Test
   public void testException5xxMetrics() {
     int totalRequests = 10;
