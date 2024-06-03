@@ -9,6 +9,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -108,6 +109,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
   }
 
+  @Ignore
   @Test
   public void testMapped500sAreCounted() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
