@@ -20,19 +20,19 @@ import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonParseException;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
-import static org.junit.Assert.assertEquals;
-
-import org.junit.Before;
-import org.junit.Test;
 
 import javax.ws.rs.core.Response;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JsonParseExceptionMapperTest {
 
   private JsonParseExceptionMapper mapper;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     mapper = new JsonParseExceptionMapper();
   }

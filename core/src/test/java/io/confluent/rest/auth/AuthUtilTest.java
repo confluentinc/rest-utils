@@ -19,7 +19,6 @@ package io.confluent.rest.auth;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.RestConfig;
 import java.util.Arrays;
@@ -27,14 +26,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.eclipse.jetty.security.ConstraintMapping;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class AuthUtilTest {
 
   private RestConfig config;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     config = restConfigWith(ImmutableMap.of());
   }

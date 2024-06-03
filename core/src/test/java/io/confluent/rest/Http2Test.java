@@ -28,28 +28,21 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.http2.client.HTTP2Client;
 import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.ssl.SslContextFactory.Client;
-
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.net.SocketException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.StringTokenizer;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -58,10 +51,10 @@ import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This test is a bit unusual because of the way that multiple Java versions are handled.
@@ -84,7 +77,7 @@ public class Http2Test {
   private static final String SSL_PASSWORD = "test1234";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     try {
       trustStore = File.createTempFile("Http2Test-truststore", ".jks");
@@ -139,18 +132,18 @@ public class Http2Test {
       // Just skip HTTP/2 for earlier than Java 11
       if (ApplicationServer.isJava11Compatible()) {
         statusCode = makeGetRequestHttp2(HTTP_URI + "/test");
-        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
         statusCode = makeGetRequestHttp2(HTTPS_URI + "/test",
                                          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
       }
 
       // HTTP/1.1 should work whether HTTP/2 is available or not
       statusCode = makeGetRequestHttp(HTTP_URI + "/test");
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       statusCode = makeGetRequestHttp(HTTPS_URI + "/test",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
     } finally {
       app.stop();
@@ -170,18 +163,18 @@ public class Http2Test {
       // Just skip HTTP/2 for earlier than Java 11
       if (ApplicationServer.isJava11Compatible()) {
         statusCode = makeGetRequestHttp2(HTTP_URI + "/test%2fambiguous%2fsegment");
-        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
         statusCode = makeGetRequestHttp2(HTTPS_URI + "/test%2fambiguous%2fsegment",
                                          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
       }
 
       // HTTP/1.1 should work whether HTTP/2 is available or not
       statusCode = makeGetRequestHttp(HTTP_URI + "/test%2fambiguous%2fsegment");
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       statusCode = makeGetRequestHttp(HTTPS_URI + "/test%2fambiguous%2fsegment",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-      assertEquals(EXPECTED_200_MSG, 200, statusCode);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
     } finally {
       app.stop();
@@ -202,7 +195,7 @@ public class Http2Test {
       } catch (java.util.concurrent.ExecutionException exc) {
         // Fall back to HTTP/1.1 once we've seen HTTP/2C fail
         statusCode = makeGetRequestHttp(HTTP_URI + "/test");
-        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
       }
       assertMetricsCollected();
     } finally {
@@ -226,7 +219,7 @@ public class Http2Test {
         // Fall back to HTTP/1.1 once we've seen HTTP/2 fail
         statusCode = makeGetRequestHttp(HTTPS_URI + "/test",
                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        assertEquals(EXPECTED_200_MSG, 200, statusCode);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
       }
       assertMetricsCollected();
     } finally {
@@ -236,20 +229,20 @@ public class Http2Test {
 
   private void assertMetricsCollected() {
     assertNotEquals(
-        "Expected to have metrics.",
         0,
-        TestMetricsReporter.getMetricTimeseries().size());
+        TestMetricsReporter.getMetricTimeseries().size(),
+        "Expected to have metrics.");
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-latency-max")) {
         Object metricValue = metric.metricValue();
         assertTrue(
-            "Request latency metrics should be measurable",
-            metricValue instanceof Double);
+            metricValue instanceof Double,
+            "Request latency metrics should be measurable");
         double latencyMaxValue = (double) metricValue;
         assertNotEquals(
-            "Metrics should be collected (max latency shouldn't be 0)",
             0.0,
-            latencyMaxValue);
+            latencyMaxValue,
+            "Metrics should be collected (max latency shouldn't be 0)");
       }
     }
   }

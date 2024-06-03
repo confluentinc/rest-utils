@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
@@ -71,6 +72,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final List<Application<?>> applications;
   private final SslContextFactory sslContextFactory;
 
+  private static volatile int threadPoolRequestQueueCapacity;
+
   private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
@@ -84,7 +87,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   
     final StringTokenizer st = new StringTokenizer(versionString, ".");
     int majorVersion = Integer.parseInt(st.nextToken());
-  
+
     return majorVersion >= 11;
   }
 
@@ -256,7 +259,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
+  @Override
   protected final void doStart() throws Exception {
+    // set the default error handler
+    if (config.getSuppressStackTraceInResponse()) {
+      this.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
+    }
+
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
@@ -573,7 +582,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
    * @return the capacity of the queue in the pool.
    */
   public int getQueueCapacity() {
-    return config.getInt(RestConfig.REQUEST_QUEUE_CAPACITY_CONFIG);
+    return threadPoolRequestQueueCapacity;
   }
 
   static Handler wrapWithGzipHandler(RestConfig config, Handler handler) {
@@ -603,8 +612,16 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     log.info("Initial capacity {}, increased by {}, maximum capacity {}.",
             initialCapacity, growBy, maxCapacity);
 
+    if (initialCapacity > maxCapacity) {
+      threadPoolRequestQueueCapacity = initialCapacity;
+      log.warn("request.queue.capacity is less than request.queue.capacity.init, invalid config. "
+          + "Setting request.queue.capacity to request.queue.capacity.init.");
+    } else {
+      threadPoolRequestQueueCapacity = maxCapacity;
+    }
+
     BlockingQueue<Runnable> requestQueue =
-            new BlockingArrayQueue<>(initialCapacity, growBy, maxCapacity);
+            new BlockingArrayQueue<>(initialCapacity, growBy, threadPoolRequestQueueCapacity);
     
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),

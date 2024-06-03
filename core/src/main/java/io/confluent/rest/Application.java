@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
@@ -122,6 +123,11 @@ public abstract class Application<T extends RestConfig> {
   }
 
   public Application(T config, String path, String listenerName) {
+    this(config, path, listenerName, null);
+  }
+
+  @VisibleForTesting
+  Application(T config, String path, String listenerName, CustomRequestLog customRequestLog) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
@@ -129,11 +135,16 @@ public abstract class Application<T extends RestConfig> {
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
 
-    Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
-    logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
+    if (customRequestLog == null) {
+      Slf4jRequestLogWriter logWriter = new Slf4jRequestLogWriter();
+      logWriter.setLoggerName(config.getString(RestConfig.REQUEST_LOGGER_NAME_CONFIG));
 
-    // %{ms}T logs request time in milliseconds
-    requestLog = new CustomRequestLog(logWriter, CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
+      // %{ms}T logs request time in milliseconds
+      requestLog = new CustomRequestLog(logWriter,
+          CustomRequestLog.EXTENDED_NCSA_FORMAT + " %{ms}T");
+    } else {
+      requestLog = customRequestLog;
+    }
   }
 
   public final String getPath() {
@@ -330,6 +341,12 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
+    if (isNoSniffProtectionEnabled()) {
+      FilterHolder filterHolder = new FilterHolder(new HeaderFilter());
+      filterHolder.setInitParameter("headerConfig", "set X-Content-Type-Options: nosniff");
+      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    }
+
     if (isCsrfProtectionEnabled()) {
       String csrfEndpoint = config.getString(RestConfig.CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT);
       int csrfTokenExpiration =
@@ -347,18 +364,12 @@ public abstract class Application<T extends RestConfig> {
       context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
-    if (isNoSniffProtectionEnabled()) {
-      FilterHolder filterHolder = new FilterHolder(new HeaderFilter());
-      filterHolder.setInitParameter("headerConfig", "set X-Content-Type-Options: nosniff");
-      context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-    }
-
     if (config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG) != null
             && !config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG).isEmpty()) {
       configureHttpResponseHeaderFilter(context);
     }
 
-    configureDosFilter(context);
+    configureDosFilters(context);
 
     configurePreResourceHandling(context);
     context.addFilter(servletHolder, "/*", null);
@@ -369,9 +380,10 @@ public abstract class Application<T extends RestConfig> {
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
+    context.insertHandler(requestLogHandler);
 
     HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context, requestLogHandler});
+    handlers.setHandlers(new Handler[]{context});
 
     return handlers;
   }
@@ -419,12 +431,12 @@ public abstract class Application<T extends RestConfig> {
     return AuthUtil.isCorsEnabled(config);
   }
 
-  private boolean isCsrfProtectionEnabled() {
-    return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
-  }
-
   private boolean isNoSniffProtectionEnabled() {
     return config.getBoolean(RestConfig.NOSNIFF_PROTECTION_ENABLED);
+  }
+
+  private boolean isCsrfProtectionEnabled() {
+    return config.getBoolean(RestConfig.CSRF_PREVENTION_ENABLED);
   }
 
   @SuppressWarnings("unchecked")
@@ -661,19 +673,33 @@ public abstract class Application<T extends RestConfig> {
     context.addFilter(headerFilterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
-  private void configureDosFilter(ServletContextHandler context) {
+  private void configureDosFilters(ServletContextHandler context) {
     if (!config.isDosFilterEnabled()) {
       return;
     }
-    DoSFilter dosFilter;
-    if (!config.getDosFilterRemotePort() && config.getDosFilterTrackGlobal()) {
-      dosFilter = new GlobalDosFilter();
-    } else {
-      dosFilter = new DoSFilter();
-    }
+    configureGlobalDosFilter(context);
+    configureNonGlobalDosFilter(context);
+  }
+
+  private void configureNonGlobalDosFilter(ServletContextHandler context) {
+    DoSFilter dosFilter = new DoSFilter();
+    FilterHolder filterHolder = configureFilter(dosFilter,
+        String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureGlobalDosFilter(ServletContextHandler context) {
+    DoSFilter dosFilter = new GlobalDosFilter();
+    String globalLimit = String.valueOf(config.getDosFilterMaxRequestsGlobalPerSec());
+    FilterHolder filterHolder = configureFilter(dosFilter, globalLimit);
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private FilterHolder configureFilter(DoSFilter dosFilter, String rate) {
+
     FilterHolder filterHolder = new FilterHolder(dosFilter);
     filterHolder.setInitParameter(
-        "maxRequestsPerSec", String.valueOf(config.getDosFilterMaxRequestsPerSec()));
+        "maxRequestsPerSec", rate);
     filterHolder.setInitParameter(
         "delayMs", String.valueOf(config.getDosFilterDelayMs().toMillis()));
     filterHolder.setInitParameter(
@@ -690,12 +716,13 @@ public abstract class Application<T extends RestConfig> {
         "insertHeaders", String.valueOf(config.getDosFilterInsertHeaders()));
     filterHolder.setInitParameter("trackSessions", "false");
     filterHolder.setInitParameter(
-        "remotePort", String.valueOf(config.getDosFilterRemotePort()));
+        "remotePort", String.valueOf("false"));
     filterHolder.setInitParameter(
         "ipWhitelist", String.valueOf(config.getDosFilterIpWhitelist()));
     filterHolder.setInitParameter(
         "managedAttr", String.valueOf(config.getDosFilterManagedAttr()));
-    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    return filterHolder;
+
   }
 
   public T getConfiguration() {

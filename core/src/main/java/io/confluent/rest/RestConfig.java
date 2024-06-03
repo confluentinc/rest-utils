@@ -114,6 +114,12 @@ public class RestConfig extends AbstractConfig {
       + "Leave blank to use Jetty's default.";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
 
+  public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
+  public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
+  protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
+      "Enable response to request be blocked due to nosniff. The header allows you to avoid "
+      + "MIME type sniffing by saying that the MIME types are deliberately configured.";
+
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
@@ -345,12 +351,6 @@ public class RestConfig extends AbstractConfig {
   public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
   protected static final String CSRF_PREVENTION_ENABLED_DOC = "Enable token based CSRF prevention";
 
-  public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
-  public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
-  protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
-          "Enable response to request be blocked due to nosniff. The header allows you to avoid "
-          + "MIME type sniffing by saying that the MIME types are deliberately configured.";
-
   public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT =
       "csrf.prevention.token.endpoint";
   public static final String CSRF_PREVENTION_TOKEN_FETCH_ENDPOINT_DEFAULT = "/csrf";
@@ -377,9 +377,16 @@ public class RestConfig extends AbstractConfig {
   private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG =
       "dos.filter.max.requests.per.sec";
   private static final String DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC =
-      "Maximum number of requests from a connection per second. Requests in excess of this are "
-          + "first delayed, then throttled. Default is 25.";
+      "Maximum number of requests per second for the REST instance. Requests in excess of this "
+          + "are first delayed, then throttled. Default is 25.";
   private static final int DOS_FILTER_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
+
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_CONFIG =
+      "dos.filter.max.requests.per.connection.per.sec";
+  private static final String DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DOC =
+      "Maximum number of requests per second per ipaddress for the rest instance. "
+          + "Requests in excess of this are first delayed, then throttled.";
+  private static final int DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DEFAULT = 25;
 
   private static final String DOS_FILTER_DELAY_MS_CONFIG = "dos.filter.delay.ms";
   private static final String DOS_FILTER_DELAY_MS_DOC =
@@ -420,18 +427,6 @@ public class RestConfig extends AbstractConfig {
       "If true, insert the DoSFilter headers into the response. Defaults to true.";
   private static final boolean DOS_FILTER_INSERT_HEADERS_DEFAULT = true;
 
-  private static final String DOS_FILTER_REMOTE_PORT_CONFIG = "dos.filter.remote.port";
-  private static final String DOS_FILTER_REMOTE_PORT_DOC =
-      "If true, then rate is tracked by IP and port (effectively per connection). Defaults to "
-          + "false.";
-  private static final boolean DOS_FILTER_REMOTE_PORT_DEFAULT = false;
-
-  private static final String DOS_FILTER_TRACK_GLOBAL_CONFIG = "dos.filter.track.global";
-  private static final String DOS_FILTER_TRACK_GLOBAL_DOC =
-      "If true and remote port tracking is not used, then rate is tracked globally for all "
-          + "connections. Defaults to false.";
-  private static final boolean DOS_FILTER_TRACK_GLOBAL_DEFAULT = false;
-
   private static final String DOS_FILTER_IP_WHITELIST_CONFIG = "dos.filter.ip.whitelist";
   private static final String DOS_FILTER_IP_WHITELIST_DOC =
       "A comma-separated list of IP addresses that will not be rate limited.";
@@ -465,6 +460,14 @@ public class RestConfig extends AbstractConfig {
           + "https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt for more information. "
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
+
+  public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
+
+  protected static final String SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC =
+      "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
+          + "This ensures that no stack traces are included in responses to clients.";
+
+  protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -864,6 +867,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MAX_REQUESTS_PER_SEC_DOC
         ).define(
+            DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_DOC
+        ).define(
             DOS_FILTER_DELAY_MS_CONFIG,
             Type.LONG,
             DOS_FILTER_DELAY_MS_DEFAULT.toMillis(),
@@ -906,18 +915,6 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_INSERT_HEADERS_DOC
         ).define(
-            DOS_FILTER_REMOTE_PORT_CONFIG,
-            Type.BOOLEAN,
-            DOS_FILTER_REMOTE_PORT_DEFAULT,
-            Importance.LOW,
-            DOS_FILTER_REMOTE_PORT_DOC
-        ).define(
-            DOS_FILTER_TRACK_GLOBAL_CONFIG,
-            Type.BOOLEAN,
-            DOS_FILTER_TRACK_GLOBAL_DEFAULT,
-            Importance.LOW,
-            DOS_FILTER_TRACK_GLOBAL_DOC
-        ).define(
             DOS_FILTER_IP_WHITELIST_CONFIG,
             Type.LIST,
             DOS_FILTER_IP_WHITELIST_DEFAULT,
@@ -953,6 +950,12 @@ public class RestConfig extends AbstractConfig {
             NOSNIFF_PROTECTION_ENABLED_DEFAULT,
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
+        ).define(
+            SUPPRESS_STACK_TRACE_IN_RESPONSE,
+            Type.BOOLEAN,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
+            Importance.LOW,
+            SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC
         );
   }
 
@@ -1031,7 +1034,11 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_ENABLED_CONFIG);
   }
 
-  public final int getDosFilterMaxRequestsPerSec() {
+  public final int getDosFilterMaxRequestsPerConnectionPerSec() {
+    return getInt(DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC_CONFIG);
+  }
+
+  public final int getDosFilterMaxRequestsGlobalPerSec() {
     return getInt(DOS_FILTER_MAX_REQUESTS_PER_SEC_CONFIG);
   }
 
@@ -1063,20 +1070,16 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_INSERT_HEADERS_CONFIG);
   }
 
-  public final boolean getDosFilterRemotePort() {
-    return getBoolean(DOS_FILTER_REMOTE_PORT_CONFIG);
-  }
-
-  public final boolean getDosFilterTrackGlobal() {
-    return getBoolean(DOS_FILTER_TRACK_GLOBAL_CONFIG);
-  }
-
   public final List<String> getDosFilterIpWhitelist() {
     return getList(DOS_FILTER_IP_WHITELIST_CONFIG);
   }
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final boolean getSuppressStackTraceInResponse() {
+    return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
   public final Map<String, String> getMap(String propertyName) {

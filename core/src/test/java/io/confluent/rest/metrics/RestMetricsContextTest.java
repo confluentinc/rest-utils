@@ -19,14 +19,14 @@ package io.confluent.rest.metrics;
 import static io.confluent.rest.metrics.TestRestMetricsContext.RESOURCE_LABEL_TYPE;
 import static org.apache.kafka.clients.CommonClientConfigs.METRICS_CONTEXT_PREFIX;
 import static org.apache.kafka.common.metrics.MetricsContext.NAMESPACE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestRestConfig;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class RestMetricsContextTest {
 

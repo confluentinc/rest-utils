@@ -1,8 +1,9 @@
 package io.confluent.rest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.eclipse.jetty.server.Server;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +27,7 @@ public class IdleTimeoutConfigTest {
     Server server = new TestApp(config).createServer();
     server.start();
     // then
-    Assert.assertEquals(expectedIdleTimeout, server.getConnectors()[0].getIdleTimeout());
+    assertEquals(expectedIdleTimeout, server.getConnectors()[0].getIdleTimeout());
     server.stop();
   }
 
