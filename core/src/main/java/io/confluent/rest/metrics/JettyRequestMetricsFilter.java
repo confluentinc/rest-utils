@@ -18,72 +18,74 @@ package io.confluent.rest.metrics;
 
 import static io.confluent.rest.metrics.MetricNameUtil.getMetricName;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.servlet.http.HttpServletRequest;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.metrics.stats.CumulativeCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.WindowedCount;
-import org.eclipse.jetty.servlets.DoSFilter;
-import org.eclipse.jetty.servlets.DoSFilter.Action;
-import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
 
-/**
- * Jetty DosFilterListener that records 429 metrics on DoSFilter of Jetty layer.
- * Note: the metrics are independent of Jersey metrics in MetricsResourceMethodApplicationListener
- */
-public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
+public class JettyRequestMetricsFilter implements Filter {
 
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
   private static final String GROUP_NAME = "jetty-metrics";
 
-  private Sensor fourTwoNineSensor = null;
+  private Sensor sensor = null;
 
-  public Jetty429MetricsDosFilterListener(Metrics metrics, Map<String, String> metricTags,
+  public JettyRequestMetricsFilter(Metrics metrics, Map<String, String> metricTags,
       String jmxPrefix) {
     if (metrics != null) {
       String sensorNamePrefix = jmxPrefix + ":" + GROUP_NAME;
       SortedMap<String, String> instanceMetricsTags = new TreeMap<>(metricTags);
-      instanceMetricsTags.put("http_status_code", "429");
       String sensorTags =
           instanceMetricsTags.keySet().stream()
               .map(key -> ":" + instanceMetricsTags.get(key))
               .collect(Collectors.joining());
-      String sensorName = sensorNamePrefix + ":request-errors" + sensorTags;
-      fourTwoNineSensor = metrics.sensor(sensorName,
+      String sensorName = sensorNamePrefix + ":jetty-request" + sensorTags;
+      sensor = metrics.sensor(sensorName,
           null, SENSOR_EXPIRY_SECONDS, RecordingLevel.INFO, (Sensor[]) null);
 
-      fourTwoNineSensor.add(getMetricName(metrics, GROUP_NAME,
-          "request-error-rate",
-          "The average number of requests per second that resulted in 429 HTTP error "
-              + "responses in Jetty layer",
+      sensor.add(getMetricName(metrics, GROUP_NAME, "request-rate",
+          "The average number of requests per second in Jetty layer",
           instanceMetricsTags), new Rate());
-      fourTwoNineSensor.add(getMetricName(metrics, GROUP_NAME, "request-error-count",
-          "A windowed count of requests that resulted in 429 HTTP error responses"
-              + " in Jetty layer",
+      sensor.add(getMetricName(metrics, GROUP_NAME, "request-count",
+          "A windowed count of requests in Jetty layer",
           instanceMetricsTags), new WindowedCount());
-      fourTwoNineSensor.add(getMetricName(metrics, GROUP_NAME, "request-error-total",
-          "A cumulative count of requests that resulted in 429 HTTP error responses"
-              + " in Jetty layer",
+      sensor.add(getMetricName(metrics, GROUP_NAME, "request-total",
+          "A cumulative count of requests in Jetty layer",
           instanceMetricsTags), new CumulativeCount());
     }
   }
 
   @Override
-  public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
-      DoSFilter dosFilter) {
-    // KREST-10418: we don't use super function to get action object because
-    // it will log a WARN line, in order to reduce verbosity
-    Action action = Action.fromDelay(dosFilter.getDelayMs());
-    if (fourTwoNineSensor != null && action.equals(Action.REJECT)) {
-      fourTwoNineSensor.record();
+  public void init(final FilterConfig filterConfig) throws ServletException {
+    // do nothing
+  }
+
+  @Override
+  public void doFilter(final ServletRequest request, final ServletResponse response,
+      final FilterChain chain)
+      throws IOException, ServletException {
+    if (sensor != null) {
+      sensor.record();
     }
-    return action;
+    chain.doFilter(request, response);
+  }
+
+  @Override
+  public void destroy() {
+    // do nothing
   }
 }
