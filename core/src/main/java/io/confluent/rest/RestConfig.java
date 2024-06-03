@@ -164,6 +164,20 @@ public class RestConfig extends AbstractConfig {
       + " be used to specify additional tags during deployment like data center, instance "
       + "details, etc.";
   protected static final String METRICS_TAGS_DEFAULT = "";
+  public static final String METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG =
+      "metrics.latency.slo.sla.enable";
+  protected static final String METRICS_LATENCY_SLO_SLA_ENABLE_DOC = "Whether to enable metrics"
+      + " about the count of requests that meet or violate latency SLO/SLA"
+      + " in the Performance annotation";
+  protected static final boolean METRICS_LATENCY_SLO_SLA_ENABLE_DEFAULT = false;
+  public static final String METRICS_LATENCY_SLO_MS_CONFIG = "metrics.latency.slo.ms";
+  protected static final String METRICS_LATENCY_SLO_MS_DOC = "The threshold (in ms) of whether"
+      + " request latency meets or violates SLO";
+  protected static final long METRICS_LATENCY_SLO_MS_DEFAULT = 5;
+  public static final String METRICS_LATENCY_SLA_MS_CONFIG = "metrics.latency.sla.ms";
+  protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether"
+      + " request latency meets or violates SLA";
+  protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
 
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
@@ -495,6 +509,18 @@ public class RestConfig extends AbstractConfig {
       "If true, enable overall error handling for any uncaught errors in handlers pipeline. "
           + "This ensures that no stack traces are included in responses to clients.";
 
+  protected static final String MAX_RESPONSE_HEADER_SIZE_CONFIG =
+      "max.response.header.size";
+  protected static final String MAX_RESPONSE_HEADER_SIZE_DOC =
+      "Maximum buffer size for jetty response headers in bytes";
+  protected static final int MAX_RESPONSE_HEADER_SIZE_DEFAULT = 8192;
+
+  protected static final String MAX_REQUEST_HEADER_SIZE_CONFIG =
+      "max.request.header.size";
+  protected static final String MAX_REQUEST_HEADER_SIZE_DOC =
+      "Maximum buffer size for jetty request headers in bytes";
+  protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
+
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
   static final List<String> SUPPORTED_URI_SCHEMES =
@@ -655,6 +681,24 @@ public class RestConfig extends AbstractConfig {
             METRICS_TAGS_DEFAULT,
             Importance.LOW,
             METRICS_TAGS_DOC
+        ).define(
+            METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            METRICS_LATENCY_SLO_SLA_ENABLE_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLO_SLA_ENABLE_DOC
+        ).define(
+            METRICS_LATENCY_SLO_MS_CONFIG,
+            Type.LONG,
+            METRICS_LATENCY_SLO_MS_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLO_MS_DOC
+        ).define(
+            METRICS_LATENCY_SLA_MS_CONFIG,
+            Type.LONG,
+            METRICS_LATENCY_SLA_MS_DEFAULT,
+            Importance.LOW,
+            METRICS_LATENCY_SLA_MS_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
@@ -999,6 +1043,18 @@ public class RestConfig extends AbstractConfig {
             SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
             Importance.LOW,
             SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC
+        ).define(
+            MAX_RESPONSE_HEADER_SIZE_CONFIG,
+            Type.INT,
+            MAX_RESPONSE_HEADER_SIZE_DEFAULT,
+            Importance.LOW,
+            MAX_RESPONSE_HEADER_SIZE_DOC
+        ).define(
+            MAX_REQUEST_HEADER_SIZE_CONFIG,
+            Type.INT,
+            MAX_REQUEST_HEADER_SIZE_DEFAULT,
+            Importance.LOW,
+            MAX_REQUEST_HEADER_SIZE_DOC
         );
   }
 

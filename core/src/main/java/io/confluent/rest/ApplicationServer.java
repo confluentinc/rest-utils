@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
@@ -72,13 +74,17 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
 
-  // Package-visible for tests
+  @VisibleForTesting
+  static boolean isHttp2Compatible(SslConfig sslConfig) {
+    return isJava11Compatible() || SslConfig.TLS_CONSCRYPT.equals(sslConfig.getProvider());
+  }
+
+  @VisibleForTesting
   static boolean isJava11Compatible() {
     final String versionString = System.getProperty("java.specification.version");
   
     final StringTokenizer st = new StringTokenizer(versionString, ".");
     int majorVersion = Integer.parseInt(st.nextToken());
-
     return majorVersion >= 11;
   }
 
@@ -180,6 +186,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
   }
 
+  @Override
   protected final void doStart() throws Exception {
     // set the default error handler
     if (config.getSuppressStackTraceInResponse()) {
@@ -215,11 +222,17 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
+    // Allow requests/responses with large URLs/token headers
+    httpConfiguration.setRequestHeaderSize(
+        config.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
+    httpConfiguration.setResponseHeaderSize(
+        config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
+
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
     // Default to supporting HTTP/2 for Java 11 and later
-    final boolean http2Enabled = isJava11Compatible()
+    final boolean http2Enabled = isHttp2Compatible(config.getBaseSslConfig())
                               && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
 
     final boolean proxyProtocolEnabled =
@@ -228,7 +241,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     for (NamedURI listener : listeners) {
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
-          httpConfiguration.addCustomizer(new SecureRequestCustomizer());
+          SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
+          // Explicitly making sure that SNI is checked against Host in HTTP request
+          Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
+              "Host name matching SNI certificate check must be enabled.");
+          httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
