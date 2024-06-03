@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
@@ -535,6 +536,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(reporter.getConfigs().get("prop3"), "override");
   }
 
+  @Disabled
   @Test
   @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   public void testMetricLatencySloSlaEnabled() {
