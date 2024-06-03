@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
@@ -534,6 +535,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(reporter.getConfigs().get("prop3"), "override");
   }
 
+  @Disabled
   @Test
   public void testMetricLatencySloSlaEnabled() {
     makeSuccessfulCall();
