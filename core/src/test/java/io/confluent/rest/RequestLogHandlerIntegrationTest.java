@@ -70,6 +70,7 @@ public class RequestLogHandlerIntegrationTest {
     httpClient.stop();
   }
 
+  @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   @Test
   @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   public void test_CustomRequestLog_registeredToCorrectListener() throws Exception {
