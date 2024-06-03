@@ -478,6 +478,13 @@ public class RestConfig extends AbstractConfig {
           + "If the limit is set to a non-positive number, no limit is applied. Default is 0.";
   private static final int SERVER_CONNECTION_LIMIT_DEFAULT = 0;
 
+  public static final String MAX_CONNECTION_DURATION_MS = "max.connection.duration.ms";
+  public static final String MAX_CONNECTION_DURATION_MS_DOC =
+      "The maximum duration in milliseconds that a connection can be open. "
+          + "If a connection is open for longer than this duration, it will be closed. "
+          + "If set to 0, no limit is applied. Default is 0.";
+  protected static final long MAX_CONNECTION_DURATION_MS_DEFAULT = 0;
+
   // For rest-utils applications connectors correspond to configured listeners. See
   // ApplicationServer#parseListeners for more details.
   private static final String CONNECTOR_CONNECTION_LIMIT = "connector.connection.limit";
@@ -1050,6 +1057,11 @@ public class RestConfig extends AbstractConfig {
             SERVER_CONNECTION_LIMIT_DEFAULT,
             Importance.LOW,
             SERVER_CONNECTION_LIMIT_DOC
+        ).define(MAX_CONNECTION_DURATION_MS,
+            Type.LONG,
+            MAX_CONNECTION_DURATION_MS_DEFAULT,
+            Importance.LOW,
+            MAX_CONNECTION_DURATION_MS_DOC
         ).define(
             CONNECTOR_CONNECTION_LIMIT,
             Type.INT,
@@ -1256,6 +1268,10 @@ public class RestConfig extends AbstractConfig {
 
   public final int getServerConnectionLimit() {
     return getInt(SERVER_CONNECTION_LIMIT);
+  }
+
+  public final long getMaxConnectionDuration() {
+    return getLong(MAX_CONNECTION_DURATION_MS);
   }
 
   public final int getConnectorConnectionLimit() {
