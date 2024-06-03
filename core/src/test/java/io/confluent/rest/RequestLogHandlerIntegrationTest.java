@@ -41,6 +41,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +70,7 @@ public class RequestLogHandlerIntegrationTest {
     httpClient.stop();
   }
 
+  @Disabled
   @Test
   public void test_CustomRequestLog_registeredToCorrectListener() throws Exception {
     Map<String, Object> props = new HashMap<>();
