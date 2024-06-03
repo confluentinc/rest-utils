@@ -30,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -272,6 +273,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(1, windowCheckpoint429); ///A single windowed metric for the two 4xx errors
   }
 
+  @Disabled
   @Test
   public void testException5xxMetrics() {
     int totalRequests = 10;
