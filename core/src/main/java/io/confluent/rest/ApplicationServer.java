@@ -75,6 +75,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
+  // two years is the recommended value for HSTS max age, see https://hstspreload.org
+  private static final long HSTS_MAX_AGE_SECONDS = 63072000L; // 2 years
 
   @VisibleForTesting
   static boolean isHttp2Compatible(SslConfig sslConfig) {
@@ -127,6 +129,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   public List<Application<?>> getApplications() {
     return Collections.unmodifiableList(applications);
+  }
+
+  private boolean isHstsHeaderEnabled() {
+    return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
   }
 
   private void attachMetricsListener(String listenerName, Metrics metrics,
@@ -272,6 +278,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           // Explicitly making sure that SNI is checked against Host in HTTP request
           Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
               "Host name matching SNI certificate check must be enabled.");
+          if (isHstsHeaderEnabled()) {
+            secureRequestCustomizer.setStsMaxAge(HSTS_MAX_AGE_SECONDS);
+            secureRequestCustomizer.setStsIncludeSubDomains(true);
+          }
           httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
