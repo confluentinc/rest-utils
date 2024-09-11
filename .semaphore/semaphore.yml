@@ -73,18 +73,17 @@ blocks:
       jobs:
         - name: Trigger and wait for CP Jar Build Task
           commands:
-            # Don't run this block if target branch for PR is not a nightly branch or master branch
-            # cp-jar-build today doesn't support other branches
+            # Don't run this block if target branch for PR is not a CP nightly branch
             - |
-              if [[ "$SEMAPHORE_GIT_BRANCH" =~ ^[0-9]+\.[0-9]+\.x$ ]] || [[ "$SEMAPHORE_GIT_BRANCH" == "master" ]] ; then \
-                  echo "PR is targeted to ${SEMAPHORE_GIT_BRANCH} branch which is CP nightly or master branch. Triggering cp-jar-build task."; \
+              if [[ "$SEMAPHORE_GIT_BRANCH" =~ ^[0-9]+\.[0-9]+\.x$ ]] ; then \
+                  echo "PR is targeted to ${SEMAPHORE_GIT_BRANCH} branch which is CP nightly branch. Triggering cp-jar-build task."; \
                   sem-trigger -p packaging \
                     -t cp-jar-build \
                     -b $SEMAPHORE_GIT_BRANCH \
                     -d "|" -i "CUSTOM_BRANCH_COMPONENTS|${COMPONENT_NAME}=${SEMAPHORE_GIT_WORKING_BRANCH}" \
                     -w; \
               else \
-                  echo "PR is targeted to ${SEMAPHORE_GIT_BRANCH} branch which is not CP nightly or master branch. Skipping cp-jar-build task."; \
+                  echo "PR is targeted to ${SEMAPHORE_GIT_BRANCH} branch which is not CP nightly branch. Skipping cp-jar-build task."; \
               fi;
 
 after_pipeline:
