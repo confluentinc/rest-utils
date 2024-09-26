@@ -70,13 +70,19 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bc-fips</artifactId>
-            <version>1.0.2.4</version>
+            <version>${bouncycastle.fips.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bctls-fips</artifactId>
-            <version>1.0.17</version>
+            <version>${bouncycastle.tls-fips.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-fips</artifactId>
+            <version>${bouncycastle.bcpkix-fips.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
