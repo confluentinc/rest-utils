@@ -19,16 +19,9 @@ package io.confluent.rest.handlers;
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
 import java.io.IOException;
-import java.util.List;
-import javax.net.ssl.ExtendedSSLSession;
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SNIServerName;
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.io.EndPoint;
-import org.eclipse.jetty.io.ssl.SslConnection.DecryptedEndPoint;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.slf4j.Logger;
@@ -42,34 +35,12 @@ public class SniHandler extends HandlerWrapper {
       HttpServletRequest request,
       HttpServletResponse response) throws IOException, ServletException {
     String serverName = request.getServerName();
-    String sniServerName = getSniServerName(baseRequest);
+    String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName != null && !sniServerName.equals(serverName)) {
       log.debug("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
       baseRequest.setHandled(true);
       response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
     super.handle(target, baseRequest, request, response);
-  }
-
-  private static String getSniServerName(Request baseRequest) {
-    EndPoint endpoint = baseRequest.getHttpChannel().getEndPoint();
-    if (endpoint instanceof DecryptedEndPoint) {
-      SSLSession session = ((DecryptedEndPoint) endpoint)
-          .getSslConnection()
-          .getSSLEngine()
-          .getSession();
-      if (session instanceof ExtendedSSLSession) {
-        List<SNIServerName> servers = ((ExtendedSSLSession) session).getRequestedServerNames();
-        if (servers != null) {
-          return servers.stream()
-              .findAny()
-              .filter(SNIHostName.class::isInstance)
-              .map(SNIHostName.class::cast)
-              .map(SNIHostName::getAsciiName)
-              .orElse(null);
-        }
-      }
-    }
-    return null;
   }
 }
