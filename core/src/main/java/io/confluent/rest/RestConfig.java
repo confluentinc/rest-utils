@@ -511,8 +511,8 @@ public class RestConfig extends AbstractConfig {
 
   public static final String EXPECTED_SNI_HEADERS_CONFIG = "expected.sni.headers";
   protected static final String EXPECTED_SNI_HEADERS_DOC =
-      "Comma-separated list of expected SNI headers for incoming connections. If a value is present, "
-          + "log a warning when handling connections, but do not reject the connection.";
+      "Comma-separated list of expected SNI headers for incoming connections. If a value is "
+          + "present, log a warning when handling connections, but do not reject the connection.";
   protected static final String EXPECTED_SNI_HEADERS_DEFAULT = "";
 
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
