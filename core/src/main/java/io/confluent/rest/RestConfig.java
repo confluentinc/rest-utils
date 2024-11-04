@@ -126,7 +126,8 @@ public class RestConfig extends AbstractConfig {
 
   public static final String ACCESS_CONTROL_EXPOSE_HEADERS = "access.control.expose.headers";
   protected static final String ACCESS_CONTROL_EXPOSE_HEADERS_DOC =
-      "set value to Jetty Access-Control-Expose-Headers header for specified headers.";
+      "set value to Jetty Access-Control-Expose-Headers header for specified headers. "
+      + "Leave blank to use Jetty's default.";
   protected static final String ACCESS_CONTROL_EXPOSE_HEADERS_DEFAULT = "";
 
   public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
