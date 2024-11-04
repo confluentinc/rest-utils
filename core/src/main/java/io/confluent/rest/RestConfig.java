@@ -120,9 +120,14 @@ public class RestConfig extends AbstractConfig {
 
   public static final String ACCESS_CONTROL_ALLOW_HEADERS = "access.control.allow.headers";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DOC =
-      "Set value to Jetty Access-Control-Allow-Origin header for specified headers. "
+      "Set value to Jetty Access-Control-Allow-Headers header for specified headers. "
       + "Leave blank to use Jetty's default.";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
+
+  public static final String ACCESS_CONTROL_EXPOSE_HEADERS = "access.control.expose.headers";
+  protected static final String ACCESS_CONTROL_EXPOSE_HEADERS_DOC =
+      "set value to Jetty Access-Control-Expose-Headers header for specified headers.";
+  protected static final String ACCESS_CONTROL_EXPOSE_HEADERS_DEFAULT = "";
 
   public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
   public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
@@ -673,6 +678,12 @@ public class RestConfig extends AbstractConfig {
             ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT,
             Importance.LOW,
             ACCESS_CONTROL_ALLOW_HEADERS_DOC
+        ).define(
+            ACCESS_CONTROL_EXPOSE_HEADERS,
+            Type.STRING,
+            ACCESS_CONTROL_EXPOSE_HEADERS_DEFAULT,
+            Importance.LOW,
+            ACCESS_CONTROL_EXPOSE_HEADERS_DOC
         ).define(
             ACCESS_CONTROL_SKIP_OPTIONS,
             Type.BOOLEAN,
