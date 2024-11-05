@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class ExpectedSniHandler extends HandlerWrapper {
-  private static final Logger log = LoggerFactory.getLogger(SniHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(ExpectedSniHandler.class);
   private final List<String> expectedSniHeaders;
 
   public ExpectedSniHandler(List<String> expectedSniHeaders) {
