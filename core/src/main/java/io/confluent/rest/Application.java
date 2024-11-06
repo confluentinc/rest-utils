@@ -360,11 +360,15 @@ public abstract class Application<T extends RestConfig> {
       );
       String allowedMethods = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_METHODS);
       String allowedHeaders = config.getString(RestConfig.ACCESS_CONTROL_ALLOW_HEADERS);
+      String exposedHeaders = config.getString(RestConfig.ACCESS_CONTROL_EXPOSE_HEADERS);
       if (allowedMethods != null && !allowedMethods.trim().isEmpty()) {
         filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, allowedMethods);
       }
       if (allowedHeaders != null && !allowedHeaders.trim().isEmpty()) {
         filterHolder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, allowedHeaders);
+      }
+      if (exposedHeaders != null && !exposedHeaders.trim().isEmpty()) {
+        filterHolder.setInitParameter(CrossOriginFilter.EXPOSED_HEADERS_PARAM, exposedHeaders);
       }
       // handle preflight cors requests at the filter level, do not forward down the filter chain
       filterHolder.setInitParameter(CrossOriginFilter.CHAIN_PREFLIGHT_PARAM, "false");
