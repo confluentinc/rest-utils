@@ -1166,7 +1166,11 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestConfig(ConfigDef definition) {
-    this(definition, new TreeMap<>());
+    this(definition, new TreeMap<>(), false);
+  }
+
+  public RestConfig(ConfigDef definition, boolean doLog) {
+    this(definition, new TreeMap<>(), doLog);
   }
 
   public Time getTime() {
