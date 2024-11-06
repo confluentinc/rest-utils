@@ -387,7 +387,7 @@ public class RestConfig extends AbstractConfig {
   public static final String RESPONSE_HTTP_HEADERS_CONFIG = "response.http.headers.config";
   public static final String RESPONSE_HTTP_HEADERS_DOC =
           "Set values for Jetty HTTP response headers";
-  public static final String RESPONSE_HTTP_HEADERS_DEFAULT = "";
+  public static final String RESPONSE_HTTP_HEADERS_DEFAULT = "Cache-control: no-cache, Pragma: no-cache";
 
   public static final String CSRF_PREVENTION_ENABLED = "csrf.prevention.enable";
   public static final boolean CSRF_PREVENTION_ENABLED_DEFAULT = false;
