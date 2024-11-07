@@ -712,6 +712,7 @@ public abstract class Application<T extends RestConfig> {
    */
   protected void configureHttpResponseHeaderFilter(ServletContextHandler context) {
     String headerConfig = config.getString(RestConfig.RESPONSE_HTTP_HEADERS_CONFIG);
+    headerConfig += RestConfig.RESPONSE_HTTP_HEADERS_DEFAULT;
     log.debug("headerConfig : " + headerConfig);
     String[] configs = StringUtil.csvSplit(headerConfig);
     Arrays.stream(configs)
