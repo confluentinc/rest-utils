@@ -20,9 +20,9 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.glassfish.jersey.servlet.ServletProperties;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -36,7 +36,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.Response;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class StaticResourcesTest {
 
@@ -46,7 +46,7 @@ public class StaticResourcesTest {
 
   String staticContent;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     try (
         InputStreamReader isr = new InputStreamReader(ClassLoader.getSystemResourceAsStream("static/index.html"), StandardCharsets.UTF_8);
@@ -63,7 +63,7 @@ public class StaticResourcesTest {
     server.start();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     server.stop();
     server.join();

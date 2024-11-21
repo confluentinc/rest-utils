@@ -22,19 +22,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import javax.ws.rs.core.Response;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class JsonMappingExceptionMapperTest {
 
   private JsonMappingExceptionMapper mapper;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     mapper = new JsonMappingExceptionMapper();
   }
