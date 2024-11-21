@@ -37,6 +37,7 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicDeletionDisabledException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
@@ -94,6 +95,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
     errorMap.put(UnknownServerException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
     errorMap.put(UnknownTopicOrPartitionException.class, new ResponsePair(Status.NOT_FOUND,
+        KAFKA_UNKNOWN_TOPIC_PARTITION_CODE));
+    errorMap.put(UnknownTopicIdException.class, new ResponsePair(Status.NOT_FOUND,
         KAFKA_UNKNOWN_TOPIC_PARTITION_CODE));
     errorMap.put(PolicyViolationException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
