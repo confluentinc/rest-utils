@@ -30,6 +30,7 @@ import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.PolicyViolationException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
@@ -58,6 +59,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   public static final int KAFKA_ERROR_ERROR_CODE = 50002;
   public static final int KAFKA_RETRIABLE_ERROR_ERROR_CODE = 50003;
   public static final int BROKER_NOT_AVAILABLE_ERROR_CODE = 50302;
+
+  private static final String TOPIC_NOT_PRESENT_MESSAGE_PATTERN = "not present in metadata";
 
   public KafkaExceptionMapper(RestConfig restConfig) {
     super(restConfig);
@@ -114,6 +117,13 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
       return getResponse(exception);
     } else if (exception instanceof RetriableException) {
       log.debug("Kafka retriable exception", exception);
+      //A TimeoutException is thrown in many cases.  Here we are looking for the case where the
+      //topic specified doesn't exist and can't be automatically created
+      if (exception instanceof TimeoutException
+          && exception.getMessage().toLowerCase().contains(TOPIC_NOT_PRESENT_MESSAGE_PATTERN)) {
+        log.debug("Topic not present in metadata exception");
+        return getResponse(exception, Status.NOT_FOUND, TOPIC_NOT_FOUND_ERROR_CODE);
+      }
       return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
           KAFKA_RETRIABLE_ERROR_ERROR_CODE);
     } else if (exception instanceof KafkaException) {
