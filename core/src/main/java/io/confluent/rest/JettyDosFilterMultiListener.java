@@ -18,6 +18,8 @@ package io.confluent.rest;
 
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+
+import io.confluent.rest.jetty.DoSFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

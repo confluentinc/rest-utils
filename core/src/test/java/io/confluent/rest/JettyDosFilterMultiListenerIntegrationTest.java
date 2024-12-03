@@ -44,6 +44,8 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Server;
 import org.glassfish.jersey.server.ServerProperties;

@@ -2,7 +2,7 @@
  * Copyright 2024 Confluent Inc.
  */
 
-package io.confluent.rest;
+package io.confluent.rest.jetty;
 
 import java.io.IOException;
 import java.io.Serializable;

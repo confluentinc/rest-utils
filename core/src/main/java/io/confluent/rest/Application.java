@@ -31,6 +31,7 @@ import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.handlers.ExpectedSniHandler;
 import io.confluent.rest.handlers.SniHandler;
+import io.confluent.rest.jetty.DoSFilter;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;

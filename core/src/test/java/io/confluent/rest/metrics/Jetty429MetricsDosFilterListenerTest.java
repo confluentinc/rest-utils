@@ -33,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
-import io.confluent.rest.DoSFilter;
+import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.MeasurableStat;
