@@ -37,8 +37,8 @@ public class JettyDosFilterMultiListener extends DoSFilter.Listener {
   }
 
   @Override
-  public DoSFilter.Action onRequestOverLimit(HttpServletRequest request, DoSFilter.OverLimit overlimit,
-      DoSFilter dosFilter) {
+  public DoSFilter.Action onRequestOverLimit(HttpServletRequest request,
+      DoSFilter.OverLimit overlimit, DoSFilter dosFilter) {
     // KREST-10418: we don't use super function to get action object because
     // it will log a WARN line, in order to reduce verbosity
     DoSFilter.Action action = DoSFilter.Action.fromDelay(dosFilter.getDelayMs());

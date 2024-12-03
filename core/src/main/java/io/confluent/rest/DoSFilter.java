@@ -1,3 +1,7 @@
+/*
+ * Copyright 2024 Confluent Inc.
+ */
+
 package io.confluent.rest;
 
 import java.io.IOException;
