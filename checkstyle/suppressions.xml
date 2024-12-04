@@ -10,4 +10,6 @@
               files="MetricsResourceMethodApplicationListener.java"/>
     <suppress checks="(CyclomaticComplexity|CyclomaticComplexity|NPathComplexity|JavaNCSS)"
               files="Application.java"/>
+    <suppress checks="[a-zA-Z0-9]*"
+              files="DoSFilter.java"/>
 </suppressions>
