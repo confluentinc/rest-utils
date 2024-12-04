@@ -32,6 +32,8 @@ import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
+
+import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.MetricNameTemplate;
 import org.apache.kafka.common.metrics.MeasurableStat;
@@ -41,9 +43,6 @@ import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.metrics.stats.CumulativeSum;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.SampledStat;
-import org.eclipse.jetty.servlets.DoSFilter;
-import org.eclipse.jetty.servlets.DoSFilter.Action;
-import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -76,13 +75,13 @@ class Jetty429MetricsDosFilterListenerTest {
     // Act
     jetty429MetricsDosFilterListener = new Jetty429MetricsDosFilterListener(null, ImmutableMap.of(),
         TEST_JMX_PREFIX);
-    Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
-        mock(OverLimit.class), mockDoSFiler);
+    DoSFilter.Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
+        mock(DoSFilter.OverLimit.class), mockDoSFiler);
 
     // Check
     // fourTwoNineSensor is not created
     verify(fourTwoNineSensor, never()).add(any(MetricName.class), any());
-    assertEquals(Action.fromDelay(delayMs), action);
+    assertEquals(DoSFilter.Action.fromDelay(delayMs), action);
     // null metrics therefore we don't record anything
     verify(fourTwoNineSensor, never()).record();
   }
@@ -103,12 +102,12 @@ class Jetty429MetricsDosFilterListenerTest {
     // Act
     jetty429MetricsDosFilterListener = new Jetty429MetricsDosFilterListener(metrics, allTags,
         TEST_JMX_PREFIX);
-    Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
-        mock(OverLimit.class), mockDoSFiler);
+    DoSFilter.Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
+        mock(DoSFilter.OverLimit.class), mockDoSFiler);
 
     // Check
-    assertNotEquals(Action.REJECT, action);
-    assertEquals(Action.fromDelay(delayMs), action);
+    assertNotEquals(DoSFilter.Action.REJECT, action);
+    assertEquals(DoSFilter.Action.fromDelay(delayMs), action);
     // non REJECT actions don't trigger metric recording
     verifyFourTwoNineSensor(fourTwoNineSensor, allTags, 0);
   }
@@ -123,12 +122,12 @@ class Jetty429MetricsDosFilterListenerTest {
     // Act
     jetty429MetricsDosFilterListener = new Jetty429MetricsDosFilterListener(metrics, ImmutableMap.of(),
         TEST_JMX_PREFIX);
-    Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
-        mock(OverLimit.class), mockDoSFiler);
+    DoSFilter.Action action = jetty429MetricsDosFilterListener.onRequestOverLimit(mock(HttpServletRequest.class),
+        mock(DoSFilter.OverLimit.class), mockDoSFiler);
 
     // Check
     verify(fourTwoNineSensor, times(3)).add(any(MetricName.class), any(MeasurableStat.class));
-    assertEquals(Action.REJECT, action);
+    assertEquals(DoSFilter.Action.REJECT, action);
     // REJECTED means 429, so the sensor records it
     verifyFourTwoNineSensor(fourTwoNineSensor, allTags, 1);
   }
