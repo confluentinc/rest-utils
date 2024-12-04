@@ -44,11 +44,10 @@ import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlets.DoSFilter;
-import org.eclipse.jetty.servlets.DoSFilter.Action;
-import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -452,10 +451,10 @@ class JettyDosFilterMultiListenerIntegrationTest {
 
     AtomicInteger rejectedCounter = new AtomicInteger(0);
 
-    public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
+    public DoSFilter.Action onRequestOverLimit(HttpServletRequest request, DoSFilter.OverLimit overlimit,
         DoSFilter dosFilter) {
-      Action action = DoSFilter.Action.fromDelay(dosFilter.getDelayMs());
-      if (action == Action.REJECT) {
+      DoSFilter.Action action = DoSFilter.Action.fromDelay(dosFilter.getDelayMs());
+      if (action == DoSFilter.Action.REJECT) {
         rejectedCounter.addAndGet(1);
       }
 
