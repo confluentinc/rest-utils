@@ -224,7 +224,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
-      attachListener(app.getConfiguration(), app.getListenerName(), app.getMetrics(), app.getMetricsTags());
+      attachListener(app.getConfiguration(), app.getListenerName(),
+          app.getMetrics(), app.getMetricsTags());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());

@@ -27,35 +27,37 @@ import org.eclipse.jetty.io.NetworkTrafficListener;
  */
 public class RateLimitMetricsListener implements NetworkTrafficListener {
 
-    private final MetricsListener metricsListener;
-    private final RateLimitNetworkTrafficListener rateLimitNetworkTrafficListener;
+  private final MetricsListener metricsListener;
+  private final RateLimitNetworkTrafficListener rateLimitNetworkTrafficListener;
 
-    public RateLimitMetricsListener(MetricsListener metricsListener, RateLimitNetworkTrafficListener rateLimitNetworkTrafficListener) {
-        this.metricsListener = metricsListener;
-        this.rateLimitNetworkTrafficListener = rateLimitNetworkTrafficListener;
-    }
+  public RateLimitMetricsListener(
+      MetricsListener metricsListener,
+      RateLimitNetworkTrafficListener rateLimitNetworkTrafficListener) {
+    this.metricsListener = metricsListener;
+    this.rateLimitNetworkTrafficListener = rateLimitNetworkTrafficListener;
+  }
 
-    @Override
-    public void opened(Socket socket) {
-        metricsListener.opened(socket);
-        rateLimitNetworkTrafficListener.opened(socket);
-    }
+  @Override
+  public void opened(Socket socket) {
+    metricsListener.opened(socket);
+    rateLimitNetworkTrafficListener.opened(socket);
+  }
 
-    @Override
-    public void incoming(Socket socket, ByteBuffer bytes) {
-        metricsListener.incoming(socket, bytes);
-        rateLimitNetworkTrafficListener.incoming(socket, bytes);
-    }
+  @Override
+  public void incoming(Socket socket, ByteBuffer bytes) {
+    metricsListener.incoming(socket, bytes);
+    rateLimitNetworkTrafficListener.incoming(socket, bytes);
+  }
 
-    @Override
-    public void outgoing(Socket socket, ByteBuffer bytes) {
-        metricsListener.outgoing(socket, bytes);
-        rateLimitNetworkTrafficListener.outgoing(socket, bytes);
-    }
+  @Override
+  public void outgoing(Socket socket, ByteBuffer bytes) {
+    metricsListener.outgoing(socket, bytes);
+    rateLimitNetworkTrafficListener.outgoing(socket, bytes);
+  }
 
-    @Override
-    public void closed(Socket socket) {
-        metricsListener.closed(socket);
-        rateLimitNetworkTrafficListener.closed(socket);
-    }
+  @Override
+  public void closed(Socket socket) {
+    metricsListener.closed(socket);
+    rateLimitNetworkTrafficListener.closed(socket);
+  }
 }
