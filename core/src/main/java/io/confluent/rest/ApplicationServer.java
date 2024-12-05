@@ -398,8 +398,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
     int connectorConnectionLimit = config.getConnectorConnectionLimit();
     if (connectorConnectionLimit > 0) {
-      addBean(new ConnectionLimit(connectorConnectionLimit, metricsListenerConnectors.toArray(new Connector[0])));
-      addBean(new ConnectionLimit(connectorConnectionLimit, rateLimitListenerConnectors.toArray(new Connector[0])));
+      addBean(new ConnectionLimit(connectorConnectionLimit,
+          metricsListenerConnectors.toArray(new Connector[0])));
+      addBean(new ConnectionLimit(connectorConnectionLimit,
+          rateLimitListenerConnectors.toArray(new Connector[0])));
     }
   }
 
