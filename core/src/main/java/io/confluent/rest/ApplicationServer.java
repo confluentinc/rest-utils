@@ -71,7 +71,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static volatile int threadPoolRequestQueueCapacity;
 
-  private final List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
+  private final List<NetworkTrafficServerConnector> metricsListenerConnectors = new ArrayList<>();
+  private final List<NetworkTrafficServerConnector> rateLimitListenerConnectors = new ArrayList<>();
   private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
@@ -137,31 +138,33 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private void attachMetricsListener(String listenerName, Metrics metrics,
       Map<String, String> tags) {
-    for (NetworkTrafficServerConnector connector : connectors) {
+    for (NetworkTrafficServerConnector connector : metricsListenerConnectors) {
       if (Objects.equals(connector.getName(), listenerName)) {
         MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+        // TODO: change to connector.setNetworkTrafficListener(metricsListener) for jetty 11+
         connector.addNetworkTrafficListener(metricsListener);
         log.info("Registered {} to connector of listener: {}",
             metricsListener.getClass().getSimpleName(), listenerName);
       }
     }
-    if (connectors.isEmpty()) {
-      log.warn("No network connector configured for listener: {}", listenerName);
+    if (metricsListenerConnectors.isEmpty()) {
+      log.warn("No network connector configured for metrics listener: {}", listenerName);
     }
   }
 
   private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String listenerName) {
     if (appConfig.getNetworkTrafficRateLimitEnable()) {
-      for (NetworkTrafficServerConnector connector : connectors) {
+      for (NetworkTrafficServerConnector connector : rateLimitListenerConnectors) {
         if (Objects.equals(connector.getName(), listenerName)) {
           NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(appConfig);
+          // TODO: change to connector.setNetworkTrafficListener(rateLimitListener) for jetty 11+
           connector.addNetworkTrafficListener(rateLimitListener);
           log.info("Registered {} to connector of listener: {}",
               rateLimitListener.getClass().getSimpleName(), listenerName);
         }
       }
-      if (connectors.isEmpty()) {
-        log.warn("No network connector configured for listener: {}", listenerName);
+      if (rateLimitListenerConnectors.isEmpty()) {
+        log.warn("No network connector configured for rate limit listener: {}", listenerName);
       }
     }
   }
@@ -318,7 +321,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       connector.setName(listener.getName());
     }
 
-    connectors.add(connector);
+    metricsListenerConnectors.add(connector);
+    rateLimitListenerConnectors.add(connector);
     super.addConnector(connector);
   }
 
@@ -394,7 +398,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
     int connectorConnectionLimit = config.getConnectorConnectionLimit();
     if (connectorConnectionLimit > 0) {
-      addBean(new ConnectionLimit(connectorConnectionLimit, connectors.toArray(new Connector[0])));
+      addBean(new ConnectionLimit(connectorConnectionLimit,
+          metricsListenerConnectors.toArray(new Connector[0])));
+      addBean(new ConnectionLimit(connectorConnectionLimit,
+          rateLimitListenerConnectors.toArray(new Connector[0])));
     }
   }
 
