@@ -18,46 +18,40 @@ package io.confluent.rest;
 
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.List;
+
 import org.eclipse.jetty.io.NetworkTrafficListener;
 
 /**
  * With Jetty 11+, the NetworkTrafficServerConnector has been updated to only accept one
- * NetworkTrafficListener per instance. This class merges the MetricsListener and
- * RateLimitNetworkTrafficListener into one class to be used as a single NetworkTrafficListener
+ * NetworkTrafficListener per instance. This class collects a list of existing listeners
+ * into one class to be used as a single NetworkTrafficListener.
  */
-public class RateLimitMetricsListener implements NetworkTrafficListener {
+public class CombinedNetworkTrafficListener implements NetworkTrafficListener {
 
-  private final MetricsListener metricsListener;
-  private final RateLimitNetworkTrafficListener rateLimitNetworkTrafficListener;
+  private final List<NetworkTrafficListener> delegates;
 
-  public RateLimitMetricsListener(
-      MetricsListener metricsListener,
-      RateLimitNetworkTrafficListener rateLimitNetworkTrafficListener) {
-    this.metricsListener = metricsListener;
-    this.rateLimitNetworkTrafficListener = rateLimitNetworkTrafficListener;
+  public CombinedNetworkTrafficListener(List<NetworkTrafficListener> listeners) {
+    this.delegates = listeners;
   }
 
   @Override
   public void opened(Socket socket) {
-    metricsListener.opened(socket);
-    rateLimitNetworkTrafficListener.opened(socket);
+    delegates.forEach(listener -> listener.opened(socket));
   }
 
   @Override
   public void incoming(Socket socket, ByteBuffer bytes) {
-    metricsListener.incoming(socket, bytes);
-    rateLimitNetworkTrafficListener.incoming(socket, bytes);
+    delegates.forEach(listener -> listener.incoming(socket, bytes));
   }
 
   @Override
   public void outgoing(Socket socket, ByteBuffer bytes) {
-    metricsListener.outgoing(socket, bytes);
-    rateLimitNetworkTrafficListener.outgoing(socket, bytes);
+    delegates.forEach(listener -> listener.outgoing(socket, bytes));
   }
 
   @Override
   public void closed(Socket socket) {
-    metricsListener.closed(socket);
-    rateLimitNetworkTrafficListener.closed(socket);
+    delegates.forEach(listener -> listener.closed(socket));
   }
 }

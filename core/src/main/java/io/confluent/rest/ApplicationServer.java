@@ -141,20 +141,16 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                               Map<String, String> tags) {
     for (NetworkTrafficServerConnector connector : connectors) {
       if (Objects.equals(connector.getName(), listenerName)) {
-        MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
-        NetworkTrafficListener rateLimitMetricsListener;
+        List<NetworkTrafficListener> listeners = new ArrayList<>();
+        listeners.add(new MetricsListener(metrics, "jetty", tags));
         if (appConfig.getNetworkTrafficRateLimitEnable()) {
-          RateLimitNetworkTrafficListener rateLimitListener =
-              new RateLimitNetworkTrafficListener(appConfig);
-          rateLimitMetricsListener =
-              new RateLimitMetricsListener(metricsListener, rateLimitListener);
-        } else {
-          rateLimitMetricsListener = metricsListener;
+          listeners.add(new RateLimitNetworkTrafficListener(appConfig));
         }
+        NetworkTrafficListener combinedListener = new CombinedNetworkTrafficListener(listeners);
         // TODO: change to connector.setNetworkTrafficListener(metricsListener) for jetty 11+
-        connector.addNetworkTrafficListener(rateLimitMetricsListener);
+        connector.addNetworkTrafficListener(combinedListener);
         log.info("Registered {} to connector of listener: {}",
-            rateLimitMetricsListener.getClass().getSimpleName(), listenerName);
+            combinedListener.getClass().getSimpleName(), listenerName);
       }
     }
     if (connectors.isEmpty()) {
