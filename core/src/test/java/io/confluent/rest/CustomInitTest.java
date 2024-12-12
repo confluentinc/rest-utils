@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.time.Duration;
 import javax.websocket.EndpointConfig;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
@@ -143,7 +144,7 @@ public class CustomInitTest {
 
     WebSocket ws = Dsl.asyncHttpClient()
         .prepareGet(uri + "/test")
-        .setRequestTimeout(10000)
+        .setRequestTimeout(Duration.ofMillis(10000))
         .execute(wsHandler)
         .get();
 
