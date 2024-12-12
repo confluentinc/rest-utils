@@ -52,6 +52,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import java.time.Duration;
 
 import javax.security.auth.login.Configuration;
 import javax.ws.rs.GET;
@@ -283,7 +284,7 @@ public class SaslTest {
     }
 
     WebSocket ws = requestBuilder
-        .setRequestTimeout(10000)
+        .setRequestTimeout(Duration.ofSeconds(10000))
         .execute(wsHandler)
         .get();
 
