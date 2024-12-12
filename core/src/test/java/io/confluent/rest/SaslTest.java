@@ -284,7 +284,7 @@ public class SaslTest {
     }
 
     WebSocket ws = requestBuilder
-        .setRequestTimeout(Duration.ofSeconds(10000))
+        .setRequestTimeout(Duration.ofMillis(10000))
         .execute(wsHandler)
         .get();
 
