@@ -141,7 +141,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       MethodMetrics m = new MethodMetrics(
           method, annotation, metrics, metricGrpPrefix, metricTags, emptyMap(),
-          enableLatencySloSla, latencySloMs, latencySlaMs, );
+          enableLatencySloSla, latencySloMs, latencySlaMs, percentileMaxLatencyInMs);
       ConstructionContext context = new ConstructionContext(method, annotation, this);
       methodMetrics.put(definitionMethod, new RequestScopedMetrics(m, context));
     }
@@ -241,7 +241,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags,
-                         Map<String, String> requestTags, double percentileMaxLatencyInMs) {
+                         Map<String, String> requestTags) {
       this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false, 0L, 0L, 10000);
     }
 
