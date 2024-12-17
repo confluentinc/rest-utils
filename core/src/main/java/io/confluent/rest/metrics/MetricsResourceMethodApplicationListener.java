@@ -90,7 +90,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
                                                   Map<String, String> metricTags, Time time,
                                                   boolean enableLatencySloSla,
-                                                  long latencySloMs, long latencySlaMs, double percentileMaxLatencyInMs) {
+                                                  long latencySloMs, long latencySlaMs,
+                                                  double percentileMaxLatencyInMs) {
     this(metrics, metricGrpPrefix, metricTags, time, enableLatencySloSla, latencySloMs,
         latencySlaMs, percentileMaxLatencyInMs, false);
   }
@@ -98,7 +99,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
                                                   Map<String, String> metricTags, Time time,
                                                   boolean enableLatencySloSla,
-                                                  long latencySloMs, long latencySlaMs, double percentileMaxLatencyInMs, boolean enableGlobalStatsRequestTags) {
+                                                  long latencySloMs, long latencySlaMs,
+                                                  double percentileMaxLatencyInMs,
+                                                  boolean enableGlobalStatsRequestTags) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
@@ -242,7 +245,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags,
                          Map<String, String> requestTags) {
-      this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false, 0L, 0L, 10000);
+      this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false,
+              0L, 0L, 10000);
     }
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,

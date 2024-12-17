@@ -194,8 +194,8 @@ public class RestConfig extends AbstractConfig {
       + " request latency meets or violates SLA";
   protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
   public static final String PERCENTILE_MAX_LATENCY_MS_CONFIG = "percentile.max.latency.ms";
-  protected static final String PERCENTILE_MAX_LATENCY_MS_DOC = "The threshold (in ms) of percentile"
-          + " maximum latency";
+  protected static final String PERCENTILE_MAX_LATENCY_MS_DOC = "The threshold (in ms) of"
+          + " percentile maximum latency";
   protected static final double PERCENTILE_MAX_LATENCY_MS_DEFAULT = 10000;
   public static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG =
       "metrics.global.stats.request.tags.enable";
