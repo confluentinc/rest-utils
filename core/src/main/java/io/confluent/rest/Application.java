@@ -655,6 +655,7 @@ public abstract class Application<T extends RestConfig> {
         restConfig.getBoolean(RestConfig.METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG),
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG),
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG),
+        restConfig.getDouble(RestConfig.PERCENTILE_MAX_LATENCY_MS_CONFIG),
         restConfig.getBoolean(RestConfig.METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG)));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
