@@ -70,7 +70,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   protected static final String[] HTTP_STATUS_CODE_TEXT = {
       "unknown", "1xx", "2xx", "3xx", "4xx", "5xx", "429"};
   private static final int PERCENTILE_NUM_BUCKETS = 200;
-  private static final double PERCENTILE_MAX_LATENCY_IN_MS = TimeUnit.SECONDS.toMillis(10);
   private static final long SENSOR_EXPIRY_SECONDS = TimeUnit.HOURS.toSeconds(1);
 
   private final Metrics metrics;
@@ -81,23 +80,25 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   private final boolean enableLatencySloSla;
   private final long latencySloMs;
   private final long latencySlaMs;
+  private final double percentileMaxLatencyInMs;
+
   // This controls whether we should use request tags in global stats, i.e., those without resource
   // method in the names, introducing this variable to keep the compatibility with downstream
   // dependencies, e.g., some applications may not want to report request tags in global stats
   private final boolean enableGlobalStatsRequestTags;
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-      Map<String, String> metricTags, Time time,
-      boolean enableLatencySloSla,
-      long latencySloMs, long latencySlaMs) {
+                                                  Map<String, String> metricTags, Time time,
+                                                  boolean enableLatencySloSla,
+                                                  long latencySloMs, long latencySlaMs, double percentileMaxLatencyInMs) {
     this(metrics, metricGrpPrefix, metricTags, time, enableLatencySloSla, latencySloMs,
-        latencySlaMs, false);
+        latencySlaMs, percentileMaxLatencyInMs, false);
   }
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-      Map<String, String> metricTags, Time time,
-      boolean enableLatencySloSla,
-      long latencySloMs, long latencySlaMs, boolean enableGlobalStatsRequestTags) {
+                                                  Map<String, String> metricTags, Time time,
+                                                  boolean enableLatencySloSla,
+                                                  long latencySloMs, long latencySlaMs, double percentileMaxLatencyInMs, boolean enableGlobalStatsRequestTags) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
@@ -106,6 +107,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     this.enableLatencySloSla = enableLatencySloSla;
     this.latencySloMs = latencySloMs;
     this.latencySlaMs = latencySlaMs;
+    this.percentileMaxLatencyInMs = percentileMaxLatencyInMs;
     this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
   }
 
@@ -115,7 +117,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       // Special null key is used for global stats
       MethodMetrics m = new MethodMetrics(
           null, null, this.metrics, metricGrpPrefix, metricTags, emptyMap(),
-          enableLatencySloSla, latencySloMs, latencySlaMs);
+          enableLatencySloSla, latencySloMs, latencySlaMs, percentileMaxLatencyInMs);
       methodMetrics.put(null, new RequestScopedMetrics(m, new ConstructionContext(this)));
 
       for (final Resource resource : event.getResourceModel().getResources()) {
@@ -139,7 +141,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       MethodMetrics m = new MethodMetrics(
           method, annotation, metrics, metricGrpPrefix, metricTags, emptyMap(),
-          enableLatencySloSla, latencySloMs, latencySlaMs);
+          enableLatencySloSla, latencySloMs, latencySlaMs, percentileMaxLatencyInMs);
       ConstructionContext context = new ConstructionContext(method, annotation, this);
       methodMetrics.put(definitionMethod, new RequestScopedMetrics(m, context));
     }
@@ -235,17 +237,18 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private final boolean enableLatencySloSla;
     private final long latencySloMs;
     private final long latencySlaMs;
+    private final double percentileMaxLatencyInMs;
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags,
                          Map<String, String> requestTags) {
-      this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false, 0L, 0L);
+      this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false, 0L, 0L, 10000);
     }
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
                          String metricGrpPrefix, Map<String, String> metricTags,
                          Map<String, String> requestTags, boolean enableLatencySloSla,
-                         long latencySloMs, long latencySlaMs) {
+                         long latencySloMs, long latencySlaMs, double percentileMaxLatencyInMs) {
       String metricGrpName = metricGrpPrefix + "-metrics";
       // The tags will be used to generate MBean names if JmxReporter is used,
       // sort to get consistent names
@@ -315,6 +318,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.enableLatencySloSla = enableLatencySloSla;
       this.latencySloMs = latencySloMs;
       this.latencySlaMs = latencySlaMs;
+      this.percentileMaxLatencyInMs = percentileMaxLatencyInMs;
       if (enableLatencySloSla) {
         setResponseLatencySloSlaSensors(method, annotation, metrics, requestTags,
             metricGrpName, allTags);
@@ -322,7 +326,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
       Percentiles percs = new Percentiles(Float.SIZE / 8 * PERCENTILE_NUM_BUCKETS,
           0.0,
-          PERCENTILE_MAX_LATENCY_IN_MS,
+          percentileMaxLatencyInMs,
           Percentiles.BucketSizing.LINEAR,
           new Percentile(new MetricName(
               getName(method, annotation, "request-latency-95"), metricGrpName,
