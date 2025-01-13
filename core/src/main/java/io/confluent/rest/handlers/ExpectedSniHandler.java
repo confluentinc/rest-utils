@@ -41,10 +41,10 @@ public class ExpectedSniHandler extends HandlerWrapper {
       HttpServletResponse response) throws IOException, ServletException {
     String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName == null) {
-      log.warn("No SNI header present on request");
+      log.warn("No SNI header present on request; request URI is {}", request.getRequestURI());
     } else if (!expectedSniHeaders.contains(sniServerName)) {
-      log.warn("SNI header {} is not in the configured list of expected headers {}",
-          sniServerName, this.expectedSniHeaders);
+      log.warn("SNI header {} is not in the configured list of expected headers {}; "
+          + "request URI is {}", sniServerName, this.expectedSniHeaders, request.getRequestURI());
     }
 
     super.handle(target, baseRequest, request, response);
