@@ -29,9 +29,12 @@ import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.errors.PolicyViolationException;
+import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SecurityDisabledException;
+import org.apache.kafka.common.errors.ThrottlingQuotaExceededException;
 import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.errors.TopicDeletionDisabledException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
@@ -60,6 +63,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   public static final int KAFKA_ERROR_ERROR_CODE = 50002;
   public static final int KAFKA_RETRIABLE_ERROR_ERROR_CODE = 50003;
   public static final int BROKER_NOT_AVAILABLE_ERROR_CODE = 50302;
+  public static final int TOO_MANY_REQUESTS_ERROR_CODE = 42901;
 
   private static final String TOPIC_NOT_PRESENT_MESSAGE_PATTERN = "not present in metadata";
 
@@ -76,6 +80,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
         BROKER_NOT_AVAILABLE_ERROR_CODE));
     errorMap.put(InvalidReplicationFactorException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
+    errorMap.put(RecordTooLargeException.class, new ResponsePair(Status.REQUEST_ENTITY_TOO_LARGE,
+        Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()));
     // thrown when ACLs are not enabled
     errorMap.put(SecurityDisabledException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
@@ -95,6 +101,10 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
         KAFKA_BAD_REQUEST_ERROR_CODE));
     errorMap.put(InvalidConfigurationException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
+    errorMap.put(TopicDeletionDisabledException.class, new ResponsePair(Status.BAD_REQUEST,
+        KAFKA_BAD_REQUEST_ERROR_CODE));
+    errorMap.put(ThrottlingQuotaExceededException.class, new ResponsePair(Status.TOO_MANY_REQUESTS,
+        TOO_MANY_REQUESTS_ERROR_CODE));
     return errorMap;
   }
 

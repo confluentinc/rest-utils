@@ -36,6 +36,7 @@ import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
+import org.eclipse.jetty.io.NetworkTrafficListener;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -69,7 +70,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private static volatile int threadPoolRequestQueueCapacity;
 
-  private List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
+  private final List<NetworkTrafficServerConnector> connectors = new ArrayList<>();
   private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
@@ -131,6 +132,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
     for (NetworkTrafficServerConnector connector : connectors) {
       connector.addNetworkTrafficListener(metricsListener);
+    }
+  }
+
+  private void attachNetworkTrafficRateLimitListener() {
+    if (config.getNetworkTrafficRateLimitEnable()) {
+      NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
+      for (NetworkTrafficServerConnector connector : connectors) {
+        connector.addNetworkTrafficListener(rateLimitListener);
+      }
     }
   }
 
@@ -197,6 +207,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
       attachMetricsListener(app.getMetrics(), app.getMetricsTags());
+      attachNetworkTrafficRateLimitListener();
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
