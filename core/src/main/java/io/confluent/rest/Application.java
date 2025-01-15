@@ -407,11 +407,12 @@ public abstract class Application<T extends RestConfig> {
     configureDosFilters(context);
 
     configurePreResourceHandling(context);
+
+    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
+
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
-
-    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
