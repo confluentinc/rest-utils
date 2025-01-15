@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>rest-utils-parent</artifactId>
-        <version>7.5.8-0</version>
+        <version>7.6.5-0</version>
     </parent>
 
     <artifactId>rest-utils</artifactId>
@@ -117,6 +117,10 @@
             <artifactId>auto-service</artifactId>
             <version>1.1.1</version>
             <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
         <!--test-->
         <dependency>

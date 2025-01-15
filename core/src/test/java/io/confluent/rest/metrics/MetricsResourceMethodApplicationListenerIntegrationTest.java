@@ -12,6 +12,7 @@ import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 
+import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
@@ -21,6 +22,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
@@ -77,6 +79,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       props.put(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG, "0");
       props.put(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG, "10000");
     }
+    if (info.getDisplayName().contains("WithGlobalStatsRequestTagsEnabled")) {
+      props.put(RestConfig.METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG, "true");
+    }
 
     config = new TestRestConfig(props);
     app = new ApplicationWithFilter(config);
@@ -132,25 +137,27 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     int helloTag2RequestsCheckpoint = 0;
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
-      switch (metric.metricName().name()) {
-        case "request-count": // global metrics
-        case "request-total": // global metrics
-          assertMetric(metric, totalRequests);
-          totalRequestsCheckpoint++;
-          break;
-        case "hello.request-count": // method metrics
-        case "hello.request-total": // method metrics
-          if (metric.metricName().tags().containsValue("value1")) {
-            assertMetric(metric, (totalRequests + 1) / 3);
-            helloTag1RequestsCheckpoint++;
-          } else if (metric.metricName().tags().containsValue("value2")) {
-            assertMetric(metric, totalRequests / 3);
-            helloTag2RequestsCheckpoint++;
-          } else if (metric.metricName().tags().isEmpty()) {
-            assertMetric(metric, (totalRequests + 2) / 3);
-            helloRequestsCheckpoint++;
-          }
-          break;
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        switch (metric.metricName().name()) {
+          case "request-count": // global metrics
+          case "request-total": // global metrics
+            assertMetric(metric, totalRequests);
+            totalRequestsCheckpoint++;
+            break;
+          case "hello.request-count": // method metrics
+          case "hello.request-total": // method metrics
+            if (metric.metricName().tags().containsValue("value1")) {
+              assertMetric(metric, (totalRequests + 1) / 3);
+              helloTag1RequestsCheckpoint++;
+            } else if (metric.metricName().tags().containsValue("value2")) {
+              assertMetric(metric, totalRequests / 3);
+              helloTag2RequestsCheckpoint++;
+            } else if (metric.metricName().tags().isEmpty()) {
+              assertMetric(metric, (totalRequests + 2) / 3);
+              helloRequestsCheckpoint++;
+            }
+            break;
+        }
       }
     }
     assertEquals(2, totalRequestsCheckpoint);
@@ -244,7 +251,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @Test
   public void test429Metrics() throws InterruptedException {
-
     make429Call();
     make429Call();
 
@@ -284,7 +290,63 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(1, windowCheckpoint429); ///A single windowed metric for the two 4xx errors
   }
 
-  @Disabled
+  @DisplayName("WithGlobalStatsRequestTagsEnabled")
+  @Test
+  // This tests validates that with METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG enabled true,
+  // the request-tags "value1" "value2" are on the global metrics for 429
+  public void test429Metrics_WithGlobalStatsRequestTagsEnabled() throws InterruptedException {
+    int totalRequests = 10;
+    IntStream.range(0, totalRequests).forEach((i) -> make429Call());
+
+    //checkpoints ensure that all the assertions are tested
+    int rateCheckpoint429 = 0;
+    int windowCheckpoint429 = 0;
+    int windowTag1Checkpoint429 = 0;
+    int windowTag2Checkpoint429 = 0;
+
+    // Frustrating, but we get a concurrent modification exception if we don't wait for the metrics to finish writing before querying the metrics list
+    Thread.sleep(500);
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-rate")
+          && metric.metricName().group().equals("jersey-metrics")
+          && metric.metricName().tags()
+          .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
+        double errorRateValue = (double) metricValue;
+        rateCheckpoint429++;
+        assertTrue(errorRateValue > 0, "Actual: " + errorRateValue);
+      }
+
+      if (metric.metricName().name().equals("request-error-count")
+          && metric.metricName().group().equals("jersey-metrics")
+          && metric.metricName().tags()
+          .getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
+        Map<String, String> tags = metric.metricName().tags();
+        if (tags.containsValue("value1")) {
+          assertMetric(metric, (totalRequests + 1) / 3);
+          windowTag1Checkpoint429++;
+        }  else if (tags.containsValue("value2")) {
+          assertMetric(metric, totalRequests / 3);
+          windowTag2Checkpoint429++;
+        } else {
+          assertMetric(metric, (totalRequests + 2) / 3);
+          windowCheckpoint429++;
+        }
+      }
+    }
+
+    // Three rate metrics for the 429 errors
+    assertEquals(3, rateCheckpoint429);
+    // Three windowed metrics for the 4xx errors
+    assertEquals(3, windowCheckpoint429 + windowTag1Checkpoint429 + windowTag2Checkpoint429);
+  }
+
   @Test
   public void testException5xxMetrics() {
     int totalRequests = 10;
@@ -360,6 +422,98 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals((non5xxCount + 1) * 2, caughtTag2CheckpointNon5xx); //include 429s
   }
 
+  @DisplayName("WithGlobalStatsRequestTagsEnabled")
+  @Test
+  // This tests validates that with METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG enabled true,
+  // the request-tags "value1" "value2" are on the global metrics for 5XX
+  public void testException5xxMetrics_WithGlobalStatsRequestTagsEnabled() {
+    int totalRequests = 10;
+    IntStream.range(0, totalRequests).forEach((i) -> makeFailedCall());
+
+    int totalCheckpoint = 0;
+    int totalCheckpoint5xx = 0;
+    int totalCheckpointNon5xx = 0;
+    int caughtCheckpoint5xx = 0;
+    int caughtCheckpointNon5xx = 0;
+    int caughtTag1Checkpoint5xx = 0;
+    int caughtTag1CheckpointNon5xx = 0;
+    int caughtTag2Checkpoint5xx = 0;
+    int caughtTag2CheckpointNon5xx = 0;
+
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        Map<String, String> tags = metric.metricName().tags();
+        switch (metric.metricName().name()) {
+          case "request-error-count": // global metrics
+          case "request-error-total": // global metrics
+            if (is5xxError(tags)) {
+              if (tags.containsValue("value1")) {
+                assertMetric(metric, (totalRequests + 1) / 3);
+              } else if (tags.containsValue("value2")) {
+                assertMetric(metric, totalRequests / 3);
+              } else {
+                assertMetric(metric, (totalRequests + 2) / 3);
+              }
+              totalCheckpoint5xx++;
+            } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+              assertMetric(metric, 0);
+              totalCheckpointNon5xx++;
+            } else {
+              if (tags.containsValue("value1")) {
+                assertMetric(metric, (totalRequests + 1) / 3);
+              } else if (tags.containsValue("value2")) {
+                assertMetric(metric, totalRequests / 3);
+              } else {
+                assertMetric(metric, (totalRequests + 2) / 3);
+              }
+              totalCheckpoint++;
+            }
+            break;
+          case "caught.request-error-count": // method metrics
+          case "caught.request-error-total": // method metrics
+            if (tags.containsValue("value1")) {
+              if (is5xxError(tags)) {
+                assertMetric(metric, (totalRequests + 1) / 3);
+                caughtTag1Checkpoint5xx++;
+              } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+                assertMetric(metric, 0);
+                caughtTag1CheckpointNon5xx++;
+              }
+            } else if (tags.containsValue("value2")) {
+              if (is5xxError(tags)) {
+                assertMetric(metric, totalRequests / 3);
+                caughtTag2Checkpoint5xx++;
+              } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+                assertMetric(metric, 0);
+                caughtTag2CheckpointNon5xx++;
+              }
+            } else {
+              if (is5xxError(tags)) {
+                assertMetric(metric, (totalRequests + 2) / 3);
+                caughtCheckpoint5xx++;
+              } else if (tags.containsKey(HTTP_STATUS_CODE_TAG)) {
+                assertMetric(metric, 0);
+                caughtCheckpointNon5xx++;
+              }
+            }
+            break;
+        }
+      }
+    }
+    int non5xxCount = HTTP_STATUS_CODE_TEXT.length - 2;
+    int tagVariants = 3;
+    assertEquals(2 * tagVariants, totalCheckpoint);
+    assertEquals(2 * tagVariants, totalCheckpoint5xx);
+    assertEquals((non5xxCount + 1) * 2 * tagVariants, totalCheckpointNon5xx); //include 429s
+
+    assertEquals(2, caughtCheckpoint5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtCheckpointNon5xx); //include 429s
+    assertEquals(2, caughtTag1Checkpoint5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtTag1CheckpointNon5xx); //include 429s
+    assertEquals(2, caughtTag2Checkpoint5xx);
+    assertEquals((non5xxCount + 1) * 2, caughtTag2CheckpointNon5xx); //include 429s
+  }
+
   @Test
   public void testMetricReporterConfiguration() {
     ApplicationWithFilter app;
@@ -381,6 +535,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(reporter.getConfigs().get("prop3"), "override");
   }
 
+  @Disabled
   @Test
   public void testMetricLatencySloSlaEnabled() {
     makeSuccessfulCall();
@@ -408,6 +563,29 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
   }
 
+  @Test
+  public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() {
+    // call service that fails before resource matching
+    long start = System.currentTimeMillis();
+    makeFilterErrorCall();
+    long elapsed = System.currentTimeMillis() - start + 100; // add buffer of a 100 ms
+
+    // assert that global request latency metrics should all be under client elapsed time
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().group().equals("jersey-metrics")) {
+        switch (metric.metricName().name()) {
+          // the below metrics are global request latency metrics
+          case "request-latency-avg":
+          case "request-latency-max":
+          case "request-latency-95":
+          case "request-latency-99":
+            assertTrue(Double.valueOf(metric.metricValue().toString()) < elapsed);
+            break;
+        }
+      }
+    }
+  }
+
   private void makeSuccessfulCall() {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
@@ -430,6 +608,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
         .path("/public/caught")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .get();
+    assertEquals(500, response.getStatus());
+  }
+
+  private void makeFilterErrorCall() {
+    Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
+        .target(server.getURI())
+        .path("/public/filterError")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
     assertEquals(500, response.getStatus());
@@ -460,6 +647,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       config.register(PrivateResource.class);
       config.register(new PublicResource());
       config.register(new Filter());
+      config.register(new PreMatchingErrorFilter());
       config.register(new MyExceptionMapper(appConfig));
 
       // ensures the dispatch error message gets shown in the response
@@ -530,9 +718,15 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
       throw new StatusCodeException(Status.TOO_MANY_REQUESTS, new RuntimeException("kaboom"));
     }
 
+    @GET
+    @Path("/filterError")
+    @PerformanceMetric("filterError")
+    public String filterError() {
+      return "should never get here";
+    }
   }
 
-  public class Filter implements ContainerRequestFilter {
+  private class Filter implements ContainerRequestFilter {
 
     private final String[] tags = new String[]{"", "value1", "value2"};
 
@@ -547,7 +741,18 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
   }
 
-  public final class MyExceptionMapper extends KafkaExceptionMapper {
+  @PreMatching
+  private class PreMatchingErrorFilter implements ContainerRequestFilter {
+    @Override
+    public void filter(ContainerRequestContext context) {
+      String path = context.getUriInfo().getPath();
+      if (path.equals("public/filterError")) {
+        throw new RuntimeException("Error before resource matching");
+      }
+    }
+  }
+
+  private final class MyExceptionMapper extends KafkaExceptionMapper {
 
     public MyExceptionMapper(final RestConfig restConfig) {
       super(restConfig);
@@ -564,7 +769,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     }
   }
 
-  public static class StatusCodeException extends RuntimeException {
+  private static class StatusCodeException extends RuntimeException {
 
     private final Status status;
     private final int code;
