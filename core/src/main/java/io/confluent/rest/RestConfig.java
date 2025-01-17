@@ -769,6 +769,7 @@ public class RestConfig extends AbstractConfig {
             PERCENTILE_MAX_LATENCY_MS_CONFIG,
             Type.DOUBLE,
             PERCENTILE_MAX_LATENCY_MS_DEFAULT,
+            ConfigDef.Range.atLeast(0),
             Importance.LOW,
             PERCENTILE_MAX_LATENCY_MS_DOC
         ).define(
