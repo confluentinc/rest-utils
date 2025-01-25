@@ -93,7 +93,7 @@ public class SaslTest {
     Path loginPropertiesFile = tmpFolder.resolve("login.properties");
 
     String jaas = "c3 {\n"
-                  + "  org.eclipse.jetty.jaas.spi.PropertyFileLoginModule required\n"
+                  + "  org.eclipse.jetty.security.jaas.spi.PropertyFileLoginModule required\n"
                   + "  debug=\"true\"\n"
                   + "  file=\"" + loginPropertiesFile.toAbsolutePath() + "\";\n"
                   + "};\n";
