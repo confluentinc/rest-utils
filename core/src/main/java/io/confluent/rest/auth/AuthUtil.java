@@ -20,8 +20,8 @@ import io.confluent.rest.RestConfig;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
+import org.eclipse.jetty.security.Constraint;
 
 public final class AuthUtil {
 

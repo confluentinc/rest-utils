@@ -147,8 +147,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           listeners.add(new RateLimitNetworkTrafficListener(appConfig));
         }
         NetworkTrafficListener combinedListener = new CombinedNetworkTrafficListener(listeners);
-        // TODO: change to connector.setNetworkTrafficListener(metricsListener) for jetty 11+
-        connector.addNetworkTrafficListener(combinedListener);
+        connector.setNetworkTrafficListener(combinedListener);
         log.info("Registered {} to connector of listener: {}",
             combinedListener.getClass().getSimpleName(), listenerName);
       }
