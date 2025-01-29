@@ -23,6 +23,7 @@ import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
+import org.apache.kafka.common.errors.GroupAuthorizationException;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.common.errors.InvalidPartitionsException;
 import org.apache.kafka.common.errors.InvalidReplicationFactorException;
@@ -77,6 +78,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   private static Map<Class<? extends ApiException>, ResponsePair> errorMap() {
     Map<Class<? extends ApiException>, ResponsePair> errorMap = new HashMap<>();
 
+    errorMap.put(GroupAuthorizationException.class, new ResponsePair(Status.FORBIDDEN,
+        KAFKA_AUTHORIZATION_ERROR_CODE));
     errorMap.put(BrokerNotAvailableException.class, new ResponsePair(Status.SERVICE_UNAVAILABLE,
         BROKER_NOT_AVAILABLE_ERROR_CODE));
     errorMap.put(InvalidReplicationFactorException.class, new ResponsePair(Status.BAD_REQUEST,
