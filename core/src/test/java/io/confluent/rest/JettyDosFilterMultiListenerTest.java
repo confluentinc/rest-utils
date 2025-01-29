@@ -25,10 +25,8 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
-import org.eclipse.jetty.servlets.DoSFilter;
-import org.eclipse.jetty.servlets.DoSFilter.Action;
-import org.eclipse.jetty.servlets.DoSFilter.Listener;
-import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
+
+import io.confluent.rest.jetty.DoSFilter;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -36,7 +34,7 @@ public class JettyDosFilterMultiListenerTest {
 
   private final DoSFilter.Listener listener1 = Mockito.mock(DoSFilter.Listener.class);
   private final DoSFilter.Listener listener2 = Mockito.mock(DoSFilter.Listener.class);
-  private final List<Listener> listeners = Arrays.asList(listener1, listener2);
+  private final List<DoSFilter.Listener> listeners = Arrays.asList(listener1, listener2);
 
   private final JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
       listeners);
@@ -48,12 +46,12 @@ public class JettyDosFilterMultiListenerTest {
   @Test
   public void test_2Listeners_bothListenersAreCalled() {
     when(dosfilter.getDelayMs()).thenReturn(rejectDelayMs);
-    when(listener1.onRequestOverLimit(any(), any(), any())).thenReturn(Action.REJECT);
-    when(listener2.onRequestOverLimit(any(), any(), any())).thenReturn(Action.REJECT);
-    Action action = multiListener.onRequestOverLimit(Mockito.mock(HttpServletRequest.class),
+    when(listener1.onRequestOverLimit(any(), any(), any())).thenReturn(DoSFilter.Action.REJECT);
+    when(listener2.onRequestOverLimit(any(), any(), any())).thenReturn(DoSFilter.Action.REJECT);
+    DoSFilter.Action action = multiListener.onRequestOverLimit(Mockito.mock(HttpServletRequest.class),
         Mockito.mock(
-            OverLimit.class), dosfilter);
-    assertEquals(action, Action.REJECT);
+            DoSFilter.OverLimit.class), dosfilter);
+    assertEquals(action, DoSFilter.Action.REJECT);
     verify(listener1, times(1)).onRequestOverLimit(any(), any(), any());
     verify(listener2, times(1)).onRequestOverLimit(any(), any(), any());
   }
@@ -63,11 +61,11 @@ public class JettyDosFilterMultiListenerTest {
     when(dosfilter.getDelayMs()).thenReturn(rejectDelayMs);
     // 1st listener throws, but 2nd should still get called.
     when(listener1.onRequestOverLimit(any(), any(), any())).thenThrow(new RuntimeException());
-    when(listener2.onRequestOverLimit(any(), any(), any())).thenReturn(Action.REJECT);
-    Action action = multiListener.onRequestOverLimit(Mockito.mock(HttpServletRequest.class),
+    when(listener2.onRequestOverLimit(any(), any(), any())).thenReturn(DoSFilter.Action.REJECT);
+    DoSFilter.Action action = multiListener.onRequestOverLimit(Mockito.mock(HttpServletRequest.class),
         Mockito.mock(
-            OverLimit.class), dosfilter);
-    assertEquals(action, Action.REJECT);
+            DoSFilter.OverLimit.class), dosfilter);
+    assertEquals(action, DoSFilter.Action.REJECT);
     verify(listener1, times(1)).onRequestOverLimit(any(), any(), any());
     verify(listener2, times(1)).onRequestOverLimit(any(), any(), any());
   }

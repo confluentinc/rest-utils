@@ -24,15 +24,14 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
+
+import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.metrics.stats.CumulativeCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.stats.WindowedCount;
-import org.eclipse.jetty.servlets.DoSFilter;
-import org.eclipse.jetty.servlets.DoSFilter.Action;
-import org.eclipse.jetty.servlets.DoSFilter.OverLimit;
 
 /**
  * Jetty DosFilterListener that records 429 metrics on DoSFilter of Jetty layer.
@@ -76,12 +75,12 @@ public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
   }
 
   @Override
-  public Action onRequestOverLimit(HttpServletRequest request, OverLimit overlimit,
-      DoSFilter dosFilter) {
+  public DoSFilter.Action onRequestOverLimit(HttpServletRequest request,
+      DoSFilter.OverLimit overlimit, DoSFilter dosFilter) {
     // KREST-10418: we don't use super function to get action object because
     // it will log a WARN line, in order to reduce verbosity
-    Action action = Action.fromDelay(dosFilter.getDelayMs());
-    if (fourTwoNineSensor != null && action.equals(Action.REJECT)) {
+    DoSFilter.Action action = DoSFilter.Action.fromDelay(dosFilter.getDelayMs());
+    if (fourTwoNineSensor != null && action.equals(DoSFilter.Action.REJECT)) {
       fourTwoNineSensor.record();
     }
     return action;
