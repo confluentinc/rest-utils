@@ -23,7 +23,6 @@ import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
-import org.apache.kafka.common.errors.GroupAuthorizationException;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.common.errors.InvalidPartitionsException;
 import org.apache.kafka.common.errors.InvalidReplicationFactorException;
@@ -49,6 +48,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 public class KafkaExceptionMapper extends GenericExceptionMapper {
@@ -78,8 +78,6 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   private static Map<Class<? extends ApiException>, ResponsePair> errorMap() {
     Map<Class<? extends ApiException>, ResponsePair> errorMap = new HashMap<>();
 
-    errorMap.put(GroupAuthorizationException.class, new ResponsePair(Status.FORBIDDEN,
-        KAFKA_AUTHORIZATION_ERROR_CODE));
     errorMap.put(BrokerNotAvailableException.class, new ResponsePair(Status.SERVICE_UNAVAILABLE,
         BROKER_NOT_AVAILABLE_ERROR_CODE));
     errorMap.put(InvalidReplicationFactorException.class, new ResponsePair(Status.BAD_REQUEST,
@@ -117,6 +115,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   @Override
   public Response toResponse(Throwable exception) {
     if (exception instanceof ExecutionException) {
+      return handleException(exception.getCause());
+    } else if (exception instanceof CompletionException) {
       return handleException(exception.getCause());
     } else {
       return handleException(exception);
