@@ -53,6 +53,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.BROKER_NOT_AVAILABLE_ERROR_CODE;
@@ -173,8 +174,27 @@ public class KafkaExceptionMapperTest {
         Status.INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
+  @Test
+  public void testWrappedExceptions() {
+    // Test exceptions wrapped in CompletionException
+    GroupAuthorizationException groupAuthorizationException = new GroupAuthorizationException("some message");
+    verifyMapperResponse(new CompletionException(groupAuthorizationException), Status.FORBIDDEN, KAFKA_AUTHORIZATION_ERROR_CODE);
+    SaslAuthenticationException saslAuthenticationException = new SaslAuthenticationException("some message");
+    verifyMapperResponse(new CompletionException(saslAuthenticationException), Status.UNAUTHORIZED, KAFKA_AUTHENTICATION_ERROR_CODE);
+    InvalidPartitionsException invalidPartitionsException = new InvalidPartitionsException("some message");
+    verifyMapperResponse(new CompletionException(invalidPartitionsException), Status.BAD_REQUEST, KAFKA_BAD_REQUEST_ERROR_CODE);
+
+    // Test exceptions wrapped in ExecutionException
+    TopicAuthorizationException topicAuthorizationException = new TopicAuthorizationException("some message");
+    verifyMapperResponse(new ExecutionException(topicAuthorizationException), Status.FORBIDDEN, KAFKA_AUTHORIZATION_ERROR_CODE);
+    AuthenticationException authenticationException = new AuthenticationException("some message");
+    verifyMapperResponse(new ExecutionException(authenticationException), Status.UNAUTHORIZED, KAFKA_AUTHENTICATION_ERROR_CODE);
+    UnknownServerException unknownServerException = new UnknownServerException("some message");
+    verifyMapperResponse(new ExecutionException(unknownServerException), Status.BAD_REQUEST, KAFKA_BAD_REQUEST_ERROR_CODE);
+  }
+
   private void verifyMapperResponse(Throwable throwable, Status status, int errorCode) {
-    Response response = exceptionMapper.toResponse(new ExecutionException("whats this then", throwable));
+    Response response = exceptionMapper.toResponse(throwable);
     assertNotNull(response);
     assertEquals(status.getStatusCode(), response.getStatus());
     ErrorMessage errorMessage = (ErrorMessage) response.getEntity();
