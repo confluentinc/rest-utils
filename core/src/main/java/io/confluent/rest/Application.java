@@ -84,6 +84,7 @@ import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -301,6 +302,21 @@ public abstract class Application<T extends RestConfig> {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
       server = new ApplicationServer<>(config);
+      server.registerApplication(this);
+    }
+    return server;
+  }
+
+  /**
+   * Configure and create the server.
+   *
+   * @param threadPool thread pool to use for the server
+   * @return server instance created with the given thread pool
+   * @throws ServletException if the server cannot be created
+   */
+  public Server createServer(ThreadPool threadPool) throws ServletException {
+    if (server == null) {
+      server = new ApplicationServer<>(config, threadPool);
       server.registerApplication(this);
     }
     return server;
