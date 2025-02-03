@@ -48,6 +48,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 public class KafkaExceptionMapper extends GenericExceptionMapper {
@@ -114,6 +115,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   @Override
   public Response toResponse(Throwable exception) {
     if (exception instanceof ExecutionException) {
+      return handleException(exception.getCause());
+    } else if (exception instanceof CompletionException) {
       return handleException(exception.getCause());
     } else {
       return handleException(exception);
