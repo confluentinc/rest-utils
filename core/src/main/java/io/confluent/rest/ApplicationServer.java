@@ -135,12 +135,16 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
   }
 
-  private void attachListener(RestConfig appConfig,
-                              String listenerName,
-                              Metrics metrics,
-                              Map<String, String> tags) {
+  private void attachNetworkTrafficListener(RestConfig appConfig,
+                                            String appListenerName,
+                                            Metrics metrics,
+                                            Map<String, String> tags) {
+    // if the application listener name is not specified (unnamed), attach NetworkTrafficListener
+    // to all connectors of the application,
+    // otherwise attach to the specified connector with the name
+    // matching the application listener name
     for (NetworkTrafficServerConnector connector : connectors) {
-      if (Objects.equals(connector.getName(), listenerName)) {
+      if (appListenerName == null || Objects.equals(connector.getName(), appListenerName)) {
         List<NetworkTrafficListener> listeners = new ArrayList<>();
         listeners.add(new MetricsListener(metrics, "jetty", tags));
         if (appConfig.getNetworkTrafficRateLimitEnable()) {
@@ -149,12 +153,14 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         NetworkTrafficListener combinedListener = new CombinedNetworkTrafficListener(listeners);
         // TODO: change to connector.setNetworkTrafficListener(metricsListener) for jetty 11+
         connector.addNetworkTrafficListener(combinedListener);
-        log.info("Registered {} to connector of listener: {}",
-            combinedListener.getClass().getSimpleName(), listenerName);
+        log.info("Registered {} to network connector {} of listener: {}",
+                 combinedListener.getClass().getSimpleName(),
+                 connector.getName(),
+                 appListenerName);
       }
     }
     if (connectors.isEmpty()) {
-      log.warn("No network connector configured for listener: {}", listenerName);
+      log.warn("No network connector configured for listener: {}", appListenerName);
     }
   }
 
@@ -220,8 +226,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
-      attachListener(app.getConfiguration(), app.getListenerName(),
-          app.getMetrics(), app.getMetricsTags());
+      attachNetworkTrafficListener(app.getConfiguration(), app.getListenerName(),
+                                   app.getMetrics(), app.getMetricsTags());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
