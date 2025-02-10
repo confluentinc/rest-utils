@@ -193,6 +193,10 @@ public class RestConfig extends AbstractConfig {
   protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether"
       + " request latency meets or violates SLA";
   protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
+  public static final String PERCENTILE_MAX_LATENCY_MS_CONFIG = "percentile.max.latency.ms";
+  protected static final String PERCENTILE_MAX_LATENCY_MS_DOC = "The threshold (in ms) of"
+          + " percentile maximum latency";
+  protected static final double PERCENTILE_MAX_LATENCY_MS_DEFAULT = 10000;
   public static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG =
       "metrics.global.stats.request.tags.enable";
   protected static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC = "Whether to use "
@@ -515,6 +519,12 @@ public class RestConfig extends AbstractConfig {
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
+  public static final String EXPECTED_SNI_HEADERS_CONFIG = "expected.sni.headers";
+  protected static final String EXPECTED_SNI_HEADERS_DOC =
+      "Comma-separated list of expected SNI headers for incoming connections. If a value is "
+          + "present, log a warning when handling connections, but do not reject the connection.";
+  protected static final String EXPECTED_SNI_HEADERS_DEFAULT = "";
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -755,6 +765,13 @@ public class RestConfig extends AbstractConfig {
             METRICS_LATENCY_SLA_MS_DEFAULT,
             Importance.LOW,
             METRICS_LATENCY_SLA_MS_DOC
+        ).define(
+            PERCENTILE_MAX_LATENCY_MS_CONFIG,
+            Type.DOUBLE,
+            PERCENTILE_MAX_LATENCY_MS_DEFAULT,
+            ConfigDef.Range.atLeast(0),
+            Importance.LOW,
+            PERCENTILE_MAX_LATENCY_MS_DOC
         ).define(
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG,
             Type.BOOLEAN,
@@ -1088,6 +1105,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             SNI_CHECK_ENABLED_DOC
         ).define(
+            EXPECTED_SNI_HEADERS_CONFIG,
+            Type.LIST,
+            EXPECTED_SNI_HEADERS_DEFAULT,
+            Importance.LOW,
+            EXPECTED_SNI_HEADERS_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1166,7 +1189,11 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestConfig(ConfigDef definition) {
-    this(definition, new TreeMap<>());
+    this(definition, new TreeMap<>(), false);
+  }
+
+  public RestConfig(ConfigDef definition, boolean doLog) {
+    this(definition, new TreeMap<>(), doLog);
   }
 
   public Time getTime() {
@@ -1442,6 +1469,10 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSniCheckEnable() {
     return getBoolean(SNI_CHECK_ENABLED_CONFIG);
+  }
+
+  public final List<String> getExpectedSniHeaders() {
+    return getList(EXPECTED_SNI_HEADERS_CONFIG);
   }
 
   /**
