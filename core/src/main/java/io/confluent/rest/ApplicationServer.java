@@ -39,17 +39,7 @@ import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.io.NetworkTrafficListener;
 import org.eclipse.jetty.jmx.MBeanContainer;
-import org.eclipse.jetty.server.ConnectionFactory;
-import org.eclipse.jetty.server.ConnectionLimit;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.HttpConfiguration;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.NetworkTrafficServerConnector;
-import org.eclipse.jetty.server.ProxyConnectionFactory;
-import org.eclipse.jetty.server.SecureRequestCustomizer;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -254,6 +244,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         config.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
     httpConfiguration.setResponseHeaderSize(
         config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
+
+    // Use original IP in forwarded requests
+    if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
+      httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
+    }
 
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
