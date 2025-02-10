@@ -255,6 +255,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     httpConfiguration.setResponseHeaderSize(
         config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
 
+    // Use original IP in forwarded requests
+    if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
+      httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
+    }
+
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
