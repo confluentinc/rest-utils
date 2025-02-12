@@ -541,10 +541,10 @@ public class RestConfig extends AbstractConfig {
   protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
 
   protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG =
-          "network.forwarded.request.enable";
+          "network.forwarded.request.customizer.enable";
   protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_DOC =
           "If true, forwarded requests will propagate the original IP address "
-              + "based on what is provided through HTTP headers.";
+              + "to remoteAddr based on what is provided through HTTP headers.";
   protected static final boolean NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT = false;
 
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG =
