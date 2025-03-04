@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +164,7 @@ public class CustomInitTest {
 
     WebSocket ws = Dsl.asyncHttpClient()
         .prepareGet(uri + "/test")
-        .setRequestTimeout(10000)
+        .setRequestTimeout(Duration.ofSeconds(10))
         .execute(wsHandler)
         .get();
 
