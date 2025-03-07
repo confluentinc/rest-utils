@@ -17,13 +17,12 @@
 package io.confluent.rest.handlers;
 
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
@@ -37,8 +36,8 @@ public class ExpectedSniHandler extends HandlerWrapper {
 
   @Override
   public void handle(String target, Request baseRequest,
-      HttpServletRequest request,
-      HttpServletResponse response) throws IOException, ServletException {
+                     Request request,
+                     Response response) throws IOException, ServletException {
     String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName == null) {
       log.warn("No SNI header present on request; request URI is {}", request.getRequestURI());
