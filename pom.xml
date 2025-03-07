@@ -153,7 +153,7 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty.http2</groupId>
-                <artifactId>http2-server</artifactId>
+                <artifactId>jetty-http2-server</artifactId>
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
@@ -177,24 +177,24 @@
                 <version>${conscrypt.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-servlet</artifactId>
+                <groupId>org.eclipse.jetty.ee10</groupId>
+                <artifactId>jetty-ee10-servlet</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.ee10</groupId>
+                <artifactId>jetty-ee10-servlets</artifactId>
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-servlets</artifactId>
-                <version>${jetty.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-jaas</artifactId>
+                <artifactId>jetty-security</artifactId>
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty.websocket</groupId>
-                <artifactId>javax-websocket-server-impl</artifactId>
-                <version>${jetty.version}</version>
+                <artifactId>websocket-javax-server</artifactId>
+                <version>10.0.0</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.jaxrs</groupId>
@@ -225,12 +225,12 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty.http2</groupId>
-                <artifactId>http2-client</artifactId>
+                <artifactId>jetty-http2-client</artifactId>
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty.http2</groupId>
-                <artifactId>http2-http-client-transport</artifactId>
+                <artifactId>jetty-http2-client-transport</artifactId>
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
