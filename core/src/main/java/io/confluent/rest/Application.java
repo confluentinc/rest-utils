@@ -52,7 +52,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.config.ConfigException;
