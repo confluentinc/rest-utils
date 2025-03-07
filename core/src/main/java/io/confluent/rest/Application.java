@@ -50,7 +50,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.servlet.DispatcherType;
+import jakarta.servlet.DispatcherType;
 import javax.servlet.Filter;
 import jakarta.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -73,7 +73,6 @@ import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.ee10.servlet.DefaultServlet;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
@@ -413,9 +412,9 @@ public abstract class Application<T extends RestConfig> {
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
 
-    RequestLogHandler requestLogHandler = new RequestLogHandler();
-    requestLogHandler.setRequestLog(requestLog);
-    context.insertHandler(requestLogHandler);
+    if (!server.isRunning()) {
+      server.setRequestLog(requestLog);
+    }
 
     List<String> expectedSniHeaders = config.getExpectedSniHeaders();
     if (config.getSniCheckEnable()) {

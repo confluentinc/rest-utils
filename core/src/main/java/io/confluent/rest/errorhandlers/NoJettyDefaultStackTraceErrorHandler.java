@@ -5,7 +5,7 @@
 package io.confluent.rest.errorhandlers;
 
 import java.io.IOException;
-import javax.servlet.RequestDispatcher;
+import jakarta.servlet.RequestDispatcher;
 
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.Request;
