@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 import jakarta.servlet.DispatcherType;
 import javax.servlet.Filter;
 import jakarta.servlet.ServletException;
-import javax.servlet.ServletRequest;
+import jakarta.servlet.ServletRequest;
 import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
