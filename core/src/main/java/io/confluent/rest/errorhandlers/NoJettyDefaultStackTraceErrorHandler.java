@@ -5,11 +5,11 @@
 package io.confluent.rest.errorhandlers;
 
 import java.io.IOException;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.RequestDispatcher;
+
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 
 public class NoJettyDefaultStackTraceErrorHandler extends ErrorHandler {
@@ -19,8 +19,8 @@ public class NoJettyDefaultStackTraceErrorHandler extends ErrorHandler {
   }
 
   @Override
-  protected void generateAcceptableResponse(Request baseRequest, HttpServletRequest request,
-      HttpServletResponse response, int code, String message) throws IOException {
+  protected void generateAcceptableResponse(Request baseRequest, Request request,
+      Response response, int code, String message) throws IOException {
     // set Exception to null to avoid exposing stack trace to clients
     request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, null);
     super.generateAcceptableResponse(baseRequest, request, response, code,
