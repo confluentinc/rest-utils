@@ -21,18 +21,19 @@ import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 import java.io.IOException;
 import jakarta.servlet.ServletException;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.server.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SniHandler extends HandlerWrapper {
+public class SniHandler extends Handler.Wrapper {
   private static final Logger log = LoggerFactory.getLogger(SniHandler.class);
 
   @Override
   public void handle(String target, Request baseRequest,
-                     Request request,
-                     Response response) throws IOException, ServletException {
+                     HttpServletRequest request,
+                     HttpServletResponse response) throws IOException, ServletException {
     String serverName = request.getServerName();
     String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName != null && !sniServerName.equals(serverName)) {

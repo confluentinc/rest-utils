@@ -17,8 +17,9 @@
 package io.confluent.rest.handlers;
 
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.server.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.List;
 
-public class ExpectedSniHandler extends HandlerWrapper {
+public class ExpectedSniHandler extends Handler.Wrapper {
   private static final Logger log = LoggerFactory.getLogger(ExpectedSniHandler.class);
   private final List<String> expectedSniHeaders;
 
@@ -36,8 +37,8 @@ public class ExpectedSniHandler extends HandlerWrapper {
 
   @Override
   public void handle(String target, Request baseRequest,
-                     Request request,
-                     Response response) throws IOException, ServletException {
+                     HttpServletRequest request,
+                     HttpServletResponse response) throws IOException, ServletException {
     String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName == null) {
       log.warn("No SNI header present on request; request URI is {}", request.getRequestURI());
