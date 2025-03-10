@@ -52,7 +52,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.Handler.Sequence;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -190,7 +190,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
   }
 
-  private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
+  private void finalizeHandlerCollection(Sequence handlers, Sequence wsHandlers) {
     /* DefaultHandler must come last to ensure all contexts
      * have a chance to handle a request first */
     handlers.addHandler(new DefaultHandler());
@@ -222,8 +222,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       this.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
     }
 
-    HandlerCollection handlers = new HandlerCollection();
-    HandlerCollection wsHandlers = new HandlerCollection();
+    Sequence handlers = new Sequence();
+    Sequence wsHandlers = new Sequence();
     for (Application<?> app : applications) {
       attachNetworkTrafficListener(app.getConfiguration(), app.getListenerName(),
                                    app.getMetrics(), app.getMetricsTags());

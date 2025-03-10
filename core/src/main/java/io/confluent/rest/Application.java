@@ -72,7 +72,7 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
-import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.Handler.Sequence;
 import org.eclipse.jetty.ee10.servlet.DefaultServlet;
 import org.eclipse.jetty.ee10.servlet.FilterHolder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
@@ -423,8 +423,8 @@ public abstract class Application<T extends RestConfig> {
       context.insertHandler(new ExpectedSniHandler(expectedSniHeaders));
     }
 
-    HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context});
+    Sequence handlers = new Sequence();
+    handlers.setHandlers(Arrays.asList(new Handler[]{context}));
 
     return handlers;
   }
