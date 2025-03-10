@@ -46,6 +46,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -60,6 +61,7 @@ import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
+import org.eclipse.jetty.security.jaas.JAASLoginService;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.DefaultIdentityService;
@@ -79,7 +81,7 @@ import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.ee10.servlets.CrossOriginFilter;
 import org.eclipse.jetty.ee10.servlets.HeaderFilter;
-import org.eclipse.jetty.util.resource.ResourceCollection;
+import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.StringUtil;
 import javax.websocket.server.ServerContainer;
@@ -247,7 +249,7 @@ public abstract class Application<T extends RestConfig> {
    *
    * @return static resource collection
    */
-  protected ResourceCollection getStaticResources() {
+  protected Collection<Resource> getStaticResources() {
     return null;
   }
 
@@ -327,12 +329,13 @@ public abstract class Application<T extends RestConfig> {
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
+
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
 
     if (listenerName != null && !listenerName.isEmpty()) {
       log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), listenerName);
-      context.setVirtualHosts(new String[]{"@" + listenerName});
+      context.setVirtualHosts(List.of("@" + listenerName));
     } else {
       log.info("Binding {} to all listeners.", this.getClass().getSimpleName());
     }
@@ -340,9 +343,9 @@ public abstract class Application<T extends RestConfig> {
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");
 
-    ResourceCollection staticResources = getStaticResources();
-    if (staticResources != null) {
-      context.setBaseResource(staticResources);
+    Collection<Resource> staticResources = getStaticResources();
+    if (staticResources != null && !staticResources.isEmpty()) {
+      context.setBaseResource(staticResources.iterator().next());
     }
 
     configureSecurityHandler(context);
@@ -443,6 +446,7 @@ public abstract class Application<T extends RestConfig> {
 
     configureSecurityHandler(webSocketContext);
 
+    // TODO: This has private access in JavaxWebSocketServletContainerInitializer.class.
     ServerContainer container =
             JavaxWebSocketServletContainerInitializer.initialize(webSocketContext);
     registerWebSocketEndpoints(container);

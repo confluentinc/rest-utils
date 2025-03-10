@@ -349,7 +349,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
         SslConnectionFactory sslConnectionFactory =
             new SslConnectionFactory(
-                sslContextFactories.get(listener), alpnConnectionFactory.getProtocol());
+                    (SslContextFactory.Server) sslContextFactories.get(listener),
+                    alpnConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
@@ -370,7 +371,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       } else {
         SslConnectionFactory sslConnectionFactory =
             new SslConnectionFactory(
-                sslContextFactories.get(listener), httpConnectionFactory.getProtocol());
+                    (SslContextFactory.Server) sslContextFactories.get(listener),
+                    httpConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));

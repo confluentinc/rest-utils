@@ -34,9 +34,10 @@ import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.ws.rs.BadRequestException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,8 +127,8 @@ public class CsrfTokenProtectionFilter implements Filter {
       ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
       throws IOException, ServletException {
 
-    Request httpServletRequest = (Request) servletRequest;
-    Response httpServletResponse = (Response) servletResponse;
+    HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+    HttpServletResponse httpServletResponse = (HttpServletResponse) servletResponse;
     String requestedBy = httpServletRequest.getHeader(Headers.REQUESTED_BY);
     String requestedWith = httpServletRequest.getHeader(Headers.REQUESTED_WITH);
 

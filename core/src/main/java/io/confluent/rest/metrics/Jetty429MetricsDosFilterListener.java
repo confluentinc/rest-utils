@@ -23,7 +23,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.eclipse.jetty.server.Request;
+import jakarta.servlet.http.HttpServletRequest;
 import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
@@ -74,7 +74,7 @@ public class Jetty429MetricsDosFilterListener extends DoSFilter.Listener {
   }
 
   @Override
-  public DoSFilter.Action onRequestOverLimit(Request request,
+  public DoSFilter.Action onRequestOverLimit(HttpServletRequest request,
       DoSFilter.OverLimit overlimit, DoSFilter dosFilter) {
     // KREST-10418: we don't use super function to get action object because
     // it will log a WARN line, in order to reduce verbosity

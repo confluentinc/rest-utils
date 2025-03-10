@@ -17,7 +17,7 @@
 package io.confluent.rest;
 
 import java.util.List;
-import org.eclipse.jetty.server.Request;
+import jakarta.servlet.http.HttpServletRequest;
 import io.confluent.rest.jetty.DoSFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +38,7 @@ public class JettyDosFilterMultiListener extends DoSFilter.Listener {
   }
 
   @Override
-  public DoSFilter.Action onRequestOverLimit(Request request,
+  public DoSFilter.Action onRequestOverLimit(HttpServletRequest request,
       DoSFilter.OverLimit overlimit, DoSFilter dosFilter) {
     // KREST-10418: we don't use super function to get action object because
     // it will log a WARN line, in order to reduce verbosity

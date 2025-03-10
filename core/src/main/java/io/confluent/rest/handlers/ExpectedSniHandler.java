@@ -17,14 +17,12 @@
 package io.confluent.rest.handlers;
 
 import org.eclipse.jetty.server.Request;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.util.Callback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.servlet.ServletException;
-import java.io.IOException;
 import java.util.List;
 
 public class ExpectedSniHandler extends Handler.Wrapper {
@@ -36,17 +34,18 @@ public class ExpectedSniHandler extends Handler.Wrapper {
   }
 
   @Override
-  public void handle(String target, Request baseRequest,
-                     HttpServletRequest request,
-                     HttpServletResponse response) throws IOException, ServletException {
+  public boolean handle(Request baseRequest,
+                     Response response,
+                     Callback callback) throws Exception {
     String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName == null) {
-      log.warn("No SNI header present on request; request URI is {}", request.getRequestURI());
+      log.warn("No SNI header present on request; request URI is {}", baseRequest.getHttpURI());
     } else if (!expectedSniHeaders.contains(sniServerName)) {
       log.warn("SNI header {} is not in the configured list of expected headers {}; "
-          + "request URI is {}", sniServerName, this.expectedSniHeaders, request.getRequestURI());
+          + "request URI is {}", sniServerName, this.expectedSniHeaders, baseRequest.getHttpURI());
     }
 
-    super.handle(target, baseRequest, request, response);
+    super.handle(baseRequest, response, callback);
+    return true;
   }
 }
