@@ -37,10 +37,11 @@ public class SniHandler extends Handler.Wrapper {
     String sniServerName = SniUtils.getSniServerName(baseRequest);
     if (sniServerName != null && !sniServerName.equals(serverName)) {
       log.debug("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
-      baseRequest.setHandled(true);
-      response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+      Response.writeError(baseRequest, response, callback,
+              MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
     super.handle(baseRequest, response, callback);
+    callback.succeeded();
     return true;
   }
 }
