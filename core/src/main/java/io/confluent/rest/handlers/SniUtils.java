@@ -28,9 +28,10 @@ import java.util.List;
 
 public class SniUtils {
   public static String getSniServerName(Request baseRequest) {
-    EndPoint endpoint = baseRequest.getHttpURI().getEndPoint();
-    if (endpoint instanceof SslConnection.DecryptedEndPoint) {
-      SSLSession session = ((SslConnection.DecryptedEndPoint) endpoint)
+    SslConnection connection = (SslConnection) baseRequest.getConnectionMetaData().getConnection();
+    EndPoint endpoint = connection.getEndPoint();
+    if (endpoint instanceof SslConnection.SslEndPoint) {
+      SSLSession session = ((SslConnection.SslEndPoint) endpoint)
           .getSslConnection()
           .getSSLEngine()
           .getSession();
