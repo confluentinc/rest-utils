@@ -141,16 +141,17 @@ public final class AuthUtil {
       final boolean authenticate,
       final String pathSpec
   ) {
-    final Constraint constraint = new Constraint();
-    constraint.setAuthenticate(authenticate);
+
+    final Constraint.Builder constraint = new Constraint.Builder();
+    //constraint.setAuthenticate(authenticate);
     if (authenticate) {
       final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      constraint.setRoles(roles.toArray(new String[0]));
+      constraint.roles(roles.toArray(new String[0]));
     }
 
     final ConstraintMapping mapping = new ConstraintMapping();
-    mapping.setConstraint(constraint);
     mapping.setMethod("*");
+    mapping.setConstraint(constraint.build());
 
     if (isRejectOptions(restConfig)) {
       mapping.setMethodOmissions(new String[]{"OPTIONS"});
@@ -168,16 +169,16 @@ public final class AuthUtil {
 
     if (isRejectOptions(config)) {
 
-      Constraint forbidConstraint = new Constraint();
-      forbidConstraint.setName("Disable OPTIONS");
+      Constraint.Builder forbidConstraint = new Constraint.Builder();
+      forbidConstraint.name("Disable OPTIONS");
       //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
       // forbidding access
-      forbidConstraint.setAuthenticate(true);
+      //forbidConstraint.setAuthenticate(true);
 
       ConstraintMapping forbidMapping = new ConstraintMapping();
       forbidMapping.setMethod("OPTIONS");
       forbidMapping.setPathSpec("/*");
-      forbidMapping.setConstraint(forbidConstraint);
+      forbidMapping.setConstraint(forbidConstraint.build());
       return Optional.of(forbidMapping);
 
     }
