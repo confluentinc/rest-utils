@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
