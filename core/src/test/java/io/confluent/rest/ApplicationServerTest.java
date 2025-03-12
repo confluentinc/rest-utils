@@ -12,8 +12,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -118,9 +118,9 @@ public class ApplicationServerTest {
       }
 
       @Override
-      protected ResourceCollection getStaticResources() {
-        return new ResourceCollection(Resource.newClassPathResource("static"));
-      }
+      protected Collection<Resource> getStaticResources() {
+        ResourceFactory.LifeCycle resourceFactory = ResourceFactory.lifecycle();
+        return List.of(resourceFactory.newClassLoaderResource("static"));      }
     };
 
     server.registerApplication(app1);

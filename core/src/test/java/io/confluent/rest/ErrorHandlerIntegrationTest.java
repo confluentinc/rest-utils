@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.net.ssl.SSLContext;
@@ -25,16 +26,14 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.security.AbstractLoginService;
+import org.eclipse.jetty.client.ContentResponse;
+import org.eclipse.jetty.security.*;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.security.ServerAuthException;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Authentication;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -237,12 +236,12 @@ public class ErrorHandlerIntegrationTest {
     @Override
     protected void configureSecurityHandler(ServletContextHandler context) {
       final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-      Constraint constraint = new Constraint();
-      constraint.setAuthenticate(true);
+      Constraint.Builder constraint = new Constraint.Builder();
+      // constraint.setAuthenticate(true);
       String[] roles = {"**"};
-      constraint.setRoles(roles);
+      constraint.roles(roles);
       ConstraintMapping mapping = new ConstraintMapping();
-      mapping.setConstraint(constraint);
+      mapping.setConstraint(constraint.build());
       mapping.setMethod("*");
       mapping.setPathSpec("/*");
 
@@ -266,8 +265,8 @@ public class ErrorHandlerIntegrationTest {
   private static class DummyLoginService extends AbstractLoginService {
 
     @Override
-    protected String[] loadRoleInfo(final UserPrincipal user) {
-      return new String[0];
+    protected List<RolePrincipal> loadRoleInfo(final UserPrincipal user) {
+      return List.of();
     }
 
     @Override

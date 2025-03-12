@@ -18,7 +18,7 @@ package io.confluent.rest;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.resource.ResourceCollection;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import jakarta.ws.rs.GET;
@@ -111,8 +113,9 @@ public class StaticResourcesTest {
     }
 
     @Override
-    protected ResourceCollection getStaticResources() {
-      return new ResourceCollection(Resource.newClassPathResource("static"));
+    protected Collection<Resource> getStaticResources() {
+      ResourceFactory.LifeCycle resourceFactory = ResourceFactory.lifecycle();
+      return List.of(resourceFactory.newClassLoaderResource("static"));
     }
   }
 

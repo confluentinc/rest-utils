@@ -34,7 +34,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Configurable;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
