@@ -27,13 +27,18 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ContentResponse;
-import org.eclipse.jetty.security.*;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.AbstractLoginService;
+import org.eclipse.jetty.security.Constraint;
+import org.eclipse.jetty.security.RolePrincipal;
+import org.eclipse.jetty.security.UserPrincipal;
+import org.eclipse.jetty.security.ServerAuthException;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
-import org.eclipse.jetty.server.Authentication;
+import org.eclipse.jetty.security.AuthenticationState;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,7 +96,7 @@ public class ErrorHandlerIntegrationTest {
         .path("/test/path")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI (localhost)
-        .header("Host", "abc.com")
+        .headers(headers -> headers.put("Host", "abc.com"))
         .send();
 
     String responseValue = response.getContentAsString();
@@ -130,7 +135,7 @@ public class ErrorHandlerIntegrationTest {
         .path("/test/path")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI (localhost)
-        .header("Host", "abc.com")
+        .headers(headers -> headers.put("Host", "abc.com"))
         .send();
 
     String responseValue = response.getContentAsString();
@@ -256,8 +261,8 @@ public class ErrorHandlerIntegrationTest {
   private static class DummyAuthenticator extends BasicAuthenticator {
 
     @Override
-    public Authentication validateRequest(ServletRequest req, ServletResponse res,
-        boolean mandatory) throws ServerAuthException {
+    public AuthenticationState validateRequest(ServletRequest req, ServletResponse res,
+        Callback callback) throws ServerAuthException {
       throw new RuntimeException(DUMMY_EXCEPTION);
     }
   }

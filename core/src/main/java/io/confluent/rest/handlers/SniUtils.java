@@ -16,8 +16,8 @@
 
 package io.confluent.rest.handlers;
 
-import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection;
+import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.server.Request;
 
 import javax.net.ssl.ExtendedSSLSession;
@@ -28,13 +28,9 @@ import java.util.List;
 
 public class SniUtils {
   public static String getSniServerName(Request baseRequest) {
-    SslConnection connection = (SslConnection) baseRequest.getConnectionMetaData().getConnection();
-    EndPoint endpoint = connection.getEndPoint();
-    if (endpoint instanceof SslConnection.SslEndPoint) {
-      SSLSession session = ((SslConnection.SslEndPoint) endpoint)
-          .getSslConnection()
-          .getSSLEngine()
-          .getSession();
+    Connection connection = baseRequest.getConnectionMetaData().getConnection();
+    if (connection instanceof SslConnection) {
+      SSLSession session = ((SslConnection) connection).getSSLEngine().getSession();
       if (session instanceof ExtendedSSLSession) {
         List<SNIServerName> servers = ((ExtendedSSLSession) session).getRequestedServerNames();
         if (servers != null) {

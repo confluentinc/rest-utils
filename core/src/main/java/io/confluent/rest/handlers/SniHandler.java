@@ -40,8 +40,6 @@ public class SniHandler extends Handler.Wrapper {
       Response.writeError(baseRequest, response, callback,
               MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
-    super.handle(baseRequest, response, callback);
-    callback.succeeded();
-    return true;
+    return super.handle(baseRequest, response, callback);
   }
 }

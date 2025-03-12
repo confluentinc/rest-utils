@@ -92,7 +92,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, "host.value.does.not.matter")
+        .headers(headers -> headers.put(HttpHeader.HOST, "host.value.does.not.matter"))
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -115,7 +115,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .headers(headers -> headers.put(HttpHeader.HOST, KSQL_HOST))
         .send();
 
     // the request is successful because anotherhost is SAN in certificate
@@ -139,7 +139,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .headers(headers -> headers.put(HttpHeader.HOST, KSQL_HOST))
         .send();
 
     // 421 because SNI check is enabled
@@ -171,7 +171,7 @@ public class SniHandlerIntegrationTest {
     response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, KAFKA_REST_HOST)
+        .headers(headers -> headers.put(HttpHeader.HOST, KAFKA_REST_HOST))
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());

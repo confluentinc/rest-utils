@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.management.MBeanServer;
@@ -65,7 +66,7 @@ import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.security.Constraint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -218,8 +219,8 @@ public class ApplicationTest {
     assertEquals(1, securityHandler.getConstraintMappings().size());
     final Constraint constraint = securityHandler.getConstraintMappings().get(0).getConstraint();
     assertFalse(constraint.isAnyRole());
-    assertEquals(constraint.getRoles().length, 2);
-    assertArrayEquals(constraint.getRoles(), new String[]{"roleA", "roleB"});
+    assertEquals(constraint.getRoles().size(), 2);
+    assertArrayEquals(new Set[]{constraint.getRoles()}, new String[]{"roleA", "roleB"});
   }
 
   @Test

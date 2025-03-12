@@ -44,8 +44,6 @@ public class ExpectedSniHandler extends Handler.Wrapper {
       log.warn("SNI header {} is not in the configured list of expected headers {}; "
           + "request URI is {}", sniServerName, this.expectedSniHeaders, baseRequest.getHttpURI());
     }
-
-    super.handle(baseRequest, response, callback);
-    return true;
+    return super.handle(baseRequest, response, callback);
   }
 }
