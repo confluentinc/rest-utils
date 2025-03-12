@@ -26,7 +26,7 @@ import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 import javax.websocket.server.ServerEndpointConfig;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -53,21 +53,21 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.security.auth.login.Configuration;
-import javax.ws.rs.GET;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.SecurityContext;
 
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
-import static javax.ws.rs.core.Response.Status.FORBIDDEN;
-import static javax.ws.rs.core.Response.Status.OK;
-import static javax.ws.rs.core.Response.Status.UNAUTHORIZED;
+import static jakarta.ws.rs.core.Response.Status.FORBIDDEN;
+import static jakarta.ws.rs.core.Response.Status.OK;
+import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -329,18 +329,18 @@ public class SaslTest {
     }
   }
 
-  @javax.ws.rs.Path("/")
+  @jakarta.ws.rs.Path("/")
   @Produces(MediaType.TEXT_PLAIN)
   public static class SaslTestResource {
     @GET
-    @javax.ws.rs.Path("/principal")
+    @jakarta.ws.rs.Path("/principal")
     @PerformanceMetric("principal")
     public String principal(@Context SecurityContext context) {
       return context.getUserPrincipal().getName();
     }
 
     @GET
-    @javax.ws.rs.Path("/role/{role}")
+    @jakarta.ws.rs.Path("/role/{role}")
     @PerformanceMetric("role")
     public boolean hello(
         @PathParam("role") String role,
