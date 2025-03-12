@@ -84,8 +84,8 @@ import org.eclipse.jetty.ee10.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.StringUtil;
-import javax.websocket.server.ServerContainer;
-import org.eclipse.jetty.websocket.javax.server.config.JavaxWebSocketServletContainerInitializer;
+import jakarta.websocket.server.ServerContainer;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
@@ -446,9 +446,8 @@ public abstract class Application<T extends RestConfig> {
 
     configureSecurityHandler(webSocketContext);
 
-    // TODO: This has private access in JavaxWebSocketServletContainerInitializer.class.
     ServerContainer container =
-            JavaxWebSocketServletContainerInitializer.initialize(webSocketContext);
+            JakartaWebSocketServletContainerInitializer.initialize(webSocketContext);
     registerWebSocketEndpoints(container);
 
     configureWebSocketPostResourceHandling(webSocketContext);
