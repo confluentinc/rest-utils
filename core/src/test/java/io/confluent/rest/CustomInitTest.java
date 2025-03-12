@@ -62,8 +62,8 @@ import org.eclipse.jetty.security.RolePrincipal;
 import org.eclipse.jetty.security.UserPrincipal;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.security.Constraint;
 import org.eclipse.jetty.util.security.Password;
 import jakarta.websocket.server.ServerContainer;
@@ -224,12 +224,12 @@ public class CustomInitTest {
     @Override
     protected List<RolePrincipal> loadRoleInfo(final UserPrincipal user) {
       if (user.getName().equals("jun")) {
-        return new String[] {"some-role"};
+        return List.of(new RolePrincipal("some-role"));
       }
       if (user.getName().equals("neha")) {
-        return new String[] {"SomeRequiredRole","another"};
+        return List.of(new RolePrincipal("SomeRequiredRole"), new RolePrincipal("another"));
       }
-      return new String[0];
+      return List.of();
     }
 
     @Override
