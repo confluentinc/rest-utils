@@ -26,6 +26,8 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
+import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
@@ -53,6 +55,18 @@ public class ErrorHandlerIntegrationTest {
   private File clientKeystore;
 
   public static final String SSL_PASSWORD = "test1234";
+
+  HttpClient httpClient(SslContextFactory.Client sslContextFactory) {
+    final HttpClient client;
+    if (sslContextFactory != null) {
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+    } else {
+      client = new HttpClient();
+    }
+    return client;
+  }
 
   @BeforeEach
   public void setUp() {
@@ -165,7 +179,7 @@ public class ErrorHandlerIntegrationTest {
           SslContextFactory.Client.SniProvider.NON_DOMAIN_SNI_PROVIDER);
       sslContextFactory.setSslContext(sslContext);
 
-      httpClient = new HttpClient(sslContextFactory);
+      httpClient = httpClient(sslContextFactory);
     } else {
       httpClient = new HttpClient();
     }

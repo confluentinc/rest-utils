@@ -40,7 +40,9 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ContentResponse;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -59,6 +61,18 @@ public class HstsIntegrationTest {
   private HttpClient httpClient;
   private Properties props;
   private File clientKeystore;
+
+  HttpClient httpClient(SslContextFactory.Client sslContextFactory) {
+    final HttpClient client;
+    if (sslContextFactory != null) {
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+    } else {
+      client = new HttpClient();
+    }
+    return client;
+  }
 
   @BeforeEach
   public void setup() throws Exception {
@@ -141,7 +155,7 @@ public class HstsIntegrationTest {
       SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
       sslContextFactory.setSslContext(sslContext);
 
-      httpClient = new HttpClient(sslContextFactory);
+      httpClient = httpClient(sslContextFactory);
     } else {
       httpClient = new HttpClient();
     }
