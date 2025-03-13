@@ -22,7 +22,11 @@ import org.glassfish.jersey.servlet.ServletProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.Collection;
+import java.util.List;
 
 import jakarta.ws.rs.core.Configurable;
 
