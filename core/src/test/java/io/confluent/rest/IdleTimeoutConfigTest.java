@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Configurable;
 
 
 public class IdleTimeoutConfigTest {
