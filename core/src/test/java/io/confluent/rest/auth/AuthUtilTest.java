@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -133,7 +135,7 @@ public class AuthUtilTest {
     // Then:
 //    assertThat(mapping.getConstraint().isAnyRole(), is(true));
 //    assertThat(mapping.getConstraint().isAnyAuth(), is(false));
-    assertThat(mapping.getConstraint().getRoles(), is(new String[]{"*"}));
+    assertThat(mapping.getConstraint().getRoles(), is(Set.of("*")));
   }
 
   @Test
@@ -147,7 +149,7 @@ public class AuthUtilTest {
 
     // Then:
 //    assertThat(mapping.getConstraint().isAnyRole(), is(false));
-    assertThat(mapping.getConstraint().getRoles(), is(new String[]{"r1","r2"}));
+    assertThat(mapping.getConstraint().getRoles(), is(Set.of("r1", "r2")));
   }
 
   @Test
@@ -161,7 +163,7 @@ public class AuthUtilTest {
 
     // Then:
 //    assertThat(mapping.getConstraint().isAnyRole(), is(true));
-    assertThat(mapping.getConstraint().getRoles(), is(new String[]{"*"}));
+    assertThat(mapping.getConstraint().getRoles(), is(Set.of("*")));
   }
 
   @Test
