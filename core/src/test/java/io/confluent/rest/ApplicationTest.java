@@ -181,7 +181,7 @@ public class ApplicationTest {
 
     ConstraintSecurityHandler securityHandler = new TestApp(config).createBasicSecurityHandler();
     assertEquals(securityHandler.getRealmName(), REALM);
-    assertTrue(securityHandler.getRoles().isEmpty());
+    assertTrue(securityHandler.getConstraintMappings().get(0).getConstraint().getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
     assertNotNull(securityHandler.getAuthenticator());
     assertEquals(1, securityHandler.getConstraintMappings().size());

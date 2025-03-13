@@ -25,6 +25,8 @@ import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.io.ClientConnector;
@@ -275,7 +277,7 @@ public class ErrorHandlerIntegrationTest {
   private static class DummyAuthenticator extends BasicAuthenticator {
 
     @Override
-    public AuthenticationState validateRequest(ServletRequest req, ServletResponse res,
+    public AuthenticationState validateRequest(Request req, Response res,
         Callback callback) throws ServerAuthException {
       throw new RuntimeException(DUMMY_EXCEPTION);
     }
