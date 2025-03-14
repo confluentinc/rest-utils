@@ -51,8 +51,8 @@ import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 

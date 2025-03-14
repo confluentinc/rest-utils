@@ -25,8 +25,10 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestSslUtils.CertificateBuilder;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http2.client.HTTP2Client;
-import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
+import org.eclipse.jetty.http2.client.transport.HttpClientTransportOverHTTP2;
+import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,10 +46,10 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
 
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
@@ -78,6 +80,19 @@ public class Http2Test {
   private static final String SSL_PASSWORD = "test1234";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
 
+  HttpClient httpClient(SslContextFactory.Client sslContextFactory, HTTP2Client http2Client) {
+    final HttpClient client;
+    if (http2Client != null) {
+      client = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
+    } else if (sslContextFactory != null) {
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+    } else {
+      client = new HttpClient();
+    }
+    return client;
+  }
   @BeforeEach
   public void setUp() throws Exception {
     try {
@@ -286,11 +301,11 @@ public class Http2Test {
     }
   }
 
-  private SslContextFactory buildSslContextFactory(String clientKeystoreLocation,
+  private SslContextFactory.Client buildSslContextFactory(String clientKeystoreLocation,
                                                    String clientKeystorePassword,
                                                    String clientKeyPassword)
       throws Exception {
-    SslContextFactory sslContextFactory = new SslContextFactory.Client();
+    SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
     // trust all self-signed certs.
     SSLContextBuilder sslContextBuilder = SSLContexts.custom()
             .loadTrustMaterial(new TrustSelfSignedStrategy());
@@ -322,9 +337,10 @@ public class Http2Test {
                                 String clientKeyPassword)
       throws Exception {
     log.debug("Making GET using HTTPS " + url);
-    HttpClient httpClient = new HttpClient(buildSslContextFactory(clientKeystoreLocation,
-                                                                  clientKeystorePassword,
-                                                                  clientKeyPassword));
+    SslContextFactory.Client sslContextFactory = buildSslContextFactory(clientKeystoreLocation,
+            clientKeystorePassword,
+            clientKeyPassword);
+    HttpClient httpClient = httpClient(sslContextFactory,null);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
@@ -350,10 +366,10 @@ public class Http2Test {
       throws Exception {
     log.debug("Making GET using HTTP/2 " + url);
     HTTP2Client http2Client = new HTTP2Client();
-    HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client),
-                                           buildSslContextFactory(clientKeystoreLocation,
-                                                                  clientKeystorePassword,
-                                                                  clientKeyPassword));
+    SslContextFactory.Client sslContextFactory = buildSslContextFactory(clientKeystoreLocation,
+            clientKeystorePassword,
+            clientKeyPassword);
+    HttpClient httpClient = httpClient(sslContextFactory,http2Client);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
