@@ -197,7 +197,7 @@ public class ApplicationTest {
 
     ConstraintSecurityHandler securityHandler = new TestApp(config).createBasicSecurityHandler();
     assertEquals(securityHandler.getRealmName(), REALM);
-    assertTrue(securityHandler.getConstraintMappings().get(0).getConstraint().getRoles().isEmpty());
+    assertThat(securityHandler.getConstraintMappings().get(0).getConstraint().getRoles(), is(Set.of("*")));
     assertNotNull(securityHandler.getLoginService());
     assertNotNull(securityHandler.getAuthenticator());
     assertEquals(1, securityHandler.getConstraintMappings().size());
@@ -216,11 +216,11 @@ public class ApplicationTest {
     assertFalse(securityHandler.getConstraintMappings().get(0).getConstraint().getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
     assertNotNull(securityHandler.getAuthenticator());
-    assertEquals(1, securityHandler.getConstraintMappings().size());
+    assertEquals(2, securityHandler.getConstraintMappings().get(0).getConstraint().getRoles().size());
     final Constraint constraint = securityHandler.getConstraintMappings().get(0).getConstraint();
 //    assertFalse(constraint.isAnyRole());
     assertEquals(constraint.getRoles().size(), 2);
-    assertArrayEquals(new Set[]{constraint.getRoles()}, new String[]{"roleA", "roleB"});
+    assertEquals(Set.of("roleA", "roleB"), securityHandler.getConstraintMappings().get(0).getConstraint().getRoles());
   }
 
   @Test

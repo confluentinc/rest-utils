@@ -446,7 +446,10 @@ public abstract class Application<T extends RestConfig> {
 
     configureSecurityHandler(webSocketContext);
 
-    JakartaWebSocketServletContainerInitializer.configure(webSocketContext,null);
+    JakartaWebSocketServletContainerInitializer.configure(
+            webSocketContext, (servletContext, serverContainer) -> {
+            registerWebSocketEndpoints(serverContainer);
+            });
 
     configureWebSocketPostResourceHandling(webSocketContext);
     applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG);
