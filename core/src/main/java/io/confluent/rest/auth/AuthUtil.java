@@ -144,10 +144,20 @@ public final class AuthUtil {
 
     final Constraint.Builder constraint = new Constraint.Builder();
     //constraint.setAuthenticate(authenticate);
+
     if (authenticate) {
       final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      constraint.roles(roles.toArray(new String[0]));
+      if (roles.isEmpty()) {
+        //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
+        // forbidding access
+        constraint.authorization(Constraint.FORBIDDEN.getAuthorization());
+      } else if (roles.size() == 1 && roles.get(0).equals("*")) {
+        constraint.authorization(Constraint.KNOWN_ROLE.getAuthorization());
+      } else {
+        constraint.roles(roles.toArray(new String[0]));
+      }
     }
+
 
     final ConstraintMapping mapping = new ConstraintMapping();
     mapping.setMethod("*");
@@ -173,6 +183,7 @@ public final class AuthUtil {
       forbidConstraint.name("Disable OPTIONS");
       //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
       // forbidding access
+      forbidConstraint.authorization(Constraint.FORBIDDEN.getAuthorization());
       //forbidConstraint.setAuthenticate(true);
 
       ConstraintMapping forbidMapping = new ConstraintMapping();

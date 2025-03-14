@@ -19,6 +19,8 @@ package io.confluent.rest.auth;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.RestConfig;
 import java.util.Arrays;
@@ -28,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
+import org.eclipse.jetty.security.Constraint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -123,7 +126,9 @@ public class AuthUtilTest {
     // When:
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
-    // Then:
+    // Then:     // AUTHENTICATION_ROLES_DEFAULT -  unmodifiableList(Arrays.asList("*"));
+    assertEquals(Constraint.Authorization.KNOWN_ROLE, mapping.getConstraint().getAuthorization());
+
 //    assertThat(mapping.getConstraint().getAuthenticate(), is(true));
   }
 
@@ -135,7 +140,9 @@ public class AuthUtilTest {
     // Then:
 //    assertThat(mapping.getConstraint().isAnyRole(), is(true));
 //    assertThat(mapping.getConstraint().isAnyAuth(), is(false));
-    assertThat(mapping.getConstraint().getRoles(), is(Set.of("*")));
+    // AUTHENTICATION_ROLES_DEFAULT -  unmodifiableList(Arrays.asList("*"));
+    assertEquals(Constraint.Authorization.KNOWN_ROLE, mapping.getConstraint().getAuthorization());
+    assertTrue(mapping.getConstraint().getRoles().isEmpty());
   }
 
   @Test
@@ -149,6 +156,7 @@ public class AuthUtilTest {
 
     // Then:
 //    assertThat(mapping.getConstraint().isAnyRole(), is(false));
+    assertEquals(Constraint.Authorization.SPECIFIC_ROLE,mapping.getConstraint().getAuthorization());
     assertThat(mapping.getConstraint().getRoles(), is(Set.of("r1", "r2")));
   }
 
@@ -156,14 +164,15 @@ public class AuthUtilTest {
   public void shouldCreateGlobalConstraintWithNoRoles() {
     // Given:
     config = restConfigWith(ImmutableMap.of(
-        RestConfig.AUTHENTICATION_ROLES_CONFIG, "*"));
+        RestConfig.AUTHENTICATION_ROLES_CONFIG, ""));
 
     // When:
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
 //    assertThat(mapping.getConstraint().isAnyRole(), is(true));
-    assertThat(mapping.getConstraint().getRoles(), is(Set.of("*")));
+    assertEquals(Constraint.Authorization.FORBIDDEN, mapping.getConstraint().getAuthorization());
+    assertTrue(mapping.getConstraint().getRoles().isEmpty());
   }
 
   @Test
@@ -206,9 +215,11 @@ public class AuthUtilTest {
     assertThat(mappings.size(), is(2));
     assertThat(mappings.get(0).getMethod(), is("*"));
     assertThat(mappings.get(0).getPathSpec(), is("/path/1"));
+    assertEquals(Constraint.Authorization.INHERIT, mappings.get(0).getConstraint().getAuthorization());
 //    assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(false));
     assertThat(mappings.get(1).getMethod(), is("*"));
     assertThat(mappings.get(1).getPathSpec(), is("/path/2"));
+    assertEquals(Constraint.Authorization.INHERIT, mappings.get(1).getConstraint().getAuthorization());
 //    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false));
   }
 
@@ -224,6 +235,7 @@ public class AuthUtilTest {
     // Then:
     assertThat(mappings.getMethod(), is("*"));
     assertThat(mappings.getPathSpec(), is("/path/*"));
+    assertEquals(Constraint.Authorization.INHERIT, mappings.getConstraint().getAuthorization());
 //    assertThat(mappings.getConstraint().getAuthenticate(), is(false));
   }
 
@@ -239,6 +251,7 @@ public class AuthUtilTest {
     // Then:
     assertThat(mappings.getMethod(), is("*"));
     assertThat(mappings.getPathSpec(), is("/path/*"));
+    assertEquals(Constraint.Authorization.KNOWN_ROLE, mappings.getConstraint().getAuthorization());
 //    assertThat(mappings.getConstraint().getAuthenticate(), is(true));
   }
 
@@ -256,6 +269,7 @@ public class AuthUtilTest {
 //    assertThat(mappings.get().getConstraint().isAnyRole(), is(false));
     assertThat(mappings.get().getMethod(), is("OPTIONS"));
     assertThat(mappings.get().getPathSpec(), is("/*"));
+    assertEquals(Constraint.Authorization.FORBIDDEN, mappings.get().getConstraint().getAuthorization());
 //    assertThat(mappings.get().getConstraint().getAuthenticate(), is(true));
 
   }

@@ -21,12 +21,7 @@ import static org.apache.kafka.common.metrics.MetricsContext.NAMESPACE;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.extension.ResourceExtension;
@@ -185,7 +180,12 @@ public class ApplicationTest {
     assertNotNull(securityHandler.getLoginService());
     assertNotNull(securityHandler.getAuthenticator());
     assertEquals(1, securityHandler.getConstraintMappings().size());
+    // No roles means don't permit any one, so this shouldn't be any user
 //    assertFalse(securityHandler.getConstraintMappings().get(0).getConstraint().isAnyRole());
+    assertEquals(Constraint.Authorization.FORBIDDEN, securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
+    //Access not allowed. Equivalent to Servlet AuthConstraint with no roles.Do we expect forbidden here
+    // https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#FORBIDDEN
+//    assertEquals(Constraint.Authorization.FORBIDDEN, securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
   }
 
   @Test
@@ -197,11 +197,14 @@ public class ApplicationTest {
 
     ConstraintSecurityHandler securityHandler = new TestApp(config).createBasicSecurityHandler();
     assertEquals(securityHandler.getRealmName(), REALM);
-    assertThat(securityHandler.getConstraintMappings().get(0).getConstraint().getRoles(), is(Set.of("*")));
+    assertTrue(securityHandler.getConstraintMappings().get(0).getConstraint().getRoles().isEmpty());
     assertNotNull(securityHandler.getLoginService());
     assertNotNull(securityHandler.getAuthenticator());
     assertEquals(1, securityHandler.getConstraintMappings().size());
+    // Access allowed for known role which is equivalent of servlet role * as per the docs
 //    assertTrue(securityHandler.getConstraintMappings().get(0).getConstraint().isAnyRole());
+    assertEquals(Constraint.Authorization.KNOWN_ROLE, securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
+
   }
 
   @Test
@@ -218,7 +221,9 @@ public class ApplicationTest {
     assertNotNull(securityHandler.getAuthenticator());
     assertEquals(2, securityHandler.getConstraintMappings().get(0).getConstraint().getRoles().size());
     final Constraint constraint = securityHandler.getConstraintMappings().get(0).getConstraint();
-//    assertFalse(constraint.isAnyRole());
+    // Access allowed only for authenticated user with specific role(s).
+    // https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#SPECIFIC_ROLE
+    assertEquals(Constraint.Authorization.SPECIFIC_ROLE,securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
     assertEquals(constraint.getRoles().size(), 2);
     assertEquals(Set.of("roleA", "roleB"), securityHandler.getConstraintMappings().get(0).getConstraint().getRoles());
   }
@@ -232,12 +237,17 @@ public class ApplicationTest {
 
     final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
     assertThat(mappings.size(), is(3));
-    assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertThat(mappings.get(0).getPathSpec(), is("/*")); // Assuming this is the createGlobalAuthConstraint entry
+    assertEquals(Constraint.Authorization.KNOWN_ROLE, securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
 //    assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(true));
-    assertThat(mappings.get(1).getPathSpec(), is("/path/1"));
-//    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false));
-    assertThat(mappings.get(2).getPathSpec(), is("/path/2"));
-//    assertThat(mappings.get(2).getConstraint().getAuthenticate(), is(false));
+
+    assertThat(mappings.get(1).getPathSpec(), is("/path/1")); // This would be for the first path in createUnsecuredConstraints
+    assertEquals(Constraint.Authorization.INHERIT, securityHandler.getConstraintMappings().get(1).getConstraint().getAuthorization());
+//    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false)); ->allowed, shouldn't be forbidden
+
+    assertThat(mappings.get(2).getPathSpec(), is("/path/2")); // This would be for the second path in createUnsecuredConstraints
+    assertEquals(Constraint.Authorization.INHERIT, securityHandler.getConstraintMappings().get(2).getConstraint().getAuthorization());
+//    assertThat(mappings.get(2).getConstraint().getAuthenticate(), is(false)); -> allowed, shouldn't be forbidden
   }
 
   @Test
@@ -249,10 +259,13 @@ public class ApplicationTest {
 
     final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
     assertThat(mappings.size(), is(2));
-    assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertThat(mappings.get(0).getPathSpec(), is("/*")); //GlobalAuthConstraint with emission for options
     assertThat(mappings.get(0).getMethodOmissions(), is(new String[]{"OPTIONS"}));
-    assertThat(mappings.get(1).getPathSpec(), is("/*"));
+    assertThat(mappings.get(1).getPathSpec(), is("/*")); // This is for the createDisableOptionsConstraint entry
 //    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(true));
+    // Since RejectOptionsRequest is true, OPTIONS request should be forbidden
+    assertEquals(Constraint.Authorization.FORBIDDEN, securityHandler.getConstraintMappings().get(1).getConstraint().getAuthorization());
+
 //    assertThat(mappings.get(1).getConstraint().isAnyRole(), is(false));
     assertThat(mappings.get(1).getMethod(), is("OPTIONS"));
 
@@ -266,12 +279,15 @@ public class ApplicationTest {
     Application<TestRestConfig> app = new TestApp(config);
     ServletContextHandler context = new ServletContextHandler();
     app.configureSecurityHandler(context);
-
+    // authenticate true -> no GlobalAuthConstraint here.
+    // configureSecurityHandler() -> createDisableOptionsConstraint if-else path is called here as security is off. This is the only mapping here.
+    // Hence, forbidden
     ConstraintSecurityHandler securityHandler = (ConstraintSecurityHandler) context.getSecurityHandler();
 
     final List<ConstraintMapping> mappings = securityHandler.getConstraintMappings();
     assertThat(mappings.size(), is(1));
     assertThat(mappings.get(0).getPathSpec(), is("/*"));
+    assertEquals(Constraint.Authorization.FORBIDDEN, securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
 //    assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(true));
 //    assertThat(mappings.get(0).getConstraint().isAnyRole(), is(false));
     assertThat(mappings.get(0).getMethod(), is("OPTIONS"));
