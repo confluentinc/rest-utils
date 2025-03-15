@@ -32,18 +32,20 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -66,6 +68,18 @@ public class SniHandlerIntegrationTest {
   private HttpClient httpClient;
   private Properties props;
   private File clientKeystore;
+
+  HttpClient httpClient(SslContextFactory.Client sslContextFactory) {
+    final HttpClient client;
+    if (sslContextFactory != null) {
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+    } else {
+      client = new HttpClient();
+    }
+    return client;
+  }
 
   @BeforeEach
   public void setup(TestInfo info) throws Exception {
@@ -92,7 +106,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, "host.value.does.not.matter")
+        .headers(headers -> headers.put(HttpHeader.HOST, "host.value.does.not.matter"))
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -115,7 +129,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .headers(headers -> headers.put(HttpHeader.HOST, KSQL_HOST))
         .send();
 
     // the request is successful because anotherhost is SAN in certificate
@@ -139,7 +153,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .headers(headers -> headers.put(HttpHeader.HOST, KSQL_HOST))
         .send();
 
     // 421 because SNI check is enabled
@@ -171,7 +185,7 @@ public class SniHandlerIntegrationTest {
     response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, KAFKA_REST_HOST)
+        .headers(headers -> headers.put(HttpHeader.HOST, KAFKA_REST_HOST))
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -208,7 +222,7 @@ public class SniHandlerIntegrationTest {
           SslContextFactory.Client.SniProvider.NON_DOMAIN_SNI_PROVIDER);
       sslContextFactory.setSslContext(sslContext);
 
-      httpClient = new HttpClient(sslContextFactory);
+      httpClient = httpClient(sslContextFactory);
     } else {
       httpClient = new HttpClient();
     }
