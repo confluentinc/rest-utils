@@ -117,7 +117,8 @@ public class ErrorHandlerIntegrationTest {
 
     String responseValue = response.getContentAsString();
     assertEquals(400, response.getStatus());
-    assertTrue(responseValue.toLowerCase().contains("host does not match sni"));
+    // Jetty 12's SecureRequestCustomizer uses "Invalid SNI" as the 400 message
+    assertTrue(responseValue.toLowerCase().contains("invalid sni"));
     assertTrue(responseValue.toLowerCase().contains("caused by"));
   }
 
@@ -156,7 +157,8 @@ public class ErrorHandlerIntegrationTest {
 
     String responseValue = response.getContentAsString();
     assertEquals(400, response.getStatus());
-    assertTrue(responseValue.toLowerCase().contains("host does not match sni"));
+    // Jetty 12's SecureRequestCustomizer uses "Invalid SNI" as the 400 message
+    assertTrue(responseValue.toLowerCase().contains("invalid sni"));
     assertFalse(responseValue.toLowerCase().contains("caused by"));
   }
 
