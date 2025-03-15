@@ -95,6 +95,9 @@ public class RestConfig extends AbstractConfig {
   public static final String SHUTDOWN_GRACEFUL_MS_CONFIG = "shutdown.graceful.ms";
   protected static final String SHUTDOWN_GRACEFUL_MS_DOC =
       "Amount of time to wait after a shutdown request for outstanding requests to complete.";
+  // When using Jetty 9, the value was 1000, causing tests
+  // to fail due to timeout when stopping the server.
+  // For Jetty 12, bumping the timeout to 5000 allowed the tests to pass.
   protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "5000";
 
   public static final String ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG = "access.control.allow.origin";
