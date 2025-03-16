@@ -185,7 +185,7 @@ public class ErrorHandlerIntegrationTest {
 
       httpClient = httpClient(sslContextFactory);
     } else {
-      httpClient = new HttpClient();
+      httpClient = httpClient(null);
     }
 
     httpClient.start();

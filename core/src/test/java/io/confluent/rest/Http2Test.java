@@ -80,19 +80,6 @@ public class Http2Test {
   private static final String SSL_PASSWORD = "test1234";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
 
-  HttpClient httpClient(SslContextFactory.Client sslContextFactory, HTTP2Client http2Client) {
-    final HttpClient client;
-    if (http2Client != null) {
-      client = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
-    } else if (sslContextFactory != null) {
-      ClientConnector clientConnector = new ClientConnector();
-      clientConnector.setSslContextFactory(sslContextFactory);
-      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
-    } else {
-      client = new HttpClient();
-    }
-    return client;
-  }
   @BeforeEach
   public void setUp() throws Exception {
     try {
@@ -340,7 +327,9 @@ public class Http2Test {
     SslContextFactory.Client sslContextFactory = buildSslContextFactory(clientKeystoreLocation,
             clientKeystorePassword,
             clientKeyPassword);
-    HttpClient httpClient = httpClient(sslContextFactory,null);
+    ClientConnector clientConnector = new ClientConnector();
+    clientConnector.setSslContextFactory(sslContextFactory);
+    HttpClient httpClient = new HttpClient(new HttpClientTransportDynamic(clientConnector));
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
@@ -351,6 +340,7 @@ public class Http2Test {
   // returns the http response status code.
   private int makeGetRequestHttp2(String url) throws Exception {
     log.debug("Making GET using HTTP over HTTP/2 Cleartext " + url);
+
     HTTP2Client http2Client = new HTTP2Client();
     HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
     httpClient.start();
@@ -365,11 +355,14 @@ public class Http2Test {
                                   String clientKeyPassword)
       throws Exception {
     log.debug("Making GET using HTTP/2 " + url);
-    HTTP2Client http2Client = new HTTP2Client();
+
     SslContextFactory.Client sslContextFactory = buildSslContextFactory(clientKeystoreLocation,
-            clientKeystorePassword,
-            clientKeyPassword);
-    HttpClient httpClient = httpClient(sslContextFactory,http2Client);
+        clientKeystorePassword,
+        clientKeyPassword);
+    ClientConnector clientConnector = new ClientConnector();
+    clientConnector.setSslContextFactory(sslContextFactory);
+    HTTP2Client http2Client = new HTTP2Client(clientConnector);
+    HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
