@@ -203,17 +203,17 @@ public class Http2Test {
 
       // Just skip HTTP/2 for earlier than Java 11
       if (ApplicationServer.isJava11Compatible()) {
-        statusCode = makeGetRequestHttp2(HTTP_URI + "/test%2fambiguous%2fsegment");
+        statusCode = makeGetRequestHttp2(HTTP_URI + "/test?segment=%2Fambiguous%2Fsegment");
         assertEquals(200, statusCode, EXPECTED_200_MSG);
-        statusCode = makeGetRequestHttp2(HTTPS_URI + "/test%2fambiguous%2fsegment",
+        statusCode = makeGetRequestHttp2(HTTPS_URI + "/test?segment=%2Fambiguous%2Fsegment",
                                          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
         assertEquals(200, statusCode, EXPECTED_200_MSG);
       }
 
       // HTTP/1.1 should work whether HTTP/2 is available or not
-      statusCode = makeGetRequestHttp(HTTP_URI + "/test%2fambiguous%2fsegment");
+      statusCode = makeGetRequestHttp(HTTP_URI + "/test?segment=%2Fambiguous%2Fsegment");
       assertEquals(200, statusCode, EXPECTED_200_MSG);
-      statusCode = makeGetRequestHttp(HTTPS_URI + "/test%2fambiguous%2fsegment",
+      statusCode = makeGetRequestHttp(HTTPS_URI + "/test?segment=%2Fambiguous%2Fsegment",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
