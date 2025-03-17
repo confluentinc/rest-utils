@@ -55,6 +55,7 @@ import org.asynchttpclient.Dsl;
 import org.asynchttpclient.ws.WebSocket;
 import org.asynchttpclient.ws.WebSocketListener;
 import org.asynchttpclient.ws.WebSocketUpgradeHandler;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.eclipse.jetty.security.AbstractLoginService;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
@@ -248,13 +249,13 @@ public class CustomInitTest {
     @Override
     public void accept(final ServletContextHandler context) {
       try {
-        ServerContainer container = context.getBean(ServerContainer.class);
-
-        container.addEndpoint(ServerEndpointConfig.Builder
-            .create(
-                WSEndpoint.class,
-                WSEndpoint.class.getAnnotation(ServerEndpoint.class).value()
-            ).build());
+        JakartaWebSocketServletContainerInitializer.configure(context, (servletContext, serverContainer) -> {
+          serverContainer.addEndpoint(ServerEndpointConfig.Builder
+                  .create(
+                          WSEndpoint.class,
+                          WSEndpoint.class.getAnnotation(ServerEndpoint.class).value()
+                  ).build());
+        });
       } catch (Exception e) {
         fail("Invalid test");
       }
