@@ -333,6 +333,9 @@ public abstract class Application<T extends RestConfig> {
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
 
+    // Allow Jetty 12 servlet to decode ambiguous URIs
+    configureServletWithDecodeAmbiguousURIs(context);
+
     if (listenerName != null && !listenerName.isEmpty()) {
       log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), listenerName);
       context.setVirtualHosts(List.of("@" + listenerName));
@@ -444,6 +447,9 @@ public abstract class Application<T extends RestConfig> {
             config.getString(RestConfig.WEBSOCKET_PATH_PREFIX_CONFIG)
     );
 
+    // Allow Jetty 12 servlet to decode ambiguous URIs
+    configureServletWithDecodeAmbiguousURIs(webSocketContext);
+
     configureSecurityHandler(webSocketContext);
 
     JakartaWebSocketServletContainerInitializer.configure(
@@ -455,6 +461,16 @@ public abstract class Application<T extends RestConfig> {
     applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     return webSocketContext;
+  }
+
+  // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
+  // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
+  // We will set decodeAmbiguousURIs to true so that client requests are not automatically
+  // rejected by the servlet
+  private ServletContextHandler configureServletWithDecodeAmbiguousURIs(
+      ServletContextHandler context) {
+    context.getServletHandler().setDecodeAmbiguousURIs(true);
+    return context;
   }
 
   // This is copied from the old MAP implementation from cp ConfigDef.Type.MAP

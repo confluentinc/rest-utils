@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
@@ -35,6 +36,7 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.io.NetworkTrafficListener;
@@ -254,6 +256,14 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         config.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
     httpConfiguration.setResponseHeaderSize(
         config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
+
+    // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
+    // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
+    // We must set a URI compliance to allow for this violation so that client
+    // requests are not automatically rejected
+    httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
+        UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
+        UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
 
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);

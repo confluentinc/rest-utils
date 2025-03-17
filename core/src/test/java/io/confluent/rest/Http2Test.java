@@ -194,6 +194,8 @@ public class Http2Test {
   @Test
   public void testHttp2AmbiguousSegment() throws Exception {
     // This test is ensuring that URI-encoded / characters work in URIs in all variants
+    // With Jetty 12, additional changes to configuring the servlet and URI handling were needed
+    // to allow HTTP requests with ambiguous segments to be handled properly.
     TestRestConfig config = buildTestConfig(true);
     Http2TestApplication app = new Http2TestApplication(config);
     try {
@@ -203,17 +205,17 @@ public class Http2Test {
 
       // Just skip HTTP/2 for earlier than Java 11
       if (ApplicationServer.isJava11Compatible()) {
-        statusCode = makeGetRequestHttp2(HTTP_URI + "/test?segment=%2Fambiguous%2Fsegment");
+        statusCode = makeGetRequestHttp2(HTTP_URI + "/test%2fambiguous%2fsegment");
         assertEquals(200, statusCode, EXPECTED_200_MSG);
-        statusCode = makeGetRequestHttp2(HTTPS_URI + "/test?segment=%2Fambiguous%2Fsegment",
+        statusCode = makeGetRequestHttp2(HTTPS_URI + "/test%2fambiguous%2fsegment",
                                          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
         assertEquals(200, statusCode, EXPECTED_200_MSG);
       }
 
       // HTTP/1.1 should work whether HTTP/2 is available or not
-      statusCode = makeGetRequestHttp(HTTP_URI + "/test?segment=%2Fambiguous%2Fsegment");
+      statusCode = makeGetRequestHttp(HTTP_URI + "/test%2fambiguous%2fsegment");
       assertEquals(200, statusCode, EXPECTED_200_MSG);
-      statusCode = makeGetRequestHttp(HTTPS_URI + "/test?segment=%2Fambiguous%2Fsegment",
+      statusCode = makeGetRequestHttp(HTTPS_URI + "/test%2fambiguous%2fsegment",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(200, statusCode, EXPECTED_200_MSG);
       assertMetricsCollected();
