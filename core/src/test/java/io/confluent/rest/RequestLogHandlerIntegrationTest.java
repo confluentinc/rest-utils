@@ -110,7 +110,8 @@ public class RequestLogHandlerIntegrationTest {
     verify(mockLogInternal, times(1)).log(requestCaptor.capture(), responseCaptor.capture());
     // check that external application never logs the request
     verify(mockLogExternal, never()).log(any(), any());
-//    assertEquals("127.0.0.1", requestCaptor.getValue().getServerName());
+    // KNET-15387 - Jetty 12 is not compatible w/ this getServerName() check
+    // assertEquals("127.0.0.1", requestCaptor.getValue().getServerName());
     assertEquals(200, responseCaptor.getValue().getStatus());
     assertEquals(200, response.getStatus());
 
