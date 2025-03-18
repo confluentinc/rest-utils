@@ -560,6 +560,13 @@ public class RestConfig extends AbstractConfig {
       "Maximum buffer size for jetty request headers in bytes";
   protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
 
+  protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG =
+          "network.forwarded.request.customizer.enable";
+  protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_DOC =
+          "If true, forwarded requests will propagate the original IP address "
+              + "to remoteAddr based on what is provided through HTTP headers.";
+  protected static final boolean NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT = false;
+
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG =
       "network.traffic.rate.limit.enable";
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC =
@@ -1155,6 +1162,12 @@ public class RestConfig extends AbstractConfig {
             MAX_REQUEST_HEADER_SIZE_DEFAULT,
             Importance.LOW,
             MAX_REQUEST_HEADER_SIZE_DOC
+        ).define(
+            NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT,
+            Importance.LOW,
+            NETWORK_FORWARDED_REQUEST_ENABLE_DOC
         ).define(
             NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG,
             Type.BOOLEAN,
