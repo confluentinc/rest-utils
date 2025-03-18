@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
+import static io.confluent.rest.TestUtils.httpClient;
 import static org.eclipse.jetty.http.HttpStatus.Code.OK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -40,9 +41,7 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ContentResponse;
-import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -61,18 +60,6 @@ public class HstsIntegrationTest {
   private HttpClient httpClient;
   private Properties props;
   private File clientKeystore;
-
-  HttpClient httpClient(SslContextFactory.Client sslContextFactory) {
-    final HttpClient client;
-    if (sslContextFactory != null) {
-      ClientConnector clientConnector = new ClientConnector();
-      clientConnector.setSslContextFactory(sslContextFactory);
-      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
-    } else {
-      client = new HttpClient();
-    }
-    return client;
-  }
 
   @BeforeEach
   public void setup() throws Exception {

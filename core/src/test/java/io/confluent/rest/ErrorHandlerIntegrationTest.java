@@ -1,6 +1,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
+import static io.confluent.rest.TestUtils.httpClient;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.net.ssl.SSLContext;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Configurable;
@@ -28,8 +27,6 @@ import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
-import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
@@ -57,18 +54,6 @@ public class ErrorHandlerIntegrationTest {
   private File clientKeystore;
 
   public static final String SSL_PASSWORD = "test1234";
-
-  HttpClient httpClient(SslContextFactory.Client sslContextFactory) {
-    final HttpClient client;
-    if (sslContextFactory != null) {
-      ClientConnector clientConnector = new ClientConnector();
-      clientConnector.setSslContextFactory(sslContextFactory);
-      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
-    } else {
-      client = new HttpClient();
-    }
-    return client;
-  }
 
   @BeforeEach
   public void setUp() {
