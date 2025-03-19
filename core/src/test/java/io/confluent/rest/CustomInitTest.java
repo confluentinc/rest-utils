@@ -202,7 +202,6 @@ public class CustomInitTest {
     public void accept(final ServletContextHandler context) {
       final List<String> roles = config.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
       final Constraint.Builder constraint = new Constraint.Builder();
-//      constraint.setAuthenticate(true);
       constraint.roles(roles.toArray(new String[0]));
 
       final ConstraintMapping constraintMapping = new ConstraintMapping();

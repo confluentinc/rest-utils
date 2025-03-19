@@ -245,7 +245,6 @@ public class ErrorHandlerIntegrationTest {
     protected void configureSecurityHandler(ServletContextHandler context) {
       final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
       Constraint.Builder constraint = new Constraint.Builder();
-      // constraint.setAuthenticate(true);
       String[] roles = {"**"};
       constraint.roles(roles);
       ConstraintMapping mapping = new ConstraintMapping();

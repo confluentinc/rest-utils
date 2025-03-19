@@ -126,10 +126,9 @@ public class AuthUtilTest {
     // When:
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
-    // Then:     // AUTHENTICATION_ROLES_DEFAULT -  unmodifiableList(Arrays.asList("*"));
+    // Then:
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#KNOWN_ROLE
     assertEquals(Constraint.Authorization.KNOWN_ROLE, mapping.getConstraint().getAuthorization());
-
-//    assertThat(mapping.getConstraint().getAuthenticate(), is(true));
   }
 
   @Test
@@ -138,9 +137,7 @@ public class AuthUtilTest {
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
-//    assertThat(mapping.getConstraint().isAnyRole(), is(true));
-//    assertThat(mapping.getConstraint().isAnyAuth(), is(false));
-    // AUTHENTICATION_ROLES_DEFAULT -  unmodifiableList(Arrays.asList("*"));
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#KNOWN_ROLE
     assertEquals(Constraint.Authorization.KNOWN_ROLE, mapping.getConstraint().getAuthorization());
     assertTrue(mapping.getConstraint().getRoles().isEmpty());
   }
@@ -155,7 +152,7 @@ public class AuthUtilTest {
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
-//    assertThat(mapping.getConstraint().isAnyRole(), is(false));
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#SPECIFIC_ROLE
     assertEquals(Constraint.Authorization.SPECIFIC_ROLE,mapping.getConstraint().getAuthorization());
     assertThat(mapping.getConstraint().getRoles(), is(Set.of("r1", "r2")));
   }
@@ -170,7 +167,7 @@ public class AuthUtilTest {
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
-//    assertThat(mapping.getConstraint().isAnyRole(), is(true));
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#FORBIDDEN
     assertEquals(Constraint.Authorization.FORBIDDEN, mapping.getConstraint().getAuthorization());
     assertTrue(mapping.getConstraint().getRoles().isEmpty());
   }
@@ -215,12 +212,11 @@ public class AuthUtilTest {
     assertThat(mappings.size(), is(2));
     assertThat(mappings.get(0).getMethod(), is("*"));
     assertThat(mappings.get(0).getPathSpec(), is("/path/1"));
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#INHERIT
     assertEquals(Constraint.Authorization.INHERIT, mappings.get(0).getConstraint().getAuthorization());
-//    assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(false));
     assertThat(mappings.get(1).getMethod(), is("*"));
     assertThat(mappings.get(1).getPathSpec(), is("/path/2"));
     assertEquals(Constraint.Authorization.INHERIT, mappings.get(1).getConstraint().getAuthorization());
-//    assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false));
   }
 
   @Test
@@ -233,10 +229,10 @@ public class AuthUtilTest {
         AuthUtil.createUnsecuredConstraint(config, "/path/*");
 
     // Then:
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#INHERIT
     assertThat(mappings.getMethod(), is("*"));
     assertThat(mappings.getPathSpec(), is("/path/*"));
     assertEquals(Constraint.Authorization.INHERIT, mappings.getConstraint().getAuthorization());
-//    assertThat(mappings.getConstraint().getAuthenticate(), is(false));
   }
 
   @Test
@@ -251,8 +247,8 @@ public class AuthUtilTest {
     // Then:
     assertThat(mappings.getMethod(), is("*"));
     assertThat(mappings.getPathSpec(), is("/path/*"));
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#KNOWN_ROLE
     assertEquals(Constraint.Authorization.KNOWN_ROLE, mappings.getConstraint().getAuthorization());
-//    assertThat(mappings.getConstraint().getAuthenticate(), is(true));
   }
 
   @Test
@@ -266,12 +262,10 @@ public class AuthUtilTest {
 
     //Then:
     assertThat(mappings.isPresent(), is(true));
-//    assertThat(mappings.get().getConstraint().isAnyRole(), is(false));
     assertThat(mappings.get().getMethod(), is("OPTIONS"));
     assertThat(mappings.get().getPathSpec(), is("/*"));
+    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#FORBIDDEN
     assertEquals(Constraint.Authorization.FORBIDDEN, mappings.get().getConstraint().getAuthorization());
-//    assertThat(mappings.get().getConstraint().getAuthenticate(), is(true));
-
   }
 
   private static RestConfig restConfigWith(final Map<String, Object> config) {

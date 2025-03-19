@@ -143,7 +143,6 @@ public final class AuthUtil {
   ) {
 
     final Constraint.Builder constraint = new Constraint.Builder();
-    //constraint.setAuthenticate(authenticate);
 
     if (authenticate) {
       final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
@@ -154,6 +153,7 @@ public final class AuthUtil {
       } else if (roles.size() == 1 && roles.get(0).equals("*")) {
         constraint.authorization(Constraint.KNOWN_ROLE.getAuthorization());
       } else {
+        // The authorization would be set to SPECIFIC_ROLE by default if roles is not empty
         constraint.roles(roles.toArray(new String[0]));
       }
     }
@@ -184,7 +184,6 @@ public final class AuthUtil {
       //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
       // forbidding access
       forbidConstraint.authorization(Constraint.FORBIDDEN.getAuthorization());
-      //forbidConstraint.setAuthenticate(true);
 
       ConstraintMapping forbidMapping = new ConstraintMapping();
       forbidMapping.setMethod("OPTIONS");
