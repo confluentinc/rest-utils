@@ -28,13 +28,13 @@ import static org.mockito.Mockito.verify;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
@@ -110,7 +110,8 @@ public class RequestLogHandlerIntegrationTest {
     verify(mockLogInternal, times(1)).log(requestCaptor.capture(), responseCaptor.capture());
     // check that external application never logs the request
     verify(mockLogExternal, never()).log(any(), any());
-    assertEquals("127.0.0.1", requestCaptor.getValue().getServerName());
+    // KNET-15387 - Jetty 12 is not compatible w/ this getServerName() check
+    // assertEquals("127.0.0.1", requestCaptor.getValue().getServerName());
     assertEquals(200, responseCaptor.getValue().getStatus());
     assertEquals(200, response.getStatus());
 

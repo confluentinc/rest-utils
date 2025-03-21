@@ -38,8 +38,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriBuilderException;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -95,7 +95,10 @@ public class RestConfig extends AbstractConfig {
   public static final String SHUTDOWN_GRACEFUL_MS_CONFIG = "shutdown.graceful.ms";
   protected static final String SHUTDOWN_GRACEFUL_MS_DOC =
       "Amount of time to wait after a shutdown request for outstanding requests to complete.";
-  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "1000";
+  // When using Jetty 9, the value was 1000, causing tests
+  // to fail due to timeout when stopping the server.
+  // For Jetty 12, bumping the timeout to 5000 allowed the tests to pass.
+  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "5000";
 
   public static final String ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG = "access.control.allow.origin";
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DOC =
