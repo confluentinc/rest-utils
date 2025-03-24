@@ -59,13 +59,19 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class SniHandlerIntegrationTest {
 
   public static final String TEST_SSL_PASSWORD = "test1234";
-  public static final String KAFKA_REST_HOST = "localhost";
-  public static final String KSQL_HOST = "anotherhost";
 
-  private Server server;
-  private HttpClient httpClient;
-  private Properties props;
-  private File clientKeystore;
+  protected Server server;
+  protected HttpClient httpClient;
+  protected Properties props;
+  protected File clientKeystore;
+
+  protected String getPrimarySniHostname() {
+    return "localhost";
+  }
+
+  protected String getAlternateSniHostname() {
+    return "anotherhost";
+  }
 
   @BeforeEach
   public void setup(TestInfo info) throws Exception {
@@ -115,7 +121,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .header(HttpHeader.HOST, getAlternateSniHostname())
         .send();
 
     // the request is successful because anotherhost is SAN in certificate
@@ -139,7 +145,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .header(HttpHeader.HOST, getAlternateSniHostname())
         .send();
 
     // 421 because SNI check is enabled
@@ -171,7 +177,7 @@ public class SniHandlerIntegrationTest {
     response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, KAFKA_REST_HOST)
+        .header(HttpHeader.HOST, getPrimarySniHostname())
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -217,7 +223,7 @@ public class SniHandlerIntegrationTest {
   }
 
   private void startHttpServer(String scheme) throws Exception {
-    String url = scheme + "://" + KAFKA_REST_HOST + ":" + getFreePort();
+    String url = scheme + "://" + getPrimarySniHostname() + ":" + getFreePort();
     props.setProperty(RestConfig.LISTENERS_CONFIG, url);
 
     if (scheme.equals("https")) {
@@ -267,7 +273,7 @@ public class SniHandlerIntegrationTest {
     X509Certificate cCert = certificateBuilder
         // create two SANs (Subject Alternative Name) in the certificate,
         // imagine "localhost" is kafka rest, and "anotherhost" is ksql
-        .sanDnsNames(KAFKA_REST_HOST, KSQL_HOST)
+        .sanDnsNames(getPrimarySniHostname(), getAlternateSniHostname())
         .generate("CN=mymachine.local, O=A client", keypair);
 
     String alias = type.toString().toLowerCase();

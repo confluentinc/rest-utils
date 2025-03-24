@@ -19,58 +19,53 @@ package io.confluent.rest.handlers;
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
 import java.io.IOException;
-import java.util.List;
-import javax.net.ssl.ExtendedSSLSession;
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SNIServerName;
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.io.EndPoint;
-import org.eclipse.jetty.io.ssl.SslConnection.DecryptedEndPoint;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TenantPrefixSniHandler extends SniHandler {
-    private static final Logger log = LoggerFactory.getLogger(TenantPrefixSniHandler.class);
 
-    @Override
-    public void handle(String target, Request baseRequest,
-            HttpServletRequest request,
-            HttpServletResponse response) throws IOException, ServletException {
-        String hostHeader = request.getServerName();
-        String sniServerName = getSniServerName(baseRequest);
-        
-        if (sniServerName != null) {
-            String lsrcId = getFirstPart(sniServerName);
-            
-            if (lsrcId == null || !hostHeader.startsWith(lsrcId)) {
-                log.debug("SNI prefix check failed, host header: {}, sni lsrcId: {}, full sni: {}", 
-                    hostHeader, lsrcId, sniServerName);
-                baseRequest.setHandled(true);
-                response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
-                return;
-            }
-        }
-        super.handle(target, baseRequest, request, response);
-    }
+  private static final Logger log = LoggerFactory.getLogger(TenantPrefixSniHandler.class);
+  private static final String DOT_SEPARATOR = ".";
+  private static final String DASH_SEPARATOR = "-";
 
-    /**
-     * Gets the lsrcId from SNI hostname.
-     * For example:
-     * "lsrc-123.us-east-1.aws.private.confluent.cloud" -> "lsrc-123"
-     *
-     * @param hostname The SNI hostname
-     * @return The lsrcId, or null if hostname is null or doesn't contain a dot
-     */
-    private static String getFirstPart(String hostname) {
-        if (hostname == null) {
-            return null;
-        }
-        int dotIndex = hostname.indexOf('.');
-        return dotIndex == -1 ? null : hostname.substring(0, dotIndex);
+  @Override
+  public void handle(String target, Request baseRequest,
+      HttpServletRequest request,
+      HttpServletResponse response) throws IOException, ServletException {
+    String hostHeader = request.getServerName();
+    String sniServerName = getSniServerName(baseRequest);
+
+    if (sniServerName != null) {
+      // Extract the tenantID from the sniServerName, which is always the first segment before '.'
+      // Example: "lsrc-123.us-east-1.aws.private.confluent.cloud" → "lsrc-123"
+      String tenantID = getFirstPart(sniServerName);
+      // The logical cluster ID should also appear at the start of the hostHeader.
+      // It may be followed by either a dot (.) or a dash (-).
+      // hostHeader format examples:
+      // - "lsrc-123-$dom<slug>.us-east-1.aws.glb.confluent.cloud"
+      // - "lsrc-123.$dom<slug>.us-east-1.aws.aws.confluent.cloud"
+      if (tenantID == null
+              || !(hostHeader.startsWith(tenantID + DOT_SEPARATOR)
+                  || hostHeader.startsWith(tenantID + DASH_SEPARATOR))) {
+        log.debug("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
+            hostHeader, tenantID, sniServerName);
+        baseRequest.setHandled(true);
+        response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+        return;
+      }
     }
+    super.handle(target, baseRequest, request, response);
+  }
+
+  private static String getFirstPart(String hostname) {
+    if (hostname == null) {
+      return null;
+    }
+    int dotIndex = hostname.indexOf(DOT_SEPARATOR);
+    return dotIndex == -1 ? null : hostname.substring(0, dotIndex);
+  }
 } 
