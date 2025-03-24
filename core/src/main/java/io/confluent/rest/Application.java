@@ -93,7 +93,6 @@ import org.glassfish.jersey.server.validation.ValidationFeature;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.confluent.rest.RestConfig;
 
 /**
  * A REST application. Extend this class and implement setupResources() to register REST
@@ -421,7 +420,8 @@ public abstract class Application<T extends RestConfig> {
 
     // Add SNI validation handler if enabled
     boolean sniEnabled = config.getBoolean(RestConfig.SNI_CHECK_ENABLED_CONFIG);
-    boolean tenantPrefixEnabled = config.getBoolean(RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG);
+    boolean tenantPrefixEnabled = config.getBoolean(
+        RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG);
     if (tenantPrefixEnabled) {
       context.insertHandler(new TenantPrefixSniHandler());
     } else if (sniEnabled) {

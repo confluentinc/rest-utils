@@ -508,10 +508,12 @@ public class RestConfig extends AbstractConfig {
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
-  public static final String TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG = "tenant.prefix.sni.check.enabled";
+  public static final String TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG = 
+      "tenant.prefix.sni.check.enabled";
   protected static final String TENANT_PREFIX_SNI_CHECK_ENABLED_DOC =
-      "Whether or not to check if the Host header starts with the tenant ID from SNI. If the Host header "
-          + "does not start with the tenant ID from SNI, returns a 421 misdirected response. Default is false.";
+      "Whether or not to check if the Host header starts with the tenant ID from SNI. "
+          + "If the Host header does not start with the tenant ID from SNI, returns a 421 "
+          + "misdirected response. Default is false.";
   protected static final boolean TENANT_PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
 
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =

@@ -57,12 +57,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @Tag("IntegrationTest")
-public class TenantPrefixSniHandlerIntegrationTest {
+public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegrationTest {
 
   public static final String TEST_SSL_PASSWORD = "test1234";
-  public static final String KAFKA_REST_HOST = "lsrc-123.us-east-1.aws.private.confluent.cloud";
-  public static final String KSQL_HOST = "lsrc-456.us-east-1.aws.private.confluent.cloud";
-  public static final String INVALID_HOST = "invalid.us-east-1.aws.private.confluent.cloud";
 
   private Server server;
   private HttpClient httpClient;
@@ -81,6 +78,20 @@ public class TenantPrefixSniHandlerIntegrationTest {
     server.join();
   }
 
+  @Override
+  protected String getPrimarySniHostname() {
+    return "lsrc-123.us-east-1.aws.private.confluent.cloud";
+  }
+
+  @Override
+  protected String getAlternateSniHostname() {
+    return "lsrc-456.us-east-1.aws.private.confluent.cloud";
+  }
+
+  protected String getInvalidHost() {
+    return "invalid.us-east-1.aws.private.confluent.cloud";
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   public void test_http_TenantPrefixSniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
@@ -94,7 +105,7 @@ public class TenantPrefixSniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, INVALID_HOST)
+        .header(HttpHeader.HOST, getInvalidHost())
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -117,7 +128,7 @@ public class TenantPrefixSniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is lsrc-123.* but Host is lsrc-456.*
-        .header(HttpHeader.HOST, KSQL_HOST)
+        .header(HttpHeader.HOST, getAlternateSniHostname())
         .send();
 
     // the request is successful because tenant prefix check is disabled
@@ -141,7 +152,7 @@ public class TenantPrefixSniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is lsrc-123.* but Host doesn't start with lsrc-123
-        .header(HttpHeader.HOST, INVALID_HOST)
+        .header(HttpHeader.HOST, getInvalidHost())
         .send();
 
     // 421 because tenant prefix SNI check is enabled and host doesn't start with tenant ID
@@ -220,7 +231,7 @@ public class TenantPrefixSniHandlerIntegrationTest {
   }
 
   private void startHttpServer(String scheme) throws Exception {
-    String url = scheme + "://" + KAFKA_REST_HOST + ":" + getFreePort();
+    String url = scheme + "://" + getPrimarySniHostname() + ":" + getFreePort();
     props.setProperty(RestConfig.LISTENERS_CONFIG, url);
 
     if (scheme.equals("https")) {
@@ -266,8 +277,8 @@ public class TenantPrefixSniHandlerIntegrationTest {
     String cn;
     String san;
     if (type == ServiceType.SERVER) {
-      cn = KAFKA_REST_HOST;
-      san = KAFKA_REST_HOST;
+      cn = getPrimarySniHostname();
+      san = getPrimarySniHostname();
     } else {
       cn = "client";
       san = "client";
