@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -56,22 +57,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @Tag("IntegrationTest")
-public class SniHandlerIntegrationTest {
+public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegrationTest {
 
   public static final String TEST_SSL_PASSWORD = "test1234";
 
-  protected Server server;
-  protected HttpClient httpClient;
-  protected Properties props;
-  protected File clientKeystore;
-
-  protected String getPrimarySniHostname() {
-    return "localhost";
-  }
-
-  protected String getAlternateSniHostname() {
-    return "anotherhost";
-  }
+  private Server server;
+  private HttpClient httpClient;
+  private Properties props;
+  private File clientKeystore;
 
   @BeforeEach
   public void setup(TestInfo info) throws Exception {
@@ -85,11 +78,25 @@ public class SniHandlerIntegrationTest {
     server.join();
   }
 
+  @Override
+  protected String getPrimarySniHostname() {
+    return "lsrc-123.us-east-1.aws.private.confluent.cloud";
+  }
+
+  @Override
+  protected String getAlternateSniHostname() {
+    return "lsrc-456.us-east-1.aws.private.confluent.cloud";
+  }
+
+  protected String getInvalidHost() {
+    return "invalid.us-east-1.aws.private.confluent.cloud";
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void test_http_SniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
+  public void test_http_TenantPrefixSniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
     props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
     // http doesn't have SNI concept, SNI is an extension for TLS
     startHttpServer("http");
     startHttpClient("http");
@@ -98,7 +105,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, "host.value.does.not.matter")
+        .header(HttpHeader.HOST, getInvalidHost())
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -106,9 +113,9 @@ public class SniHandlerIntegrationTest {
 
   @ParameterizedTest
   @MethodSource("provideParameters")
-  public void test_https_SniHandlerDisabled_wrong_host_pass(boolean mTLSEnabled,
+  public void test_https_TenantPrefixSniHandlerDisabled_wrong_host_pass(boolean mTLSEnabled,
       boolean http2Enabled) throws Exception {
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "false");
+    props.setProperty(RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
@@ -120,19 +127,19 @@ public class SniHandlerIntegrationTest {
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        // SNI is localhost but Host is anotherhost
+        // SNI is lsrc-123.* but Host is lsrc-456.*
         .header(HttpHeader.HOST, getAlternateSniHostname())
         .send();
 
-    // the request is successful because anotherhost is SAN in certificate
+    // the request is successful because tenant prefix check is disabled
     assertEquals(OK.getCode(), response.getStatus());
   }
 
   @ParameterizedTest
   @MethodSource("provideParameters")
-  public void test_https_SniHandlerEnabled_wrong_host_421(boolean mTLSEnabled, boolean http2Enabled)
+  public void test_https_TenantPrefixSniHandlerEnabled_wrong_host_421(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
@@ -144,11 +151,11 @@ public class SniHandlerIntegrationTest {
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, getAlternateSniHostname())
+        // SNI is lsrc-123.* but Host doesn't start with lsrc-123
+        .header(HttpHeader.HOST, getInvalidHost())
         .send();
 
-    // 421 because SNI check is enabled
+    // 421 because tenant prefix SNI check is enabled and host doesn't start with tenant ID
     assertEquals(MISDIRECTED_REQUEST.getCode(), response.getStatus());
     String responseContent = response.getContentAsString();
     assertThat(responseContent, containsString(MISDIRECTED_REQUEST.getMessage()));
@@ -156,9 +163,9 @@ public class SniHandlerIntegrationTest {
 
   @ParameterizedTest
   @MethodSource("provideParameters")
-  public void test_https_SniHandlerEnabled_same_host_pass(boolean mTLSEnabled, boolean http2Enabled)
+  public void test_https_TenantPrefixSniHandlerEnabled_same_tenant_pass(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
@@ -177,7 +184,8 @@ public class SniHandlerIntegrationTest {
     response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, getPrimarySniHostname())
+        // Host starts with same tenant ID as SNI
+        .header(HttpHeader.HOST, "lsrc-123-nid.region.cloud.glb.confluent.cloud")
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -253,33 +261,34 @@ public class SniHandlerIntegrationTest {
   }
 
   private void configServerKeystore(Properties props, File serverKeystore) {
-    props.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, serverKeystore.getAbsolutePath());
-    props.put(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
-    props.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
+    props.setProperty(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, serverKeystore.getAbsolutePath());
+    props.setProperty(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
+    props.setProperty(RestConfig.SSL_KEY_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
   }
 
   private void configServerTruststore(Properties props, File trustStore) {
-    props.put(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStore.getAbsolutePath());
-    props.put(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
+    props.setProperty(RestConfig.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStore.getAbsolutePath());
+    props.setProperty(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
   }
 
   private void createKeystoreWithCert(File file, ServiceType type,
       Map<String, X509Certificate> certs)
       throws Exception {
+    String cn;
+    String san;
+    if (type == ServiceType.SERVER) {
+      cn = getPrimarySniHostname();
+      san = getPrimarySniHostname();
+    } else {
+      cn = "client";
+      san = "client";
+    }
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
-    TestSslUtils.CertificateBuilder certificateBuilder = new TestSslUtils.CertificateBuilder(30,
-        "SHA1withRSA");
-
-    X509Certificate cCert = certificateBuilder
-        // create two SANs (Subject Alternative Name) in the certificate,
-        // imagine "localhost" is kafka rest, and "anotherhost" is ksql
-        .sanDnsNames(getPrimarySniHostname(), getAlternateSniHostname())
-        .generate("CN=mymachine.local, O=A client", keypair);
-
-    String alias = type.toString().toLowerCase();
-    TestSslUtils.createKeyStore(file.getPath(), new Password(TEST_SSL_PASSWORD),
-        new Password(TEST_SSL_PASSWORD), alias, keypair.getPrivate(), cCert);
-    certs.put(alias, cCert);
+    TestSslUtils.CertificateBuilder certificateBuilder = new TestSslUtils.CertificateBuilder();
+    X509Certificate cCert = certificateBuilder.sanDnsNames(cn, san)
+        .generate("CN=" + cn, keypair);
+    TestSslUtils.createKeyStore(file.getPath(), new Password(TEST_SSL_PASSWORD), new Password(TEST_SSL_PASSWORD), cn, keypair.getPrivate(), cCert);
+    certs.put(cn, cCert);
   }
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
@@ -290,7 +299,7 @@ public class SniHandlerIntegrationTest {
 
     @Override
     public void setupResources(final Configurable<?> config, final TestRestConfig appConfig) {
-      config.register(RestResource.class);
+      config.register(new RestResource());
     }
 
     @Override
@@ -313,4 +322,4 @@ public class SniHandlerIntegrationTest {
     CLIENT,
     SERVER
   }
-}
+} 
