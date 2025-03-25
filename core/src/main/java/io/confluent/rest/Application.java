@@ -418,9 +418,7 @@ public abstract class Application<T extends RestConfig> {
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
 
-    if (!server.isRunning()) {
-      server.setRequestLog(requestLog);
-    }
+    server.setRequestLog(requestLog);
 
     List<String> expectedSniHeaders = config.getExpectedSniHeaders();
     if (config.getSniCheckEnable()) {
