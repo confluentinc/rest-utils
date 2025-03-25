@@ -419,9 +419,8 @@ public abstract class Application<T extends RestConfig> {
     context.insertHandler(requestLogHandler);
 
     // Add SNI validation handler if enabled
-    boolean sniEnabled = config.getBoolean(RestConfig.SNI_CHECK_ENABLED_CONFIG);
-    boolean tenantPrefixEnabled = config.getBoolean(
-        RestConfig.TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG);
+    boolean sniEnabled = config.getSniCheckEnable();
+    boolean tenantPrefixEnabled = config.getTenantPrefixSniCheckEnable();
     if (tenantPrefixEnabled) {
       context.insertHandler(new TenantPrefixSniHandler());
     } else if (sniEnabled) {

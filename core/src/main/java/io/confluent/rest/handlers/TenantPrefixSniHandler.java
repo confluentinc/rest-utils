@@ -53,7 +53,7 @@ public class TenantPrefixSniHandler extends HandlerWrapper {
       if (tenantID == null
               || !(hostHeader.startsWith(tenantID + DOT_SEPARATOR)
                   || hostHeader.startsWith(tenantID + DASH_SEPARATOR))) {
-        log.debug("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
+        log.warn("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
             hostHeader, tenantID, sniServerName);
         baseRequest.setHandled(true);
         response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
