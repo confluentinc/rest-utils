@@ -1102,6 +1102,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             TENANT_PREFIX_SNI_CHECK_ENABLED_DOC
         ).define(
+            LISTENER_PROTOCOL_MAP_CONFIG,
+            Type.LIST,
+            LISTENER_PROTOCOL_MAP_DEFAULT,
+            Importance.LOW,
+            LISTENER_PROTOCOL_MAP_DOC
+        ).define(
             PROXY_PROTOCOL_ENABLED_CONFIG,
             Type.BOOLEAN,
             PROXY_PROTOCOL_ENABLED_DEFAULT,

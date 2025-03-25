@@ -16,6 +16,7 @@
 
 package io.confluent.rest.handlers;
 
+import static io.confluent.rest.handlers.SniHandler.getSniServerName;
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
 import java.io.IOException;
@@ -23,10 +24,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TenantPrefixSniHandler extends SniHandler {
+public class TenantPrefixSniHandler extends HandlerWrapper {
 
   private static final Logger log = LoggerFactory.getLogger(TenantPrefixSniHandler.class);
   private static final String DOT_SEPARATOR = ".";

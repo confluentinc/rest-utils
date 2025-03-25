@@ -29,6 +29,7 @@ import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
@@ -59,13 +60,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 @Tag("IntegrationTest")
 public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegrationTest {
 
-  public static final String TEST_SSL_PASSWORD = "test1234";
-
-  private Server server;
-  private HttpClient httpClient;
-  private Properties props;
-  private File clientKeystore;
-
   @BeforeEach
   public void setup(TestInfo info) throws Exception {
     props = new Properties();
@@ -80,16 +74,27 @@ public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegration
 
   @Override
   protected String getPrimarySniHostname() {
-    return "lsrc-123.us-east-1.aws.private.confluent.cloud";
+    return "lsrc-123.us-east-1.aws.private.confluent.localhost";
   }
 
   @Override
   protected String getAlternateSniHostname() {
-    return "lsrc-456.us-east-1.aws.private.confluent.cloud";
+    return "lsrc-456.us-east-1.aws.private.confluent.localhost";
   }
 
-  protected String getInvalidHost() {
-    return "invalid.us-east-1.aws.private.confluent.cloud";
+  protected String getInvalidHostHeader() {
+    return "invalid.localhost";
+  }
+
+  protected List<String> getValidHostHeaders() {
+    return Arrays.asList(
+        "lsrc-123.us-east-1.aws.private.confluent.localhost",
+        "lsrc-123-domtest.us-east-1.aws.glb.confluent.cloud",
+        "lsrc-123.domtest.us-west-2.aws.confluent.cloud",
+        "lsrc-123-node456.eu-central-1.azure.glb.confluent.cloud",
+        "lsrc-123-node789.ap-southeast-1.gcp.confluent.cloud",
+        "lsrc-123.us-east-1.aws.private.confluent.cloud"
+    );
   }
 
   @ParameterizedTest
@@ -105,7 +110,7 @@ public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegration
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, getInvalidHost())
+        .header(HttpHeader.HOST, getInvalidHostHeader())
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -152,7 +157,7 @@ public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegration
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is lsrc-123.* but Host doesn't start with lsrc-123
-        .header(HttpHeader.HOST, getInvalidHost())
+        .header(HttpHeader.HOST, getInvalidHostHeader())
         .send();
 
     // 421 because tenant prefix SNI check is enabled and host doesn't start with tenant ID
@@ -174,21 +179,25 @@ public class TenantPrefixSniHandlerIntegrationTest extends SniHandlerIntegration
     startHttpServer("https");
     startHttpClient("https");
 
+    // First test with default host header
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         .send();
-
     assertEquals(OK.getCode(), response.getStatus());
 
-    response = httpClient.newRequest(server.getURI())
-        .path("/resource")
-        .accept(MediaType.TEXT_PLAIN)
-        // Host starts with same tenant ID as SNI
-        .header(HttpHeader.HOST, "lsrc-123-nid.region.cloud.glb.confluent.cloud")
-        .send();
+    // Test each valid host header
+    for (String validHost : getValidHostHeaders()) {
+      response = httpClient.newRequest(server.getURI())
+          .path("/resource")
+          .accept(MediaType.TEXT_PLAIN)
+          // Test each valid host header pattern
+          .header(HttpHeader.HOST, validHost)
+          .send();
 
-    assertEquals(OK.getCode(), response.getStatus());
+      assertEquals(OK.getCode(), response.getStatus(), 
+          "Expected OK status for host header: " + validHost);
+    }
   }
 
   // generate mTLS enablement and http2 enablement parameters for tests
