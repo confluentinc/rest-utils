@@ -30,7 +30,7 @@ import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.handlers.SniHandler;
-import io.confluent.rest.handlers.TenantPrefixSniHandler;
+import io.confluent.rest.handlers.PrefixSniHandler;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -419,11 +419,9 @@ public abstract class Application<T extends RestConfig> {
     context.insertHandler(requestLogHandler);
 
     // Add SNI validation handler if enabled
-    boolean sniEnabled = config.getSniCheckEnable();
-    boolean tenantPrefixEnabled = config.getTenantPrefixSniCheckEnable();
-    if (tenantPrefixEnabled) {
-      context.insertHandler(new TenantPrefixSniHandler());
-    } else if (sniEnabled) {
+    if (config.getPrefixSniCheckEnable()) {
+      context.insertHandler(new PrefixSniHandler());
+    } else if (config.getSniCheckEnable()) {
       context.insertHandler(new SniHandler());
     }
 

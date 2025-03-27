@@ -28,9 +28,9 @@ import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TenantPrefixSniHandler extends HandlerWrapper {
+public class PrefixSniHandler extends HandlerWrapper {
 
-  private static final Logger log = LoggerFactory.getLogger(TenantPrefixSniHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(PrefixSniHandler.class);
   private static final String DOT_SEPARATOR = ".";
   private static final String DASH_SEPARATOR = "-";
 
@@ -42,19 +42,19 @@ public class TenantPrefixSniHandler extends HandlerWrapper {
     String sniServerName = getSniServerName(baseRequest);
 
     if (sniServerName != null) {
-      // Extract the tenantID from the sniServerName, which is always the first segment before '.'
+      // Extract the prefix from the sniServerName, which is always the first segment before '.'
       // Example: "lsrc-123.us-east-1.aws.private.confluent.cloud" → "lsrc-123"
-      String tenantID = getFirstPart(sniServerName);
-      // The logical cluster ID should also appear at the start of the hostHeader.
+      String prefix = getFirstPart(sniServerName);
+      // The prefix should appear at the start of the hostHeader.
       // It may be followed by either a dot (.) or a dash (-).
       // hostHeader format examples:
-      // - "lsrc-123-$dom<slug>.us-east-1.aws.glb.confluent.cloud"
-      // - "lsrc-123.$dom<slug>.us-east-1.aws.aws.confluent.cloud"
-      if (tenantID == null
-              || !(hostHeader.startsWith(tenantID + DOT_SEPARATOR)
-                  || hostHeader.startsWith(tenantID + DASH_SEPARATOR))) {
+      // - "lsrc-123-domxyz.us-east-1.aws.glb.confluent.cloud"
+      // - "lsrc-123.domxyz.us-east-1.aws.aws.confluent.cloud"
+      if (prefix == null
+              || !(hostHeader.startsWith(prefix + DOT_SEPARATOR)
+                  || hostHeader.startsWith(prefix + DASH_SEPARATOR))) {
         log.warn("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
-            hostHeader, tenantID, sniServerName);
+            hostHeader, prefix, sniServerName);
         baseRequest.setHandled(true);
         response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
         return;
@@ -70,4 +70,4 @@ public class TenantPrefixSniHandler extends HandlerWrapper {
     int dotIndex = hostname.indexOf(DOT_SEPARATOR);
     return dotIndex == -1 ? null : hostname.substring(0, dotIndex);
   }
-} 
+}
