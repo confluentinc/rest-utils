@@ -27,7 +27,9 @@ import java.io.File;
 import java.io.IOException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
@@ -56,16 +58,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @Tag("IntegrationTest")
-public class SniHandlerIntegrationTest {
-
+public class PrefixSniHandlerIntegrationTest {
   public static final String TEST_SSL_PASSWORD = "test1234";
-  public static final String KAFKA_REST_HOST = "localhost";
-  public static final String KSQL_HOST = "anotherhost";
 
-  private Server server;
-  private HttpClient httpClient;
-  private Properties props;
-  private File clientKeystore;
+  protected Server server;
+  protected HttpClient httpClient;
+  protected Properties props;
+  protected File clientKeystore;
 
   @BeforeEach
   public void setup(TestInfo info) throws Exception {
@@ -79,11 +78,34 @@ public class SniHandlerIntegrationTest {
     server.join();
   }
 
+  protected String getPrimarySniHostname() {
+    return "lsrc-123.us-east-1.aws.private.confluent.localhost";
+  }
+
+  protected String getAlternateSniHostname() {
+    return "lsrc-456.us-east-1.aws.private.confluent.localhost";
+  }
+
+  protected String getInvalidHostHeader() {
+    return "invalid.localhost";
+  }
+
+  protected List<String> getValidHostHeaders() {
+    return Arrays.asList(
+        "lsrc-123.us-east-1.aws.private.confluent.localhost",
+        "lsrc-123-domtest.us-east-1.aws.glb.confluent.cloud",
+        "lsrc-123.domtest.us-west-2.aws.confluent.cloud",
+        "lsrc-123-node456.eu-central-1.azure.glb.confluent.cloud",
+        "lsrc-123-node789.ap-southeast-1.gcp.confluent.cloud",
+        "lsrc-123.us-east-1.aws.private.confluent.cloud"
+    );
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void test_http_SniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
+  public void test_http_TenantPrefixSniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
     props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
     // http doesn't have SNI concept, SNI is an extension for TLS
     startHttpServer("http");
     startHttpClient("http");
@@ -92,7 +114,7 @@ public class SniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, "host.value.does.not.matter")
+        .header(HttpHeader.HOST, getInvalidHostHeader())
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -100,9 +122,9 @@ public class SniHandlerIntegrationTest {
 
   @ParameterizedTest
   @MethodSource("provideParameters")
-  public void test_https_SniHandlerDisabled_wrong_host_pass(boolean mTLSEnabled,
+  public void test_https_TenantPrefixSniHandlerDisabled_wrong_host_pass(boolean mTLSEnabled,
       boolean http2Enabled) throws Exception {
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "false");
+    props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
@@ -114,19 +136,20 @@ public class SniHandlerIntegrationTest {
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        // SNI is lsrc-123.* but Host is lsrc-456.*
+        .header(HttpHeader.HOST, getAlternateSniHostname())
         .send();
 
-    // the request is successful because anotherhost is SAN in certificate
+    // the request is successful because tenant prefix check is disabled
     assertEquals(OK.getCode(), response.getStatus());
   }
 
   @ParameterizedTest
   @MethodSource("provideParameters")
-  public void test_https_SniHandlerEnabled_wrong_host_421(boolean mTLSEnabled, boolean http2Enabled)
+  public void test_https_TenantPrefixSniHandlerEnabled_wrong_host_421(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
@@ -138,11 +161,11 @@ public class SniHandlerIntegrationTest {
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        // SNI is localhost but Host is anotherhost
-        .header(HttpHeader.HOST, KSQL_HOST)
+        // SNI is lsrc-123.* but Host doesn't start with lsrc-123
+        .header(HttpHeader.HOST, getInvalidHostHeader())
         .send();
 
-    // 421 because SNI check is enabled
+    // 421 because tenant prefix SNI check is enabled and host doesn't start with tenant ID
     assertEquals(MISDIRECTED_REQUEST.getCode(), response.getStatus());
     String responseContent = response.getContentAsString();
     assertThat(responseContent, containsString(MISDIRECTED_REQUEST.getMessage()));
@@ -150,9 +173,10 @@ public class SniHandlerIntegrationTest {
 
   @ParameterizedTest
   @MethodSource("provideParameters")
-  public void test_https_SniHandlerEnabled_same_host_pass(boolean mTLSEnabled, boolean http2Enabled)
+  public void test_https_TenantPrefixSniHandlerEnabled_same_tenant_pass(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
-    props.setProperty(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
           RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
@@ -161,20 +185,25 @@ public class SniHandlerIntegrationTest {
     startHttpServer("https");
     startHttpClient("https");
 
+    // First test with default host header
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         .send();
-
     assertEquals(OK.getCode(), response.getStatus());
 
-    response = httpClient.newRequest(server.getURI())
-        .path("/resource")
-        .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, KAFKA_REST_HOST)
-        .send();
+    // Test each valid host header
+    for (String validHost : getValidHostHeaders()) {
+      response = httpClient.newRequest(server.getURI())
+          .path("/resource")
+          .accept(MediaType.TEXT_PLAIN)
+          // Test each valid host header pattern
+          .header(HttpHeader.HOST, validHost)
+          .send();
 
-    assertEquals(OK.getCode(), response.getStatus());
+      assertEquals(OK.getCode(), response.getStatus(), 
+          "Expected OK status for host header: " + validHost);
+    }
   }
 
   // generate mTLS enablement and http2 enablement parameters for tests
@@ -217,7 +246,7 @@ public class SniHandlerIntegrationTest {
   }
 
   private void startHttpServer(String scheme) throws Exception {
-    String url = scheme + "://" + KAFKA_REST_HOST + ":" + getFreePort();
+    String url = scheme + "://" + getPrimarySniHostname() + ":" + getFreePort();
     props.setProperty(RestConfig.LISTENERS_CONFIG, url);
 
     if (scheme.equals("https")) {
@@ -232,8 +261,8 @@ public class SniHandlerIntegrationTest {
             "Unable to create temporary files for truststores and keystores.");
       }
       Map<String, X509Certificate> certs = new HashMap<>();
-      createKeystoreWithCert(clientKeystore, ServiceType.CLIENT, certs);
-      createKeystoreWithCert(serverKeystore, ServiceType.SERVER, certs);
+      createKeystoreWithCert(clientKeystore, PrefixSniHandlerIntegrationTest.ServiceType.CLIENT, certs);
+      createKeystoreWithCert(serverKeystore, PrefixSniHandlerIntegrationTest.ServiceType.SERVER, certs);
       TestSslUtils.createTrustStore(trustStore.getAbsolutePath(), new Password(TEST_SSL_PASSWORD),
           certs);
 
@@ -257,7 +286,7 @@ public class SniHandlerIntegrationTest {
     props.put(RestConfig.SSL_TRUSTSTORE_PASSWORD_CONFIG, TEST_SSL_PASSWORD);
   }
 
-  private void createKeystoreWithCert(File file, ServiceType type,
+  private void createKeystoreWithCert(File file, PrefixSniHandlerIntegrationTest.ServiceType type,
       Map<String, X509Certificate> certs)
       throws Exception {
     KeyPair keypair = TestSslUtils.generateKeyPair("RSA");
@@ -267,7 +296,7 @@ public class SniHandlerIntegrationTest {
     X509Certificate cCert = certificateBuilder
         // create two SANs (Subject Alternative Name) in the certificate,
         // imagine "localhost" is kafka rest, and "anotherhost" is ksql
-        .sanDnsNames(KAFKA_REST_HOST, KSQL_HOST)
+        .sanDnsNames(getPrimarySniHostname(), getAlternateSniHostname())
         .generate("CN=mymachine.local, O=A client", keypair);
 
     String alias = type.toString().toLowerCase();
