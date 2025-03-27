@@ -508,6 +508,20 @@ public class RestConfig extends AbstractConfig {
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
+  public static final String SNI_HOST_CHECK_ENABLED_CONFIG = "sni.host.check.enabled";
+  protected static final String SNI_HOST_CHECK_ENABLED_DOC =
+      "Whether or not to enable SNI host checking in SecureRequestCustomizer. If disabled, "
+          + "SNI host checking will be disabled for all HTTPS connections. Default is true.";
+  protected static final boolean SNI_HOST_CHECK_ENABLED_DEFAULT = true;
+
+  public static final String TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG = 
+      "tenant.prefix.sni.check.enabled";
+  protected static final String TENANT_PREFIX_SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check if the Host header starts with the tenant ID from SNI. "
+          + "If the Host header does not start with the tenant ID from SNI, returns a 421 "
+          + "misdirected response. Default is false.";
+  protected static final boolean TENANT_PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -1088,6 +1102,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             SNI_CHECK_ENABLED_DOC
         ).define(
+            SNI_HOST_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SNI_HOST_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            SNI_HOST_CHECK_ENABLED_DOC
+        ).define(
+            TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            TENANT_PREFIX_SNI_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            TENANT_PREFIX_SNI_CHECK_ENABLED_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1442,6 +1468,14 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSniCheckEnable() {
     return getBoolean(SNI_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getSniHostCheckEnable() {
+    return getBoolean(SNI_HOST_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getTenantPrefixSniCheckEnable() {
+    return getBoolean(TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG);
   }
 
   /**
