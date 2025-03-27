@@ -508,19 +508,19 @@ public class RestConfig extends AbstractConfig {
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
+  public static final String PREFIX_SNI_CHECK_ENABLED_CONFIG =
+      "prefix.sni.check.enabled";
+  protected static final String PREFIX_SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check if the Host header starts with the same prefix from SNI. "
+          + "If the Host header does not start with the prefix from SNI, returns a 421 "
+          + "misdirected response. Default is false.";
+  protected static final boolean PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
+
   public static final String SNI_HOST_CHECK_ENABLED_CONFIG = "sni.host.check.enabled";
   protected static final String SNI_HOST_CHECK_ENABLED_DOC =
       "Whether or not to enable SNI host checking in SecureRequestCustomizer. If disabled, "
           + "SNI host checking will be disabled for all HTTPS connections. Default is true.";
   protected static final boolean SNI_HOST_CHECK_ENABLED_DEFAULT = true;
-
-  public static final String TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG = 
-      "tenant.prefix.sni.check.enabled";
-  protected static final String TENANT_PREFIX_SNI_CHECK_ENABLED_DOC =
-      "Whether or not to check if the Host header starts with the tenant ID from SNI. "
-          + "If the Host header does not start with the tenant ID from SNI, returns a 421 "
-          + "misdirected response. Default is false.";
-  protected static final boolean TENANT_PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
 
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
@@ -1108,11 +1108,11 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             SNI_HOST_CHECK_ENABLED_DOC
         ).define(
-            TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG,
+            PREFIX_SNI_CHECK_ENABLED_CONFIG,
             Type.BOOLEAN,
-            TENANT_PREFIX_SNI_CHECK_ENABLED_DEFAULT,
+            PREFIX_SNI_CHECK_ENABLED_DEFAULT,
             Importance.LOW,
-            TENANT_PREFIX_SNI_CHECK_ENABLED_DOC
+            PREFIX_SNI_CHECK_ENABLED_DOC
         ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
@@ -1474,8 +1474,8 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(SNI_HOST_CHECK_ENABLED_CONFIG);
   }
 
-  public final boolean getTenantPrefixSniCheckEnable() {
-    return getBoolean(TENANT_PREFIX_SNI_CHECK_ENABLED_CONFIG);
+  public final boolean getPrefixSniCheckEnable() {
+    return getBoolean(PREFIX_SNI_CHECK_ENABLED_CONFIG);
   }
 
   /**
