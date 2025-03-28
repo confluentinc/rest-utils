@@ -31,6 +31,7 @@ import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.handlers.SniHandler;
 import io.confluent.rest.handlers.PrefixSniHandler;
+import io.confluent.rest.jetty.DoSFilter;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -79,8 +80,6 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
-import org.eclipse.jetty.servlets.DoSFilter;
-import org.eclipse.jetty.servlets.DoSFilter.Listener;
 import org.eclipse.jetty.servlets.HeaderFilter;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -159,7 +158,7 @@ public abstract class Application<T extends RestConfig> {
    * be called before configureHandler() is called.
    */
   public void addGlobalDosfilterListener(
-      Listener listener) {
+      DoSFilter.Listener listener) {
     this.globalDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
@@ -168,7 +167,7 @@ public abstract class Application<T extends RestConfig> {
    * should be called before configureHandler() is called.
    */
   public void addNonGlobalDosfilterListener(
-      Listener listener) {
+      DoSFilter.Listener listener) {
     this.nonGlobalDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
@@ -408,11 +407,12 @@ public abstract class Application<T extends RestConfig> {
     configureDosFilters(context);
 
     configurePreResourceHandling(context);
+
+    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
+
     context.addFilter(servletHolder, "/*", null);
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
-
-    applyCustomConfiguration(context, REST_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     RequestLogHandler requestLogHandler = new RequestLogHandler();
     requestLogHandler.setRequestLog(requestLog);
