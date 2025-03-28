@@ -46,23 +46,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.ws.rs.core.Configurable;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.ws.rs.core.Configurable;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.metrics.JmxReporter;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.MetricsReporter;
-import org.eclipse.jetty.jaas.JAASLoginService;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.jaas.JAASLoginService;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.DefaultIdentityService;
 import org.eclipse.jetty.security.IdentityService;
 import org.eclipse.jetty.security.LoginService;
@@ -73,19 +74,18 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
-import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
-import org.eclipse.jetty.servlet.DefaultServlet;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.CrossOriginFilter;
-import org.eclipse.jetty.servlets.HeaderFilter;
-import org.eclipse.jetty.util.resource.ResourceCollection;
+import org.eclipse.jetty.server.Handler.Sequence;
+import org.eclipse.jetty.ee10.servlet.DefaultServlet;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlets.CrossOriginFilter;
+import org.eclipse.jetty.ee10.servlets.HeaderFilter;
+import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.StringUtil;
-import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
-import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+import jakarta.websocket.server.ServerContainer;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.validation.ValidationFeature;
@@ -249,7 +249,7 @@ public abstract class Application<T extends RestConfig> {
    *
    * @return static resource collection
    */
-  protected ResourceCollection getStaticResources() {
+  protected Collection<Resource> getStaticResources() {
     return null;
   }
 
@@ -329,12 +329,16 @@ public abstract class Application<T extends RestConfig> {
     ServletContainer servletContainer = new ServletContainer(resourceConfig);
     final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
+
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
 
+    // Allow Jetty 12 servlet to decode ambiguous URIs
+    configureServletWithDecodeAmbiguousURIs(context);
+
     if (listenerName != null && !listenerName.isEmpty()) {
       log.info("Binding {} to listener {}.", this.getClass().getSimpleName(), listenerName);
-      context.setVirtualHosts(new String[]{"@" + listenerName});
+      context.setVirtualHosts(List.of("@" + listenerName));
     } else {
       log.info("Binding {} to all listeners.", this.getClass().getSimpleName());
     }
@@ -342,9 +346,9 @@ public abstract class Application<T extends RestConfig> {
     ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
     defaultHolder.setInitParameter("dirAllowed", "false");
 
-    ResourceCollection staticResources = getStaticResources();
-    if (staticResources != null) {
-      context.setBaseResource(staticResources);
+    Collection<Resource> staticResources = getStaticResources();
+    if (staticResources != null && !staticResources.isEmpty()) {
+      context.setBaseResource(staticResources.iterator().next());
     }
 
     configureSecurityHandler(context);
@@ -414,9 +418,7 @@ public abstract class Application<T extends RestConfig> {
     configurePostResourceHandling(context);
     context.addServlet(defaultHolder, "/*");
 
-    RequestLogHandler requestLogHandler = new RequestLogHandler();
-    requestLogHandler.setRequestLog(requestLog);
-    context.insertHandler(requestLogHandler);
+    server.setRequestLog(requestLog);
 
     List<String> expectedSniHeaders = config.getExpectedSniHeaders();
     if (config.getSniCheckEnable()) {
@@ -425,8 +427,8 @@ public abstract class Application<T extends RestConfig> {
       context.insertHandler(new ExpectedSniHandler(expectedSniHeaders));
     }
 
-    HandlerCollection handlers = new HandlerCollection();
-    handlers.setHandlers(new Handler[]{context});
+    Sequence handlers = new Sequence();
+    handlers.setHandlers(Arrays.asList(new Handler[]{context}));
 
     return handlers;
   }
@@ -443,16 +445,30 @@ public abstract class Application<T extends RestConfig> {
             config.getString(RestConfig.WEBSOCKET_PATH_PREFIX_CONFIG)
     );
 
+    // Allow Jetty 12 servlet to decode ambiguous URIs
+    configureServletWithDecodeAmbiguousURIs(webSocketContext);
+
     configureSecurityHandler(webSocketContext);
 
-    ServerContainer container =
-            WebSocketServerContainerInitializer.initialize(webSocketContext);
-    registerWebSocketEndpoints(container);
+    JakartaWebSocketServletContainerInitializer.configure(
+            webSocketContext, (servletContext, serverContainer) -> {
+            registerWebSocketEndpoints(serverContainer);
+            });
 
     configureWebSocketPostResourceHandling(webSocketContext);
     applyCustomConfiguration(webSocketContext, WEBSOCKET_SERVLET_INITIALIZERS_CLASSES_CONFIG);
 
     return webSocketContext;
+  }
+
+  // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
+  // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
+  // We will set decodeAmbiguousURIs to true so that client requests are not automatically
+  // rejected by the servlet
+  private ServletContextHandler configureServletWithDecodeAmbiguousURIs(
+      ServletContextHandler context) {
+    context.getServletHandler().setDecodeAmbiguousURIs(true);
+    return context;
   }
 
   // This is copied from the old MAP implementation from cp ConfigDef.Type.MAP
