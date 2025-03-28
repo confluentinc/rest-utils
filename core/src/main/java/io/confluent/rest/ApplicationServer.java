@@ -275,9 +275,16 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
           SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
-          // Explicitly making sure that SNI is checked against Host in HTTP request
-          Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
-              "Host name matching SNI certificate check must be enabled.");
+          // SniHostCheckEnable is enabled by default
+          if (!config.getSniHostCheckEnable()) {
+            secureRequestCustomizer.setSniHostCheck(false);
+            log.info("Disabled SNI host check for listener: {}", listener);
+          } else {
+            // Explicitly making sure that SNI is checked against Host in HTTP request
+            Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
+                "Host name matching SNI certificate check must be enabled.");
+          }
+
           httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
