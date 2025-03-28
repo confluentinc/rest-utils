@@ -145,19 +145,8 @@ public final class AuthUtil {
     final Constraint.Builder constraint = new Constraint.Builder();
 
     if (authenticate) {
-      final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      if (roles.isEmpty()) {
-        //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
-        // forbidding access
-        constraint.authorization(Constraint.FORBIDDEN.getAuthorization());
-      } else if (roles.size() == 1 && roles.get(0).equals("*")) {
-        constraint.authorization(Constraint.KNOWN_ROLE.getAuthorization());
-      } else {
-        // The authorization would be set to SPECIFIC_ROLE by default if roles is not empty
-        constraint.roles(roles.toArray(new String[0]));
-      }
+      configureAuthentication(constraint, restConfig);
     }
-
 
     final ConstraintMapping mapping = new ConstraintMapping();
     mapping.setMethod("*");
@@ -172,6 +161,23 @@ public final class AuthUtil {
     }
     mapping.setPathSpec(pathSpec);
     return mapping;
+  }
+
+  private static void configureAuthentication(Constraint.Builder constraint,
+                                              RestConfig restConfig) {
+    final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+    if (roles.isEmpty()) {
+      //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
+      // forbidding access
+      constraint.authorization(Constraint.FORBIDDEN.getAuthorization());
+    } else if (roles.size() == 1 && roles.get(0).equals("*")) {
+      constraint.authorization(Constraint.KNOWN_ROLE.getAuthorization());
+    } else if (roles.size() == 1 && roles.get(0).equals("**")) {
+      constraint.authorization(Constraint.ANY_USER.getAuthorization());
+    } else {
+      // The authorization would be set to SPECIFIC_ROLE by default if roles is not empty
+      constraint.roles(roles.toArray(new String[0]));
+    }
   }
 
   public static Optional<ConstraintMapping>
