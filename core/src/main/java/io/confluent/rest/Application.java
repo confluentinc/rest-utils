@@ -29,6 +29,7 @@ import io.confluent.rest.exceptions.JsonMappingExceptionMapper;
 import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
+import io.confluent.rest.handlers.ExpectedSniHandler;
 import io.confluent.rest.handlers.SniHandler;
 import io.confluent.rest.handlers.PrefixSniHandler;
 import io.confluent.rest.jetty.DoSFilter;
@@ -418,11 +419,14 @@ public abstract class Application<T extends RestConfig> {
     requestLogHandler.setRequestLog(requestLog);
     context.insertHandler(requestLogHandler);
 
+    List<String> expectedSniHeaders = config.getExpectedSniHeaders();
     // Add SNI validation handler if enabled
     if (config.getPrefixSniCheckEnable()) {
       context.insertHandler(new PrefixSniHandler());
     } else if (config.getSniCheckEnable()) {
       context.insertHandler(new SniHandler());
+    } else if (!expectedSniHeaders.isEmpty()) {
+      context.insertHandler(new ExpectedSniHandler(expectedSniHeaders));
     }
 
     HandlerCollection handlers = new HandlerCollection();
@@ -655,6 +659,7 @@ public abstract class Application<T extends RestConfig> {
         restConfig.getBoolean(RestConfig.METRICS_LATENCY_SLO_SLA_ENABLE_CONFIG),
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLO_MS_CONFIG),
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG),
+        restConfig.getDouble(RestConfig.PERCENTILE_MAX_LATENCY_MS_CONFIG),
         restConfig.getBoolean(RestConfig.METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG)));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);

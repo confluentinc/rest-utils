@@ -16,7 +16,6 @@
 
 package io.confluent.rest.handlers;
 
-import static io.confluent.rest.handlers.SniHandler.getSniServerName;
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
 import java.io.IOException;
@@ -39,7 +38,7 @@ public class PrefixSniHandler extends HandlerWrapper {
       HttpServletRequest request,
       HttpServletResponse response) throws IOException, ServletException {
     String hostHeader = request.getServerName();
-    String sniServerName = getSniServerName(baseRequest);
+    String sniServerName = SniUtils.getSniServerName(baseRequest);
 
     if (sniServerName != null) {
       // Extract the prefix from the sniServerName, which is always the first segment before '.'
