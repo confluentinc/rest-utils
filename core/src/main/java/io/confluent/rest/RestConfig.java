@@ -519,6 +519,20 @@ public class RestConfig extends AbstractConfig {
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
+  public static final String PREFIX_SNI_CHECK_ENABLED_CONFIG =
+      "prefix.sni.check.enabled";
+  protected static final String PREFIX_SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check if the Host header starts with the same prefix from SNI. "
+          + "If the Host header does not start with the prefix from SNI, returns a 421 "
+          + "misdirected response. Default is false.";
+  protected static final boolean PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
+
+  public static final String SNI_HOST_CHECK_ENABLED_CONFIG = "sni.host.check.enabled";
+  protected static final String SNI_HOST_CHECK_ENABLED_DOC =
+      "Whether or not to enable SNI host checking in SecureRequestCustomizer. If disabled, "
+          + "SNI host checking will be disabled for all HTTPS connections. Default is true.";
+  protected static final boolean SNI_HOST_CHECK_ENABLED_DEFAULT = true;
+
   public static final String EXPECTED_SNI_HEADERS_CONFIG = "expected.sni.headers";
   protected static final String EXPECTED_SNI_HEADERS_DOC =
       "Comma-separated list of expected SNI headers for incoming connections. If a value is "
@@ -1112,6 +1126,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             SNI_CHECK_ENABLED_DOC
         ).define(
+            SNI_HOST_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SNI_HOST_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            SNI_HOST_CHECK_ENABLED_DOC
+        ).define(
+            PREFIX_SNI_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            PREFIX_SNI_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            PREFIX_SNI_CHECK_ENABLED_DOC
+        ).define(
             EXPECTED_SNI_HEADERS_CONFIG,
             Type.LIST,
             EXPECTED_SNI_HEADERS_DEFAULT,
@@ -1482,6 +1508,14 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSniCheckEnable() {
     return getBoolean(SNI_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getSniHostCheckEnable() {
+    return getBoolean(SNI_HOST_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getPrefixSniCheckEnable() {
+    return getBoolean(PREFIX_SNI_CHECK_ENABLED_CONFIG);
   }
 
   public final List<String> getExpectedSniHeaders() {
