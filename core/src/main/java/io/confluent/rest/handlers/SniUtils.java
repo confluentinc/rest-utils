@@ -27,10 +27,10 @@ import javax.net.ssl.SSLSession;
 import java.util.List;
 
 public class SniUtils {
-  public static String getSniServerName(Request baseRequest) {
-    EndPoint endpoint = baseRequest.getHttpChannel().getEndPoint();
-    if (endpoint instanceof SslConnection.DecryptedEndPoint) {
-      SSLSession session = ((SslConnection.DecryptedEndPoint) endpoint)
+  protected static String getSniServerName(Request baseRequest) {
+    EndPoint endpoint = baseRequest.getConnectionMetaData().getConnection().getEndPoint();
+    if (endpoint instanceof SslConnection.SslEndPoint) {
+      SSLSession session = ((SslConnection.SslEndPoint) endpoint)
           .getSslConnection()
           .getSSLEngine()
           .getSession();
