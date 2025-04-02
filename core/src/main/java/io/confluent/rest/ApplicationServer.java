@@ -20,13 +20,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
+import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
@@ -35,6 +36,7 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.io.NetworkTrafficListener;
@@ -53,7 +55,6 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -152,8 +153,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           listeners.add(new RateLimitNetworkTrafficListener(appConfig));
         }
         NetworkTrafficListener combinedListener = new CombinedNetworkTrafficListener(listeners);
-        // TODO: change to connector.setNetworkTrafficListener(metricsListener) for jetty 11+
-        connector.addNetworkTrafficListener(combinedListener);
+        connector.setNetworkTrafficListener(combinedListener);
         log.info("Registered {} to network connector {} of listener: {}",
                  combinedListener.getClass().getSimpleName(),
                  connector.getName(),
@@ -192,7 +192,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
   }
 
-  private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
+  private void finalizeHandlerCollection(Sequence handlers, Sequence wsHandlers) {
     /* DefaultHandler must come last to ensure all contexts
      * have a chance to handle a request first */
     handlers.addHandler(new DefaultHandler());
@@ -220,12 +220,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   @Override
   protected final void doStart() throws Exception {
     // set the default error handler
-    if (config.getSuppressStackTraceInResponse()) {
-      this.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
-    }
+    this.setErrorHandler(new StackTraceErrorHandler(config.getSuppressStackTraceInResponse()));
 
-    HandlerCollection handlers = new HandlerCollection();
-    HandlerCollection wsHandlers = new HandlerCollection();
+    Sequence handlers = new Sequence();
+    Sequence wsHandlers = new Sequence();
     for (Application<?> app : applications) {
       attachNetworkTrafficListener(app.getConfiguration(), app.getListenerName(),
                                    app.getMetrics(), app.getMetricsTags());
@@ -264,6 +262,14 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
       httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
     }
+
+    // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
+    // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
+    // We must set a URI compliance to allow for this violation so that client
+    // requests are not automatically rejected
+    httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
+        UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
+        UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
 
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
@@ -363,7 +369,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
         SslConnectionFactory sslConnectionFactory =
             new SslConnectionFactory(
-                sslContextFactories.get(listener), alpnConnectionFactory.getProtocol());
+                    (SslContextFactory.Server) sslContextFactories.get(listener),
+                    alpnConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
@@ -384,7 +391,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       } else {
         SslConnectionFactory sslConnectionFactory =
             new SslConnectionFactory(
-                sslContextFactories.get(listener), httpConnectionFactory.getProtocol());
+                    (SslContextFactory.Server) sslContextFactories.get(listener),
+                    httpConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));

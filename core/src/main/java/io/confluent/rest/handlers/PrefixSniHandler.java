@@ -18,27 +18,25 @@ package io.confluent.rest.handlers;
 
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
-import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.server.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PrefixSniHandler extends HandlerWrapper {
+public class PrefixSniHandler extends Handler.Wrapper {
 
   private static final Logger log = LoggerFactory.getLogger(PrefixSniHandler.class);
   private static final String DOT_SEPARATOR = ".";
   private static final String DASH_SEPARATOR = "-";
 
   @Override
-  public void handle(String target, Request baseRequest,
-      HttpServletRequest request,
-      HttpServletResponse response) throws IOException, ServletException {
-    String hostHeader = request.getServerName();
-    String sniServerName = SniUtils.getSniServerName(baseRequest);
+  public boolean handle(Request request,
+      Response response,
+      Callback callback) throws Exception {
+    String hostHeader = Request.getServerName(request);
+    String sniServerName = SniUtils.getSniServerName(request);
 
     if (sniServerName != null) {
       // Extract the prefix from the sniServerName, which is always the first segment before '.'
@@ -54,12 +52,11 @@ public class PrefixSniHandler extends HandlerWrapper {
                   || hostHeader.startsWith(prefix + DASH_SEPARATOR))) {
         log.warn("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
             hostHeader, prefix, sniServerName);
-        baseRequest.setHandled(true);
-        response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
-        return;
+        Response.writeError(request, response, callback,
+                MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
       }
     }
-    super.handle(target, baseRequest, request, response);
+    return super.handle(request, response, callback);
   }
 
   private static String getFirstPart(String hostname) {
