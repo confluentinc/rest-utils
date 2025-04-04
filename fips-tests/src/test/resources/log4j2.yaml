@@ -20,7 +20,7 @@ Configuration:
       name: "STDOUT"
       target: "SYSTEM_OUT"
       PatternLayout:
-        pattern: "[%d] %v1Level %m (%c:%L)%n"
+        pattern: "[%d] %p %m (%c:%L)%n"
   Loggers:
     Root:
       level: "INFO"
