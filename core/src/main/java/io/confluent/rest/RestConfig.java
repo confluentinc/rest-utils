@@ -136,6 +136,13 @@ public class RestConfig extends AbstractConfig {
       "Enable response to request be blocked due to nosniff. The header allows you to avoid "
       + "MIME type sniffing by saying that the MIME types are deliberately configured.";
 
+  public static final String HSTS_HEADER_ENABLE_CONFIG = "hsts.header.enable";
+  public static final boolean HSTS_HEADER_ENABLE_DEFAULT = false;
+  protected static final String HSTS_HEADER_ENABLE_DOC =
+      "Enable HTTP Strict-Transport-Security (HSTS) response header. The header informs that "
+      + "the site should only be accessed using HTTPS, and that any future attempts to access "
+      + "it using HTTP should automatically be converted to HTTPS. Defaults to false.";
+
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
       "Name of the SLF4J logger to write the NCSA Common Log Format request log.";
@@ -1131,6 +1138,12 @@ public class RestConfig extends AbstractConfig {
             NOSNIFF_PROTECTION_ENABLED_DEFAULT,
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
+        ).define(
+            HSTS_HEADER_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            HSTS_HEADER_ENABLE_DEFAULT,
+            Importance.LOW,
+            HSTS_HEADER_ENABLE_DOC
         ).define(
             SUPPRESS_STACK_TRACE_IN_RESPONSE,
             Type.BOOLEAN,
