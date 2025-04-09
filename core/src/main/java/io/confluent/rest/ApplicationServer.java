@@ -136,17 +136,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
   }
 
-<<<<<<< HEAD
-  private void attachMetricsListener(String listenerName, Metrics metrics,
-      Map<String, String> tags) {
-=======
   private void attachMetricsListener(String appListenerName, Metrics metrics,
                                      Map<String, String> tags) {
     // if the application listener name is not specified (unnamed), attach NetworkTrafficListener
     // to all connectors of the application,
     // otherwise attach to the specified connector with the name
     // matching the application listener name
->>>>>>> origin/7.9.x
     for (NetworkTrafficServerConnector connector : connectors) {
       if (appListenerName == null || Objects.equals(connector.getName(), appListenerName)) {
         MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
@@ -307,7 +302,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
                 "Host name matching SNI certificate check must be enabled.");
           }
-          
+
           if (isHstsHeaderEnabled()) {
             secureRequestCustomizer.setStsMaxAge(HSTS_MAX_AGE_SECONDS);
             secureRequestCustomizer.setStsIncludeSubDomains(true);
