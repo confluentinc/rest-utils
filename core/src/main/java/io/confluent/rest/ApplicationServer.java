@@ -136,33 +136,50 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
   }
 
+<<<<<<< HEAD
   private void attachMetricsListener(String listenerName, Metrics metrics,
       Map<String, String> tags) {
+=======
+  private void attachMetricsListener(String appListenerName, Metrics metrics,
+                                     Map<String, String> tags) {
+    // if the application listener name is not specified (unnamed), attach NetworkTrafficListener
+    // to all connectors of the application,
+    // otherwise attach to the specified connector with the name
+    // matching the application listener name
+>>>>>>> origin/7.9.x
     for (NetworkTrafficServerConnector connector : connectors) {
-      if (Objects.equals(connector.getName(), listenerName)) {
+      if (appListenerName == null || Objects.equals(connector.getName(), appListenerName)) {
         MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
         connector.addNetworkTrafficListener(metricsListener);
-        log.info("Registered {} to connector of listener: {}",
-            metricsListener.getClass().getSimpleName(), listenerName);
+        log.info("Registered {} to network connector {} of listener: {}",
+                 metricsListener.getClass().getSimpleName(),
+                 connector.getName(),
+                 appListenerName);
       }
     }
     if (connectors.isEmpty()) {
-      log.warn("No network connector configured for listener: {}", listenerName);
+      log.warn("No network connector configured for listener: {}", appListenerName);
     }
   }
 
-  private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String listenerName) {
+  private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String appListenerName) {
     if (appConfig.getNetworkTrafficRateLimitEnable()) {
+      // if the application listener name is not specified (unnamed), attach NetworkTrafficListener
+      // to all connectors of the application,
+      // otherwise attach to the specified connector with the name
+      // matching the application listener name
       for (NetworkTrafficServerConnector connector : connectors) {
-        if (Objects.equals(connector.getName(), listenerName)) {
+        if (appListenerName == null || Objects.equals(connector.getName(), appListenerName)) {
           NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(appConfig);
           connector.addNetworkTrafficListener(rateLimitListener);
-          log.info("Registered {} to connector of listener: {}",
-              rateLimitListener.getClass().getSimpleName(), listenerName);
+          log.info("Registered {} to network connector {} of listener: {}",
+                   rateLimitListener.getClass().getSimpleName(),
+                   connector.getName(),
+                   appListenerName);
         }
       }
       if (connectors.isEmpty()) {
-        log.warn("No network connector configured for listener: {}", listenerName);
+        log.warn("No network connector configured for listener: {}", appListenerName);
       }
     }
   }
