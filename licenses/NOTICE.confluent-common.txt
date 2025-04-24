@@ -15,7 +15,3 @@ The following libraries are included in packaged versions of this project:
  * LICENSE: licenses/LICENSE.apache2.txt
  * NOTICE: licenses/NOTICE.log4j2.txt
  * HOMEPAGE: https://logging.apache.org/log4j/2.x/
-
-* ZkClient
- * LICENSE: licenses/LICENSE.apache2.txt
- * HOMEPAGE: https://github.com/sgroschupf/zkclient
