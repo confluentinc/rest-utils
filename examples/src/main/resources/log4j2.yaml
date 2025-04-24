@@ -16,10 +16,6 @@ Configuration:
         level: "ERROR"
         AppenderRef:
           ref: "STDOUT"
-      - name: "org.I0Itec.zkclient"
-        level: "ERROR"
-        AppenderRef:
-          ref: "STDOUT"
       - name: "io.confluent.rest-utils.requests"
         level: "INFO"
         AppenderRef:
