@@ -290,8 +290,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           // SniHostCheckEnable is enabled by default
           if (!connectorConfig.getSniHostCheckEnable()) {
             secureRequestCustomizer.setSniHostCheck(false);
-            // also disable SNI required
-            secureRequestCustomizer.setSniRequired(false);
             log.info("Disabled SNI host check for listener: {}", listener);
           } else {
             // Explicitly making sure that SNI is checked against Host in HTTP request
