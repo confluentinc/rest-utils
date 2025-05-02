@@ -4,6 +4,7 @@ import static io.confluent.rest.RestConfig.getBooleanOrDefault;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -439,5 +440,86 @@ public class RestConfigTest {
     props = new Properties();
     props.put(PROPERTY_KEY, "FaLse");
     assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void getListenerScopedConfigNamedListenerReturnsConfigWithOverriddenProperties(
+      boolean doLog) throws Exception {
+    RestConfig restConfig =
+        new RestConfig(
+            RestConfig.baseConfigDef(),
+            ImmutableMap.<String, String>builder()
+                .put("listeners", "A://1.1.1.1:1")
+                .put("listener.protocol.map", "A:https")
+                .put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "true")
+                .put(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true")
+                .put("listener.name.A." + RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false")
+                .build(),
+            doLog);
+    RestConfig listenerConfig =
+        restConfig.getListenerScopedConfig(new NamedURI(new URI("https://1.1.1.1:1"), "A"));
+    // check that the listener config has overridden the base config
+    assertFalse(listenerConfig.getSniHostCheckEnable());
+    // check that the listener config inherits the base config
+    assertTrue(listenerConfig.getSniCheckEnable());
+    assertEquals(doLog, listenerConfig.getDoLog());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void getListenerScopedConfigUnnamedHttpsListenerReturnsConfigWithOverriddenProperties(
+      boolean doLog) throws Exception {
+    RestConfig restConfig =
+        new RestConfig(
+            RestConfig.baseConfigDef(),
+            ImmutableMap.<String, String>builder()
+                .put("listeners", "https://1.1.1.1:1,A://3.3.3.3:3")
+                .put("listener.protocol.map", "A:https")
+                .put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false")
+                .put(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true")
+                .put("listener.name.A." + RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "true")
+                .put("listener.name.https." + RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "true")
+                .build(),
+            doLog);
+    RestConfig unnamedListenerConfig =
+        restConfig.getListenerScopedConfig(new NamedURI(new URI("https://1.1.1.1:1"), null));
+    // unnamed https listener uses https listener config
+    assertTrue(unnamedListenerConfig.getSniHostCheckEnable());
+    assertTrue(unnamedListenerConfig.getSniCheckEnable());
+
+    RestConfig namedListenerConfig =
+        restConfig.getListenerScopedConfig(new NamedURI(new URI("https://3.3.3.3:3"), "A"));
+    assertTrue(namedListenerConfig.getSniHostCheckEnable());
+    assertTrue(namedListenerConfig.getSniCheckEnable());
+    assertEquals(doLog, namedListenerConfig.getDoLog());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void getListenerScopedConfigUnnamedHttpListenerReturnsSameConfig(
+      boolean doLog) throws Exception {
+    RestConfig restConfig =
+        new RestConfig(
+            RestConfig.baseConfigDef(),
+            ImmutableMap.<String, String>builder()
+                .put("listeners", "http://1.1.1.1:1,A://3.3.3.3:3")
+                .put("listener.protocol.map", "A:https")
+                .put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false")
+                .put(RestConfig.SNI_CHECK_ENABLED_CONFIG, "true")
+                .put("listener.name.A." + RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "true")
+                .put("listener.name.https." + RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "true")
+                .build(),
+            doLog);
+    RestConfig unnamedListenerConfig =
+        restConfig.getListenerScopedConfig(new NamedURI(new URI("http://1.1.1.1:1"), null));
+    // unnamed http return the same config
+    assertSame(unnamedListenerConfig, restConfig);
+
+    RestConfig namedListenerConfig =
+        restConfig.getListenerScopedConfig(new NamedURI(new URI("https://3.3.3.3:3"), "A"));
+    assertTrue(namedListenerConfig.getSniHostCheckEnable());
+    assertTrue(namedListenerConfig.getSniCheckEnable());
+    assertEquals(doLog, namedListenerConfig.getDoLog());
   }
 }
