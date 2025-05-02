@@ -220,7 +220,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   @Override
   protected final void doStart() throws Exception {
     // set the default error handler
-    this.setErrorHandler(new StackTraceErrorHandler(serverConfig.getSuppressStackTraceInResponse()));
+    this.setErrorHandler(new StackTraceErrorHandler(
+        serverConfig.getSuppressStackTraceInResponse()));
 
     Sequence handlers = new Sequence();
     Sequence wsHandlers = new Sequence();

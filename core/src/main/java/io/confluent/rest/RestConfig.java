@@ -1377,7 +1377,7 @@ public class RestConfig extends AbstractConfig {
    * Returns a new RestConfig object that is scoped to the given listener.
    * The new config will contain all the properties of the original config,
    * with overrides for the listener-specific properties that are
-   * prefixed with "listener.name.<name>.".
+   * prefixed with "listener.name.name.".
    * Unnamed https listeners will be scoped to the default
    * 'listener.name.https.'.
    * @param listener the listener to scope the config to
@@ -1387,10 +1387,12 @@ public class RestConfig extends AbstractConfig {
     if (listener.getName() == null && !listener.getUri().getScheme().equals("https")) {
       return this;
     }
-    String prefix = "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
+    String prefix =
+        "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
 
-    Map<String, Object> overridden = originals();
-    overridden.putAll(filterByAndStripPrefix(originals(), prefix));
+    Map<String, Object> originalsMap = originals();
+    Map<String, Object> overridden = new HashMap<>(originalsMap);
+    overridden.putAll(filterByAndStripPrefix(originalsMap, prefix));
 
     return new RestConfig(baseConfigDef(), overridden, doLog);
   }
