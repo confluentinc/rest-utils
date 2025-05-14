@@ -32,6 +32,7 @@ import jakarta.ws.rs.core.Configurable;
 
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfigException;
+import io.confluent.rest.RestConfig;
 
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
@@ -81,6 +82,14 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
       if (args.length > 0) {
         settings.put(HelloWorldRestConfig.GREETING_CONFIG, args[0]);
       }
+
+      // Configure HTTPS
+      settings.put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
+      settings.put(RestConfig.LISTENERS_CONFIG, "https://localhost:8080");
+//      settings.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, "/path/to/your/keystore.jks");
+//      settings.put(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG, "your_keystore_password");
+//      settings.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, "your_key_password");
+
       HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
       HelloWorldApplication app = new HelloWorldApplication(config);
       app.start();
