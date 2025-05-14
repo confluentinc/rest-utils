@@ -17,6 +17,12 @@
 package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.spiffe.bundle.x509bundle.X509Bundle;
+import io.spiffe.spiffeid.SpiffeId;
+import io.spiffe.spiffeid.TrustDomain;
+import io.spiffe.svid.x509svid.X509Svid;
+import io.spiffe.workloadapi.DefaultX509Source;
+import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -24,10 +30,16 @@ import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyStore;
 import java.security.Security;
+import java.security.cert.X509Certificate;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class SslFactory {
@@ -103,8 +115,85 @@ public final class SslFactory {
     };
   }
 
+  private static KeyStore createKeyStore(X509Svid svid) throws Exception {
+    KeyStore keyStore = KeyStore.getInstance("JKS");
+    keyStore.load(null, null);
+
+    keyStore.setKeyEntry("svid-key",
+            svid.getPrivateKey(),
+            "changeit".toCharArray(),
+            svid.getChain().toArray(new X509Certificate[0]));
+    return keyStore;
+  }
+
+  private static KeyStore createTrustStore(X509Source x509Source) throws Exception {
+
+
+    X509Svid svid = x509Source.getX509Svid();
+    TrustDomain trustDomain = svid.getSpiffeId().getTrustDomain();
+
+    // Get the bundle (root/intermediate authorities) for this trust domain
+    X509Bundle bundle = x509Source.getBundleForTrustDomain(trustDomain);
+
+    // Create in-memory trust store
+    KeyStore trustStore = KeyStore.getInstance("JKS");
+    trustStore.load(null, null);
+
+    int i = 0;
+    for (X509Certificate authority : bundle.getX509Authorities()) {
+        trustStore.setCertificateEntry("authority-" + i, authority);
+        i++;
+    }
+
+    return trustStore;
+  }
+
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+
+    // todo: make the socketPath passing from sslConfig maybe?
+    // todo: enable the following only ppl select the spire option
+    DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
+            .builder()
+            .spiffeSocketPath("tcp://127.0.0.1:31523")
+            .svidPicker(list -> list.get(list.size()-1))
+            .build();
+    try (X509Source x509Source = DefaultX509Source.newSource(x509SourceOptions)) {
+      X509Svid svid = x509Source.getX509Svid();
+      
+      // for spire
+//      KeyStore keyStore = createKeyStore(svid);
+//      KeyStore trustStore = createTrustStore(x509Source);
+//      sslContextFactory.setKeyStore(keyStore);
+//      sslContextFactory.setKeyStorePassword("changeit");
+//      sslContextFactory.setTrustStore(trustStore);
+//      sslContextFactory.setTrustStorePassword("changeit");
+
+
+      KeyStore keyStore = KeyStore.getInstance("JKS");
+      keyStore.load(null, null);
+      keyStore.setKeyEntry("svid", svid.getPrivateKey(), "changeit".toCharArray(),
+              svid.getChain().toArray(new X509Certificate[0]));
+
+      KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+      kmf.init(keyStore, "changeit".toCharArray());
+
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      TrustManager[] trustManagers = new TrustManager[] {
+              new SpiffeTrustManager(Set.of(
+                      SpiffeId.parse("spiffe://example.org/test-workload"),
+                      SpiffeId.parse("spiffe://example.org/client2")
+              ))
+      };
+
+      sslContext.init(kmf.getKeyManagers(), trustManagers, null);
+
+      sslContextFactory.setSslContext(sslContext);
+      sslContextFactory.setNeedClientAuth(true); // Enforce mTLS
+
+    } catch (Exception e) {
+      log.warn("Failed to initialize SPIFFE X509 source: {}", e.getMessage());
+    }
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
       setSecurityStoreProps(sslConfig, sslContextFactory, true, false);
