@@ -1,5 +1,6 @@
 package io.confluent.rest;
 
+import io.spiffe.provider.SpiffeSslContextFactory;
 import io.spiffe.spiffeid.SpiffeId;
 import io.spiffe.spiffeid.TrustDomain;
 import io.spiffe.svid.x509svid.X509Svid;
@@ -23,6 +24,7 @@ public class SpireTest {
     @Test
     public void testServerWithSpiffeMtlsClient() throws Exception {
         String response = callServer("https://localhost:8080/hello?name=fff");
+
         
         assertTrue(response.contains("Hello, fff!"));
     }
@@ -57,39 +59,16 @@ public class SpireTest {
     }
 
     private SSLContext buildSpiffeSslContext(X509Source x509Source, X509Svid svid) throws Exception {
-        // Create keystore for client identity
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(null, null);
-        keyStore.setKeyEntry("svid-key", svid.getPrivateKey(), "changeit".toCharArray(),
-                svid.getChain().toArray(new X509Certificate[0]));
+        SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
+                .builder()
+                .x509Source(x509Source)
+                .acceptAnySpiffeId()
+//              .acceptedSpiffeIdsSupplier(allowedClients)
+                .build();
 
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-        kmf.init(keyStore, "changeit".toCharArray());
 
-        // Create truststore for server validation
-        TrustDomain trustDomain = svid.getSpiffeId().getTrustDomain();
-        X509Bundle bundle = x509Source.getBundleForTrustDomain(trustDomain);
 
-        KeyStore trustStore = KeyStore.getInstance("JKS");
-        trustStore.load(null, null);
-        int i = 0;
-        for (X509Certificate cert : bundle.getX509Authorities()) {
-            trustStore.setCertificateEntry("trust-" + i, cert);
-            i++;
-        }
-
-        // Create custom trust manager that validates SPIFFE IDs
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-        tmf.init(trustStore);
-        TrustManager[] trustManagers = new TrustManager[] {
-                new SpiffeTrustManager(Set.of(
-                        SpiffeId.parse("spiffe://example.org/test-workload222"),
-                        SpiffeId.parse("spiffe://example.org/client2")
-                ))
-        };
-
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), trustManagers, null);
+        SSLContext sslContext = SpiffeSslContextFactory.getSslContext(options);
         return sslContext;
     }
 }
