@@ -16,6 +16,7 @@
 
 package io.confluent.rest.examples.helloworld;
 
+import io.spiffe.workloadapi.DefaultX509Source;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.glassfish.jersey.servlet.ServletProperties;
@@ -33,6 +34,7 @@ import jakarta.ws.rs.core.Configurable;
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfigException;
 import io.confluent.rest.RestConfig;
+import io.spiffe.workloadapi.X509Source;
 
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
@@ -47,8 +49,8 @@ import io.confluent.rest.RestConfig;
 public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
   private static final Logger log = LoggerFactory.getLogger(HelloWorldApplication.class);
 
-  public HelloWorldApplication(HelloWorldRestConfig config) {
-    super(config);
+  public HelloWorldApplication(HelloWorldRestConfig config, X509Source x509Source) {
+    super(config, x509Source);
   }
 
   @Override
@@ -86,12 +88,15 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
       // Configure HTTPS
       settings.put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
       settings.put(RestConfig.LISTENERS_CONFIG, "https://localhost:8080");
-//      settings.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, "/path/to/your/keystore.jks");
-//      settings.put(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG, "your_keystore_password");
-//      settings.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, "your_key_password");
-
       HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
-      HelloWorldApplication app = new HelloWorldApplication(config);
+      DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
+              .builder()
+              .spiffeSocketPath("tcp://127.0.0.1:31523")
+              .svidPicker(list -> list.get(list.size()-1))
+              .build();
+      X509Source x509Source = DefaultX509Source.newSource(x509SourceOptions);
+
+      HelloWorldApplication app = new HelloWorldApplication(config,x509Source);
       app.start();
       log.info("Server started, listening for requests...");
       app.join();
