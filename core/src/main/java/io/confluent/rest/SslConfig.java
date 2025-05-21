@@ -125,4 +125,8 @@ public final class SslConfig {
   public String getTrustStoreType() {
     return restConfig.getString(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG);
   }
+
+  public Boolean getIsSpireEnabled() {return restConfig.getBoolean(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG);}
+
+  public String getSpireAgentSocketPath() {return restConfig.getString(RestConfig.SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG);}
 }
