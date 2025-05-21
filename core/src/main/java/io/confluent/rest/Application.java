@@ -148,6 +148,7 @@ public abstract class Application<T extends RestConfig> {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
+    this.x509Source = x509Source;
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
@@ -163,22 +164,6 @@ public abstract class Application<T extends RestConfig> {
     } else {
       requestLog = customRequestLog;
     }
-
-    if (x509Source == null) {
-      try {
-        DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
-                .builder()
-                .spiffeSocketPath("tcp://127.0.0.1:31523")
-                .svidPicker(list -> list.get(list.size()-1))
-                .build();
-        this.x509Source = DefaultX509Source.newSource(x509SourceOptions);
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize SPIFFE X509 source", e);
-      }
-    } else{
-      this.x509Source = x509Source;
-    }
-
   }
 
   /**

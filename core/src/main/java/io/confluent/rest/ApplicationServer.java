@@ -120,11 +120,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     listeners = config.getListeners();
 
-    if (x509Source == null){
-      throw new RuntimeException("X509Source is null during initialization of applicationServer");
-    } else{
-      this.x509Source = x509Source;
-    }
+    this.x509Source = x509Source;
 
     sslContextFactories = ImmutableMap.copyOf(
             Maps.transformValues(config.getSslConfigs(),
