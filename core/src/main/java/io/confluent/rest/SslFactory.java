@@ -17,6 +17,9 @@
 package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.spiffe.provider.SpiffeSslContextFactory;
+import io.spiffe.workloadapi.DefaultX509Source;
+import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -24,8 +27,12 @@ import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyStore;
 import java.security.Security;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -103,8 +110,50 @@ public final class SslFactory {
     };
   }
 
+
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
+    return createSslContextFactory(sslConfig, null);
+  }
+
+  public static SslContextFactory createSslContextFactory(SslConfig sslConfig, X509Source x509Source) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    if (sslConfig.getIsSpireEnabled()) {
+      if (x509Source == null) {
+        try {
+          String spiffeSocketPath = sslConfig.getSpireAgentSocketPath();
+          if (spiffeSocketPath == null || spiffeSocketPath.isEmpty()) {
+            throw new Exception("X509Source is null, and spiffeSocketPath is required, but it is empty; please specify the path in the config");
+          }
+
+          DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
+                  .builder()
+                  .spiffeSocketPath(spiffeSocketPath)
+                  .svidPicker(list -> list.get(list.size() - 1))
+                  .build();
+          x509Source = DefaultX509Source.newSource(x509SourceOptions);
+        } catch (Exception e) {
+          throw new RuntimeException("Failed to initialize SPIFFE X509 source", e);
+        }
+      }
+      SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
+              .builder()
+              .x509Source(x509Source)
+              // todo: we will need to parse the acceptable spiffeID from THE SSLConfig
+              // todo: change acceptedSpiffeIdsSupplier to limit the authorization scope
+              .acceptAnySpiffeId()
+              .build();
+
+      SSLContext sslContext = null;
+      try {
+        sslContext = SpiffeSslContextFactory.getSslContext(options);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      sslContextFactory.setSslContext(sslContext);
+      // todo: we might read from the config
+      sslContextFactory.setNeedClientAuth(true); // Enforce mTLS
+    }
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
       setSecurityStoreProps(sslConfig, sslContextFactory, true, false);
