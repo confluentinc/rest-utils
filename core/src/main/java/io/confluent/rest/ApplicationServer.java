@@ -30,6 +30,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+
+import io.spiffe.workloadapi.DefaultX509Source;
+import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Gauge;
 import org.apache.kafka.common.metrics.Metrics;
@@ -80,6 +83,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   // two years is the recommended value for HSTS max age, see https://hstspreload.org
   private static final long HSTS_MAX_AGE_SECONDS = 63072000L; // 2 years
 
+  private final X509Source x509Source;
+
   @VisibleForTesting
   static boolean isHttp2Compatible(SslConfig sslConfig) {
     return isJava11Compatible() || SslConfig.TLS_CONSCRYPT.equals(sslConfig.getProvider());
@@ -95,10 +100,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   public ApplicationServer(T config) {
-    this(config, createThreadPool(config));
+    this(config, createThreadPool(config), null);
   }
 
-  public ApplicationServer(T config, ThreadPool threadPool) {
+  public ApplicationServer(T config, ThreadPool threadPool, X509Source x509Source) {
     super(threadPool);
 
     this.serverConfig = config;
@@ -116,8 +121,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     listeners = config.getListeners();
 
+    if (x509Source == null){
+      throw new RuntimeException("X509Source is null during initialization of applicationServer");
+    } else{
+      this.x509Source = x509Source;
+    }
+
     sslContextFactories = ImmutableMap.copyOf(
-        Maps.transformValues(config.getSslConfigs(), SslFactory::createSslContextFactory));
+            Maps.transformValues(config.getSslConfigs(),
+                    sslConfig -> SslFactory.createSslContextFactory(sslConfig, x509Source)));
 
     configureConnectors();
     configureConnectionLimits();
@@ -211,6 +223,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   protected void doStop() throws Exception {
     super.doStop();
+    this.x509Source.close();
     for (Application<?> application : applications) {
       application.getMetrics().close();
       application.doShutdown();
@@ -242,7 +255,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return sslContextFactories.values()
         .stream()
         .findAny()
-        .orElse(SslFactory.createSslContextFactory(SslConfig.defaultConfig()));
+        .orElse(SslFactory.createSslContextFactory(SslConfig.defaultConfig(), this.x509Source));
   }
 
   public Map<NamedURI, SslContextFactory> getSslContextFactories() {
