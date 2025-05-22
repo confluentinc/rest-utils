@@ -259,7 +259,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   protected void doStop() throws Exception {
     super.doStop();
-    this.x509Source.close();
+    if (this.x509Source != null) {
+      this.x509Source.close();
+    }
     for (Application<?> application : applications) {
       application.getMetrics().close();
       application.doShutdown();
