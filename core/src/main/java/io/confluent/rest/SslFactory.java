@@ -118,23 +118,6 @@ public final class SslFactory {
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig, X509Source x509Source) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
     if (sslConfig.getIsSpireEnabled()) {
-      if (x509Source == null) {
-        try {
-          String spiffeSocketPath = sslConfig.getSpireAgentSocketPath();
-          if (spiffeSocketPath == null || spiffeSocketPath.isEmpty()) {
-            throw new Exception("X509Source is null, and spiffeSocketPath is required, but it is empty; please specify the path in the config");
-          }
-
-          DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
-                  .builder()
-                  .spiffeSocketPath(spiffeSocketPath)
-                  .svidPicker(list -> list.get(list.size() - 1))
-                  .build();
-          x509Source = DefaultX509Source.newSource(x509SourceOptions);
-        } catch (Exception e) {
-          throw new RuntimeException("Failed to initialize SPIFFE X509 source", e);
-        }
-      }
       SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
               .builder()
               .x509Source(x509Source)
