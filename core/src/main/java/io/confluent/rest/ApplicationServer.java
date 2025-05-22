@@ -103,6 +103,28 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     this(config, createThreadPool(config), null);
   }
 
+  private X509Source initializeSpiffeX509Source(RestConfig config) {
+    if (!config.getBoolean(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG)) {
+      return null;
+    }
+
+    try {
+      String spiffeSocketPath = config.getString(RestConfig.SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG);
+      if (spiffeSocketPath == null || spiffeSocketPath.isEmpty()) {
+        throw new Exception("spiffeSocketPath is required when SPIFFE is enabled, but it is empty; please specify the path in the config");
+      }
+
+      DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
+              .builder()
+              .spiffeSocketPath(spiffeSocketPath)
+              .svidPicker(list -> list.get(list.size() - 1))
+              .build();
+      return DefaultX509Source.newSource(x509SourceOptions);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize SPIFFE X509 source", e);
+    }
+  }
+
   public ApplicationServer(T config, ThreadPool threadPool, X509Source x509Source) {
     super(threadPool);
 
@@ -121,11 +143,15 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     listeners = config.getListeners();
 
-    this.x509Source = x509Source;
+    if (x509Source == null) {
+      this.x509Source = initializeSpiffeX509Source(config);
+    } else {
+      this.x509Source = x509Source;
+    }
 
     sslContextFactories = ImmutableMap.copyOf(
             Maps.transformValues(config.getSslConfigs(),
-                    sslConfig -> SslFactory.createSslContextFactory(sslConfig, x509Source)));
+                    sslConfig -> SslFactory.createSslContextFactory(sslConfig, this.x509Source)));
 
     configureConnectors();
     configureConnectionLimits();
