@@ -85,14 +85,14 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
       // Configure HTTPS
       settings.put(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
 
-//      settings.put(RestConfig.SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG, "tcp://127.0.0.1:31523");
+      // settings.put(RestConfig.SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG, "tcp://127.0.0.1:31523");
       settings.put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
       settings.put(RestConfig.LISTENERS_CONFIG, "https://localhost:8080");
       HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
       DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
               .builder()
               .spiffeSocketPath("tcp://127.0.0.1:31523")
-              .svidPicker(list -> list.get(list.size()-1))
+              .svidPicker(list -> list.get(list.size() - 1))
               .build();
       X509Source x509Source = DefaultX509Source.newSource(x509SourceOptions);
 

@@ -89,7 +89,7 @@ public class SpireTest {
     public void setUp() throws Exception {
         // Setup application with mock X509Source
         Properties props1 = new Properties();
-        props1.setProperty(RestConfig.LISTENERS_CONFIG, "https://localhost:8080");
+        props1.setProperty(RestConfig.LISTENERS_CONFIG, "https://localhost:9876");
         props1.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
         props1.setProperty(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
         
@@ -110,7 +110,7 @@ public class SpireTest {
 
     @Test
     public void testServerWithSpiffeMtlsClient() throws Exception {
-        String response = callServer("https://localhost:8080/hello?name=fff");
+        String response = callServer("https://localhost:9876/hello?name=fff");
         assertTrue(response.contains("Hello, fff!"));
     }
 
