@@ -110,7 +110,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     try {
       String spiffeSocketPath = config.getString(RestConfig.SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG);
       if (spiffeSocketPath == null || spiffeSocketPath.isEmpty()) {
-        throw new Exception("spiffeSocketPath is required when SPIFFE is enabled, but it is empty; please specify the path in the config");
+        throw new Exception("spiffeSocketPath is required when SPIFFE is "
+                + "enabled, but it is empty; please specify the path in the config");
       }
 
       DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions

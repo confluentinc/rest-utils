@@ -205,7 +205,9 @@ public class RestConfig extends AbstractConfig {
   protected static final  boolean SSL_IS_SPIRE_ENABLED_DEFAULT = false;
   public static final String SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG = "ssl.spire.agent.socket.path";
   public static final String SSL_SPIRE_AGENT_SOCKET_PATH_DOC =
-      "Path to the spire agent socket; This is mandatory if you enable spire and do no pass X509Source into the application; If X509Source is passed into the constructor, application won't initialize a new source";
+      "Path to the spire agent socket; This is mandatory if you enable spire and do no pass "
+              + "X509Source into the application; If X509Source is passed into the constructor, "
+              + "application won't initialize a new source";
   protected static final String SSL_SPIRE_AGENT_SOCKET_PATH_DEFAULT = "";
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
