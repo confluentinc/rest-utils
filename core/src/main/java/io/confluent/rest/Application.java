@@ -37,7 +37,6 @@ import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
-import io.spiffe.workloadapi.DefaultX509Source;
 import io.spiffe.workloadapi.X509Source;
 import java.io.IOException;
 import java.net.URI;
@@ -145,7 +144,8 @@ public abstract class Application<T extends RestConfig> {
     this(config, path, listenerName, customRequestLog, null);
   }
 
-  public Application(T config, String path, String listenerName, RequestLog customRequestLog, X509Source x509Source) {
+  public Application(T config, String path, String listenerName,
+                     RequestLog customRequestLog, X509Source x509Source) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
