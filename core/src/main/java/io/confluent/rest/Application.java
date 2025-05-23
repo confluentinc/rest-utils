@@ -37,6 +37,7 @@ import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import io.spiffe.workloadapi.X509Source;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -107,6 +108,8 @@ public abstract class Application<T extends RestConfig> {
   private final String listenerName;
 
   protected ApplicationServer<?> server;
+  private final X509Source x509Source;
+
   protected Metrics metrics;
   protected final RequestLog requestLog;
   protected final DoSFilter.Listener jetty429MetricsListener;
@@ -122,21 +125,31 @@ public abstract class Application<T extends RestConfig> {
   private final List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList<>();
 
   public Application(T config) {
-    this(config, "/");
+    this(config, "/", null, null, null);
+  }
+
+  public Application(T config,  X509Source x509Source) {
+    this(config, "/", null, null, x509Source);
   }
 
   public Application(T config, String path) {
-    this(config, path, null);
+    this(config, path, null, null, null);
   }
 
   public Application(T config, String path, String listenerName) {
-    this(config, path, listenerName, null);
+    this(config, path, listenerName, null, null);
   }
 
   public Application(T config, String path, String listenerName, RequestLog customRequestLog) {
+    this(config, path, listenerName, customRequestLog, null);
+  }
+
+  public Application(T config, String path, String listenerName,
+                     RequestLog customRequestLog, X509Source x509Source) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
+    this.x509Source = x509Source;
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
@@ -301,7 +314,7 @@ public abstract class Application<T extends RestConfig> {
   public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
-      server = new ApplicationServer<>(config);
+      server = new ApplicationServer<>(config, null, x509Source);
       server.registerApplication(this);
     }
     return server;
