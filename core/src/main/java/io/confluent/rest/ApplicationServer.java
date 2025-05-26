@@ -103,6 +103,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     this(config, createThreadPool(config), null);
   }
 
+  public ApplicationServer(T config, X509Source x509Source) {
+    this(config, createThreadPool(config), x509Source);
+  }
+
   private X509Source initializeSpiffeX509Source(RestConfig config) {
     if (!config.getBoolean(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG)) {
       return null;
