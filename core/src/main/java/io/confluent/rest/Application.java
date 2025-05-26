@@ -313,7 +313,7 @@ public abstract class Application<T extends RestConfig> {
   public Server createServer() throws ServletException {
     // CHECKSTYLE_RULES.ON: MethodLength|CyclomaticComplexity|JavaNCSS|NPathComplexity
     if (server == null) {
-      server = new ApplicationServer<>(config, null, x509Source);
+      server = new ApplicationServer<>(config, x509Source);
       server.registerApplication(this);
     }
     return server;
