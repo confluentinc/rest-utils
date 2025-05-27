@@ -35,9 +35,13 @@ import static org.mockito.Mockito.when;
 
 public class SpireTest {
 
-    private Server server1;
-    private Server server2;
+    private Server mtlsServer;
+    private Server tlsServer;
     private X509Source x509Source;
+
+    private static final String BASE_URL = "https://localhost:";
+    private static final int MTLS_SERVER_PORT = 9876;
+    private static final int TLS_SERVER_PORT = 9877;
 
     // Mock implementation of X509Source for testing
     private static class MockX509Source implements X509Source {
@@ -50,7 +54,7 @@ public class SpireTest {
         }
 
         public static class Builder {
-            private String trustDomain = "test.domain";
+            private String trustDomain = "authorized.domain";
             private String path = "test";
             private String cn = "test.local";
             private String organization = "Test";
@@ -136,29 +140,34 @@ public class SpireTest {
         // Setup application with mock X509Source
         this.x509Source = new MockX509Source.Builder().build();
         
-        // Setup server1 with mTLS enabled
-        server1 = setupServer(9876, true);
+        // Setup MTLS server
+        mtlsServer = setupServer(MTLS_SERVER_PORT, true);
         
-        // Setup server2 with mTLS disabled
-        server2 = setupServer(9877, false);
+        // Setup TLS server
+        tlsServer = setupServer(TLS_SERVER_PORT, false);
     }
 
     @AfterEach
     public void tearDown() throws Exception {
-        if (server1 != null) {
-            server1.stop();
-            server1.join();
+        if (mtlsServer != null) {
+            mtlsServer.stop();
+            mtlsServer.join();
         }
-        if (server2 != null) {
-            server2.stop();
-            server2.join();
+        if (tlsServer != null) {
+            tlsServer.stop();
+            tlsServer.join();
         }
     }
 
+    private String buildUrl(int port, String endpoint, String name) {
+        return BASE_URL + port + endpoint + "?name=" + name;
+    }
+
     @Test
-    public void testServerWithSpiffeMtlsClient() throws Exception {
-        String response = callServer("https://localhost:9876/hello?name=fff", this.x509Source);
-        assertTrue(response.contains("Hello, fff!"));
+    public void testMTLsServerWithTrustedClients() throws Exception {
+        String name = "trusted-client";
+        String response = callServer(buildUrl(MTLS_SERVER_PORT, "/hello", name), this.x509Source);
+        assertTrue(response.contains(name));
     }
 
     @Test
@@ -174,7 +183,7 @@ public class SpireTest {
 
         // Attempt to call server with untrusted client
         try {
-            callServer("https://localhost:9876/hello?name=fff", untrustedClientSource);
+            callServer(buildUrl(MTLS_SERVER_PORT, "/hello", "untrusted-client"), untrustedClientSource);
             // If we get here, the test should fail as we expect an exception
             assertTrue(false, "Expected connection to be rejected due to untrusted certificate");
         } catch (Exception e) {
@@ -193,10 +202,11 @@ public class SpireTest {
             .trustedCerts(Collections.singleton(this.x509Source.getX509Svid().getChainArray()[0]))
             .build();
 
-        // Call server2 with untrusted client - should succeed since mTLS is disabled
-        String response = callServer("https://localhost:9877/hello?name=fff", untrustedClientSource);
-        assertTrue(response.contains("Hello, fff!"), 
-            "Expected successful response from server2 with untrusted client");
+        // Call TLS server with untrusted client - should succeed since mTLS is disabled
+        String name = "untrusted-client";
+        String response = callServer(buildUrl(TLS_SERVER_PORT, "/hello", name), untrustedClientSource);
+        assertTrue(response.contains(name), 
+            "Expected successful response from TLS server with untrusted client");
     }
 
     private String callServer(String serverUrl, X509Source x509Source) throws Exception {
