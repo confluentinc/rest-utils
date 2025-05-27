@@ -216,6 +216,24 @@ public class SpireTest {
             "Expected successful response from TLS server with untrusted client");
     }
 
+    @Test
+    public void testAppCreateServerFailsWhenSpireEnabledButNoX509Source() throws Exception {
+        Properties props = new Properties();
+        props.setProperty(RestConfig.LISTENERS_CONFIG, "https://localhost:9999");
+        props.setProperty(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
+        
+        TestRestConfig config = new TestRestConfig(props);
+        TestApp app = new TestApp(config);
+        
+        try {
+            app.createServer();
+            assertTrue(false, "Expected RuntimeException when SPIRE is enabled but no X509Source is provided");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("X509Source must be provided when SPIRE SSL is enabled"),
+                "Expected error message about missing X509Source, got: " + e.getMessage());
+        }
+    }
+
     private String callHelloEndpoint(String serverUrl, X509Source x509Source) throws Exception {
         SSLContext sslContext = buildSpiffeSslContext(x509Source);
         HttpsURLConnection conn = (HttpsURLConnection) new URL(serverUrl).openConnection();
