@@ -130,10 +130,6 @@ public final class SslConfig {
     return restConfig.getBoolean(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG);
   }
 
-  public String getSpireAgentSocketPath() {
-    return restConfig.getString(RestConfig.SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG);
-  }
-
   public Boolean getIsSpireMtls() {
     return restConfig.getBoolean(RestConfig.SSL_SPIRE_MTLS_CONFIG);
   }
