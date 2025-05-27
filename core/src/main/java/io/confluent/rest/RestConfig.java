@@ -809,12 +809,6 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             SSL_IS_SPIRE_ENABLED_DOC
         ).define(
-            SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG,
-            Type.STRING,
-            SSL_SPIRE_AGENT_SOCKET_PATH_DEFAULT,
-            Importance.LOW,
-            SSL_SPIRE_AGENT_SOCKET_PATH_DOC
-        ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
             SSL_KEYSTORE_RELOAD_DEFAULT,
