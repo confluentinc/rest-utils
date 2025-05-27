@@ -13,8 +13,9 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
-import java.util.Set;
 import java.util.Collections;
+import java.util.Map;
+import java.util.HashMap;
 
 import jakarta.ws.rs.core.MediaType;
 import org.junit.jupiter.api.Test;
@@ -37,46 +38,37 @@ public class SpireTest {
 
     private Server mtlsServer;
     private Server tlsServer;
-    private X509Source x509Source;
+    private MockX509Source serverX509Source;
 
     private static final String BASE_URL = "https://localhost:";
     private static final int MTLS_SERVER_PORT = 9876;
     private static final int TLS_SERVER_PORT = 9877;
+    private static final String SERVER_TRUST_DOMAIN = "authorized.domain";
 
     // Mock implementation of X509Source for testing
     private static class MockX509Source implements X509Source {
         private final X509Svid svid;
-        private final X509Bundle bundle;
+        private final Map<TrustDomain, X509Bundle> bundles;
 
-        private MockX509Source(X509Svid svid, X509Bundle bundle) {
+        private MockX509Source(X509Svid svid, Map<TrustDomain, X509Bundle> bundles) {
             this.svid = svid;
-            this.bundle = bundle;
+            this.bundles = bundles;
         }
 
         public static class Builder {
-            private String trustDomain = "authorized.domain";
+            private String trustDomain = SERVER_TRUST_DOMAIN;
             private String path = "test";
             private String cn = "test.local";
             private String organization = "Test";
-            private Set<X509Certificate> trustedCerts;
+            private Map<TrustDomain, X509Bundle> trustDomainBundles = new HashMap<>();
 
             public Builder trustDomain(String trustDomain) {
                 this.trustDomain = trustDomain;
                 return this;
             }
 
-            public Builder path(String path) {
-                this.path = path;
-                return this;
-            }
-
-            public Builder cn(String cn) {
-                this.cn = cn;
-                return this;
-            }
-
-            public Builder trustedCerts(Set<X509Certificate> trustedCerts) {
-                this.trustedCerts = trustedCerts;
+            public Builder addTrustDomainBundle(String domain, X509Bundle bundle) {
+                this.trustDomainBundles.put(TrustDomain.parse(domain), bundle);
                 return this;
             }
 
@@ -94,11 +86,17 @@ public class SpireTest {
                 when(svid.getChainArray()).thenReturn(Collections.singletonList(cert).toArray(new X509Certificate[0]));
                 when(svid.getPrivateKey()).thenReturn(keyPair.getPrivate());
 
-                // Create mock bundle
-                X509Bundle bundle = mock(X509Bundle.class);
-                when(bundle.getX509Authorities()).thenReturn(trustedCerts != null ? trustedCerts : Collections.singleton(cert));
+                // Create bundles map starting with the default bundle
+                Map<TrustDomain, X509Bundle> bundles = new HashMap<>(trustDomainBundles);
+                
+                // Add default bundle for the main trust domain if not already present
+                if (!bundles.containsKey(TrustDomain.parse(trustDomain))) {
+                    X509Bundle defaultBundle = mock(X509Bundle.class);
+                    when(defaultBundle.getX509Authorities()).thenReturn(Collections.singleton(cert));
+                    bundles.put(TrustDomain.parse(trustDomain), defaultBundle);
+                }
 
-                return new MockX509Source(svid, bundle);
+                return new MockX509Source(svid, bundles);
             }
         }
 
@@ -109,15 +107,16 @@ public class SpireTest {
 
         @Override
         public X509Bundle getBundleForTrustDomain(TrustDomain trustDomain) {
-            if (trustDomain.toString().equals("test.domain")) {
-                return bundle;
-            }
-            return null;
+            return bundles.get(trustDomain);
         }
 
         @Override
         public void close() {
             // No resources to clean up
+        }
+
+        public void addTrustDomainBundle(String domain, X509Bundle bundle) {
+            this.bundles.put(TrustDomain.parse(domain), bundle);
         }
     }
 
@@ -129,7 +128,7 @@ public class SpireTest {
         props.setProperty(RestConfig.SSL_SPIRE_MTLS_CONFIG, String.valueOf(enableMtls));
         
         TestRestConfig config = new TestRestConfig(props);
-        TestApp app = new TestApp(config, this.x509Source);
+        TestApp app = new TestApp(config, this.serverX509Source);
         Server server = app.createServer();
         server.start();
         return server;
@@ -138,7 +137,9 @@ public class SpireTest {
     @BeforeEach
     public void setUp() throws Exception {
         // Setup application with mock X509Source
-        this.x509Source = new MockX509Source.Builder().build();
+        this.serverX509Source = new MockX509Source.Builder()
+            .trustDomain(SERVER_TRUST_DOMAIN)
+            .build();
         
         // Setup MTLS server
         mtlsServer = setupServer(MTLS_SERVER_PORT, true);
@@ -165,25 +166,33 @@ public class SpireTest {
 
     @Test
     public void testMTLsServerWithTrustedClients() throws Exception {
+        String clientTrustDomain = "authorized-client.domain";
+        // Create a client that trusts the server's bundle
+        MockX509Source trustedClientSource = new MockX509Source.Builder()
+            .trustDomain(clientTrustDomain)
+            .addTrustDomainBundle(SERVER_TRUST_DOMAIN, this.serverX509Source.getBundleForTrustDomain(TrustDomain.parse(SERVER_TRUST_DOMAIN)))
+            .build();
+
+        // Add the client's bundle to the server's trust bundles
+        this.serverX509Source.addTrustDomainBundle(clientTrustDomain, 
+            trustedClientSource.getBundleForTrustDomain(TrustDomain.parse(clientTrustDomain)));
+        
         String name = "trusted-client";
-        String response = callServer(buildUrl(MTLS_SERVER_PORT, "/hello", name), this.x509Source);
+        String response = callHelloEndpoint(buildUrl(MTLS_SERVER_PORT, "/hello", name), trustedClientSource);
         assertTrue(response.contains(name));
     }
 
     @Test
     public void testMTLsServerRejectsUntrustedClients() throws Exception {
-        // Create a client with a certificate from a different trust domain
-        // This server will not have bundle for unauthorized.domain, so it will reject the client
+        // Create a client that trusts the server's bundle
         X509Source untrustedClientSource = new MockX509Source.Builder()
-            .trustDomain("unauthorized.domain")  // Different trust domain
-            .path("unauthorized")
-            .cn("unauthorized.local")
-            .trustedCerts(Collections.singleton(this.x509Source.getX509Svid().getChainArray()[0]))
+            .trustDomain("unauthorized.domain")
+            .addTrustDomainBundle(SERVER_TRUST_DOMAIN, this.serverX509Source.getBundleForTrustDomain(TrustDomain.parse(SERVER_TRUST_DOMAIN)))
             .build();
 
         // Attempt to call server with untrusted client
         try {
-            callServer(buildUrl(MTLS_SERVER_PORT, "/hello", "untrusted-client"), untrustedClientSource);
+            callHelloEndpoint(buildUrl(MTLS_SERVER_PORT, "/hello", "untrusted-client"), untrustedClientSource);
             // If we get here, the test should fail as we expect an exception
             assertTrue(false, "Expected connection to be rejected due to untrusted certificate");
         } catch (Exception e) {
@@ -193,23 +202,21 @@ public class SpireTest {
     }
 
     @Test
-    public void testTLSAcceptsUntrustedClients() throws Exception {
-        // Create a client with a certificate from a different trust domain
+    public void testTLSServerAcceptsUntrustedClients() throws Exception {
+        // Create a client that trusts the server's bundle
         X509Source untrustedClientSource = new MockX509Source.Builder()
-            .trustDomain("unauthorized.domain")  // Different trust domain
-            .path("unauthorized")
-            .cn("unauthorized.local")
-            .trustedCerts(Collections.singleton(this.x509Source.getX509Svid().getChainArray()[0]))
+            .trustDomain("unauthorized.domain")
+            .addTrustDomainBundle(SERVER_TRUST_DOMAIN, this.serverX509Source.getBundleForTrustDomain(TrustDomain.parse(SERVER_TRUST_DOMAIN)))
             .build();
 
         // Call TLS server with untrusted client - should succeed since mTLS is disabled
         String name = "untrusted-client";
-        String response = callServer(buildUrl(TLS_SERVER_PORT, "/hello", name), untrustedClientSource);
+        String response = callHelloEndpoint(buildUrl(TLS_SERVER_PORT, "/hello", name), untrustedClientSource);
         assertTrue(response.contains(name), 
             "Expected successful response from TLS server with untrusted client");
     }
 
-    private String callServer(String serverUrl, X509Source x509Source) throws Exception {
+    private String callHelloEndpoint(String serverUrl, X509Source x509Source) throws Exception {
         SSLContext sslContext = buildSpiffeSslContext(x509Source);
         HttpsURLConnection conn = (HttpsURLConnection) new URL(serverUrl).openConnection();
         conn.setHostnameVerifier((hostname, session) -> true); // disables hostname check
