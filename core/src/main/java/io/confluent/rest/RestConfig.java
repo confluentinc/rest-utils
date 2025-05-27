@@ -206,6 +206,20 @@ public class RestConfig extends AbstractConfig {
       + " runtime request tags in global stats.";
   protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
+  public static final String SSL_IS_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
+  public static final String SSL_IS_SPIRE_ENABLED_DOC =
+      "Whether to enable SPIRE SSL";
+  protected static final  boolean SSL_IS_SPIRE_ENABLED_DEFAULT = false;
+  public static final String SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG = "ssl.spire.agent.socket.path";
+  public static final String SSL_SPIRE_AGENT_SOCKET_PATH_DOC =
+      "Path to the spire agent socket; This is mandatory if you enable spire and do no pass "
+              + "X509Source into the application; If X509Source is passed into the constructor, "
+              + "application won't initialize a new source";
+  protected static final String SSL_SPIRE_AGENT_SOCKET_PATH_DEFAULT = "";
+  public static final String SSL_SPIRE_MTLS_CONFIG = "ssl.spire.is.mtls";
+  public static final String SSL_SPIRE_MTLS_DOC =
+      "Whether to enable MTLS while doing spire s2s";
+  protected static final boolean SSL_SPIRE_MTLS_DEFAULT = true;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -802,6 +816,24 @@ public class RestConfig extends AbstractConfig {
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT,
             Importance.LOW,
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC
+        ).define(
+            SSL_IS_SPIRE_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_IS_SPIRE_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_IS_SPIRE_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_MTLS_CONFIG,
+            Type.BOOLEAN,
+            SSL_SPIRE_MTLS_DEFAULT,
+            Importance.LOW,
+            SSL_IS_SPIRE_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG,
+            Type.STRING,
+            SSL_SPIRE_AGENT_SOCKET_PATH_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_AGENT_SOCKET_PATH_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
