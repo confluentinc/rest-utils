@@ -209,6 +209,10 @@ public class RestConfig extends AbstractConfig {
               + "X509Source into the application; If X509Source is passed into the constructor, "
               + "application won't initialize a new source";
   protected static final String SSL_SPIRE_AGENT_SOCKET_PATH_DEFAULT = "";
+  public static final String SSL_SPIRE_MTLS_CONFIG = "ssl.spire.is.mtls";
+  public static final String SSL_SPIRE_MTLS_DOC =
+      "Whether to enable MTLS while doing spire s2s";
+  protected static final boolean SSL_SPIRE_MTLS_DEFAULT = true;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -802,6 +806,12 @@ public class RestConfig extends AbstractConfig {
             SSL_IS_SPIRE_ENABLED_CONFIG,
             Type.BOOLEAN,
             SSL_IS_SPIRE_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_IS_SPIRE_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_MTLS_CONFIG,
+            Type.BOOLEAN,
+            SSL_SPIRE_MTLS_DEFAULT,
             Importance.LOW,
             SSL_IS_SPIRE_ENABLED_DOC
         ).define(
