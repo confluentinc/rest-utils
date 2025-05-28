@@ -33,7 +33,11 @@ public class PrefixSniHandler extends HandlerWrapper {
   private static final Logger log = LoggerFactory.getLogger(PrefixSniHandler.class);
   private static final String DOT_SEPARATOR = ".";
   private static final String DASH_SEPARATOR = "-";
-  private static final String PREFIX = "lsrc-";
+  private final String sniPrefix;
+
+  public PrefixSniHandler(String prefix) {
+    this.sniPrefix = prefix;
+  }
 
   @Override
   public void handle(String target, Request baseRequest,
@@ -41,8 +45,8 @@ public class PrefixSniHandler extends HandlerWrapper {
       HttpServletResponse response) throws IOException, ServletException {
     String hostHeader = request.getServerName();
     String sniServerName = getSniServerName(baseRequest);
-
-    if (sniServerName != null && sniServerName.startsWith(PREFIX)) {
+    log.debug("host header: {}, full sni: {}", hostHeader, sniServerName);
+    if (sniServerName != null && sniServerName.startsWith(sniPrefix)) {
       // Extract the prefix from the sniServerName, which is always the first segment before '.'
       // Example: "lsrc-123.us-east-1.aws.private.confluent.cloud" → "lsrc-123"
       String prefix = getFirstPart(sniServerName);

@@ -107,6 +107,7 @@ public class PrefixSniHandlerIntegrationTest {
   public void test_http_TenantPrefixSniHandlerEnabled_no_effect(boolean http2Enabled) throws Exception {
     props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
     props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_PREFIX_CONFIG, "lsrc-");
     // http doesn't have SNI concept, SNI is an extension for TLS
     startHttpServer("http");
     startHttpClient("http");
@@ -151,6 +152,7 @@ public class PrefixSniHandlerIntegrationTest {
   public void test_https_TenantPrefixSniHandlerEnabled_wrong_host_421(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
     props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_PREFIX_CONFIG, "lsrc-");
     props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
@@ -178,6 +180,7 @@ public class PrefixSniHandlerIntegrationTest {
   public void test_https_TenantPrefixSniHandlerEnabled_fallback_localhost_pass(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
     props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_PREFIX_CONFIG, "lsrc-");
     props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
@@ -204,6 +207,7 @@ public class PrefixSniHandlerIntegrationTest {
   public void test_https_TenantPrefixSniHandlerEnabled_fallback_localhost_wrongHeader_421(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
     props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_PREFIX_CONFIG, "lsrc-");
     props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
@@ -234,6 +238,7 @@ public class PrefixSniHandlerIntegrationTest {
   public void test_https_TenantPrefixSniHandlerEnabled_same_tenant_pass(boolean mTLSEnabled, boolean http2Enabled)
       throws Exception {
     props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.PREFIX_SNI_PREFIX_CONFIG, "lsrc-");
     props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
     if (mTLSEnabled) {
       props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
