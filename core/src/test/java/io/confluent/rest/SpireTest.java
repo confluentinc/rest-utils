@@ -125,8 +125,10 @@ public class SpireTest {
         props.setProperty(RestConfig.LISTENERS_CONFIG, "https://localhost:" + port);
         props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
         props.setProperty(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
-        props.setProperty(RestConfig.SSL_SPIRE_MTLS_CONFIG, String.valueOf(enableMtls));
-        
+        if (enableMtls) {
+            props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
+        }
+
         TestRestConfig config = new TestRestConfig(props);
         TestApp app = new TestApp(config, this.serverX509Source);
         Server server = app.createServer();
