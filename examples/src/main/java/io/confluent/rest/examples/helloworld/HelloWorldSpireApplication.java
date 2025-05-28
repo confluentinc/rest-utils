@@ -71,7 +71,7 @@ public class HelloWorldSpireApplication extends HelloWorldApplication {
 
       // Disable SNI host check
       // SPIRE handles identity and authentication at the SPIFFE level, not via DNS hostnames.
-      // The SNI field is still sent (because it's part of the TLS spec), but it's not used for authentication.
+      // The SNI field is still sent, but it's not used for authentication.
       // Certificate validation is done via SPIFFE IDs, not CN/SAN fields tied to DNS names.
       settings.put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
 
