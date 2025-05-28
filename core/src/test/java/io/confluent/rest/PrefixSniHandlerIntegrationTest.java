@@ -62,6 +62,7 @@ public class PrefixSniHandlerIntegrationTest {
   public static final String TEST_SSL_PASSWORD = "test1234";
 
   protected Server server;
+  protected int port;
   protected HttpClient httpClient;
   protected Properties props;
   protected File clientKeystore;
@@ -133,6 +134,7 @@ public class PrefixSniHandlerIntegrationTest {
     startHttpServer("https");
     startHttpClient("https");
 
+    // The Jetty HTTP client automatically uses the hostname from the server URI as the SNI value
     ContentResponse response = httpClient.newRequest(server.getURI())
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
@@ -169,6 +171,62 @@ public class PrefixSniHandlerIntegrationTest {
     assertEquals(MISDIRECTED_REQUEST.getCode(), response.getStatus());
     String responseContent = response.getContentAsString();
     assertThat(responseContent, containsString(MISDIRECTED_REQUEST.getMessage()));
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideParameters")
+  public void test_https_TenantPrefixSniHandlerEnabled_fallback_localhost_pass(boolean mTLSEnabled, boolean http2Enabled)
+      throws Exception {
+    props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
+    if (mTLSEnabled) {
+      props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+          RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
+    }
+    props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
+    startHttpServer("https");
+    startHttpClient("https");
+
+    // Use the server's actual URI but override the host header
+    ContentResponse response = httpClient.newRequest("https://localhost:" + port)
+        .path("/resource")
+        .accept(MediaType.TEXT_PLAIN)
+        .header(HttpHeader.HOST, "localhost")
+        .send();
+
+    // fallback to the original SNI check if sniServerName does not start with the tenant prefix
+    assertEquals(OK.getCode(), response.getStatus(),
+        "Expected OK status for host header: " + "localhost");
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideParameters")
+  public void test_https_TenantPrefixSniHandlerEnabled_fallback_localhost_wrongHeader_421(boolean mTLSEnabled, boolean http2Enabled)
+      throws Exception {
+    props.setProperty(RestConfig.PREFIX_SNI_CHECK_ENABLED_CONFIG, "true");
+    props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
+    if (mTLSEnabled) {
+      props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+          RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
+    }
+    props.setProperty(RestConfig.HTTP2_ENABLED_CONFIG, String.valueOf(http2Enabled));
+    startHttpServer("https");
+    startHttpClient("https");
+
+    // Test each valid host header
+    for (String validHost : getValidHostHeaders()) {
+      ContentResponse response = httpClient.newRequest("https://localhost:" + port)
+          .path("/resource")
+          .accept(MediaType.TEXT_PLAIN)
+          // Test each valid host header pattern
+          .header(HttpHeader.HOST, validHost)
+          .send();
+
+      // 421 because host header does not match the SNI value
+      assertEquals(MISDIRECTED_REQUEST.getCode(), response.getStatus());
+      String responseContent = response.getContentAsString();
+      assertThat(responseContent, containsString(MISDIRECTED_REQUEST.getMessage()));
+    }
   }
 
   @ParameterizedTest
@@ -246,7 +304,8 @@ public class PrefixSniHandlerIntegrationTest {
   }
 
   private void startHttpServer(String scheme) throws Exception {
-    String url = scheme + "://" + getPrimarySniHostname() + ":" + getFreePort();
+    port = getFreePort();
+    String url = scheme + "://" + getPrimarySniHostname() + ":" + port;
     props.setProperty(RestConfig.LISTENERS_CONFIG, url);
 
     if (scheme.equals("https")) {
@@ -296,7 +355,7 @@ public class PrefixSniHandlerIntegrationTest {
     X509Certificate cCert = certificateBuilder
         // create two SANs (Subject Alternative Name) in the certificate,
         // imagine "localhost" is kafka rest, and "anotherhost" is ksql
-        .sanDnsNames(getPrimarySniHostname(), getAlternateSniHostname())
+        .sanDnsNames(getPrimarySniHostname(), getAlternateSniHostname(), "localhost")
         .generate("CN=mymachine.local, O=A client", keypair);
 
     String alias = type.toString().toLowerCase();
