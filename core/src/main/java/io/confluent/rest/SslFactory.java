@@ -117,7 +117,7 @@ public final class SslFactory {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
     
     if (sslConfig.getIsSpireEnabled()) {
-      configureSpiffeSslContext(sslContextFactory, x509Source, sslConfig.getIsSpireMtls());
+      configureSpiffeSslContext(sslContextFactory, x509Source);
     }
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
@@ -159,8 +159,7 @@ public final class SslFactory {
 
   private static void configureSpiffeSslContext(
       SslContextFactory.Server sslContextFactory,
-      X509Source x509Source,
-      boolean isMtls) {
+      X509Source x509Source) {
     SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
         .builder()
         .x509Source(x509Source)
@@ -170,9 +169,7 @@ public final class SslFactory {
     try {
       SSLContext sslContext = SpiffeSslContextFactory.getSslContext(options);
       sslContextFactory.setSslContext(sslContext);
-      if (isMtls) {
-        sslContextFactory.setNeedClientAuth(true);
-      }
+      sslContextFactory.setNeedClientAuth(true);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
