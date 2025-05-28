@@ -41,6 +41,9 @@ public class HelloWorldSpireApplication extends HelloWorldApplication {
   private static X509Source initializeX509Source(String spireSocketPath) throws Exception {
     log.info("Initializing X509Source with SPIRE agent socket at: {}", spireSocketPath);
     
+    // There are more options for the X509Source, but we're using the default options for now.
+    // For example, you can adjust the timeout for the X509Source to 10 seconds.
+    // These kinds of options are available in the X509SourceOptions class based on your needs.
     DefaultX509Source.X509SourceOptions x509SourceOptions = DefaultX509Source.X509SourceOptions
         .builder()
         .spiffeSocketPath(spireSocketPath)
@@ -67,6 +70,9 @@ public class HelloWorldSpireApplication extends HelloWorldApplication {
       settings.put(RestConfig.LISTENERS_CONFIG, "https://localhost:8080");
 
       // Disable SNI host check
+      // SPIRE handles identity and authentication at the SPIFFE level, not via DNS hostnames.
+      // The SNI field is still sent (because it's part of the TLS spec), but it's not used for authentication.
+      // Certificate validation is done via SPIFFE IDs, not CN/SAN fields tied to DNS names.
       settings.put(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
 
       // Add any custom greeting message if provided
@@ -77,6 +83,10 @@ public class HelloWorldSpireApplication extends HelloWorldApplication {
       HelloWorldRestConfig config = new HelloWorldRestConfig(settings);
 
       // Initialize X509Source before creating the application
+      // We need to initialize the X509Source before creating the application
+      // The X509Source is responsible for obtaining the client certificate
+      // and verifying it against the SPIRE trust store.
+      // If we don't initialize the X509Source, the application will fail to start.
       X509Source x509Source = initializeX509Source(DEFAULT_SPIRE_SOCKET_PATH);
 
       // Create application with both config and X509Source
