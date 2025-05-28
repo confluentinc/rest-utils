@@ -43,6 +43,7 @@ public class SniHandler extends HandlerWrapper {
       HttpServletResponse response) throws IOException, ServletException {
     String serverName = request.getServerName();
     String sniServerName = getSniServerName(baseRequest);
+    log.debug("host header: {}, sni value: {}", serverName, sniServerName);
     if (sniServerName != null && !sniServerName.equals(serverName)) {
       log.debug("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
       baseRequest.setHandled(true);
