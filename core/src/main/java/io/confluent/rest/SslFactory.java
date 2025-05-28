@@ -169,7 +169,6 @@ public final class SslFactory {
     try {
       SSLContext sslContext = SpiffeSslContextFactory.getSslContext(options);
       sslContextFactory.setSslContext(sslContext);
-      sslContextFactory.setNeedClientAuth(true);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

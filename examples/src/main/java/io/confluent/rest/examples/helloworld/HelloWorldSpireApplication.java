@@ -59,7 +59,9 @@ public class HelloWorldSpireApplication extends HelloWorldApplication {
       settings.put(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
 
       // Enable mTLS (mutual TLS)
-      settings.put(RestConfig.SSL_SPIRE_MTLS_CONFIG, "true");
+      settings.put(
+          RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+          RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
 
       // Configure HTTPS listener
       settings.put(RestConfig.LISTENERS_CONFIG, "https://localhost:8080");
