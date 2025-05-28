@@ -129,8 +129,4 @@ public final class SslConfig {
   public Boolean getIsSpireEnabled() {
     return restConfig.getBoolean(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG);
   }
-
-  public Boolean getIsSpireMtls() {
-    return restConfig.getBoolean(RestConfig.SSL_SPIRE_MTLS_CONFIG);
-  }
 }

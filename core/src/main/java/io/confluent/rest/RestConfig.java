@@ -210,10 +210,6 @@ public class RestConfig extends AbstractConfig {
   public static final String SSL_IS_SPIRE_ENABLED_DOC =
       "Whether to enable SPIRE SSL";
   protected static final  boolean SSL_IS_SPIRE_ENABLED_DEFAULT = false;
-  public static final String SSL_SPIRE_MTLS_CONFIG = "ssl.spire.is.mtls";
-  public static final String SSL_SPIRE_MTLS_DOC =
-      "Whether to enable MTLS while doing spire s2s";
-  protected static final boolean SSL_SPIRE_MTLS_DEFAULT = true;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -822,6 +818,12 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_MTLS_DEFAULT,
             Importance.LOW,
             SSL_IS_SPIRE_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_AGENT_SOCKET_PATH_CONFIG,
+            Type.STRING,
+            SSL_SPIRE_AGENT_SOCKET_PATH_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_AGENT_SOCKET_PATH_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
