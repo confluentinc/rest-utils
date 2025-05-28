@@ -420,7 +420,7 @@ public abstract class Application<T extends RestConfig> {
 
     // Add SNI validation handler if enabled
     if (config.getPrefixSniCheckEnable()) {
-      context.insertHandler(new PrefixSniHandler());
+      context.insertHandler(new PrefixSniHandler(config.getPrefixSniPrefix()));
     } else if (config.getSniCheckEnable()) {
       context.insertHandler(new SniHandler());
     }
