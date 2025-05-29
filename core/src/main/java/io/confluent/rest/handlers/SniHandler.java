@@ -31,14 +31,16 @@ public class SniHandler extends Handler.Wrapper {
 
   @Override
   public boolean handle(Request baseRequest,
-                     Response response,
-                     Callback callback) throws Exception {
+      Response response,
+      Callback callback) throws Exception {
     String serverName = Request.getServerName(baseRequest);
     String sniServerName = SniUtils.getSniServerName(baseRequest);
+    log.debug("host header: {}, sni value: {}", serverName, sniServerName);
+
     if (sniServerName != null && !sniServerName.equals(serverName)) {
       log.debug("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
       Response.writeError(baseRequest, response, callback,
-              MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+          MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
     return super.handle(baseRequest, response, callback);
   }
