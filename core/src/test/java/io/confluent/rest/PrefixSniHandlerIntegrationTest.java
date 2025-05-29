@@ -195,7 +195,7 @@ public class PrefixSniHandlerIntegrationTest {
     ContentResponse response = httpClient.newRequest("https://localhost:" + port)
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, "localhost")
+        .headers(headers -> headers.put(HttpHeader.HOST, "localhost"))
         .send();
 
     // fallback to the original SNI check if sniServerName does not start with the tenant prefix
@@ -224,7 +224,7 @@ public class PrefixSniHandlerIntegrationTest {
           .path("/resource")
           .accept(MediaType.TEXT_PLAIN)
           // Test each valid host header pattern
-          .header(HttpHeader.HOST, validHost)
+          .headers(headers -> headers.put(HttpHeader.HOST, validHost))
           .send();
 
       // 421 because host header does not match the SNI value
