@@ -30,6 +30,11 @@ public class PrefixSniHandler extends Handler.Wrapper {
   private static final Logger log = LoggerFactory.getLogger(PrefixSniHandler.class);
   private static final String DOT_SEPARATOR = ".";
   private static final String DASH_SEPARATOR = "-";
+  private final String sniPrefix;
+
+  public PrefixSniHandler(String prefix) {
+    this.sniPrefix = prefix;
+  }
 
   @Override
   public boolean handle(Request request,
@@ -37,8 +42,9 @@ public class PrefixSniHandler extends Handler.Wrapper {
       Callback callback) throws Exception {
     String hostHeader = Request.getServerName(request);
     String sniServerName = SniUtils.getSniServerName(request);
+    log.debug("host header: {}, full sni: {}", hostHeader, sniServerName);
 
-    if (sniServerName != null) {
+    if (sniServerName != null && sniServerName.startsWith(sniPrefix)) {
       // Extract the prefix from the sniServerName, which is always the first segment before '.'
       // Example: "lsrc-123.us-east-1.aws.private.confluent.cloud" → "lsrc-123"
       String prefix = getFirstPart(sniServerName);
@@ -48,13 +54,18 @@ public class PrefixSniHandler extends Handler.Wrapper {
       // - "lsrc-123-domxyz.us-east-1.aws.glb.confluent.cloud"
       // - "lsrc-123.domxyz.us-east-1.aws.aws.confluent.cloud"
       if (prefix == null
-              || !(hostHeader.startsWith(prefix + DOT_SEPARATOR)
-                  || hostHeader.startsWith(prefix + DASH_SEPARATOR))) {
+          || !(hostHeader.startsWith(prefix + DOT_SEPARATOR)
+          || hostHeader.startsWith(prefix + DASH_SEPARATOR))) {
         log.warn("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
             hostHeader, prefix, sniServerName);
         Response.writeError(request, response, callback,
-                MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+            MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
       }
+    } else if (sniServerName != null && !sniServerName.equals(hostHeader)) {
+      // fallback to the original SniHandler logic
+      log.warn("SNI check failed, host header: {}, full sni: {}", hostHeader, sniServerName);
+      Response.writeError(request, response, callback,
+          MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
     return super.handle(request, response, callback);
   }

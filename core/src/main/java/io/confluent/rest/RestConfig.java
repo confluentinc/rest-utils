@@ -530,6 +530,12 @@ public class RestConfig extends AbstractConfig {
           + "misdirected response. Default is false.";
   protected static final boolean PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
 
+  public static final String PREFIX_SNI_PREFIX_CONFIG = "prefix.sni.prefix";
+  protected static final String PREFIX_SNI_PREFIX_DOC =
+      "The prefix to check against the Host header when prefix SNI checking is enabled. "
+          + "Default is empty string.";
+  protected static final String PREFIX_SNI_PREFIX_DEFAULT = "";
+
   public static final String SNI_HOST_CHECK_ENABLED_CONFIG = "sni.host.check.enabled";
   protected static final String SNI_HOST_CHECK_ENABLED_DOC =
       "Whether or not to enable SNI host checking in SecureRequestCustomizer. If disabled, "
@@ -1141,6 +1147,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             PREFIX_SNI_CHECK_ENABLED_DOC
         ).define(
+            PREFIX_SNI_PREFIX_CONFIG,
+            Type.STRING,
+            PREFIX_SNI_PREFIX_DEFAULT,
+            Importance.LOW,
+            PREFIX_SNI_PREFIX_DOC
+        ).define(
             EXPECTED_SNI_HEADERS_CONFIG,
             Type.LIST,
             EXPECTED_SNI_HEADERS_DEFAULT,
@@ -1543,6 +1555,10 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getPrefixSniCheckEnable() {
     return getBoolean(PREFIX_SNI_CHECK_ENABLED_CONFIG);
+  }
+
+  public final String getPrefixSniPrefix() {
+    return getString(PREFIX_SNI_PREFIX_CONFIG);
   }
 
   public final List<String> getExpectedSniHeaders() {
