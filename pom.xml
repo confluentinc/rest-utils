@@ -77,7 +77,6 @@
                 <groupId>io.confluent</groupId>
                 <artifactId>rest-utils-test</artifactId>
                 <version>${io.confluent.rest-utils.version}</version>
-                <scope>test</scope>
             </dependency>
 
             <!--our actual deps-->
@@ -206,15 +205,11 @@
                 <version>${apache.httpclient.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.eclipse.jetty.http2</groupId>
-                <artifactId>http2-client</artifactId>
-                <version>${jetty.version}</version>
+                <groupId>org.asynchttpclient</groupId>
+                <artifactId>async-http-client</artifactId>
+                <version>${asynchttpclient.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.eclipse.jetty.http2</groupId>
-                <artifactId>http2-http-client-transport</artifactId>
-                <version>${jetty.version}</version>
-            </dependency>
+
             <!--test-->
             <dependency>
                 <groupId>org.glassfish.jersey.test-framework</groupId>
@@ -242,7 +237,6 @@
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>
                 <version>${junit.jupiter.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
@@ -250,16 +244,19 @@
                 <version>${junit.jupiter.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-core</artifactId>
+                <version>${hamcrest.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
                 <version>${mockito.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-inline</artifactId>
                 <version>${mockito.version}</version>
-                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
