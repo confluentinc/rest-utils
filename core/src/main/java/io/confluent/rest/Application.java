@@ -135,8 +135,16 @@ public abstract class Application<T extends RestConfig> {
     this(config, path, null, null, null);
   }
 
+  public Application(T config, String path, X509Source x509Source) {
+    this(config, path, null, null, x509Source);
+  }
+
   public Application(T config, String path, String listenerName) {
     this(config, path, listenerName, null, null);
+  }
+
+  public Application(T config, String path, String listenerName, X509Source x509Source) {
+    this(config, path, listenerName, null, x509Source);
   }
 
   public Application(T config, String path, String listenerName, RequestLog customRequestLog) {
