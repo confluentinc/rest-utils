@@ -23,6 +23,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.service.AutoService;
+
+import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.security.KeyPair;
 import java.security.Security;
@@ -40,6 +43,7 @@ import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.apache.kafka.test.TestUtils;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
@@ -57,7 +61,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,17 +68,16 @@ import org.slf4j.LoggerFactory;
 /**
  * This tests HTTP/2 support in the REST server with FIPS mode enabled.
  **/
-@Disabled("KNET-15387: this test is flaky and needs to be fixed")
 class Http2FipsTest {
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
 
+  private File serverKeystore;
+
   private static final String HTTP_URI = "http://localhost:8080";
   private static final String HTTPS_URI = "https://localhost:8081";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
-
-  private String SERVER_CERT;
-  private String SERVER_KEY;
+  private static final String SSL_PASSWORD = "test1234";
 
   HttpClient httpClient(SslContextFactory.Client sslContextFactory, HTTP2Client http2Client) {
     final HttpClient client;
@@ -107,6 +109,12 @@ class Http2FipsTest {
 
   @BeforeEach
   public void setUp() throws Exception {
+    try {
+      serverKeystore = File.createTempFile("Http2Test-server-keystore", ".jks");
+    } catch (IOException ioe) {
+      throw new RuntimeException("Unable to create temporary files for trust stores and keystores.");
+    }
+
     KeyPair keyPair = TestSslUtils.generateKeyPair("RSA");
     X509Certificate certificate = generateCertificate(keyPair,
         "CN=localhost", "localhost");
@@ -118,13 +126,15 @@ class Http2FipsTest {
     try (JcaPEMWriter pemWriter = new JcaPEMWriter(certStringWriter)) {
       pemWriter.writeObject(new PemObject("CERTIFICATE", certificate.getEncoded()));
     }
-    SERVER_CERT = certStringWriter.toString();
-    SERVER_KEY = privateStringWriter.toString();
+
+    TestSslUtils.createKeyStore(serverKeystore.getPath(), new Password(SSL_PASSWORD), new Password(SSL_PASSWORD),"server", keyPair.getPrivate(), certificate);
   }
 
   private void configServerKeystore(Properties props) throws Exception {
-    props.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(SERVER_KEY, SERVER_CERT)));
+    props.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, serverKeystore.getAbsolutePath());
     props.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, "PEM");
+    props.put(RestConfig.SSL_KEYSTORE_PASSWORD_CONFIG, SSL_PASSWORD);
+    props.put(RestConfig.SSL_KEY_PASSWORD_CONFIG, SSL_PASSWORD);
   }
 
   private TestRestConfig buildTestConfig(boolean enableHttp2) throws Exception {
