@@ -106,7 +106,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     this(config, createThreadPool(config), x509Source);
   }
 
-  public ApplicationServer(T config,ThreadPool threadPool) {
+  public ApplicationServer(T config, ThreadPool threadPool) {
     this(config, threadPool, null);
   }
 
