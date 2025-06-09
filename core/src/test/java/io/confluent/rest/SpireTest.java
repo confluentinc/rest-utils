@@ -17,17 +17,17 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 
-import jakarta.ws.rs.core.MediaType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import java.util.Properties;
 import org.eclipse.jetty.server.Server;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.Configurable;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Configurable;
+import javax.ws.rs.core.MediaType;
 import org.apache.kafka.test.TestSslUtils;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
