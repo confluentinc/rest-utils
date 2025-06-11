@@ -30,6 +30,7 @@ import javax.ws.rs.core.Configurable;
 
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfigException;
+import io.spiffe.workloadapi.X509Source;
 
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
@@ -46,6 +47,10 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
 
   public HelloWorldApplication(HelloWorldRestConfig config) {
     super(config);
+  }
+
+  public HelloWorldApplication(HelloWorldRestConfig config, X509Source x509Source) {
+    super(config, x509Source);
   }
 
   @Override
