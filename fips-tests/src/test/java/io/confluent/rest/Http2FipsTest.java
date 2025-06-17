@@ -57,7 +57,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,8 +64,8 @@ import org.slf4j.LoggerFactory;
 /**
  * This tests HTTP/2 support in the REST server with FIPS mode enabled.
  **/
-@Disabled("KNET-15387: this test is flaky and needs to be fixed")
 class Http2FipsTest {
+  public static final String TEST_SSL_PASSWORD = "test1234";
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
 
@@ -295,8 +294,12 @@ class Http2FipsTest {
   private int makeGetRequestHttps2(String url)
       throws Exception {
     log.debug("Making GET using HTTP/2 " + url);
-    HTTP2Client http2Client = new HTTP2Client();
-    HttpClient httpClient = httpClient(buildSslContextFactory(),http2Client);
+
+    SslContextFactory.Client sslContextFactory = buildSslContextFactory();
+    ClientConnector clientConnector = new ClientConnector();
+    clientConnector.setSslContextFactory(sslContextFactory);
+    HTTP2Client http2Client = new HTTP2Client(clientConnector);
+    HttpClient httpClient = httpClient(sslContextFactory,http2Client);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
