@@ -200,10 +200,10 @@ public class RestConfig extends AbstractConfig {
   protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
   public static final String SSL_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
-  public static final String SSL_IS_SPIRE_ENABLED_DOC =
+  public static final String SSL_SPIRE_ENABLED_DOC =
       "Whether to enable SPIRE SSL; once enabled, all keystore and truststore settings "
       + "are ignored because SPIRE will handle the certificate and key management";
-  protected static final  boolean SSL_IS_SPIRE_ENABLED_DEFAULT = false;
+  protected static final  boolean SSL_SPIRE_ENABLED_DEFAULT = false;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -796,9 +796,9 @@ public class RestConfig extends AbstractConfig {
         ).define(
             SSL_SPIRE_ENABLED_CONFIG,
             Type.BOOLEAN,
-            SSL_IS_SPIRE_ENABLED_DEFAULT,
+            SSL_SPIRE_ENABLED_DEFAULT,
             Importance.LOW,
-            SSL_IS_SPIRE_ENABLED_DOC
+            SSL_SPIRE_ENABLED_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
