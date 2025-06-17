@@ -199,7 +199,7 @@ public class RestConfig extends AbstractConfig {
       + " runtime request tags in global stats.";
   protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
-  public static final String SSL_IS_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
+  public static final String SSL_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
   public static final String SSL_IS_SPIRE_ENABLED_DOC =
       "Whether to enable SPIRE SSL; once enabled, all keystore and truststore settings "
       + "are ignored because SPIRE will handle the certificate and key management";
@@ -794,7 +794,7 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC
         ).define(
-            SSL_IS_SPIRE_ENABLED_CONFIG,
+            SSL_SPIRE_ENABLED_CONFIG,
             Type.BOOLEAN,
             SSL_IS_SPIRE_ENABLED_DEFAULT,
             Importance.LOW,

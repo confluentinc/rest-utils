@@ -128,7 +128,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     listeners = config.getListeners();
 
     if (x509Source == null) {
-      if (config.getBoolean(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG)) {
+      if (config.getBoolean(RestConfig.SSL_SPIRE_ENABLED_CONFIG)) {
         throw new RuntimeException("X509Source must be provided when SPIRE SSL is enabled");
       }
       this.x509Source = null;

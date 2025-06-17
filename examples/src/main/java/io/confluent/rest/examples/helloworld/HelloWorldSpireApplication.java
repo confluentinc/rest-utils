@@ -59,7 +59,7 @@ public class HelloWorldSpireApplication extends HelloWorldApplication {
       TreeMap<String, String> settings = new TreeMap<>();
 
       // Enable SPIRE SSL
-      settings.put(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
+      settings.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
 
       // Enable mTLS (mutual TLS)
       settings.put(

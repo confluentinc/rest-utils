@@ -124,7 +124,7 @@ public class SpireTest {
         Properties props = new Properties();
         props.setProperty(RestConfig.LISTENERS_CONFIG, "https://localhost:" + port);
         props.setProperty(RestConfig.SNI_HOST_CHECK_ENABLED_CONFIG, "false");
-        props.setProperty(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
+        props.setProperty(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
         if (enableMtls) {
             props.setProperty(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG, RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
         }
@@ -222,7 +222,7 @@ public class SpireTest {
     public void testAppCreateServerFailsWhenSpireEnabledButNoX509Source() throws Exception {
         Properties props = new Properties();
         props.setProperty(RestConfig.LISTENERS_CONFIG, "https://localhost:9999");
-        props.setProperty(RestConfig.SSL_IS_SPIRE_ENABLED_CONFIG, "true");
+        props.setProperty(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
         
         TestRestConfig config = new TestRestConfig(props);
         TestApp app = new TestApp(config);
