@@ -17,6 +17,8 @@
 package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.spiffe.provider.SpiffeSslContextFactory;
+import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -24,6 +26,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
@@ -103,27 +106,22 @@ public final class SslFactory {
     };
   }
 
+
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
+    return createSslContextFactory(sslConfig, null);
+  }
+
+  public static SslContextFactory createSslContextFactory(
+      SslConfig sslConfig,
+      X509Source x509Source) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    
+    if (sslConfig.getIsSpireEnabled()) {
+      configureSpiffeSslContext(sslContextFactory, x509Source);
+    }
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
-      setSecurityStoreProps(sslConfig, sslContextFactory, true, false);
-      sslContextFactory.setKeyManagerPassword(sslConfig.getKeyManagerPassword());
-
-      if (!sslConfig.getKeyManagerFactoryAlgorithm().isEmpty()) {
-        sslContextFactory.setKeyManagerFactoryAlgorithm(sslConfig.getKeyManagerFactoryAlgorithm());
-      }
-
-      if (sslConfig.getReloadOnKeyStoreChange()) {
-        Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
-        try {
-          FileWatcher.onFileChange(watchLocation,
-              onFileChangeCallback(sslConfig, sslContextFactory));
-          log.info("Enabled SSL cert auto reload for: " + watchLocation);
-        } catch (java.io.IOException e) {
-          log.error("Cannot enable SSL cert auto reload", e);
-        }
-      }
+      configureKeyStore(sslContextFactory, sslConfig);
     }
 
     configureClientAuth(sslContextFactory, sslConfig);
@@ -159,6 +157,23 @@ public final class SslFactory {
     return sslContextFactory;
   }
 
+  private static void configureSpiffeSslContext(
+      SslContextFactory.Server sslContextFactory,
+      X509Source x509Source) {
+    SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
+        .builder()
+        .x509Source(x509Source)
+        .acceptAnySpiffeId()
+        .build();
+
+    try {
+      SSLContext sslContext = SpiffeSslContextFactory.getSslContext(options);
+      sslContextFactory.setSslContext(sslContext);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static void configureClientAuth(
       SslContextFactory.Server sslContextFactory, SslConfig config) {
     switch (config.getClientAuth()) {
@@ -176,6 +191,35 @@ public final class SslFactory {
     sslContextFactory.setProvider(sslConfig.getProvider());
     if (SslConfig.TLS_CONSCRYPT.equalsIgnoreCase(sslConfig.getProvider())) {
       Security.addProvider(new OpenSSLProvider());
+    }
+  }
+
+  private static void configureKeyStore(
+      SslContextFactory.Server sslContextFactory,
+      SslConfig sslConfig) {
+    setSecurityStoreProps(sslConfig, sslContextFactory, true, false);
+    sslContextFactory.setKeyManagerPassword(sslConfig.getKeyManagerPassword());
+
+    if (!sslConfig.getKeyManagerFactoryAlgorithm().isEmpty()) {
+      sslContextFactory.setKeyManagerFactoryAlgorithm(
+          sslConfig.getKeyManagerFactoryAlgorithm());
+    }
+
+    if (sslConfig.getReloadOnKeyStoreChange()) {
+      configureKeyStoreReload(sslContextFactory, sslConfig);
+    }
+  }
+
+  private static void configureKeyStoreReload(
+      SslContextFactory.Server sslContextFactory,
+      SslConfig sslConfig) {
+    Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
+    try {
+      FileWatcher.onFileChange(watchLocation,
+          onFileChangeCallback(sslConfig, sslContextFactory));
+      log.info("Enabled SSL cert auto reload for: " + watchLocation);
+    } catch (java.io.IOException e) {
+      log.error("Cannot enable SSL cert auto reload", e);
     }
   }
 }
