@@ -65,7 +65,6 @@ import org.slf4j.LoggerFactory;
  * This tests HTTP/2 support in the REST server with FIPS mode enabled.
  **/
 class Http2FipsTest {
-  public static final String TEST_SSL_PASSWORD = "test1234";
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
 
