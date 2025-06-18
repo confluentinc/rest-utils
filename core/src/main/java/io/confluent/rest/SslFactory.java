@@ -116,6 +116,17 @@ public final class SslFactory {
       X509Source x509Source) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
     
+    /*
+     * When sslConfig.getIsSpireEnabled() == true, the application is expected to use SPIFFE/SPIRE 
+     * for mTLS, which means it will get its certificates and keys from the SPIFFE Workload API 
+     * (via X509Source), not from a traditional Java keystore.
+     * 
+     * X509Source establishes a connection to the Workload API and sets up a watcher to monitor for 
+     * updates to the X.509 SVIDs and bundles. This watcher listens for changes and automatically 
+     * updates the in-memory certificates when new ones are issued, ensuring that expired 
+     * certificates are replaced seamlessly.
+     * 
+     */
     if (sslConfig.getIsSpireEnabled()) {
       configureSpiffeSslContext(sslContextFactory, x509Source);
     }
