@@ -50,6 +50,7 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
       = "io.confluent.rest.proxy.local.port";
 
   // The tlvs attribute name.
+  // With value is an instance of {@link io.confluent.rest.customiser.TlvProvider} that can be used to retrieve TLVs
   public static final String TLV_PROVIDER_ATTRIBUTE_NAME
       = "io.confluent.rest.proxy.tlv.provider";
 
@@ -57,6 +58,7 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
   public Request customize(Request request, HttpFields.Mutable mutable) {
     EndPoint endPoint = request.getConnectionMetaData().getConnection().getEndPoint();
 
+    // The EndPoint wrapping order is reversed of the connection factory order.
     if (endPoint instanceof SslConnection.SslEndPoint) {
       endPoint = ((SslConnection.SslEndPoint) endPoint).unwrap();
     }

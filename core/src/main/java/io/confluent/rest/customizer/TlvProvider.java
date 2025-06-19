@@ -16,6 +16,11 @@
 
 package io.confluent.rest.customiser;
 
+/**
+ * A functional interface that provides a method to retrieve a TLV (Type-Length-Value) byte array
+ * based on a given type.
+ */
+@FunctionalInterface
 public interface TlvProvider {
   byte[] getTlv(int type);
 }
