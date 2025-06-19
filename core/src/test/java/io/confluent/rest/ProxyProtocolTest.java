@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
-import io.confluent.rest.customiser.ProxyCustomizer;
-import io.confluent.rest.customiser.TlvProvider;
+import io.confluent.rest.customizer.ProxyCustomizer;
+import io.confluent.rest.customizer.TlvProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;

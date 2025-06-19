@@ -20,7 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import io.confluent.rest.customiser.ProxyCustomizer;
+import io.confluent.rest.customizer.ProxyCustomizer;
 import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;

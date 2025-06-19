@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.confluent.rest.customiser;
+package io.confluent.rest.customizer;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.EndPoint;
@@ -50,7 +50,7 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
       = "io.confluent.rest.proxy.local.port";
 
   // The tlvs attribute name.
-  // With value is an instance of {@link io.confluent.rest.customiser.TlvProvider} that can be used to retrieve TLVs
+  // With value is an instance of {@link TlvProvider} that can be used to retrieve TLVs
   public static final String TLV_PROVIDER_ATTRIBUTE_NAME
       = "io.confluent.rest.proxy.tlv.provider";
 

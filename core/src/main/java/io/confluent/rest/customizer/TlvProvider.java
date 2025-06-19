@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.confluent.rest.customiser;
+package io.confluent.rest.customizer;
 
 /**
  * A functional interface that provides a method to retrieve a TLV (Type-Length-Value) byte array
