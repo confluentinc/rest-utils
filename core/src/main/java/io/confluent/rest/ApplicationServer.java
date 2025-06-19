@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.confluent.rest.customizer.ProxyCustomizer;
 import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -252,6 +253,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private void configureConnectors() {
     for (NamedURI listener : listeners) {
       RestConfig connectorConfig = serverConfig.getListenerScopedConfig(listener);
+      final boolean proxyProtocolEnabled =
+          connectorConfig.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
       final HttpConfiguration httpConfiguration = new HttpConfiguration();
       httpConfiguration.setSendServerVersion(false);
 
@@ -260,6 +263,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           connectorConfig.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
       httpConfiguration.setResponseHeaderSize(
           connectorConfig.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
+
+      if (proxyProtocolEnabled) {
+        httpConfiguration.addCustomizer(new ProxyCustomizer());
+      }
 
       // Use original IP in forwarded requests
       if (connectorConfig.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
@@ -280,9 +287,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // Default to supporting HTTP/2 for Java 11 and later
       final boolean http2Enabled = isHttp2Compatible(serverConfig.getBaseSslConfig())
                                 && connectorConfig.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
-
-      final boolean proxyProtocolEnabled =
-          connectorConfig.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
 
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
