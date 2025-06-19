@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Confluent Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.confluent.rest.customiser;
 
 import org.eclipse.jetty.http.HttpFields;
@@ -18,15 +34,24 @@ import java.util.Set;
 public class ProxyCustomizer implements HttpConfiguration.Customizer {
 
   // The remote address attribute name.
-  public static final String REMOTE_ADDRESS_ATTRIBUTE_NAME = "io.confluent.rest.proxy.remote.address";
+  public static final String REMOTE_ADDRESS_ATTRIBUTE_NAME =
+      "io.confluent.rest.proxy.remote.address";
+
   // The remote port attribute name.
-  public static final String REMOTE_PORT_ATTRIBUTE_NAME = "io.confluent.rest.proxy.remote.port";
+  public static final String REMOTE_PORT_ATTRIBUTE_NAME =
+      "io.confluent.rest.proxy.remote.port";
+
   // The local address attribute name.
-  public static final String LOCAL_ADDRESS_ATTRIBUTE_NAME = "io.confluent.rest.proxy.local.address";
+  public static final String LOCAL_ADDRESS_ATTRIBUTE_NAME
+      = "io.confluent.rest.proxy.local.address";
+
   // The local port attribute name.
-  public static final String LOCAL_PORT_ATTRIBUTE_NAME = "io.confluent.rest.proxy.local.port";
+  public static final String LOCAL_PORT_ATTRIBUTE_NAME
+      = "io.confluent.rest.proxy.local.port";
+
   // The tlvs attribute name.
-  public static final String TLV_PROVIDER_ATTRIBUTE_NAME = "io.confluent.rest.proxy.tlv.provider";
+  public static final String TLV_PROVIDER_ATTRIBUTE_NAME
+      = "io.confluent.rest.proxy.tlv.provider";
 
   @Override
   public Request customize(Request request, HttpFields.Mutable mutable) {
@@ -51,13 +76,17 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
     private final String localAddress;
     private final int remotePort;
     private final int localPort;
-    private final TLVProvider tlvProvider;
+    private final TlvProvider tlvProvider;
 
-    private ProxyRequest(Request request, SocketAddress local, SocketAddress remote, TLVProvider tlvProvider)
-    {
+    private ProxyRequest(Request request,
+                         SocketAddress local,
+                         SocketAddress remote,
+                         TlvProvider tlvProvider) {
       super(request);
-      InetSocketAddress inetLocal = local instanceof InetSocketAddress ? (InetSocketAddress)local : null;
-      InetSocketAddress inetRemote = remote instanceof InetSocketAddress ? (InetSocketAddress)remote : null;
+      InetSocketAddress inetLocal = local instanceof InetSocketAddress
+          ? (InetSocketAddress) local : null;
+      InetSocketAddress inetRemote = remote instanceof InetSocketAddress
+          ? (InetSocketAddress) remote : null;
       this.localAddress = inetLocal == null ? null : inetLocal.getAddress().getHostAddress();
       this.remoteAddress = inetRemote == null ? null : inetRemote.getAddress().getHostAddress();
       this.localPort = inetLocal == null ? 0 : inetLocal.getPort();

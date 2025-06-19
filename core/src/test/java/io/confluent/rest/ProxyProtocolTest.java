@@ -17,7 +17,7 @@
 package io.confluent.rest;
 
 import io.confluent.rest.customiser.ProxyCustomizer;
-import io.confluent.rest.customiser.TLVProvider;
+import io.confluent.rest.customiser.TlvProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -389,11 +389,11 @@ public class ProxyProtocolTest {
     @GET
     @Path("/resource")
     public String get(@Context HttpServletRequest request) {
-      TLVProvider tlvProvider = (TLVProvider) request.getAttribute(ProxyCustomizer.TLV_PROVIDER_ATTRIBUTE_NAME);
+      TlvProvider tlvProvider = (TlvProvider) request.getAttribute(ProxyCustomizer.TLV_PROVIDER_ATTRIBUTE_NAME);
       String tlvs = "";
       if (tlvProvider != null) {
-        byte[] tlvVal1 = tlvProvider.getTLV(0xE0);
-        byte[] tlvVal2 = tlvProvider.getTLV(0xE1);
+        byte[] tlvVal1 = tlvProvider.getTlv(0xE0);
+        byte[] tlvVal2 = tlvProvider.getTlv(0xE1);
         if (tlvVal1 != null) {
           assertNotNull(tlvVal2);
           tlvs = String.format(Locale.ROOT,
