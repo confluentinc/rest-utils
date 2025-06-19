@@ -173,17 +173,16 @@ public final class SslFactory {
       X509Source x509Source) {
 
     /*
-     * Natively java-spiffe doesn't support complex pattern matching. 
-     * If we use acceptedSpiffeIdsSupplier, it will require clients to know in advance the 
-     * specific IDs. In the case of SDSteam, they may not know every single identity in advance, 
-     * which will create more troubles to our clients.
-     * Ticket for authorization: https://confluentinc.atlassian.net/browse/S2S-3920
-     * We will do the following 2 steps:
-     * 1. Add a new PR to make server Consturctor to take a callbackAuthzFunction. 
-     *    If the function got passed, it will be called to check if the client is authorized.
-     *    If the funciton is null, the server will accept any spiffeID.
-     * 2. Once we finialize the authorization logic, we will revert the PR in step 1 and 
-     *    implement the authorization layer.
+     * The underlying 'java-spiffe' library does not support complex pattern matching for SPIFFE 
+     * IDs. Supplying a static list of accepted IDs is too restrictive for dynamic environments 
+     * where all client IDs may not be known in advance.
+     *
+     * To provide more flexible authorization, a callback function can be supplied to the 
+     * constructor. If the callback is provided, it will be invoked to authorize a client's 
+     * SPIFFE ID. If the callback is null, any SPIFFE ID will be accepted.
+     *
+     * This approach serves as an interim solution until a more comprehensive authorization 
+     * layer is implemented.
      */
     SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
         .builder()
