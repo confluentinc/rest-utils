@@ -16,7 +16,20 @@
 
 package io.confluent.rest.metrics;
 
-import java.util.Objects;
+import io.confluent.rest.annotations.PerformanceMetric;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Response.StatusType;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.Avg;
+import org.apache.kafka.common.metrics.stats.CumulativeCount;
+import org.apache.kafka.common.metrics.stats.Max;
+import org.apache.kafka.common.metrics.stats.Percentile;
+import org.apache.kafka.common.metrics.stats.Percentiles;
+import org.apache.kafka.common.metrics.stats.Rate;
+import org.apache.kafka.common.metrics.stats.WindowedCount;
+import org.apache.kafka.common.utils.Time;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -34,26 +47,11 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import jakarta.ws.rs.core.Response.Status;
-import jakarta.ws.rs.core.Response.StatusType;
-
-import io.confluent.rest.annotations.PerformanceMetric;
-
-import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.common.metrics.stats.Avg;
-import org.apache.kafka.common.metrics.stats.CumulativeCount;
-import org.apache.kafka.common.metrics.stats.Max;
-import org.apache.kafka.common.metrics.stats.Percentile;
-import org.apache.kafka.common.metrics.stats.Percentiles;
-import org.apache.kafka.common.metrics.stats.WindowedCount;
-import org.apache.kafka.common.metrics.stats.Rate;
-import org.apache.kafka.common.metrics.Sensor;
-import org.apache.kafka.common.utils.Time;
 
 import static java.util.Collections.emptyMap;
 
@@ -246,7 +244,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
                          String metricGrpPrefix, Map<String, String> metricTags,
                          Map<String, String> requestTags) {
       this(method, annotation, metrics, metricGrpPrefix, metricTags, requestTags, false,
-              0L, 0L, 10000);
+          0L, 0L, 10000);
     }
 
     public MethodMetrics(ResourceMethod method, PerformanceMetric annotation, Metrics metrics,
@@ -365,8 +363,10 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     }
 
     private void setResponseLatencySloSlaSensors(ResourceMethod method,
-        PerformanceMetric annotation, Metrics metrics, Map<String, String> requestTags,
-        String metricGrpName, Map<String, String> allTags) {
+                                                 PerformanceMetric annotation, Metrics metrics,
+                                                 Map<String, String> requestTags,
+                                                 String metricGrpName,
+                                                 Map<String, String> allTags) {
       MetricName metricName;
 
       final Sensor belowLatencySloSensor = metrics.sensor(
@@ -407,8 +407,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     }
 
     private void setErrorSensorByStatus(ResourceMethod method, PerformanceMetric annotation,
-        Metrics metrics, Map<String, String> requestTags, String metricGrpName,
-        Map<String, String> allTags) {
+                                        Metrics metrics, Map<String, String> requestTags,
+                                        String metricGrpName,
+                                        Map<String, String> allTags) {
       for (int i = 0; i < HTTP_STATUS_CODE_TEXT.length; i++) {
         final Sensor sensor = metrics.sensor(
             getName(method, annotation, "errors" + i, requestTags),
@@ -540,7 +541,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private final boolean enableGlobalStatsRequestTags;
 
     private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
-        boolean enableGlobalStatsRequestTags) {
+                                        boolean enableGlobalStatsRequestTags) {
       this.metrics = metrics;
       this.time = time;
       this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
@@ -557,8 +558,14 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         request.setEntityStream(wrappedRequestStream);
       } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
         final ContainerResponse response = event.getContainerResponse();
-        wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
-        response.setEntityStream(wrappedResponseStream);
+        wrappedResponseStream = new CountingOutputStream(response.getEntityStream());  //TODO the
+        // response is getting closed cleared up, so the CountingOutputStream has nowhere to
+        // write to when its write is called
+        response.setEntityStream(wrappedResponseStream); //This overrides the response's entity
+        // stream with the wrappered one.  So when something calls response. write, instead the
+        // wrappedResponseStream's write is called.
+        //That write fails because the response is close, and throws an exception that the
+        // exception handler doesn't know how to deal with, so we get a 500
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         final long elapsed = time.milliseconds() - started;
         final long requestSize;

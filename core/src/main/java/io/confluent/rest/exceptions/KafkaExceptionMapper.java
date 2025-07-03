@@ -153,7 +153,11 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
     } else if (exception instanceof InvalidFormatException) {
       return getResponse(exception, Status.BAD_REQUEST,
           KAFKA_BAD_REQUEST_ERROR_CODE);
-    } else {
+    } else if (exception instanceof IllegalStateException && exception.getMessage() != null && exception.getMessage().contains("Response does not exist")) {
+      return getResponse(exception, Status.TOO_MANY_REQUESTS, 42900); //TODO make a new error code
+    }  // https://opensearch.logs.aws.confluent.cloud/_dashboards/app/discover?security_tenant
+    // =global#/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'2025-06-14T07:32:54.193Z',to:'2025-06-18T13:13:43.001Z'))&_a=(columns:!(exception.class,exception.message,exception.stacktrace,message),filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'9a918db0-d534-11ee-9282-ddb27a763cee',key:clusterId,negate:!f,params:(query:pkc-1pjjv),type:phrase),query:(match_phrase:(clusterId:pkc-1pjjv)))),index:'9a918db0-d534-11ee-9282-ddb27a763cee',interval:auto,query:(language:kuery,query:'%22Response%20does%20not%20exist%22'),sort:!())
+    else {
       log.error("Unhandled exception", exception);
       return super.toResponse(exception);
     }
