@@ -19,6 +19,7 @@ package io.confluent.rest;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
 import org.apache.kafka.clients.consumer.CommitFailedException;
+import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
@@ -53,6 +54,9 @@ import org.junit.jupiter.api.Test;
 
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
@@ -74,7 +78,10 @@ public class KafkaExceptionMapperTest {
 
   @BeforeEach
   public void setUp() {
-    exceptionMapper = new KafkaExceptionMapper(null);
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG, "false");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    exceptionMapper = new KafkaExceptionMapper(config);
   }
 
   @Test
