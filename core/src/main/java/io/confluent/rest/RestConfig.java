@@ -616,7 +616,8 @@ public class RestConfig extends AbstractConfig {
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
-  public static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG = "sni.host.check.enabled";
+  public static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG =
+          "return.429.instead.of.500.for.jetty.response.errors";
   protected static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC =
           "If true, return 429 Too Many Requests instead of 500 Internal Server Error for errors coming from Jetty " +
                   "response handlers, the particular error being 'Response does not exist (likely recycled)'. " +
