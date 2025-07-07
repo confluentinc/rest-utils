@@ -616,6 +616,13 @@ public class RestConfig extends AbstractConfig {
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
+  public static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG = "sni.host.check.enabled";
+  protected static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC =
+          "If true, return 429 Too Many Requests instead of 500 Internal Server Error for errors coming from Jetty " +
+                  "response handlers, the particular error being 'Response does not exist (likely recycled)'. " +
+                  "Default is false.";
+  protected static final boolean RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT = false;
+
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
 
@@ -1236,6 +1243,12 @@ public class RestConfig extends AbstractConfig {
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR,
             Importance.LOW,
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
+        ).define(
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG,
+            Type.BOOLEAN,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT,
+            Importance.LOW,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC
         );
   }
 
@@ -1381,6 +1394,10 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSuppressStackTraceInResponse() {
     return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
+  }
+
+  public final boolean getReturn429InsteadOf500ForJettyResponseErrors() {
+    return getBoolean(RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG);
   }
 
   public final List<NamedURI> getListeners() {
