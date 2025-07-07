@@ -37,14 +37,19 @@ public class GenericExceptionMapper extends DebuggableExceptionMapper<Throwable>
   public Response toResponse(Throwable exc) {
     log.error("Unhandled exception resulting in internal server error response", exc);
 
-    if (restConfig.getReturn429InsteadOf500ForJettyResponseErrors()) {
-      // #inc-3209, instead of returning a 500 error, we return a 429 error temporarily
-      if (exc instanceof IllegalStateException && exc.getMessage() != null
-              && exc.getMessage().contains("Response does not exist (likely recycled)")) {
-        return createResponse(exc, Response.Status.TOO_MANY_REQUESTS.getStatusCode(),
-                Response.Status.TOO_MANY_REQUESTS,
-                Response.Status.TOO_MANY_REQUESTS.getReasonPhrase()).build();
+    try {
+      if (restConfig.getReturn429InsteadOf500ForJettyResponseErrors()) {
+        // #inc-3209, instead of returning a 500 error, we return a 429 error temporarily
+        if (exc instanceof IllegalStateException && exc.getMessage() != null
+                && exc.getMessage().contains("Response does not exist (likely recycled)")) {
+          return createResponse(exc, Response.Status.TOO_MANY_REQUESTS.getStatusCode(),
+                  Response.Status.TOO_MANY_REQUESTS,
+                  Response.Status.TOO_MANY_REQUESTS.getReasonPhrase()).build();
+        }
       }
+    } catch (Exception e) {
+      // If we fail to get the rest config correctly, we log the error
+      log.error("Failed to create response for exception", e);
     }
 
     // There's no more specific information about the exception that can be passed back to the user,
