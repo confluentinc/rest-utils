@@ -787,8 +787,7 @@ public abstract class Application<T extends RestConfig> {
 
     // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
-    
-    // Per tenant limiter comes next to prevent noisy tenants from affecting well-behaved ones
+
     if (config.isDosFilterTenantEnabled()) {
       configureTenantDosFilter(context);
     }
