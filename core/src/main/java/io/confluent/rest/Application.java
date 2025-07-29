@@ -33,6 +33,7 @@ import io.confluent.rest.handlers.ExpectedSniHandler;
 import io.confluent.rest.handlers.SniHandler;
 import io.confluent.rest.handlers.PrefixSniHandler;
 import io.confluent.rest.jetty.DoSFilter;
+import io.confluent.rest.jetty.MyServletContextHandler;
 import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
@@ -352,7 +353,7 @@ public abstract class Application<T extends RestConfig> {
     final FilterHolder servletHolder = new FilterHolder(servletContainer);
 
 
-    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    ServletContextHandler context = new MyServletContextHandler(ServletContextHandler.SESSIONS);
     context.setContextPath(path);
 
     // Allow Jetty 12 servlet to decode ambiguous URIs
