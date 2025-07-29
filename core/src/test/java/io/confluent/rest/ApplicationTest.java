@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.rest.extension.ResourceExtension;
+import io.confluent.rest.jetty.MyServletContextHandler;
 import io.confluent.rest.metrics.RestMetricsContext;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -270,7 +271,7 @@ public class ApplicationTest {
         RestConfig.REJECT_OPTIONS_REQUEST, true);
 
     Application<TestRestConfig> app = new TestApp(config);
-    ServletContextHandler context = new ServletContextHandler();
+    ServletContextHandler context = new MyServletContextHandler();
     app.configureSecurityHandler(context);
     ConstraintSecurityHandler securityHandler = (ConstraintSecurityHandler) context.getSecurityHandler();
 
