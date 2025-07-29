@@ -71,7 +71,7 @@ public final class TenantUtils {
     String requestURI = request.getRequestURI();
     log.info("NNAU: TENANT V3: checking URI: {}", requestURI);
     if (requestURI == null) {
-      log.info("NNAU: Request URI is null, cannot extract tenant ID from path");
+      log.info("NNAU: TENANT V3: Request URI is null, cannot extract tenant ID from path");
       return "UNKNOWN";
     }
 
@@ -94,7 +94,7 @@ public final class TenantUtils {
     String serverName = request.getServerName();
     log.info("NNAU: TENANT V4: checking hostname: {}", serverName);
     if (serverName == null) {
-      log.info("NNAU: Server name is null, cannot extract tenant ID from hostname");
+      log.info("NNAU: TENANT V4: Server name is null, cannot extract tenant ID from hostname");
       return "UNKNOWN";
     }
 
