@@ -36,6 +36,8 @@ public final class TenantUtils {
       Pattern.compile("/kafka/v3/clusters/(lkc-[a-zA-Z0-9]+)/");
 
   // V4 pattern: lkc-xxx-env.domain.com
+  // Example: lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud
+  // Note: SNI validation ensures SNI == hostname, so we can use request.getServerName()
   private static final Pattern V4_TENANT_PATTERN =
       Pattern.compile("^(lkc-[a-zA-Z0-9]+)-");
 
@@ -49,7 +51,8 @@ public final class TenantUtils {
    * @return the tenant ID, or "UNKNOWN" if extraction fails
    */
   public static String extractTenantId(HttpServletRequest request, String extractionMode) {
-    log.info("NNAU: TENANT UTILS: extracting tenant ID with mode: {}", extractionMode);
+    log.info("NNAU: TENANT UTILS: extracting tenant ID with mode: {} for URI: {} and Host: {}", 
+        extractionMode, request.getRequestURI(), request.getServerName());
     switch (extractionMode.toUpperCase()) {
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3:
         return extractTenantIdFromV3(request);
@@ -58,7 +61,8 @@ public final class TenantUtils {
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO:
         return extractTenantIdAuto(request);
       default:
-        log.warn("Unknown tenant extraction mode: {}, falling back to AUTO", extractionMode);
+        log.warn("NNAU: TENANT UTILS: Unknown tenant extraction mode: {}, falling back to AUTO", 
+            extractionMode);
         return extractTenantIdAuto(request);
     }
   }
@@ -113,17 +117,19 @@ public final class TenantUtils {
    * Automatically detects the tenant extraction method by trying both V3 and V4 patterns.
    */
   private static String extractTenantIdAuto(HttpServletRequest request) {
-    log.info("NNAU: TENANT AUTO: trying V3 extraction first");
+    log.info("NNAU: TENANT AUTO: trying V3 extraction first for URI: '{}' and Host: '{}'", 
+        request.getRequestURI(), request.getServerName());
     String tenantId = extractTenantIdFromV3(request);
     if (!"UNKNOWN".equals(tenantId)) {
-      log.info("NNAU: TENANT AUTO: V3 extraction successful: {}", tenantId);
+      log.info("NNAU: TENANT AUTO: V3 extraction successful: '{}'", tenantId);
       return tenantId;
     }
 
-    log.info("NNAU: TENANT AUTO: V3 failed, trying V4 extraction");
+    log.info("NNAU: TENANT AUTO: V3 failed, trying V4 extraction for Host: '{}'", 
+        request.getServerName());
     tenantId = extractTenantIdFromV4(request);
     if (!"UNKNOWN".equals(tenantId)) {
-      log.info("NNAU: TENANT AUTO: V4 extraction successful: {}", tenantId);
+      log.info("NNAU: TENANT AUTO: V4 extraction successful: '{}'", tenantId);
       return tenantId;
     }
 

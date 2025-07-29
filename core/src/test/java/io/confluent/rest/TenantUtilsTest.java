@@ -29,7 +29,7 @@ public class TenantUtilsTest {
   public void testV3TenantIdExtraction() {
     HttpServletRequest request = mock(HttpServletRequest.class);
     
-    // test successful V3 extraction
+    // test successful V3 extraction - standard case
     when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-devccovmzyj/topics");
     String tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
     assertEquals("lkc-devccovmzyj", tenantId);
@@ -38,6 +38,11 @@ public class TenantUtilsTest {
     when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-abc123def/consumer-groups");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
     assertEquals("lkc-abc123def", tenantId);
+    
+    // test V3 extraction with realistic tenant ID from documentation
+    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-6787w2/topics");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
+    assertEquals("lkc-6787w2", tenantId);
     
     // test V3 extraction failure - wrong pattern
     when(request.getRequestURI()).thenReturn("/api/v1/some/other/path");
@@ -53,25 +58,58 @@ public class TenantUtilsTest {
   @Test
   public void testV4TenantIdExtraction() {
     HttpServletRequest request = mock(HttpServletRequest.class);
-    
-    // test successful V4 extraction
-    when(request.getServerName()).thenReturn("lkc-devccovmzyj-env.confluent.cloud");
+
+    // test successful V4 extraction with realistic pattern
+    when(request.getServerName()).thenReturn("lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud");
     String tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
-    assertEquals("lkc-devccovmzyj", tenantId);
+    assertEquals("lkc-6787w2", tenantId);
     
-    // test V4 extraction with different environment
-    when(request.getServerName()).thenReturn("lkc-abc123def-prod.example.com");
+    // test V4 extraction with different realistic patterns
+    when(request.getServerName()).thenReturn("lkc-abc123def-prod789.us-east-1.aws.private.confluent.cloud");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
     assertEquals("lkc-abc123def", tenantId);
     
-    // test V4 extraction failure - wrong pattern
+    // test V4 extraction with shorter environment ID
+    when(request.getServerName()).thenReturn("lkc-xyz123-env.eu-central-1.azure.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-xyz123", tenantId);
+    
+    // test V4 extraction failure - wrong pattern (no lkc prefix)
     when(request.getServerName()).thenReturn("api.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("UNKNOWN", tenantId);
+    
+    // test V4 extraction failure - wrong pattern (lsrc instead of lkc)
+    when(request.getServerName()).thenReturn("lsrc-123-env.domain.com");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
     assertEquals("UNKNOWN", tenantId);
     
     // test V4 extraction failure - null hostname
     when(request.getServerName()).thenReturn(null);
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("UNKNOWN", tenantId);
+  }
+
+  @Test
+  public void testAutoTenantIdExtraction() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    
+    // test AUTO mode - V3 pattern should be found first
+    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-6787w2/topics");
+    when(request.getServerName()).thenReturn("lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud");
+    String tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO);
+    assertEquals("lkc-6787w2", tenantId);
+    
+    // test AUTO mode - fallback to V4 when V3 fails
+    when(request.getRequestURI()).thenReturn("/some/other/path");
+    when(request.getServerName()).thenReturn("lkc-abc123-env456.domain.com");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO);
+    assertEquals("lkc-abc123", tenantId);
+    
+    // test AUTO mode - both V3 and V4 fail
+    when(request.getRequestURI()).thenReturn("/api/v1/other");
+    when(request.getServerName()).thenReturn("api.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO);
     assertEquals("UNKNOWN", tenantId);
   }
 } 

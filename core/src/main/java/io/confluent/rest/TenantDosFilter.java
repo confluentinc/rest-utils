@@ -23,52 +23,44 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A DoS filter that applies rate limiting per tenant.
- * This prevents noisy tenants from exhausting the global rate limiter
- * by grouping requests by tenant ID
+ * DoS filter that implements per-tenant rate limiting.
+ * Extends the base DoSFilter to extract tenant IDs from requests and rate limit by tenant.
  */
-public final class TenantDosFilter extends DoSFilter {
-
+public class TenantDosFilter extends DoSFilter {
+  
   private static final Logger log = LoggerFactory.getLogger(TenantDosFilter.class);
-
+  
   private final String tenantExtractionMode;
 
-  /**
-   * Creates a new TenantDosFilter with the specified tenant extraction mode.
-   *
-   * @param tenantExtractionMode the mode for extracting tenant IDs (V3, V4, or AUTO)
-   */
   public TenantDosFilter(String tenantExtractionMode) {
     super();
     this.tenantExtractionMode = tenantExtractionMode;
-    log.info("NNAU: TenantDosFilter constructor - extraction mode: {}", tenantExtractionMode);
+    log.info("NNAU: TenantDosFilter constructor - extraction mode: '{}'", tenantExtractionMode);
   }
 
-  /**
-   * Extracts the tenant ID from the request to use as key for rate limiting.
-   *
-   * @param request the servlet request
-   * @return the tenant ID to use for rate limiting, or "UNKNOWN" if extraction fails
-   */
   @Override
   protected String extractUserId(ServletRequest request) {
     if (!(request instanceof HttpServletRequest)) {
-      log.info("NNAU: Request is not an HttpServletRequest, cannot extract tenant ID");
+      log.info("NNAU: TENANT DOS: FAILED - Request is not an HttpServletRequest, "
+          + "cannot extract tenant ID");
       return "UNKNOWN";
     }
 
     HttpServletRequest httpRequest = (HttpServletRequest) request;
-    log.info("NNAU: TENANT DOS: url {}, query {}, host {}, method {}", 
-        httpRequest.getRequestURL(), 
-        httpRequest.getQueryString(),
+    log.info("NNAU: TENANT DOS: processing request - Method: {}, URI: '{}', Host: '{}', "
+        + "Query: '{}'", 
+        httpRequest.getMethod(), 
+        httpRequest.getRequestURI(),
         httpRequest.getServerName(),
-        httpRequest.getMethod());
-    
+        httpRequest.getQueryString());
+
     String tenantId = TenantUtils.extractTenantId(httpRequest, tenantExtractionMode);
-
-    log.info("NNAU: TENANT DOS: extracted tenant ID: {} for request: {} {}",
-        tenantId, httpRequest.getMethod(), httpRequest.getRequestURI());
-
+    
+    log.info("NNAU: TENANT DOS: final result - tenant ID: '{}' for request: {} '{}' "
+        + "(Host: '{}')",
+        tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(), 
+        httpRequest.getServerName());
+    
     return tenantId;
   }
 }
