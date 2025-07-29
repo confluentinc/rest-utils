@@ -807,6 +807,12 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureTenantDosFilter(ServletContextHandler context) {
+    log.info("NNAU: configure tenant dos filter.");
+    if (!config.isDosFilterTenantEnabled()) {
+      return;
+    }
+    log.info("NNAU: tenant dos filter configured.");
+
     TenantDosFilter dosFilter = new TenantDosFilter(config.getDosFilterTenantExtractionMode());
     tenantDosfilterListeners.add(jetty429MetricsListener);
     JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
@@ -815,6 +821,7 @@ public abstract class Application<T extends RestConfig> {
     String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
     FilterHolder filterHolder = configureDosFilter(dosFilter, tenantLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    log.info("NNAU: tenant dos filter added to context with limit: {}", tenantLimit);
   }
 
   private void configureGlobalDosFilter(ServletContextHandler context) {

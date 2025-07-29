@@ -49,6 +49,7 @@ public final class TenantUtils {
    * @return the tenant ID, or "UNKNOWN" if extraction fails
    */
   public static String extractTenantId(HttpServletRequest request, String extractionMode) {
+    log.info("NNAU: TENANT UTILS: extracting tenant ID with mode: {}", extractionMode);
     switch (extractionMode.toUpperCase()) {
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3:
         return extractTenantIdFromV3(request);
@@ -68,19 +69,20 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromV3(HttpServletRequest request) {
     String requestURI = request.getRequestURI();
+    log.info("NNAU: TENANT V3: checking URI: {}", requestURI);
     if (requestURI == null) {
-      log.debug("Request URI is null, cannot extract tenant ID from path");
+      log.info("NNAU: Request URI is null, cannot extract tenant ID from path");
       return "UNKNOWN";
     }
 
     Matcher matcher = V3_TENANT_PATTERN.matcher(requestURI);
     if (matcher.find()) {
       String tenantId = matcher.group(1);
-      log.debug("Extracted tenant ID from path: {} from URI: {}", tenantId, requestURI);
+      log.info("NNAU: TENANT V3: extracted tenant ID: {} from URI: {}", tenantId, requestURI);
       return tenantId;
     }
 
-    log.debug("Could not extract tenant ID from path: {}", requestURI);
+    log.info("NNAU: TENANT V3: could not extract tenant ID from path: {}", requestURI);
     return "UNKNOWN";
   }
 
@@ -90,19 +92,20 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromV4(HttpServletRequest request) {
     String serverName = request.getServerName();
+    log.info("NNAU: TENANT V4: checking hostname: {}", serverName);
     if (serverName == null) {
-      log.debug("Server name is null, cannot extract tenant ID from hostname");
+      log.info("NNAU: Server name is null, cannot extract tenant ID from hostname");
       return "UNKNOWN";
     }
 
     Matcher matcher = V4_TENANT_PATTERN.matcher(serverName);
     if (matcher.find()) {
       String tenantId = matcher.group(1);
-      log.debug("Extracted tenant ID from hostname: {} from server: {}", tenantId, serverName);
+      log.info("NNAU: TENANT V4: extracted tenant ID: {} from server: {}", tenantId, serverName);
       return tenantId;
     }
 
-    log.debug("Could not extract tenant ID from hostname: {}", serverName);
+    log.info("NNAU: TENANT V4: could not extract tenant ID from hostname: {}", serverName);
     return "UNKNOWN";
   }
 
@@ -110,17 +113,21 @@ public final class TenantUtils {
    * Automatically detects the tenant extraction method by trying both V3 and V4 patterns.
    */
   private static String extractTenantIdAuto(HttpServletRequest request) {
+    log.info("NNAU: TENANT AUTO: trying V3 extraction first");
     String tenantId = extractTenantIdFromV3(request);
     if (!"UNKNOWN".equals(tenantId)) {
+      log.info("NNAU: TENANT AUTO: V3 extraction successful: {}", tenantId);
       return tenantId;
     }
 
+    log.info("NNAU: TENANT AUTO: V3 failed, trying V4 extraction");
     tenantId = extractTenantIdFromV4(request);
     if (!"UNKNOWN".equals(tenantId)) {
+      log.info("NNAU: TENANT AUTO: V4 extraction successful: {}", tenantId);
       return tenantId;
     }
 
-    log.debug("Could not extract tenant ID from request. URI: {}, Host: {}",
+    log.info("NNAU: TENANT AUTO: both V3 and V4 failed. URI: {}, Host: {}",
         request.getRequestURI(), request.getServerName());
     return "UNKNOWN";
   }

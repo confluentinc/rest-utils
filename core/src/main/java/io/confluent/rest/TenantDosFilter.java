@@ -41,7 +41,7 @@ public final class TenantDosFilter extends DoSFilter {
   public TenantDosFilter(String tenantExtractionMode) {
     super();
     this.tenantExtractionMode = tenantExtractionMode;
-    log.info("TenantDosFilter initialized with extraction mode: {}", tenantExtractionMode);
+    log.info("NNAU: TenantDosFilter constructor - extraction mode: {}", tenantExtractionMode);
   }
 
   /**
@@ -53,14 +53,20 @@ public final class TenantDosFilter extends DoSFilter {
   @Override
   protected String extractUserId(ServletRequest request) {
     if (!(request instanceof HttpServletRequest)) {
-      log.debug("Request is not an HttpServletRequest, cannot extract tenant ID");
+      log.info("NNAU: Request is not an HttpServletRequest, cannot extract tenant ID");
       return "UNKNOWN";
     }
 
     HttpServletRequest httpRequest = (HttpServletRequest) request;
+    log.info("NNAU: TENANT DOS: url {}, query {}, host {}, method {}", 
+        httpRequest.getRequestURL(), 
+        httpRequest.getQueryString(),
+        httpRequest.getServerName(),
+        httpRequest.getMethod());
+    
     String tenantId = TenantUtils.extractTenantId(httpRequest, tenantExtractionMode);
 
-    log.debug("Extracted tenant ID: {} for request: {} {}",
+    log.info("NNAU: TENANT DOS: extracted tenant ID: {} for request: {} {}",
         tenantId, httpRequest.getMethod(), httpRequest.getRequestURI());
 
     return tenantId;
