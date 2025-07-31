@@ -28,11 +28,10 @@ public final class TenantUtils {
 
   private static final Logger log = LoggerFactory.getLogger(TenantUtils.class);
 
-  // V3 path prefix to search for
+
   private static final String V3_CLUSTER_PREFIX = "/kafka/v3/clusters/";
-  
-  // V4 tenant prefix
   private static final String LKC_ID_PREFIX = "lkc-";
+  private static final String UNKNOWN_TENANT = "UNKNOWN";
 
   private TenantUtils() {}
 
@@ -69,20 +68,20 @@ public final class TenantUtils {
     log.info("NNAU: TENANT V3: checking URI: {}", requestURI);
     if (requestURI == null) {
       log.info("NNAU: TENANT V3: Request URI is null, cannot extract tenant ID from path");
-      return "UNKNOWN";
+      return UNKNOWN_TENANT;
     }
 
     // Find the V3 cluster prefix
     int prefixIndex = requestURI.indexOf(V3_CLUSTER_PREFIX);
     if (prefixIndex == -1) {
       log.info("NNAU: TENANT V3: V3 cluster prefix not found in path: {}", requestURI);
-      return "UNKNOWN";
+      return UNKNOWN_TENANT;
     }
 
     int startIndex = prefixIndex + V3_CLUSTER_PREFIX.length();
     if (startIndex >= requestURI.length() || !requestURI.startsWith(LKC_ID_PREFIX, startIndex)) {
       log.info("NNAU: TENANT V3: No tenant ID found after cluster prefix in path: {}", requestURI);
-      return "UNKNOWN";
+      return UNKNOWN_TENANT;
     }
 
     int endIndex = startIndex + LKC_ID_PREFIX.length();
@@ -94,7 +93,7 @@ public final class TenantUtils {
 
     if (endIndex == startIndex + LKC_ID_PREFIX.length()) {
       log.info("NNAU: TENANT V3: No valid tenant ID characters found in path: {}", requestURI);
-      return "UNKNOWN";
+      return UNKNOWN_TENANT;
     }
 
     String tenantId = requestURI.substring(startIndex, endIndex);
@@ -112,7 +111,7 @@ public final class TenantUtils {
     if (serverName == null || !serverName.startsWith(LKC_ID_PREFIX)) {
       log.info("NNAU: TENANT V4: Server name is null or doesn't start with tenant prefix: {}", 
           serverName);
-      return "UNKNOWN";
+      return UNKNOWN_TENANT;
     }
 
     int endIndex = LKC_ID_PREFIX.length();
@@ -126,7 +125,7 @@ public final class TenantUtils {
         || endIndex >= serverName.length() 
         || serverName.charAt(endIndex) != '-') {
       log.info("NNAU: TENANT V4: Invalid tenant ID format in hostname: {}", serverName);
-      return "UNKNOWN";
+      return UNKNOWN_TENANT;
     }
 
     String tenantId = serverName.substring(0, endIndex);
@@ -141,7 +140,7 @@ public final class TenantUtils {
     log.info("NNAU: TENANT AUTO: trying V3 extraction first for URI: '{}' and Host: '{}'", 
         request.getRequestURI(), request.getServerName());
     String tenantId = extractTenantIdFromV3(request);
-    if (!"UNKNOWN".equals(tenantId)) {
+    if (!UNKNOWN_TENANT.equals(tenantId)) {
       log.info("NNAU: TENANT AUTO: V3 extraction successful: '{}'", tenantId);
       return tenantId;
     }
@@ -149,13 +148,13 @@ public final class TenantUtils {
     log.info("NNAU: TENANT AUTO: V3 failed, trying V4 extraction for Host: '{}'", 
         request.getServerName());
     tenantId = extractTenantIdFromV4(request);
-    if (!"UNKNOWN".equals(tenantId)) {
+    if (!UNKNOWN_TENANT.equals(tenantId)) {
       log.info("NNAU: TENANT AUTO: V4 extraction successful: '{}'", tenantId);
       return tenantId;
     }
 
     log.info("NNAU: TENANT AUTO: both V3 and V4 failed. URI: {}, Host: {}",
         request.getRequestURI(), request.getServerName());
-    return "UNKNOWN";
+    return UNKNOWN_TENANT;
   }
 }
