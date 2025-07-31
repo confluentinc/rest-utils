@@ -16,8 +16,6 @@
 
 package io.confluent.rest;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,16 +28,14 @@ public final class TenantUtils {
 
   private static final Logger log = LoggerFactory.getLogger(TenantUtils.class);
 
-  // V3 pattern: /kafka/v3/clusters/lkc-xxx/...
-  // TODO: Regex matching is slow, optimize if performance becomes an issue
-  private static final Pattern V3_TENANT_PATTERN =
-      Pattern.compile("/kafka/v3/clusters/(lkc-[a-zA-Z0-9]+)/");
-
-  // V4 pattern: lkc-xxx-env.domain.com
-  // Example: lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud
-  // Note: SNI validation ensures SNI == hostname, so we can use request.getServerName()
-  private static final Pattern V4_TENANT_PATTERN =
-      Pattern.compile("^(lkc-[a-zA-Z0-9]+)-");
+  // V3 path prefix to search for
+  private static final String V3_CLUSTER_PREFIX = "/kafka/v3/clusters/";
+  
+  // V4 tenant prefix
+  private static final String V4_TENANT_PREFIX = "lkc-";
+  
+  // Tenant ID prefix for validation
+  private static final String TENANT_ID_PREFIX = "lkc-";
 
   private TenantUtils() {}
 
@@ -68,8 +64,9 @@ public final class TenantUtils {
   }
 
   /**
-   * Extracts tenant ID from URL path (V3 pattern).
+   * Extracts tenant ID from URL path (V3 pattern) using efficient string parsing.
    * Example: /kafka/v3/clusters/lkc-devccovmzyj/topics => lkc-devccovmzyj
+   * Example: /kafka/v3/clusters/lkc-devccovmzyj => lkc-devccovmzyj
    */
   private static String extractTenantIdFromV3(HttpServletRequest request) {
     String requestURI = request.getRequestURI();
@@ -79,19 +76,41 @@ public final class TenantUtils {
       return "UNKNOWN";
     }
 
-    Matcher matcher = V3_TENANT_PATTERN.matcher(requestURI);
-    if (matcher.find()) {
-      String tenantId = matcher.group(1);
-      log.info("NNAU: TENANT V3: extracted tenant ID: {} from URI: {}", tenantId, requestURI);
-      return tenantId;
+    // Find the V3 cluster prefix
+    int prefixIndex = requestURI.indexOf(V3_CLUSTER_PREFIX);
+    if (prefixIndex == -1) {
+      log.info("NNAU: TENANT V3: V3 cluster prefix not found in path: {}", requestURI);
+      return "UNKNOWN";
     }
 
-    log.info("NNAU: TENANT V3: could not extract tenant ID from path: {}", requestURI);
-    return "UNKNOWN";
+    // Extract the part after the prefix
+    int startIndex = prefixIndex + V3_CLUSTER_PREFIX.length();
+    if (startIndex >= requestURI.length()) {
+      log.info("NNAU: TENANT V3: No content after cluster prefix in path: {}", requestURI);
+      return "UNKNOWN";
+    }
+
+    // Find the end of the tenant ID (next slash or end of string)
+    int endIndex = requestURI.indexOf('/', startIndex);
+    if (endIndex == -1) {
+      endIndex = requestURI.length();
+    }
+
+    String tenantId = requestURI.substring(startIndex, endIndex);
+    
+    // Validate that the extracted tenant ID looks like a valid tenant ID
+    if (isValidTenantId(tenantId)) {
+      log.info("NNAU: TENANT V3: extracted tenant ID: {} from URI: {}", tenantId, requestURI);
+      return tenantId;
+    } else {
+      log.info("NNAU: TENANT V3: extracted invalid tenant ID: {} from URI: {}",
+          tenantId, requestURI);
+      return "UNKNOWN";
+    }
   }
 
   /**
-   * Extracts tenant ID from hostname (V4 pattern).
+   * Extracts tenant ID from hostname (V4 pattern) using efficient string parsing.
    * Example: lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud => lkc-6787w2
    */
   private static String extractTenantIdFromV4(HttpServletRequest request) {
@@ -102,15 +121,31 @@ public final class TenantUtils {
       return "UNKNOWN";
     }
 
-    Matcher matcher = V4_TENANT_PATTERN.matcher(serverName);
-    if (matcher.find()) {
-      String tenantId = matcher.group(1);
-      log.info("NNAU: TENANT V4: extracted tenant ID: {} from server: {}", tenantId, serverName);
-      return tenantId;
+    // Check if hostname starts with tenant prefix
+    if (!serverName.startsWith(V4_TENANT_PREFIX)) {
+      log.info("NNAU: TENANT V4: Hostname does not start with tenant prefix: {}", serverName);
+      return "UNKNOWN";
     }
 
-    log.info("NNAU: TENANT V4: could not extract tenant ID from hostname: {}", serverName);
-    return "UNKNOWN";
+    // Find the end of the tenant ID (next dash after the prefix)
+    int firstDashIndex = serverName.indexOf('-', V4_TENANT_PREFIX.length());
+    if (firstDashIndex == -1) {
+      log.info("NNAU: TENANT V4: No dash found after tenant prefix in hostname: {}", 
+          serverName);
+      return "UNKNOWN";
+    }
+
+    String tenantId = serverName.substring(0, firstDashIndex);
+    
+    // Validate that the extracted tenant ID looks like a valid tenant ID
+    if (isValidTenantId(tenantId)) {
+      log.info("NNAU: TENANT V4: extracted tenant ID: {} from server: {}", tenantId, serverName);
+      return tenantId;
+    } else {
+      log.info("NNAU: TENANT V4: extracted invalid tenant ID: {} from server: {}", 
+          tenantId, serverName);
+      return "UNKNOWN";
+    }
   }
 
   /**
@@ -136,5 +171,33 @@ public final class TenantUtils {
     log.info("NNAU: TENANT AUTO: both V3 and V4 failed. URI: {}, Host: {}",
         request.getRequestURI(), request.getServerName());
     return "UNKNOWN";
+  }
+
+  /**
+   * Validates that a tenant ID has the expected format.
+   * A valid tenant ID should:
+   * - Start with "lkc-"
+   * - Be followed by alphanumeric characters
+   * - Be at least 5 characters long (lkc- + at least 1 char)
+   * - Be at most 64 characters long (reasonable upper bound)
+   */
+  private static boolean isValidTenantId(String tenantId) {
+    if (tenantId == null || tenantId.length() < 5 || tenantId.length() > 64) {
+      return false;
+    }
+    
+    if (!tenantId.startsWith(TENANT_ID_PREFIX)) {
+      return false;
+    }
+    
+    // Check that characters after "lkc-" are alphanumeric
+    for (int i = TENANT_ID_PREFIX.length(); i < tenantId.length(); i++) {
+      char c = tenantId.charAt(i);
+      if (!Character.isLetterOrDigit(c)) {
+        return false;
+      }
+    }
+    
+    return true;
   }
 }

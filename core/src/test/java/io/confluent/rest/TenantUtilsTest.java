@@ -44,6 +44,11 @@ public class TenantUtilsTest {
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
     assertEquals("lkc-6787w2", tenantId);
     
+    // test V3 extraction with path ending at tenant ID (previously failing case)
+    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-devc80y73q");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
+    assertEquals("lkc-devc80y73q", tenantId);
+    
     // test V3 extraction failure - wrong pattern
     when(request.getRequestURI()).thenReturn("/api/v1/some/other/path");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
@@ -99,6 +104,12 @@ public class TenantUtilsTest {
     when(request.getServerName()).thenReturn("lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud");
     String tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO);
     assertEquals("lkc-6787w2", tenantId);
+    
+    // test AUTO mode - V3 extraction with path ending at tenant ID (edge case)
+    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-devc80y73q");
+    when(request.getServerName()).thenReturn("kafka.pkc-devcyypqg6.svc.cluster.local");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO);
+    assertEquals("lkc-devc80y73q", tenantId);
     
     // test AUTO mode - fallback to V4 when V3 fails
     when(request.getRequestURI()).thenReturn("/some/other/path");
