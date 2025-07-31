@@ -86,11 +86,11 @@ public final class TenantUtils {
 
     int endIndex = startIndex + LKC_ID_PREFIX.length();
     while (endIndex < requestURI.length() 
-           && requestURI.charAt(endIndex) != '/' 
            && Character.isLetterOrDigit(requestURI.charAt(endIndex))) {
       endIndex++;
     }
 
+    // Validate we found at least one character after the prefix
     if (endIndex == startIndex + LKC_ID_PREFIX.length()) {
       log.info("NNAU: TENANT V3: No valid tenant ID characters found in path: {}", requestURI);
       return UNKNOWN_TENANT;
@@ -120,10 +120,8 @@ public final class TenantUtils {
       endIndex++;
     }
 
-    // Validate we found at least one character and ended at a dash
-    if (endIndex == LKC_ID_PREFIX.length()
-        || endIndex >= serverName.length() 
-        || serverName.charAt(endIndex) != '-') {
+    // Validate we found at least one character after the prefix
+    if (endIndex == LKC_ID_PREFIX.length()) {
       log.info("NNAU: TENANT V4: Invalid tenant ID format in hostname: {}", serverName);
       return UNKNOWN_TENANT;
     }
