@@ -43,7 +43,7 @@ public final class TenantUtils {
    * @return the tenant ID, or "UNKNOWN" if extraction fails
    */
   public static String extractTenantId(HttpServletRequest request, String extractionMode) {
-    log.info("NNAU: TENANT UTILS: extracting tenant ID with mode: {} for URI: {} and Host: {}", 
+    log.info("NNAU: TENANT UTILS: extracting tenant ID with mode: {} for URI: {} and Host: {}",
         extractionMode, request.getRequestURI(), request.getServerName());
     switch (extractionMode.toUpperCase()) {
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3:
@@ -65,7 +65,7 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromV3(HttpServletRequest request) {
     String requestURI = request.getRequestURI();
-    log.info("NNAU: TENANT V3: checking URI: {}", requestURI);
+    log.info("NNAU: TENANT V3 (String parse): checking URI: {}", requestURI);
     if (requestURI == null) {
       log.info("NNAU: TENANT V3: Request URI is null, cannot extract tenant ID from path");
       return UNKNOWN_TENANT;
@@ -107,7 +107,7 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromV4(HttpServletRequest request) {
     String serverName = request.getServerName();
-    log.info("NNAU: TENANT V4: checking hostname: {}", serverName);
+    log.info("NNAU: TENANT V4 (String parse): checking hostname: {}", serverName);
     if (serverName == null || !serverName.startsWith(LKC_ID_PREFIX)) {
       log.info("NNAU: TENANT V4: Server name is null or doesn't start with tenant prefix: {}", 
           serverName);
@@ -137,7 +137,7 @@ public final class TenantUtils {
    * Automatically detects the tenant extraction method by trying both V3 and V4 patterns.
    */
   private static String extractTenantIdAuto(HttpServletRequest request) {
-    log.info("NNAU: TENANT AUTO: trying V3 extraction first for URI: '{}' and Host: '{}'", 
+    log.info("NNAU: TENANT AUTO: trying V3 extraction first for URI: '{}' and Host: '{}'",
         request.getRequestURI(), request.getServerName());
     String tenantId = extractTenantIdFromV3(request);
     if (!UNKNOWN_TENANT.equals(tenantId)) {
