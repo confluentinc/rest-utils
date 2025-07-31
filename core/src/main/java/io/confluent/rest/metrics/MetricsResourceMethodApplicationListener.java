@@ -17,6 +17,7 @@
 package io.confluent.rest.metrics;
 
 import java.util.Objects;
+
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -54,6 +55,8 @@ import org.apache.kafka.common.metrics.stats.WindowedCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.util.Collections.emptyMap;
 
@@ -86,6 +89,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   // method in the names, introducing this variable to keep the compatibility with downstream
   // dependencies, e.g., some applications may not want to report request tags in global stats
   private final boolean enableGlobalStatsRequestTags;
+  private static final Logger log = LoggerFactory.getLogger(
+          MetricsResourceMethodApplicationListener.class);
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
                                                   Map<String, String> metricTags, Time time,
@@ -180,12 +185,23 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     }
 
     private MethodMetrics getMethodMetrics(RequestEvent event) {
-      Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
-      if (tagsObj == null) {
-        // Method metrics without request tags don't necessarily represent method level aggregations
-        // e.g., when invocations of a method have both requests w/ and w/o tags
+      Object tagsObj;
+      try {
+        tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
+        if (tagsObj == null) {
+          // Method metrics without request tags don't necessarily represent method level
+          // aggregations e.g., when invocations of a method have both requests w/ and w/o tags
+          return this.metrics();
+        }
+      } catch (Exception e) {
+        if (e instanceof NullPointerException) {
+          log.error("NPE while getting request tags, potentially due to recycled request", e);
+        } else {
+          log.error("Error while getting request tags", e);
+        }
         return this.metrics();
       }
+
       if (!(tagsObj instanceof Map<?, ?>)) {
         throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
             + " to be a " + Map.class + ", but it is " + tagsObj.getClass());
@@ -221,6 +237,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     }
   }
 
+  @SuppressWarnings("checkstyle:ClassDataAbstractionCoupling")
   private static class MethodMetrics {
     private static final String RESPONSE_BELOW_LATENCY_SLO =
         "response-below-latency-slo";
@@ -549,6 +566,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.started = time.milliseconds();
     }
 
+    @SuppressWarnings("checkstyle:CyclomaticComplexity")
     @Override
     public void onEvent(RequestEvent event) {
       if (event.getType() == RequestEvent.Type.MATCHING_START) {
@@ -561,21 +579,44 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         response.setEntityStream(wrappedResponseStream);
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         final long elapsed = time.milliseconds() - started;
-        final long requestSize;
+        long tempRequestSize;
         if (wrappedRequestStream != null) {
-          requestSize = wrappedRequestStream.size();
+          try {
+            tempRequestSize = wrappedRequestStream.size();
+          } catch (Exception e) {
+            if (e instanceof NullPointerException) {
+              log.error("NPE while calculating request size, potentially due to "
+                      + "recycled request stream", e);
+            } else {
+              log.error("Error while calculating request size", e);
+            }
+            tempRequestSize = 0;
+          }
         } else {
-          requestSize = 0;
+          tempRequestSize = 0;
         }
+        final long requestSize = tempRequestSize;
         final long responseSize;
+        long tempResponseSize;
         // nothing guarantees we always encounter an event where getContainerResponse is not null
         // in the event of dispatch errors, the error response is delegated to the servlet container
         if (wrappedResponseStream != null) {
-          responseSize = wrappedResponseStream.size();
+          try {
+            tempResponseSize = wrappedResponseStream.size();
+          } catch (Exception e) {
+            if (e instanceof NullPointerException) {
+              log.error("NPE while calculating response size, potentially due to recycled "
+                      + "response stream", e);
+            } else {
+              log.error("Error while calculating ressponse size", e);
+            }
+            tempResponseSize = 0;
+          }
         } else {
-          responseSize = 0;
+          tempResponseSize = 0;
         }
 
+        responseSize = tempResponseSize;
         final MethodMetrics globalMetrics = Objects.requireNonNull(getGlobalMetrics(event));
         // Handle exceptions
         if (event.getException() != null) {
@@ -605,14 +646,35 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     }
 
     private MethodMetrics getMethodMetrics(RequestEvent event) {
-      ResourceMethod method = event.getUriInfo().getMatchedResourceMethod();
-      if (method == null) {
+      ResourceMethod method;
+      try {
+        method = event.getUriInfo().getMatchedResourceMethod();
+        if (method == null) {
+          return null;
+        }
+      } catch (Exception e) {
+        if (e instanceof NullPointerException) {
+          log.error("NPE while getting matched resource method or URI info, "
+                  + "potentially due to recycled request", e);
+        } else {
+          log.error("Error while getting matched resource method or URI info", e);
+        }
         return null;
       }
-
-      RequestScopedMetrics requestScopedMetrics = this.metrics.get(method.getInvocable()
-          .getDefinitionMethod());
-      if (requestScopedMetrics == null) {
+      RequestScopedMetrics requestScopedMetrics;
+      try {
+        requestScopedMetrics = this.metrics.get(method.getInvocable()
+                .getDefinitionMethod());
+        if (requestScopedMetrics == null) {
+          return null;
+        }
+      } catch (Exception e) {
+        if (e instanceof NullPointerException) {
+          log.error("NPE while getting request scoped metrics, "
+                  + "potentially due to recycled request", e);
+        } else {
+          log.error("Error while getting request scoped metrics", e);
+        }
         return null;
       }
 
