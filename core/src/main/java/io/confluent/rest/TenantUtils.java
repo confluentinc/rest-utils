@@ -32,10 +32,7 @@ public final class TenantUtils {
   private static final String V3_CLUSTER_PREFIX = "/kafka/v3/clusters/";
   
   // V4 tenant prefix
-  private static final String V4_TENANT_PREFIX = "lkc-";
-  
-  // Tenant ID prefix for validation
-  private static final String TENANT_ID_PREFIX = "lkc-";
+  private static final String LKC_ID_PREFIX = "lkc-";
 
   private TenantUtils() {}
 
@@ -64,8 +61,7 @@ public final class TenantUtils {
   }
 
   /**
-   * Extracts tenant ID from URL path (V3 pattern) using efficient string parsing.
-   * Example: /kafka/v3/clusters/lkc-devccovmzyj/topics => lkc-devccovmzyj
+   * Extracts tenant ID from URL path (V3 pattern)
    * Example: /kafka/v3/clusters/lkc-devccovmzyj => lkc-devccovmzyj
    */
   private static String extractTenantIdFromV3(HttpServletRequest request) {
@@ -83,69 +79,59 @@ public final class TenantUtils {
       return "UNKNOWN";
     }
 
-    // Extract the part after the prefix
     int startIndex = prefixIndex + V3_CLUSTER_PREFIX.length();
-    if (startIndex >= requestURI.length()) {
-      log.info("NNAU: TENANT V3: No content after cluster prefix in path: {}", requestURI);
+    if (startIndex >= requestURI.length() || !requestURI.startsWith(LKC_ID_PREFIX, startIndex)) {
+      log.info("NNAU: TENANT V3: No tenant ID found after cluster prefix in path: {}", requestURI);
       return "UNKNOWN";
     }
 
-    // Find the end of the tenant ID (next slash or end of string)
-    int endIndex = requestURI.indexOf('/', startIndex);
-    if (endIndex == -1) {
-      endIndex = requestURI.length();
+    int endIndex = startIndex + LKC_ID_PREFIX.length();
+    while (endIndex < requestURI.length() 
+           && requestURI.charAt(endIndex) != '/' 
+           && Character.isLetterOrDigit(requestURI.charAt(endIndex))) {
+      endIndex++;
+    }
+
+    if (endIndex == startIndex + LKC_ID_PREFIX.length()) {
+      log.info("NNAU: TENANT V3: No valid tenant ID characters found in path: {}", requestURI);
+      return "UNKNOWN";
     }
 
     String tenantId = requestURI.substring(startIndex, endIndex);
-    
-    // Validate that the extracted tenant ID looks like a valid tenant ID
-    if (isValidTenantId(tenantId)) {
-      log.info("NNAU: TENANT V3: extracted tenant ID: {} from URI: {}", tenantId, requestURI);
-      return tenantId;
-    } else {
-      log.info("NNAU: TENANT V3: extracted invalid tenant ID: {} from URI: {}",
-          tenantId, requestURI);
-      return "UNKNOWN";
-    }
+    log.info("NNAU: TENANT V3: extracted tenant ID: {} from URI: {}", tenantId, requestURI);
+    return tenantId;
   }
 
   /**
-   * Extracts tenant ID from hostname (V4 pattern) using efficient string parsing.
+   * Extracts tenant ID from hostname (V4 pattern)
    * Example: lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud => lkc-6787w2
    */
   private static String extractTenantIdFromV4(HttpServletRequest request) {
     String serverName = request.getServerName();
     log.info("NNAU: TENANT V4: checking hostname: {}", serverName);
-    if (serverName == null) {
-      log.info("NNAU: TENANT V4: Server name is null, cannot extract tenant ID from hostname");
-      return "UNKNOWN";
-    }
-
-    // Check if hostname starts with tenant prefix
-    if (!serverName.startsWith(V4_TENANT_PREFIX)) {
-      log.info("NNAU: TENANT V4: Hostname does not start with tenant prefix: {}", serverName);
-      return "UNKNOWN";
-    }
-
-    // Find the end of the tenant ID (next dash after the prefix)
-    int firstDashIndex = serverName.indexOf('-', V4_TENANT_PREFIX.length());
-    if (firstDashIndex == -1) {
-      log.info("NNAU: TENANT V4: No dash found after tenant prefix in hostname: {}", 
+    if (serverName == null || !serverName.startsWith(LKC_ID_PREFIX)) {
+      log.info("NNAU: TENANT V4: Server name is null or doesn't start with tenant prefix: {}", 
           serverName);
       return "UNKNOWN";
     }
 
-    String tenantId = serverName.substring(0, firstDashIndex);
-    
-    // Validate that the extracted tenant ID looks like a valid tenant ID
-    if (isValidTenantId(tenantId)) {
-      log.info("NNAU: TENANT V4: extracted tenant ID: {} from server: {}", tenantId, serverName);
-      return tenantId;
-    } else {
-      log.info("NNAU: TENANT V4: extracted invalid tenant ID: {} from server: {}", 
-          tenantId, serverName);
+    int endIndex = LKC_ID_PREFIX.length();
+    while (endIndex < serverName.length() 
+           && Character.isLetterOrDigit(serverName.charAt(endIndex))) {
+      endIndex++;
+    }
+
+    // Validate we found at least one character and ended at a dash
+    if (endIndex == LKC_ID_PREFIX.length()
+        || endIndex >= serverName.length() 
+        || serverName.charAt(endIndex) != '-') {
+      log.info("NNAU: TENANT V4: Invalid tenant ID format in hostname: {}", serverName);
       return "UNKNOWN";
     }
+
+    String tenantId = serverName.substring(0, endIndex);
+    log.info("NNAU: TENANT V4: extracted tenant ID: {} from server: {}", tenantId, serverName);
+    return tenantId;
   }
 
   /**
@@ -171,33 +157,5 @@ public final class TenantUtils {
     log.info("NNAU: TENANT AUTO: both V3 and V4 failed. URI: {}, Host: {}",
         request.getRequestURI(), request.getServerName());
     return "UNKNOWN";
-  }
-
-  /**
-   * Validates that a tenant ID has the expected format.
-   * A valid tenant ID should:
-   * - Start with "lkc-"
-   * - Be followed by alphanumeric characters
-   * - Be at least 5 characters long (lkc- + at least 1 char)
-   * - Be at most 64 characters long (reasonable upper bound)
-   */
-  private static boolean isValidTenantId(String tenantId) {
-    if (tenantId == null || tenantId.length() < 5 || tenantId.length() > 64) {
-      return false;
-    }
-    
-    if (!tenantId.startsWith(TENANT_ID_PREFIX)) {
-      return false;
-    }
-    
-    // Check that characters after "lkc-" are alphanumeric
-    for (int i = TENANT_ID_PREFIX.length(); i < tenantId.length(); i++) {
-      char c = tenantId.charAt(i);
-      if (!Character.isLetterOrDigit(c)) {
-        return false;
-      }
-    }
-    
-    return true;
   }
 }
