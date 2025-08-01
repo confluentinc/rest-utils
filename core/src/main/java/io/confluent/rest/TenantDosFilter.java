@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import static io.confluent.rest.TenantUtils.UNKNOWN_TENANT;
+
 import io.confluent.rest.jetty.DoSFilter;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,7 +45,7 @@ public class TenantDosFilter extends DoSFilter {
     if (!(request instanceof HttpServletRequest)) {
       log.info("NNAU: TENANT DOS: FAILED - Request is not an HttpServletRequest, "
           + "cannot extract tenant ID");
-      return "UNKNOWN";
+      return null;
     }
 
     HttpServletRequest httpRequest = (HttpServletRequest) request;
@@ -55,6 +57,16 @@ public class TenantDosFilter extends DoSFilter {
         httpRequest.getQueryString());
 
     String tenantId = TenantUtils.extractTenantId(httpRequest, tenantExtractionMode);
+    
+    if (tenantId.equals(UNKNOWN_TENANT)) {
+      // If we can't identify the tenant, return null to skip tenant-based rate limiting.
+      // This results in the base DoSFilter to fall back to session-based (if enabled) or
+      // IP-based rate limiting as this is the best we can do in this scenario.
+      log.info("NNAU: TENANT DOS: Skipping tenant-based rate limiting for unidentified tenant. "
+          + "Request: {} '{}' (Host: '{}')", 
+          httpRequest.getMethod(), httpRequest.getRequestURI(), httpRequest.getServerName());
+      return null;
+    }
     
     log.info("NNAU: TENANT DOS: final result - tenant ID: '{}' for request: {} '{}' "
         + "(Host: '{}')",

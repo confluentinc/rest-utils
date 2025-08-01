@@ -27,11 +27,10 @@ import org.slf4j.LoggerFactory;
 public final class TenantUtils {
 
   private static final Logger log = LoggerFactory.getLogger(TenantUtils.class);
-
+  public static final String UNKNOWN_TENANT = "UNKNOWN";
 
   private static final String V3_CLUSTER_PREFIX = "/kafka/v3/clusters/";
   private static final String LKC_ID_PREFIX = "lkc-";
-  private static final String UNKNOWN_TENANT = "UNKNOWN";
 
   private TenantUtils() {}
 
