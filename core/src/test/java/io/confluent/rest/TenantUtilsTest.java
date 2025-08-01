@@ -52,47 +52,142 @@ public class TenantUtilsTest {
     // test V3 extraction failure - wrong pattern
     when(request.getRequestURI()).thenReturn("/api/v1/some/other/path");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
-    assertEquals("UNKNOWN", tenantId);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
     
     // test V3 extraction failure - null URI
     when(request.getRequestURI()).thenReturn(null);
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3);
-    assertEquals("UNKNOWN", tenantId);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
   }
 
   @Test
   public void testV4TenantIdExtraction() {
     HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // test successful V4 extraction with realistic pattern
+    // ========================================================================================
+    // POSITIVE TEST CASES
+    // ========================================================================================
+
+    // === Basic V4 patterns ===
     when(request.getServerName()).thenReturn("lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud");
     String tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
     assertEquals("lkc-6787w2", tenantId);
     
-    // test V4 extraction with different realistic patterns
     when(request.getServerName()).thenReturn("lkc-abc123def-prod789.us-east-1.aws.private.confluent.cloud");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
     assertEquals("lkc-abc123def", tenantId);
     
-    // test V4 extraction with shorter environment ID
     when(request.getServerName()).thenReturn("lkc-xyz123-env.eu-central-1.azure.confluent.cloud");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
     assertEquals("lkc-xyz123", tenantId);
+
+    // === V4 GLB-based patterns ===
+    when(request.getServerName()).thenReturn("lkc-2v531-lg1y3.us-west-1.aws.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-2v531", tenantId);
     
-    // test V4 extraction failure - wrong pattern (no lkc prefix)
+    when(request.getServerName()).thenReturn("lkc-3d253-lg1y3.us-west-1.aws.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-3d253", tenantId);
+
+    // === V4 non-GLB (Private DNS Phase 1) patterns ===
+    when(request.getServerName()).thenReturn("lkc-2v531.domz6wj0p.us-west-1.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-2v531", tenantId);
+    
+    when(request.getServerName()).thenReturn("lkc-2v531-00aa.usw1-az1.domz6wj0p.us-west-1.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-2v531", tenantId);
+
+    // === V4 concurrent endpoints (Private DNS Phase 2) ===
+    when(request.getServerName()).thenReturn("lkc-2v531-lg1y3.us-west-1.aws.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-2v531", tenantId);
+    
+    when(request.getServerName()).thenReturn("lkc-2v531.lg1y3.us-west-1.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-2v531", tenantId);
+
+    // === Enterprise SKU patterns ===
+    when(request.getServerName()).thenReturn("lkc-abc123.us-west-2.aws.private.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-abc123", tenantId);
+    
+    when(request.getServerName()).thenReturn("lkc-abc123-9ae1.us-west-2.aws.private.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-abc123", tenantId);
+
+    // === Private Network Interface-Based (Freight/Enterprise) patterns ===
+    when(request.getServerName()).thenReturn("lkc-devc2qrwyy-apxxx.us-west-2.aws.accesspoint.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-devc2qrwyy", tenantId);
+    
+    when(request.getServerName()).thenReturn("lkc-devc2qrwyy-1234-apxxx.usw2-az2.us-west-2.aws.accesspoint.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-devc2qrwyy", tenantId);
+
+    // === Trusted shared network scheme patterns ===
+    when(request.getServerName()).thenReturn("lkc-abc123.us-west-2.aws.intranet.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-abc123", tenantId);
+    
+    when(request.getServerName()).thenReturn("lkc-abc123-9ae1.usw2-az1.us-west-2.aws.intranet.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals("lkc-abc123", tenantId);
+
+    // ========================================================================================
+    // NEGATIVE TEST CASES
+    // ========================================================================================
+
+    // === Broker endpoints (start with e-) ===
+    when(request.getServerName()).thenReturn("e-00aa-usw1-az1-lg1y3.us-west-1.aws.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    
+    when(request.getServerName()).thenReturn("e-1d39.use1-az1.domjpe506kp.us-east-1.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+
+    // === Kafka API endpoints (start with lkaclkc-) ===
+    when(request.getServerName()).thenReturn("lkaclkc-3d253-lg1y3.us-west-1.aws.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    
+    when(request.getServerName()).thenReturn("lkaclkc-2v531.domz6wj0p.us-west-1.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+
+    // === KSQL endpoints (start with pksqlc-) ===
+    when(request.getServerName()).thenReturn("pksqlc-3d235-lg1y3.us-west-1.aws.glb.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    
+    when(request.getServerName()).thenReturn("pksqlc-3d235.domz6wj0p.us-west-1.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+
+    // === Schema Registry endpoints (start with psrc-) ===
+    when(request.getServerName()).thenReturn("psrc-8kz20.us-east-2.aws.confluent.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+
+    // === Flink UDF Gateway endpoints (start with pflinkudfgwc-) ===
+    when(request.getServerName()).thenReturn("pflinkudfgwc-3d235.us-west-2.aws.intranet.confluent-untrusted.cloud");
+    tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+
+    // === Invalid patterns ===
     when(request.getServerName()).thenReturn("api.confluent.cloud");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
-    assertEquals("UNKNOWN", tenantId);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
     
-    // test V4 extraction failure - wrong pattern (lsrc instead of lkc)
     when(request.getServerName()).thenReturn("lsrc-123-env.domain.com");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
-    assertEquals("UNKNOWN", tenantId);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
     
-    // test V4 extraction failure - null hostname
     when(request.getServerName()).thenReturn(null);
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4);
-    assertEquals("UNKNOWN", tenantId);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
   }
 
   @Test
@@ -121,6 +216,6 @@ public class TenantUtilsTest {
     when(request.getRequestURI()).thenReturn("/api/v1/other");
     when(request.getServerName()).thenReturn("api.confluent.cloud");
     tenantId = TenantUtils.extractTenantId(request, RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO);
-    assertEquals("UNKNOWN", tenantId);
+    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
   }
 } 
