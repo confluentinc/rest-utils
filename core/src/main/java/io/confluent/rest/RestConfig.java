@@ -494,6 +494,19 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
 
+  private static final String DOS_FILTER_TENANT_ENABLED_CONFIG = "dos.filter.tenant.enabled";
+  private static final String DOS_FILTER_TENANT_ENABLED_DOC =
+      "Whether to enable per-tenant DoS filtering. This prevents noisy tenants from exhausting "
+          + "the global DoS filter. Default is false.";
+  private static final boolean DOS_FILTER_TENANT_ENABLED_DEFAULT = false;
+
+  private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG =
+      "dos.filter.tenant.max.requests.per.sec";
+  private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC =
+      "Maximum number of requests per second per tenant. Requests in excess of this "
+          + "are first delayed, then throttled. Default is 25";
+  private static final int DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
+
   private static final String SERVER_CONNECTION_LIMIT = "server.connection.limit";
   private static final String SERVER_CONNECTION_LIMIT_DOC =
       "Limits the number of active connections on that server to the configured number. Once that "
@@ -1132,6 +1145,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MANAGED_ATTR_DOC
         ).define(
+            DOS_FILTER_TENANT_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TENANT_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_ENABLED_DOC
+        ).define(
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC
+        ).define(
             SERVER_CONNECTION_LIMIT,
             Type.INT,
             SERVER_CONNECTION_LIMIT_DEFAULT,
@@ -1385,6 +1410,14 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getDosFilterManagedAttr() {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
+  }
+
+  public final boolean isDosFilterTenantEnabled() {
+    return getBoolean(DOS_FILTER_TENANT_ENABLED_CONFIG);
+  }
+
+  public final int getDosFilterTenantMaxRequestsPerSec() {
+    return getInt(DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG);
   }
 
   public final int getServerConnectionLimit() {
