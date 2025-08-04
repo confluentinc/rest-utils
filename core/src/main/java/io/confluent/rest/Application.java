@@ -813,7 +813,7 @@ public abstract class Application<T extends RestConfig> {
     }
     log.info("NNAU: tenant dos filter configured.");
 
-    TenantDosFilter dosFilter = new TenantDosFilter(config.getDosFilterTenantExtractionMode());
+    TenantDosFilter dosFilter = new TenantDosFilter();
     tenantDosfilterListeners.add(jetty429MetricsListener);
     JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
         tenantDosfilterListeners);

@@ -32,12 +32,9 @@ public class TenantDosFilter extends DoSFilter {
   
   private static final Logger log = LoggerFactory.getLogger(TenantDosFilter.class);
   
-  private final String tenantExtractionMode;
-
-  public TenantDosFilter(String tenantExtractionMode) {
+  public TenantDosFilter() {
     super();
-    this.tenantExtractionMode = tenantExtractionMode;
-    log.info("NNAU: TenantDosFilter constructor - extraction mode: '{}'", tenantExtractionMode);
+    log.info("NNAU: TenantDosFilter constructor - using automatic tenant extraction");
   }
 
   @Override
@@ -56,7 +53,7 @@ public class TenantDosFilter extends DoSFilter {
         httpRequest.getServerName(),
         httpRequest.getQueryString());
 
-    String tenantId = TenantUtils.extractTenantId(httpRequest, tenantExtractionMode);
+    String tenantId = TenantUtils.extractTenantId(httpRequest);
     
     if (tenantId.equals(UNKNOWN_TENANT)) {
       // If we can't identify the tenant, return null to skip tenant-based rate limiting.
