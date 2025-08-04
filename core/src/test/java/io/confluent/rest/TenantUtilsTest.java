@@ -26,196 +26,174 @@ import org.junit.jupiter.api.Test;
 public class TenantUtilsTest {
 
   @Test
-  public void testPathBasedTenantIdExtraction() {
+  public void testPathBasedTenantIdExtraction_SuccessCases() {
     HttpServletRequest request = mock(HttpServletRequest.class);
+
+    // Standard topic path
+    assertTenantExtraction(request, "/kafka/v3/clusters/lkc-devccovmzyj/topics", 
+        null, "lkc-devccovmzyj");
     
-    // test successful path-based extraction - standard case
-    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-devccovmzyj/topics");
-    String tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-devccovmzyj", tenantId);
+    // Consumer groups path
+    assertTenantExtraction(request, "/kafka/v3/clusters/lkc-abc123def/consumer-groups", 
+        null, "lkc-abc123def");
     
-    // test V3 extraction with different endpoint
-    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-abc123def/consumer-groups");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123def", tenantId);
+    // Short tenant ID
+    assertTenantExtraction(request, "/kafka/v3/clusters/lkc-6787w2/topics", 
+        null, "lkc-6787w2");
     
-    // test V3 extraction with realistic tenant ID from documentation
-    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-6787w2/topics");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-6787w2", tenantId);
-    
-    // test V3 extraction with path ending at tenant ID (previously failing case)
-    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-devc80y73q");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-devc80y73q", tenantId);
-    
-    // test V3 extraction failure - wrong pattern
-    when(request.getRequestURI()).thenReturn("/api/v1/some/other/path");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
-    
-    // test V3 extraction failure - null URI
-    when(request.getRequestURI()).thenReturn(null);
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    // Path ending at cluster ID
+    assertTenantExtraction(request, "/kafka/v3/clusters/lkc-devc80y73q", 
+        null, "lkc-devc80y73q");
   }
 
   @Test
-  public void testHostnameBasedTenantIdExtraction() {
+  public void testPathBasedTenantIdExtraction_FailureCases() {
     HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // ========================================================================================
-    // POSITIVE TEST CASES
-    // ========================================================================================
-
-    // === Basic V4 patterns ===
-    when(request.getServerName()).thenReturn("lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud");
-    String tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-6787w2", tenantId);
+    // Wrong path pattern
+    assertTenantExtraction(request, "/api/v1/some/other/path", 
+        null, TenantUtils.UNKNOWN_TENANT);
     
-    when(request.getServerName()).thenReturn("lkc-abc123def-prod789.us-east-1.aws.private.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123def", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-xyz123-env.eu-central-1.azure.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-xyz123", tenantId);
+    // Null URI
+    assertTenantExtraction(request, null, 
+        null, TenantUtils.UNKNOWN_TENANT);
+  }
 
-    // === V4 GLB-based patterns ===
-    when(request.getServerName()).thenReturn("lkc-2v531-lg1y3.us-west-1.aws.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-2v531", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-3d253-lg1y3.us-west-1.aws.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-3d253", tenantId);
+  @Test
+  public void testHostnameBasedTenantIdExtraction_BasicPatterns() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // === V4 non-GLB (Private DNS Phase 1) patterns ===
-    when(request.getServerName()).thenReturn("lkc-2v531.domz6wj0p.us-west-1.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-2v531", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-2v531-00aa.usw1-az1.domz6wj0p.us-west-1.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-2v531", tenantId);
+    // Basic hostname patterns
+    assertTenantExtraction(request, null, 
+        "lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud", "lkc-6787w2");
+    assertTenantExtraction(request, null, 
+        "lkc-abc123def-prod789.us-east-1.aws.private.confluent.cloud", "lkc-abc123def");
+    assertTenantExtraction(request, null, 
+        "lkc-xyz123-env.eu-central-1.azure.confluent.cloud", "lkc-xyz123");
+  }
 
-    // === V4 concurrent endpoints (Private DNS Phase 2) ===
-    when(request.getServerName()).thenReturn("lkc-2v531-lg1y3.us-west-1.aws.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-2v531", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-2v531.lg1y3.us-west-1.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-2v531", tenantId);
+  @Test
+  public void testHostnameBasedTenantIdExtraction_GLBPatterns() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // === Enterprise SKU patterns ===
-    when(request.getServerName()).thenReturn("lkc-abc123.us-west-2.aws.private.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-abc123-9ae1.us-west-2.aws.private.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123", tenantId);
+    // GLB-based patterns
+    assertTenantExtraction(request, null, 
+        "lkc-2v531-lg1y3.us-west-1.aws.glb.confluent.cloud", "lkc-2v531");
+    assertTenantExtraction(request, null, 
+        "lkc-3d253-lg1y3.us-west-1.aws.glb.confluent.cloud", "lkc-3d253");
+  }
 
-    // === Private Network Interface-Based (Freight/Enterprise) patterns ===
-    when(request.getServerName()).thenReturn("lkc-devc2qrwyy-apxxx.us-west-2.aws.accesspoint.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-devc2qrwyy", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-devc2qrwyy-1234-apxxx.usw2-az2.us-west-2.aws.accesspoint.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-devc2qrwyy", tenantId);
+  @Test
+  public void testHostnameBasedTenantIdExtraction_PrivateDNSPatterns() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // === Trusted shared network scheme patterns ===
-    when(request.getServerName()).thenReturn("lkc-abc123.us-west-2.aws.intranet.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123", tenantId);
-    
-    when(request.getServerName()).thenReturn("lkc-abc123-9ae1.usw2-az1.us-west-2.aws.intranet.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123", tenantId);
+    // Private DNS Phase 1 patterns
+    assertTenantExtraction(request, null, 
+        "lkc-2v531.domz6wj0p.us-west-1.aws.confluent.cloud", "lkc-2v531");
+    assertTenantExtraction(request, null, 
+        "lkc-2v531-00aa.usw1-az1.domz6wj0p.us-west-1.aws.confluent.cloud", "lkc-2v531");
 
-    // ========================================================================================
-    // NEGATIVE TEST CASES
-    // ========================================================================================
+    // Private DNS Phase 2 patterns
+    assertTenantExtraction(request, null, 
+        "lkc-2v531-lg1y3.us-west-1.aws.glb.confluent.cloud", "lkc-2v531");
+    assertTenantExtraction(request, null, 
+        "lkc-2v531.lg1y3.us-west-1.aws.confluent.cloud", "lkc-2v531");
+  }
 
-    // === Broker endpoints (start with e-) ===
-    when(request.getServerName()).thenReturn("e-00aa-usw1-az1-lg1y3.us-west-1.aws.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
-    
-    when(request.getServerName()).thenReturn("e-1d39.use1-az1.domjpe506kp.us-east-1.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+  @Test
+  public void testHostnameBasedTenantIdExtraction_EnterprisePatterns() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // === Kafka API endpoints (start with lkaclkc-) ===
-    when(request.getServerName()).thenReturn("lkaclkc-3d253-lg1y3.us-west-1.aws.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
-    
-    when(request.getServerName()).thenReturn("lkaclkc-2v531.domz6wj0p.us-west-1.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    // Enterprise SKU patterns
+    assertTenantExtraction(request, null, 
+        "lkc-abc123.us-west-2.aws.private.confluent.cloud", "lkc-abc123");
+    assertTenantExtraction(request, null, 
+        "lkc-abc123-9ae1.us-west-2.aws.private.confluent.cloud", "lkc-abc123");
 
-    // === KSQL endpoints (start with pksqlc-) ===
-    when(request.getServerName()).thenReturn("pksqlc-3d235-lg1y3.us-west-1.aws.glb.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
-    
-    when(request.getServerName()).thenReturn("pksqlc-3d235.domz6wj0p.us-west-1.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    // Private Network Interface-Based (Freight/Enterprise) patterns
+    assertTenantExtraction(request, null, 
+        "lkc-devc2qrwyy-apxxx.us-west-2.aws.accesspoint.glb.confluent.cloud", "lkc-devc2qrwyy");
+    assertTenantExtraction(request, null, 
+        "lkc-devc2qrwyy-1234-apxxx.usw2-az2.us-west-2.aws.accesspoint.glb.confluent.cloud", "lkc-devc2qrwyy");
 
-    // === Schema Registry endpoints (start with psrc-) ===
-    when(request.getServerName()).thenReturn("psrc-8kz20.us-east-2.aws.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    // Trusted shared network scheme patterns
+    assertTenantExtraction(request, null, 
+        "lkc-abc123.us-west-2.aws.intranet.confluent.cloud", "lkc-abc123");
+    assertTenantExtraction(request, null, 
+        "lkc-abc123-9ae1.usw2-az1.us-west-2.aws.intranet.confluent.cloud", "lkc-abc123");
+  }
 
-    // === Flink UDF Gateway endpoints (start with pflinkudfgwc-) ===
-    when(request.getServerName()).thenReturn("pflinkudfgwc-3d235.us-west-2.aws.intranet.confluent-untrusted.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+  @Test
+  public void testHostnameBasedTenantIdExtraction_NonTenantEndpoints() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // === Invalid patterns ===
-    when(request.getServerName()).thenReturn("api.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
-    
-    when(request.getServerName()).thenReturn("lsrc-123-env.domain.com");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
-    
-    when(request.getServerName()).thenReturn(null);
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    // Broker endpoints (start with e-)
+    assertTenantExtraction(request, null, 
+        "e-00aa-usw1-az1-lg1y3.us-west-1.aws.glb.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+    assertTenantExtraction(request, null, 
+        "e-1d39.use1-az1.domjpe506kp.us-east-1.aws.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+
+    // Kafka API endpoints (start with lkaclkc-)
+    assertTenantExtraction(request, null, 
+        "lkaclkc-3d253-lg1y3.us-west-1.aws.glb.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+    assertTenantExtraction(request, null, 
+        "lkaclkc-2v531.domz6wj0p.us-west-1.aws.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+
+    // KSQL endpoints (start with pksqlc-)
+    assertTenantExtraction(request, null, 
+        "pksqlc-3d235-lg1y3.us-west-1.aws.glb.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+    assertTenantExtraction(request, null, 
+        "pksqlc-3d235.domz6wj0p.us-west-1.aws.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+
+    // Schema Registry endpoints (start with psrc-)
+    assertTenantExtraction(request, null, 
+        "psrc-8kz20.us-east-2.aws.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+
+    // Flink UDF Gateway endpoints (start with pflinkudfgwc-)
+    assertTenantExtraction(request, null, 
+        "pflinkudfgwc-3d235.us-west-2.aws.intranet.confluent-untrusted.cloud", TenantUtils.UNKNOWN_TENANT);
+  }
+
+  @Test
+  public void testHostnameBasedTenantIdExtraction_InvalidPatterns() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+
+    // Invalid patterns
+    assertTenantExtraction(request, null, 
+        "api.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+    assertTenantExtraction(request, null, 
+        "lsrc-123-env.domain.com", TenantUtils.UNKNOWN_TENANT);
+    assertTenantExtraction(request, null, 
+        null, TenantUtils.UNKNOWN_TENANT);
   }
 
   @Test
   public void testTenantIdExtractionWithFallback() {
     HttpServletRequest request = mock(HttpServletRequest.class);
+
+    // Path extraction takes priority when both are available
+    assertTenantExtraction(request, "/kafka/v3/clusters/lkc-6787w2/topics", 
+        "lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud", "lkc-6787w2");
     
-    // test path extraction takes priority - path pattern should be found first
-    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-6787w2/topics");
-    when(request.getServerName()).thenReturn("lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud");
-    String tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-6787w2", tenantId);
+    // Path extraction works even with non-tenant hostname
+    assertTenantExtraction(request, "/kafka/v3/clusters/lkc-devc80y73q", 
+        "kafka.pkc-devcyypqg6.svc.cluster.local", "lkc-devc80y73q");
     
-    // test path extraction with path ending at tenant ID (edge case)
-    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-devc80y73q");
-    when(request.getServerName()).thenReturn("kafka.pkc-devcyypqg6.svc.cluster.local");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-devc80y73q", tenantId);
+    // Fallback to hostname when path extraction fails
+    assertTenantExtraction(request, "/some/other/path", 
+        "lkc-abc123-env456.domain.com", "lkc-abc123");
     
-    // test fallback to hostname when path extraction fails
-    when(request.getRequestURI()).thenReturn("/some/other/path");
-    when(request.getServerName()).thenReturn("lkc-abc123-env456.domain.com");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals("lkc-abc123", tenantId);
+    // Both path and hostname extraction fail
+    assertTenantExtraction(request, "/api/v1/other", 
+        "api.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
+  }
+
+  private void assertTenantExtraction(HttpServletRequest request, String requestURI, 
+      String serverName, String expectedTenantId) {
+    when(request.getRequestURI()).thenReturn(requestURI);
+    when(request.getServerName()).thenReturn(serverName);
     
-    // test both path and hostname extraction fail
-    when(request.getRequestURI()).thenReturn("/api/v1/other");
-    when(request.getServerName()).thenReturn("api.confluent.cloud");
-    tenantId = TenantUtils.extractTenantId(request);
-    assertEquals(TenantUtils.UNKNOWN_TENANT, tenantId);
+    String actualTenantId = TenantUtils.extractTenantId(request);
+    assertEquals(expectedTenantId, actualTenantId);
   }
 } 
