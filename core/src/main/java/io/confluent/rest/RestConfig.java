@@ -504,7 +504,7 @@ public class RestConfig extends AbstractConfig {
       "dos.filter.tenant.max.requests.per.sec";
   private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC =
       "Maximum number of requests per second per tenant. Requests in excess of this "
-          + "are first delayed, then throttled. Default is 10.";
+          + "are first delayed, then throttled. Default is 25";
   private static final int DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
 
   private static final String SERVER_CONNECTION_LIMIT = "server.connection.limit";
