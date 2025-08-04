@@ -60,7 +60,7 @@ import org.junit.jupiter.api.TestInfo;
  * This test makes sure when DosFilter rejects requests, then configured dosfilter-listeners are
  * run, including the mandatory Jetty429MetricsDosFilterListener.
  */
-@Tag("IntegrationTest")
+// @Tag("IntegrationTest") - Temporarily removed for testing
 class JettyDosFilterMultiListenerIntegrationTest {
 
   private static final int DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC = 25;
@@ -85,6 +85,7 @@ class JettyDosFilterMultiListenerIntegrationTest {
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     // enabled dos filters
     props.put("dos.filter.enabled", true);
+    props.put("dos.filter.tenant.enabled", true);
     props.put("dos.filter.delay.ms", -1L); // to reject request, i.e 429
     
     String testName = testInfo.getDisplayName();
