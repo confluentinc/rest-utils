@@ -807,10 +807,6 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureTenantDosFilter(ServletContextHandler context) {
-    if (!config.isDosFilterTenantEnabled()) {
-      return;
-    }
-
     TenantDosFilter dosFilter = new TenantDosFilter();
     tenantDosfilterListeners.add(jetty429MetricsListener);
     JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
