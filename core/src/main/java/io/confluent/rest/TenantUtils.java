@@ -29,7 +29,7 @@ public final class TenantUtils {
   private static final Logger log = LoggerFactory.getLogger(TenantUtils.class);
   public static final String UNKNOWN_TENANT = "UNKNOWN";
 
-  private static final String V3_CLUSTER_PREFIX = "/kafka/v3/clusters/";
+  private static final String CLUSTER_PREFIX = "/kafka/v3/clusters/";
   private static final String LKC_ID_PREFIX = "lkc-";
 
   private TenantUtils() {}
@@ -46,9 +46,9 @@ public final class TenantUtils {
         extractionMode, request.getRequestURI(), request.getServerName());
     switch (extractionMode.toUpperCase()) {
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V3:
-        return extractTenantIdFromV3(request);
+        return extractTenantIdFromPath(request);
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_V4:
-        return extractTenantIdFromV4(request);
+        return extractTenantIdFromHost(request);
       case RestConfig.DOS_FILTER_TENANT_EXTRACTION_MODE_AUTO:
         return extractTenantIdAuto(request);
       default:
@@ -62,7 +62,7 @@ public final class TenantUtils {
    * Extracts tenant ID from URL path (V3 pattern)
    * Example: /kafka/v3/clusters/lkc-devccovmzyj => lkc-devccovmzyj
    */
-  private static String extractTenantIdFromV3(HttpServletRequest request) {
+  private static String extractTenantIdFromPath(HttpServletRequest request) {
     String requestURI = request.getRequestURI();
     log.info("NNAU: TENANT V3 (String parse): checking URI: {}", requestURI);
     if (requestURI == null) {
@@ -71,13 +71,13 @@ public final class TenantUtils {
     }
 
     // Find the V3 cluster prefix
-    int prefixIndex = requestURI.indexOf(V3_CLUSTER_PREFIX);
+    int prefixIndex = requestURI.indexOf(CLUSTER_PREFIX);
     if (prefixIndex == -1) {
       log.info("NNAU: TENANT V3: V3 cluster prefix not found in path: {}", requestURI);
       return UNKNOWN_TENANT;
     }
 
-    int startIndex = prefixIndex + V3_CLUSTER_PREFIX.length();
+    int startIndex = prefixIndex + CLUSTER_PREFIX.length();
     if (startIndex >= requestURI.length() || !requestURI.startsWith(LKC_ID_PREFIX, startIndex)) {
       log.info("NNAU: TENANT V3: No tenant ID found after cluster prefix in path: {}", requestURI);
       return UNKNOWN_TENANT;
@@ -103,8 +103,9 @@ public final class TenantUtils {
   /**
    * Extracts tenant ID from hostname (V4 pattern)
    * Example: lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud => lkc-6787w2
+   * Note that V4 extraction also supports path-based extraction and this serves as a fallback.
    */
-  private static String extractTenantIdFromV4(HttpServletRequest request) {
+  private static String extractTenantIdFromHost(HttpServletRequest request) {
     String serverName = request.getServerName();
     log.info("NNAU: TENANT V4 (String parse): checking hostname: {}", serverName);
     if (serverName == null || !serverName.startsWith(LKC_ID_PREFIX)) {
@@ -136,7 +137,7 @@ public final class TenantUtils {
   private static String extractTenantIdAuto(HttpServletRequest request) {
     log.info("NNAU: TENANT AUTO: trying V3 extraction first for URI: '{}' and Host: '{}'",
         request.getRequestURI(), request.getServerName());
-    String tenantId = extractTenantIdFromV3(request);
+    String tenantId = extractTenantIdFromPath(request);
     if (!UNKNOWN_TENANT.equals(tenantId)) {
       log.info("NNAU: TENANT AUTO: V3 extraction successful: '{}'", tenantId);
       return tenantId;
@@ -144,7 +145,7 @@ public final class TenantUtils {
 
     log.info("NNAU: TENANT AUTO: V3 failed, trying V4 extraction for Host: '{}'", 
         request.getServerName());
-    tenantId = extractTenantIdFromV4(request);
+    tenantId = extractTenantIdFromHost(request);
     if (!UNKNOWN_TENANT.equals(tenantId)) {
       log.info("NNAU: TENANT AUTO: V4 extraction successful: '{}'", tenantId);
       return tenantId;
