@@ -29,29 +29,21 @@ import org.slf4j.LoggerFactory;
  * Extends the base DoSFilter to extract tenant IDs from requests and rate limit by tenant.
  */
 public class TenantDosFilter extends DoSFilter {
-  
+
   private static final Logger log = LoggerFactory.getLogger(TenantDosFilter.class);
   
   public TenantDosFilter() {
     super();
-    log.info("NNAU: TenantDosFilter constructor - using automatic tenant extraction");
   }
 
   @Override
   protected String extractUserId(ServletRequest request) {
     if (!(request instanceof HttpServletRequest)) {
-      log.info("NNAU: TENANT DOS: FAILED - Request is not an HttpServletRequest, "
-          + "cannot extract tenant ID");
+      log.warn("Request is not an HttpServletRequest, cannot extract tenant ID");
       return null;
     }
 
     HttpServletRequest httpRequest = (HttpServletRequest) request;
-    log.info("NNAU: TENANT DOS: processing request - Method: {}, URI: '{}', Host: '{}', "
-        + "Query: '{}'", 
-        httpRequest.getMethod(), 
-        httpRequest.getRequestURI(),
-        httpRequest.getServerName(),
-        httpRequest.getQueryString());
 
     String tenantId = TenantUtils.extractTenantId(httpRequest);
     
@@ -59,15 +51,14 @@ public class TenantDosFilter extends DoSFilter {
       // If we can't identify the tenant, return null to skip tenant-based rate limiting.
       // This results in the base DoSFilter to fall back to session-based (if enabled) or
       // IP-based rate limiting as this is the best we can do in this scenario.
-      log.info("NNAU: TENANT DOS: Skipping tenant-based rate limiting for unidentified tenant. "
-          + "Request: {} '{}' (Host: '{}')", 
+      log.warn("Skipping tenant-based rate limiting for unidentified tenant. "
+              + "Request: {} '{}' (Host: '{}')",
           httpRequest.getMethod(), httpRequest.getRequestURI(), httpRequest.getServerName());
       return null;
     }
-    
-    log.info("NNAU: TENANT DOS: final result - tenant ID: '{}' for request: {} '{}' "
-        + "(Host: '{}')",
-        tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(), 
+
+    log.debug("Final result - tenant ID: '{}' for request: {} '{}' (Host: '{}')",
+        tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(),
         httpRequest.getServerName());
     
     return tenantId;

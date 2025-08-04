@@ -17,8 +17,6 @@
 package io.confluent.rest;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for extracting tenant IDs from HTTP requests.
@@ -26,7 +24,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class TenantUtils {
 
-  private static final Logger log = LoggerFactory.getLogger(TenantUtils.class);
   public static final String UNKNOWN_TENANT = "UNKNOWN";
 
   private static final String CLUSTER_PREFIX = "/kafka/v3/clusters/";
@@ -42,27 +39,18 @@ public final class TenantUtils {
    * @return the tenant ID, or "UNKNOWN" if extraction fails
    */
   public static String extractTenantId(HttpServletRequest request) {
-    log.info("NNAU: TENANT UTILS: extracting tenant ID for URI: {} and Host: {}",
-        request.getRequestURI(), request.getServerName());
-
     // Always try path extraction first (works for both V3 and V4)
     String tenantId = extractTenantIdFromPath(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
-      log.info("NNAU: TENANT UTILS: Path extraction successful: '{}'", tenantId);
       return tenantId;
     }
 
     // Fall back to hostname extraction (V4)
-    log.info("NNAU: TENANT UTILS: Path extraction failed, trying hostname for Host: '{}'",
-        request.getServerName());
     tenantId = extractTenantIdFromHostname(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
-      log.info("NNAU: TENANT UTILS: Hostname extraction successful: '{}'", tenantId);
       return tenantId;
     }
 
-    log.info("NNAU: TENANT UTILS: Both path and hostname extraction failed. URI: {}, Host: {}",
-        request.getRequestURI(), request.getServerName());
     return UNKNOWN_TENANT;
   }
 
@@ -72,22 +60,18 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromPath(HttpServletRequest request) {
     String requestURI = request.getRequestURI();
-    log.info("NNAU: TENANT V3 (String parse): checking URI: {}", requestURI);
     if (requestURI == null) {
-      log.info("NNAU: TENANT V3: Request URI is null, cannot extract tenant ID from path");
       return UNKNOWN_TENANT;
     }
 
     // Find the V3 cluster prefix
     int prefixIndex = requestURI.indexOf(CLUSTER_PREFIX);
     if (prefixIndex == -1) {
-      log.info("NNAU: TENANT V3: V3 cluster prefix not found in path: {}", requestURI);
       return UNKNOWN_TENANT;
     }
 
     int startIndex = prefixIndex + CLUSTER_PREFIX.length();
     if (startIndex >= requestURI.length() || !requestURI.startsWith(LKC_ID_PREFIX, startIndex)) {
-      log.info("NNAU: TENANT V3: No tenant ID found after cluster prefix in path: {}", requestURI);
       return UNKNOWN_TENANT;
     }
 
@@ -99,12 +83,10 @@ public final class TenantUtils {
 
     // Validate we found at least one character after the prefix
     if (endIndex == startIndex + LKC_ID_PREFIX.length()) {
-      log.info("NNAU: TENANT V3: No valid tenant ID characters found in path: {}", requestURI);
       return UNKNOWN_TENANT;
     }
 
     String tenantId = requestURI.substring(startIndex, endIndex);
-    log.info("NNAU: TENANT V3: extracted tenant ID: {} from URI: {}", tenantId, requestURI);
     return tenantId;
   }
 
@@ -114,10 +96,7 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromHostname(HttpServletRequest request) {
     String serverName = request.getServerName();
-    log.info("NNAU: TENANT V4 (String parse): checking hostname: {}", serverName);
     if (serverName == null || !serverName.startsWith(LKC_ID_PREFIX)) {
-      log.info("NNAU: TENANT V4: Server name is null or doesn't start with tenant prefix: {}", 
-          serverName);
       return UNKNOWN_TENANT;
     }
 
@@ -129,12 +108,10 @@ public final class TenantUtils {
 
     // Validate we found at least one character after the prefix
     if (endIndex == LKC_ID_PREFIX.length()) {
-      log.info("NNAU: TENANT V4: Invalid tenant ID format in hostname: {}", serverName);
       return UNKNOWN_TENANT;
     }
 
     String tenantId = serverName.substring(0, endIndex);
-    log.info("NNAU: TENANT V4: extracted tenant ID: {} from server: {}", tenantId, serverName);
     return tenantId;
   }
 }
