@@ -638,12 +638,11 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private <T> T safeGet(Supplier<T> supplier, String operationName) {
       try {
         return supplier.get();
+      } catch (NullPointerException e) {
+        log.error("NPE while getting {}, potentially due to recycled request", operationName, e);
+        return null;
       } catch (Exception e) {
-        if (e instanceof NullPointerException) {
-          log.error("NPE while getting {}, potentially due to recycled request", operationName, e);
-        } else {
-          log.error("Error while getting {}", operationName, e);
-        }
+        log.error("Error while getting {}", operationName, e);
         return null;
       }
     }
