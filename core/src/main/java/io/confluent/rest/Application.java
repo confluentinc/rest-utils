@@ -781,6 +781,12 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureDosFilters(ServletContextHandler context) {
+    // TODO: Temporary code to be removed this code after tenant rate limit testing
+    // Configure tenant dry-run classifier if enabled
+    if (config.isDosFilterTenantDryRunEnabled()) {
+      configureTenantDryRunFilter(context);
+    }
+    
     if (!config.isDosFilterEnabled()) {
       return;
     }
@@ -815,6 +821,16 @@ public abstract class Application<T extends RestConfig> {
     String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
     FilterHolder filterHolder = configureDosFilter(dosFilter, tenantLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  // TODO: Temporary code to be removed this code after tenant rate limit testing
+  private void configureTenantDryRunFilter(ServletContextHandler context) {
+    TenantDryRunFilter dryRunFilter = new TenantDryRunFilter();
+    FilterHolder filterHolder = new FilterHolder(dryRunFilter);
+    filterHolder.setName("tenant-dry-run-filter");
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    log.info("Tenant dry-run classifier enabled. Tenant extraction will be logged "
+        + "without rate limiting");
   }
 
   private void configureGlobalDosFilter(ServletContextHandler context) {
