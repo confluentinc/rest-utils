@@ -38,6 +38,11 @@ public class TenantDosFilter extends DoSFilter {
 
   @Override
   protected String extractUserId(ServletRequest request) {
+    // IMPORTANT: If we can't identify the tenant (or get a bad request), return null to skip
+    // tenant-based rate limiting.
+    // This results in the base DoSFilter to fall back to session-based (if enabled) or
+    // IP-based rate limiting, as this is the best we can do in this scenario.
+
     if (!(request instanceof HttpServletRequest)) {
       log.warn("Request is not an HttpServletRequest, cannot extract tenant ID");
       return null;
@@ -47,9 +52,6 @@ public class TenantDosFilter extends DoSFilter {
     String tenantId = TenantUtils.extractTenantId(httpRequest);
     
     if (tenantId.equals(UNKNOWN_TENANT)) {
-      // If we can't identify the tenant, return null to skip tenant-based rate limiting.
-      // This results in the base DoSFilter to fall back to session-based (if enabled) or
-      // IP-based rate limiting as this is the best we can do in this scenario.
       log.warn("Skipping tenant-based rate limiting for unidentified tenant. "
           + "Request: {} '{}' (Host: '{}'), falling back to IP-based rate limiting",
           httpRequest.getMethod(), httpRequest.getRequestURI(), httpRequest.getServerName());
