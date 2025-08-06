@@ -529,7 +529,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
     private final boolean enableGlobalStatsRequestTags;
-    private Map<String, String> capturedRequestTags;
+    private Map<String, String> capturedRequestTags = emptyMap();
 
     private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
         boolean enableGlobalStatsRequestTags) {
