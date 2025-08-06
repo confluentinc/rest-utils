@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import static io.confluent.rest.TenantUtils.UNKNOWN_TENANT;
+
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -52,6 +54,12 @@ public class TenantDryRunFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String tenantId = TenantUtils.extractTenantId(httpRequest);
 
+        if (UNKNOWN_TENANT.equals(tenantId)) {
+          log.warn("Tenant classification: Failed to extract tenant ID from request: {} '{}' "
+                  + "(Host: '{}')",
+              httpRequest.getMethod(), httpRequest.getRequestURI(),
+              httpRequest.getServerName());
+        }
         log.info("Tenant classification: tenant='{}', request='{} {}', host='{}'",
             tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(),
             httpRequest.getServerName());
