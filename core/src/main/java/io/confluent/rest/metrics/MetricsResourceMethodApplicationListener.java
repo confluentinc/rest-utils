@@ -184,33 +184,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
               context.metricGrpPrefix, context.metricTags, k));
     }
 
-    private MethodMetrics getMethodMetrics(RequestEvent event) {
-      Object tagsObj;
-      try {
-        tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
-        if (tagsObj == null) {
-          // Method metrics without request tags don't necessarily represent method level
-          // aggregations e.g., when invocations of a method have both requests w/ and w/o tags
-          return this.metrics();
-        }
-      } catch (Exception e) {
-        if (e instanceof NullPointerException) {
-          log.error("NPE while getting request tags, potentially due to recycled request", e);
-        } else {
-          log.error("Error while getting request tags", e);
-        }
-        return this.metrics();
-      }
-
-      if (!(tagsObj instanceof Map<?, ?>)) {
-        throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
-            + " to be a " + Map.class + ", but it is " + tagsObj.getClass());
-      }
-      @SuppressWarnings("unchecked")
-      Map<String, String> tags = (Map<String, String>) tagsObj;
-      // we have additional tags, find the appropriate metrics holder
-      return this.metrics(tags);
-    }
   }
 
   private static class ConstructionContext {
@@ -555,6 +528,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
     private final boolean enableGlobalStatsRequestTags;
+    private Map<String, String> capturedRequestTags;
 
     private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
         boolean enableGlobalStatsRequestTags) {
@@ -566,13 +540,30 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.started = time.milliseconds();
     }
 
-    @SuppressWarnings("checkstyle:CyclomaticComplexity")
+    @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:JavaNCSS"})
     @Override
     public void onEvent(RequestEvent event) {
+      log.info("hsinghai change on rest-utils resource method");
       if (event.getType() == RequestEvent.Type.MATCHING_START) {
         final ContainerRequest request = event.getContainerRequest();
         wrappedRequestStream = new CountingInputStream(request.getEntityStream());
         request.setEntityStream(wrappedRequestStream);
+      } else if (event.getType() == RequestEvent.Type.RESOURCE_METHOD_START) {
+        try {
+          Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
+          if (tagsObj instanceof Map) {
+            this.capturedRequestTags = new HashMap<>((Map<String, String>) tagsObj);
+          } else {
+            this.capturedRequestTags = emptyMap();
+          }
+        } catch (Exception e) {
+          if (e instanceof NullPointerException) {
+            log.error("NPE while getting request tags, potentially due to recycled request", e);
+          } else {
+            log.error("Error while getting request tags", e);
+          }
+          this.capturedRequestTags = emptyMap();
+        }
       } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
         final ContainerResponse response = event.getContainerResponse();
         wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
@@ -617,35 +608,37 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         }
 
         responseSize = tempResponseSize;
-        final MethodMetrics globalMetrics = Objects.requireNonNull(getGlobalMetrics(event));
+        final MethodMetrics globalMetrics =
+                Objects.requireNonNull(getGlobalMetrics(this.capturedRequestTags));
         // Handle exceptions
         if (event.getException() != null) {
           globalMetrics.exception(event);
 
           // get RequestScopedMetrics for a single resource method
-          final MethodMetrics metrics = getMethodMetrics(event);
+          final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
           if (metrics != null) {
             metrics.exception(event);
           }
         }
 
         globalMetrics.finished(requestSize, responseSize, elapsed);
-        final MethodMetrics metrics = getMethodMetrics(event);
+        final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
         if (metrics != null) {
           metrics.finished(requestSize, responseSize, elapsed);
         }
       }
     }
 
-    private MethodMetrics getGlobalMetrics(RequestEvent event) {
+    private MethodMetrics getGlobalMetrics(Map<String, String> capturedRequestTags) {
       // (null key) RequestScopedMetrics is the global metrics for ALL resource methods, see
       // io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.onEvent in this file
       RequestScopedMetrics globalRequestScopedMetrics = this.metrics.get(null);
-      return this.enableGlobalStatsRequestTags ? globalRequestScopedMetrics.getMethodMetrics(
-          event) : globalRequestScopedMetrics.metrics();
+      return this.enableGlobalStatsRequestTags ? globalRequestScopedMetrics.metrics(
+              capturedRequestTags) : globalRequestScopedMetrics.metrics();
     }
 
-    private MethodMetrics getMethodMetrics(RequestEvent event) {
+    private MethodMetrics getMethodMetrics(RequestEvent event,
+                                           Map<String, String> capturedRequestTags) {
       ResourceMethod method;
       try {
         method = event.getUriInfo().getMatchedResourceMethod();
@@ -678,7 +671,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         return null;
       }
 
-      return requestScopedMetrics.getMethodMetrics(event);
+      return requestScopedMetrics.metrics(capturedRequestTags);
     }
 
     private static class CountingInputStream extends FilterInputStream {
