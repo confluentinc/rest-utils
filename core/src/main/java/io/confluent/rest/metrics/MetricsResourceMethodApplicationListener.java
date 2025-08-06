@@ -212,7 +212,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     }
   }
 
-  @SuppressWarnings("checkstyle:ClassDataAbstractionCoupling")
   private static class MethodMetrics {
     private static final String RESPONSE_BELOW_LATENCY_SLO =
         "response-below-latency-slo";
@@ -542,7 +541,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
       this.started = time.milliseconds();
     }
 
-    @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:JavaNCSS"})
     @Override
     public void onEvent(RequestEvent event) {
       if (event.getType() == RequestEvent.Type.MATCHING_START) {
@@ -564,45 +562,49 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
         response.setEntityStream(wrappedResponseStream);
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
-        final long elapsed = time.milliseconds() - started;
-        Long tempRequestSize = safeGet(() -> {
-          if (wrappedRequestStream != null) {
-            return (long) wrappedRequestStream.size();
-          }
-          return 0L;
-        }, "request size");
+        processFinishedEvent(event);
+      }
+    }
 
-        final long requestSize = (tempRequestSize != null) ? tempRequestSize : 0L;
-
-        // nothing guarantees we always encounter an event where getContainerResponse is not null
-        // in the event of dispatch errors, the error response is delegated to the servlet container
-        Long tempResponseSize = safeGet(() -> {
-          if (wrappedResponseStream != null) {
-            return (long) wrappedResponseStream.size();
-          }
-          return 0L;
-        }, "response size");
-
-        final long responseSize = (tempResponseSize != null) ? tempResponseSize : 0L;
-
-        final MethodMetrics globalMetrics =
-                Objects.requireNonNull(getGlobalMetrics(this.capturedRequestTags));
-        // Handle exceptions
-        if (event.getException() != null) {
-          globalMetrics.exception(event);
-
-          // get RequestScopedMetrics for a single resource method
-          final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
-          if (metrics != null) {
-            metrics.exception(event);
-          }
+    private void processFinishedEvent(RequestEvent event) {
+      final long elapsed = time.milliseconds() - started;
+      Long tempRequestSize = safeGet(() -> {
+        if (wrappedRequestStream != null) {
+          return (long) wrappedRequestStream.size();
         }
+        return 0L;
+      }, "request size");
 
-        globalMetrics.finished(requestSize, responseSize, elapsed);
+      final long requestSize = (tempRequestSize != null) ? tempRequestSize : 0L;
+
+      // nothing guarantees we always encounter an event where getContainerResponse is not null
+      // in the event of dispatch errors, the error response is delegated to the servlet container
+      Long tempResponseSize = safeGet(() -> {
+        if (wrappedResponseStream != null) {
+          return (long) wrappedResponseStream.size();
+        }
+        return 0L;
+      }, "response size");
+
+      final long responseSize = (tempResponseSize != null) ? tempResponseSize : 0L;
+
+      final MethodMetrics globalMetrics =
+              Objects.requireNonNull(getGlobalMetrics(this.capturedRequestTags));
+      // Handle exceptions
+      if (event.getException() != null) {
+        globalMetrics.exception(event);
+
+        // get RequestScopedMetrics for a single resource method
         final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
         if (metrics != null) {
-          metrics.finished(requestSize, responseSize, elapsed);
+          metrics.exception(event);
         }
+      }
+
+      globalMetrics.finished(requestSize, responseSize, elapsed);
+      final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
+      if (metrics != null) {
+        metrics.finished(requestSize, responseSize, elapsed);
       }
     }
 
