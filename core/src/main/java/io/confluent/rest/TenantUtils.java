@@ -17,6 +17,8 @@
 package io.confluent.rest;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for extracting tenant IDs from HTTP requests.
@@ -24,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
  */
 public final class TenantUtils {
 
+  private static final Logger log = LoggerFactory.getLogger(TenantUtils.class);
   public static final String UNKNOWN_TENANT = "UNKNOWN";
 
   private static final String CLUSTER_PREFIX = "/kafka/v3/clusters/";
@@ -39,6 +42,11 @@ public final class TenantUtils {
    * @return the tenant ID, or "UNKNOWN" if extraction fails
    */
   public static String extractTenantId(HttpServletRequest request) {
+    if (request == null) {
+      log.warn("Cannot extract tenant ID: request is null");
+      return UNKNOWN_TENANT;
+    }
+
     // Always try path extraction first (works for both V3 and V4)
     String tenantId = extractTenantIdFromPath(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
@@ -51,6 +59,9 @@ public final class TenantUtils {
       return tenantId;
     }
 
+    log.warn("Failed to extract tenant ID from both path and hostname. "
+        + "Request: {} '{}' (Host: '{}')",
+        request.getMethod(), request.getRequestURI(), request.getServerName());
     return UNKNOWN_TENANT;
   }
 
@@ -60,7 +71,7 @@ public final class TenantUtils {
    */
   private static String extractTenantIdFromPath(HttpServletRequest request) {
     String requestURI = request.getRequestURI();
-    if (requestURI == null) {
+    if (requestURI == null || requestURI.isEmpty()) {
       return UNKNOWN_TENANT;
     }
 
@@ -86,8 +97,7 @@ public final class TenantUtils {
       return UNKNOWN_TENANT;
     }
 
-    String tenantId = requestURI.substring(startIndex, endIndex);
-    return tenantId;
+    return requestURI.substring(startIndex, endIndex);
   }
 
   /**
@@ -111,7 +121,6 @@ public final class TenantUtils {
       return UNKNOWN_TENANT;
     }
 
-    String tenantId = serverName.substring(0, endIndex);
-    return tenantId;
+    return serverName.substring(0, endIndex);
   }
 }
