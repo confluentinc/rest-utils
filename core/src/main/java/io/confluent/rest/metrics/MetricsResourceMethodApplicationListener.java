@@ -17,6 +17,7 @@
 package io.confluent.rest.metrics;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
@@ -57,6 +58,7 @@ import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import static java.util.Collections.emptyMap;
 
@@ -543,71 +545,46 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:JavaNCSS"})
     @Override
     public void onEvent(RequestEvent event) {
-      log.info("hsinghai change on rest-utils resource method");
       if (event.getType() == RequestEvent.Type.MATCHING_START) {
         final ContainerRequest request = event.getContainerRequest();
         wrappedRequestStream = new CountingInputStream(request.getEntityStream());
         request.setEntityStream(wrappedRequestStream);
       } else if (event.getType() == RequestEvent.Type.RESOURCE_METHOD_START) {
-        try {
+        Map<String, String> tempCapturedRequestTags = safeGet(() -> {
           Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
           if (tagsObj instanceof Map) {
-            this.capturedRequestTags = new HashMap<>((Map<String, String>) tagsObj);
+            return new HashMap<>((Map<String, String>) tagsObj);
           } else {
-            this.capturedRequestTags = emptyMap();
+            return emptyMap();
           }
-        } catch (Exception e) {
-          if (e instanceof NullPointerException) {
-            log.error("NPE while getting request tags, potentially due to recycled request", e);
-          } else {
-            log.error("Error while getting request tags", e);
-          }
-          this.capturedRequestTags = emptyMap();
-        }
+        }, "request tags");
+        this.capturedRequestTags = Objects.requireNonNullElse(tempCapturedRequestTags, emptyMap());
       } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
         final ContainerResponse response = event.getContainerResponse();
         wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
         response.setEntityStream(wrappedResponseStream);
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         final long elapsed = time.milliseconds() - started;
-        long tempRequestSize;
-        if (wrappedRequestStream != null) {
-          try {
-            tempRequestSize = wrappedRequestStream.size();
-          } catch (Exception e) {
-            if (e instanceof NullPointerException) {
-              log.error("NPE while calculating request size, potentially due to "
-                      + "recycled request stream", e);
-            } else {
-              log.error("Error while calculating request size", e);
-            }
-            tempRequestSize = 0;
+        Long tempRequestSize = safeGet(() -> {
+          if (wrappedRequestStream != null) {
+            return (long) wrappedRequestStream.size();
           }
-        } else {
-          tempRequestSize = 0;
-        }
-        final long requestSize = tempRequestSize;
-        final long responseSize;
-        long tempResponseSize;
+          return 0L;
+        }, "request size");
+
+        final long requestSize = (tempRequestSize != null) ? tempRequestSize : 0L;
+
         // nothing guarantees we always encounter an event where getContainerResponse is not null
         // in the event of dispatch errors, the error response is delegated to the servlet container
-        if (wrappedResponseStream != null) {
-          try {
-            tempResponseSize = wrappedResponseStream.size();
-          } catch (Exception e) {
-            if (e instanceof NullPointerException) {
-              log.error("NPE while calculating response size, potentially due to recycled "
-                      + "response stream", e);
-            } else {
-              log.error("Error while calculating ressponse size", e);
-            }
-            tempResponseSize = 0;
+        Long tempResponseSize = safeGet(() -> {
+          if (wrappedResponseStream != null) {
+            return (long) wrappedResponseStream.size();
           }
-        } else {
-          tempResponseSize = 0;
-        }
+          return 0L;
+        }, "response size");
 
-        responseSize = tempResponseSize;
+        final long responseSize = (tempResponseSize != null) ? tempResponseSize : 0L;
+
         final MethodMetrics globalMetrics =
                 Objects.requireNonNull(getGlobalMetrics(this.capturedRequestTags));
         // Handle exceptions
@@ -639,39 +616,34 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
     private MethodMetrics getMethodMetrics(RequestEvent event,
                                            Map<String, String> capturedRequestTags) {
-      ResourceMethod method;
-      try {
-        method = event.getUriInfo().getMatchedResourceMethod();
-        if (method == null) {
-          return null;
-        }
-      } catch (Exception e) {
-        if (e instanceof NullPointerException) {
-          log.error("NPE while getting matched resource method or URI info, "
-                  + "potentially due to recycled request", e);
-        } else {
-          log.error("Error while getting matched resource method or URI info", e);
-        }
+      ResourceMethod method =
+              safeGet(() -> event.getUriInfo().getMatchedResourceMethod(),
+                      "matched resource method or URI info");
+      if (method == null) {
         return null;
       }
-      RequestScopedMetrics requestScopedMetrics;
-      try {
-        requestScopedMetrics = this.metrics.get(method.getInvocable()
-                .getDefinitionMethod());
-        if (requestScopedMetrics == null) {
-          return null;
-        }
-      } catch (Exception e) {
-        if (e instanceof NullPointerException) {
-          log.error("NPE while getting request scoped metrics, "
-                  + "potentially due to recycled request", e);
-        } else {
-          log.error("Error while getting request scoped metrics", e);
-        }
+
+      RequestScopedMetrics requestScopedMetrics = safeGet(() ->
+                      this.metrics.get(method.getInvocable().getDefinitionMethod()),
+              "request scoped metrics");
+      if (requestScopedMetrics == null) {
         return null;
       }
 
       return requestScopedMetrics.metrics(capturedRequestTags);
+    }
+
+    private <T> T safeGet(Supplier<T> supplier, String operationName) {
+      try {
+        return supplier.get();
+      } catch (Exception e) {
+        if (e instanceof NullPointerException) {
+          log.error("NPE while getting {}, potentially due to recycled request", operationName, e);
+        } else {
+          log.error("Error while getting {}", operationName, e);
+        }
+        return null;
+      }
     }
 
     private static class CountingInputStream extends FilterInputStream {
