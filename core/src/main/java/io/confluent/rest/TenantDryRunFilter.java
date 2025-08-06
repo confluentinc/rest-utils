@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * // TODO: This is a temporary class and to be removed this code after tenant rate limit testing
+ * // TODO: This is a temporary class and to be removed after tenant rate limit testing
  * A dry-run filter for measuring tenant classification accuracy
  * without actually performing rate limiting. This filter extracts tenant IDs
  * and logs the results for monitoring and analysis purposes.
@@ -52,11 +52,10 @@ public class TenantDryRunFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String tenantId = TenantUtils.extractTenantId(httpRequest);
 
-        if (log.isInfoEnabled()) {
-          log.info("Tenant classification: tenant='{}', request='{} {}', host='{}'",
-              tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(), 
-              httpRequest.getServerName());
-        }
+        log.info("Tenant classification: tenant='{}', request='{} {}', host='{}'",
+            tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(),
+            httpRequest.getServerName());
+
       }
     } catch (Exception e) {
       log.warn("Exception during tenant extraction in dry-run mode", e);

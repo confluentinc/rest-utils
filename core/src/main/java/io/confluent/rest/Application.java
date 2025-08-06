@@ -782,7 +782,7 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureDosFilters(ServletContextHandler context) {
-    // TODO: Temporary code to be removed this code after tenant rate limit testing
+    // TODO: This is temporary code to be removed after tenant rate limit testing
     // Configure tenant dry-run classifier if enabled
     if (config.isDosFilterTenantDryRunEnabled()) {
       configureTenantDryRunFilter(context);
@@ -824,7 +824,7 @@ public abstract class Application<T extends RestConfig> {
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
-  // TODO: Temporary code to be removed this code after tenant rate limit testing
+  // TODO: This is temporary code to be removed after tenant rate limit testing
   private void configureTenantDryRunFilter(ServletContextHandler context) {
     TenantDryRunFilter dryRunFilter = new TenantDryRunFilter();
     FilterHolder filterHolder = new FilterHolder(dryRunFilter);
