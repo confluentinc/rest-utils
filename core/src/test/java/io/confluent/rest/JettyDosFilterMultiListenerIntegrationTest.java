@@ -60,7 +60,7 @@ import org.junit.jupiter.api.TestInfo;
  * This test makes sure when DosFilter rejects requests, then configured dosfilter-listeners are
  * run, including the mandatory Jetty429MetricsDosFilterListener.
  */
-// @Tag("IntegrationTest") - Temporarily removed for testing
+@Tag("IntegrationTest")
 class JettyDosFilterMultiListenerIntegrationTest {
 
   private static final int DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC = 25;
