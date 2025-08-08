@@ -497,8 +497,8 @@ public class RestConfig extends AbstractConfig {
   private static final String DOS_FILTER_TENANT_ENABLED_CONFIG = "dos.filter.tenant.enabled";
   private static final String DOS_FILTER_TENANT_ENABLED_DOC =
       "Whether to enable per-tenant DoS filtering. This prevents noisy tenants from exhausting "
-          + "the global DoS filter. Default is false.";
-  private static final boolean DOS_FILTER_TENANT_ENABLED_DEFAULT = false;
+          + "the global DoS filter. Default is true.";
+  private static final boolean DOS_FILTER_TENANT_ENABLED_DEFAULT = true;
 
   private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG =
       "dos.filter.tenant.max.requests.per.sec";
