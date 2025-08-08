@@ -21,6 +21,7 @@ import static io.confluent.rest.TenantUtils.UNKNOWN_TENANT;
 import io.confluent.rest.jetty.DoSFilter;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +33,20 @@ public class TenantDosFilter extends DoSFilter {
 
   private static final Logger log = LoggerFactory.getLogger(TenantDosFilter.class);
   
-  public TenantDosFilter() {
+  private final BooleanSupplier enabledSupplier;
+  
+  public TenantDosFilter(BooleanSupplier enabledSupplier) {
     super();
+    this.enabledSupplier = enabledSupplier;
+  }
+
+  @Override
+  public boolean isEnabled() {
+    if (enabledSupplier != null && !enabledSupplier.getAsBoolean()) {
+      // Tenant rate limiting is disabled
+      return false;
+    }
+    return super.isEnabled();
   }
 
   @Override

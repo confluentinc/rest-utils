@@ -807,13 +807,13 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureTenantDosFilter(ServletContextHandler context) {
-    TenantDosFilter dosFilter = new TenantDosFilter();
+    TenantDosFilter tenantDosFilter = new TenantDosFilter(config::isDosFilterTenantEnabled);
     tenantDosfilterListeners.add(jetty429MetricsListener);
     JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
         tenantDosfilterListeners);
-    dosFilter.setListener(multiListener);
+    tenantDosFilter.setListener(multiListener);
     String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
-    FilterHolder filterHolder = configureDosFilter(dosFilter, tenantLimit);
+    FilterHolder filterHolder = configureDosFilter(tenantDosFilter, tenantLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 
