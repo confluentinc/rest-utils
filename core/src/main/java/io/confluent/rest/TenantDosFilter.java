@@ -60,5 +60,10 @@ public class TenantDosFilter extends DoSFilter {
 
     return tenantId;
   }
+
+  @Override
+  protected boolean isTenantBasedTracking() {
+    return true;
+  }
 }
 
