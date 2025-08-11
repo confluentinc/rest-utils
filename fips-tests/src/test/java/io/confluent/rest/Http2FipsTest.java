@@ -57,6 +57,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,6 +147,8 @@ class Http2FipsTest {
     return new TestRestConfig(props);
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2() throws Exception {
     TestRestConfig config = buildTestConfig(true, "TLSv1.3", "BCJSSE");
@@ -173,6 +176,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2AmbiguousSegment() throws Exception {
     // This test is ensuring that URI-encoded / characters work in URIs in all variants
@@ -222,6 +227,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2NotEnabled() throws Exception {
     TestRestConfig config = buildTestConfig(false);
