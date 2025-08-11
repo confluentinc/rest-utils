@@ -124,6 +124,8 @@ public abstract class Application<T extends RestConfig> {
 
   private final List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList<>();
 
+  private final List<DoSFilter.Listener> tenantDosfilterListeners = new ArrayList<>();
+
   public Application(T config) {
     this(config, "/", null, null, null);
   }
@@ -191,6 +193,15 @@ public abstract class Application<T extends RestConfig> {
   public void addNonGlobalDosfilterListener(
       DoSFilter.Listener listener) {
     this.nonGlobalDosfilterListeners.add(Objects.requireNonNull(listener));
+  }
+
+  /**
+   * Add DosFilter.listener to be called with all other listeners for tenant-dosfilter. This
+   * should be called before configureHandler() is called.
+   */
+  public void addTenantDosfilterListener(
+      DoSFilter.Listener listener) {
+    this.tenantDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
   protected String requestLogFormat() {
@@ -776,6 +787,11 @@ public abstract class Application<T extends RestConfig> {
 
     // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
+
+    if (config.isDosFilterTenantEnabled()) {
+      configureTenantDosFilter(context);
+    }
+
     configureGlobalDosFilter(context);
   }
 
@@ -787,6 +803,17 @@ public abstract class Application<T extends RestConfig> {
     dosFilter.setListener(multiListener);
     FilterHolder filterHolder = configureDosFilter(dosFilter,
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureTenantDosFilter(ServletContextHandler context) {
+    TenantDosFilter dosFilter = new TenantDosFilter();
+    tenantDosfilterListeners.add(jetty429MetricsListener);
+    JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
+        tenantDosfilterListeners);
+    dosFilter.setListener(multiListener);
+    String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
+    FilterHolder filterHolder = configureDosFilter(dosFilter, tenantLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
   }
 

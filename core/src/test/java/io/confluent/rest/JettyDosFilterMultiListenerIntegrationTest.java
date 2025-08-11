@@ -71,44 +71,58 @@ class JettyDosFilterMultiListenerIntegrationTest {
   private Client client;
   private final TestDosFilterListener nonGlobalDosFilterListener = new TestDosFilterListener();
   private final TestDosFilterListener globalDosFilterListener = new TestDosFilterListener();
+  private final TestDosFilterListener tenantDosFilterListener = new TestDosFilterListener();
 
   @BeforeEach
   public void setUp(TestInfo testInfo) throws Exception {
     TestMetricsReporter.reset();
     nonGlobalDosFilterListener.rejectedCounter.set(0);
     globalDosFilterListener.rejectedCounter.set(0);
+    tenantDosFilterListener.rejectedCounter.set(0);
 
     Properties props = new Properties();
     props.setProperty("debug", "false");
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     // enabled dos filters
     props.put("dos.filter.enabled", true);
+    props.put("dos.filter.tenant.enabled", true);
     props.put("dos.filter.delay.ms", -1L); // to reject request, i.e 429
-    if (testInfo.getDisplayName().contains(
-        "test_dosFilterMultiListener_withGlobalDosFilterRejecting_CheckRelevantListenersCalled")) {
-      // Make sure global-dos-filter kicks in before non-global-dos-filter. So
-      // set non-global/per-connection limit to be higher, 100, than the global limit, 25.
-      // Set non-global limit.
-      props.put("dos.filter.max.requests.per.connection.per.sec",
-          100);
-      // Set the global limit
-      props.put("dos.filter.max.requests.per.sec",
-          DOS_FILTER_MAX_REQUESTS_PER_SEC);
+    
+    String testName = testInfo.getDisplayName();
+    if (testName.contains("test_dosFilterMultiListener_withGlobalDosFilterRejecting_CheckRelevantListenersCalled")) {
+      // Configure so global DoS filter triggers first
+      // Execution order: non-global -> tenant -> global
+      // Set limits: global(25) < non-global(100) < tenant(150)
+      props.put("dos.filter.max.requests.per.connection.per.sec", 100);
+      props.put("dos.filter.max.requests.per.sec", DOS_FILTER_MAX_REQUESTS_PER_SEC); // 25
+      props.put("dos.filter.tenant.max.requests.per.sec", 150);
+    } else if (testName.contains("test_dosFilterMultiListener_withTenantDosFilterRejecting_CheckRelevantListenersCalled")) {
+      // Configure so tenant DoS filter triggers first  
+      // Execution order: non-global -> tenant -> global
+      // Set limits: tenant(25) < non-global(100) < global(150)
+      props.put("dos.filter.max.requests.per.connection.per.sec", 100);
+      props.put("dos.filter.max.requests.per.sec", 150);
+      props.put("dos.filter.tenant.max.requests.per.sec", DOS_FILTER_MAX_REQUESTS_PER_SEC); // 25
+    } else if (testName.contains("test_dosFilterMultiListener_withNonGlobalDosFilterRejecting_CheckRelevantListenersCalled")) {
+      // Configure so non-global DoS filter triggers first
+      // Execution order: non-global -> tenant -> global  
+      // Set limits: non-global(25) < tenant(100) < global(150)
+      props.put("dos.filter.max.requests.per.connection.per.sec", DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC); // 25
+      props.put("dos.filter.max.requests.per.sec", 150);
+      props.put("dos.filter.tenant.max.requests.per.sec", 100);
     } else {
-      // Make sure non-global-dos-filter kicks in before the global-dos-filter. So
-      // set non-global/per-connection limit to be lower, 25, than the global limit, 100.
-      // Set non-global limit.
-      props.put("dos.filter.max.requests.per.connection.per.sec",
-          DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC);
-      // Set the global limit
-      props.put("dos.filter.max.requests.per.sec",
-          100);
+      // Default configuration for tests that don't expect rejections
+      // Set all limits high enough that no filter should trigger with normal test loads
+      props.put("dos.filter.max.requests.per.connection.per.sec", 1000);
+      props.put("dos.filter.max.requests.per.sec", 1000);
+      props.put("dos.filter.tenant.max.requests.per.sec", 1000);
     }
 
     TestRestConfig config = new TestRestConfig(props);
     ApplicationWithDoSFilterEnabled app = new ApplicationWithDoSFilterEnabled(config);
     app.addNonGlobalDosfilterListener(nonGlobalDosFilterListener);
     app.addGlobalDosfilterListener(globalDosFilterListener);
+    app.addTenantDosfilterListener(tenantDosFilterListener);
     app.createServer();
     server = app.createServer();
     server.start();
@@ -186,6 +200,8 @@ class JettyDosFilterMultiListenerIntegrationTest {
     assertEquals(nonGlobalDosFilterListener.rejectedCounter.get(), 0);
     // Verify that global-dos-filter-listener wasn't called.
     assertEquals(globalDosFilterListener.rejectedCounter.get(), 0);
+    // Verify that tenant-dos-filter-listener wasn't called.
+    assertEquals(tenantDosFilterListener.rejectedCounter.get(), 0);
   }
 
   /**
@@ -272,6 +288,8 @@ class JettyDosFilterMultiListenerIntegrationTest {
         (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_CONNECTION_PER_SEC)) <= 1);
     // Verify that global-dos-filter-listener wasn't called.
     assertEquals(globalDosFilterListener.rejectedCounter.get(), 0);
+    // Verify that tenant-dos-filter-listener wasn't called.
+    assertEquals(tenantDosFilterListener.rejectedCounter.get(), 0);
   }
 
   /**
@@ -355,6 +373,93 @@ class JettyDosFilterMultiListenerIntegrationTest {
         (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC)) <= 1);
     // Verify that non-global-dos-filter-listener wasn't called.
     assertEquals(nonGlobalDosFilterListener.rejectedCounter.get(), 0);
+    // Verify that tenant-dos-filter-listener wasn't called.
+    assertEquals(tenantDosFilterListener.rejectedCounter.get(), 0);
+  }
+
+  /**
+   * This test will query such that tenant dos-filter kicks-in, so requests are rejected. Check
+   * that tenant-dos-filter-listener and Jetty429MetricsDosFilterListener are called.
+   */
+  @RepeatedTest(value = 5, name = LONG_DISPLAY_NAME)
+  @DisplayName("test_dosFilterMultiListener_withTenantDosFilterRejecting_CheckRelevantListenersCalled")
+  public void test_dosFilterMultiListener_withTenantDosFilterRejecting_CheckRelevantListenersCalled() {
+    // send 100 requests, in which 20 are warmup, in theory,
+    // - the first 25 (including warmups) are accepted, so response200s=5
+    // - the rest of 75 are rejected
+    final int warmupRequests = 20;
+    final int totalRequests = 100;
+
+    int response200s = hammerAtConstantRate(server.getURI(),
+        "/public/hello", Duration.ofMillis(1),
+        warmupRequests, totalRequests
+    );
+
+    // Verify Jetty429MetricsDosFilterListener is called.
+    // check for 200s
+    // due to the timing of exactly 1 second in DosFilter,
+    // sometime we might get one more response200,
+    // so the assertion is changed to relax the condition
+    assertTrue(Math.abs((DOS_FILTER_MAX_REQUESTS_PER_SEC - warmupRequests) - response200s) <= 1);
+    // Check 429 metrics
+    for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
+      if (metric.metricName().name().equals("request-error-count")
+          && metric.metricName().group().equals("jetty-metrics")
+          && metric.metricName().tags()
+          .getOrDefault("http_status_code", "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("sampledstat"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error count metrics should be measurable");
+        double errorCountValue = (double) metricValue;
+        // due to the timing of exactly 1 second in DosFilter,
+        // sometime we might get one more response200,
+        // so the assertion is changed to relax the condition
+        assertTrue(Math.abs((totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC) -
+            errorCountValue) <= 1);
+      }
+
+      if (metric.metricName().name().equals("request-error-total")
+          && metric.metricName().group().equals("jetty-metrics")
+          && metric.metricName().tags()
+          .getOrDefault("http_status_code", "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("cumulativesum"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error total metrics should be measurable");
+        double errorTotalValue = (double) metricValue;
+        // due to the timing of exactly 1 second in DosFilter,
+        // sometime we might get one more response200,
+        // so the assertion is changed to relax the condition
+        assertTrue(Math.abs((totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC) -
+            errorTotalValue) <= 1);
+      }
+
+      if (metric.metricName().name().equals("request-error-rate")
+          && metric.metricName().group().equals("jetty-metrics")
+          && metric.metricName().tags()
+          .getOrDefault("http_status_code", "").equals("429")) {
+        assertTrue(metric.measurable().toString().toLowerCase().startsWith("rate"));
+        Object metricValue = metric.metricValue();
+        assertTrue(metricValue instanceof Double, "Error rate metrics should be measurable");
+        double errorRateValue = (double) metricValue;
+        assertEquals(
+            // 30 seconds is the approximate window size for Rate that comes from the calculation of
+            // org.apache.kafka.common.metrics.stats.Rate.windowSize
+            Math.floor(
+                (double) (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC) / 30),
+            Math.floor(errorRateValue), "Actual: " + errorRateValue);
+      }
+    }
+
+    // Verify that tenant-dos-filter-listener was called.
+    // due to the timing of exactly 1 second in DosFilter,
+    // sometime we might get one more response200,
+    // so the assertion is changed to relax the condition
+    assertTrue(Math.abs(tenantDosFilterListener.rejectedCounter.get() -
+        (totalRequests - DOS_FILTER_MAX_REQUESTS_PER_SEC)) <= 1);
+    // Verify that non-global-dos-filter-listener wasn't called.
+    assertEquals(nonGlobalDosFilterListener.rejectedCounter.get(), 0);
+    // Verify that global-dos-filter-listener wasn't called.
+    assertEquals(globalDosFilterListener.rejectedCounter.get(), 0);
   }
 
   // Send many concurrent requests and return the number of requests with 200 status
