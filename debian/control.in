@@ -9,7 +9,7 @@ Homepage: http://confluent.io
 
 Package: confluent-rest-utils
 Architecture: all
-Depends: confluent-common
+Depends: confluent-common (= ##VERSION##)
 Description: Confluent utilities for writing Java REST APIs
  Confluent REST Utils provides a small framework and utilities for writing Java
  REST APIs using Jersey, Jackson, Jetty, and Hibernate Validator.
