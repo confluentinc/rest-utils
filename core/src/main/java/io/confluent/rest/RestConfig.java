@@ -639,6 +639,16 @@ public class RestConfig extends AbstractConfig {
   protected static final boolean RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT =
           false;
 
+  public static final String ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG =
+          "enable.response.size.metrics.collection";
+  protected static final String ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_DOC =
+          "If true, we will use the wrapped response stream and counting output stream to collect "
+                  + "response size metrics. Prone to throwing response does not exist "
+                  + "exceptions if the response is recycled intermittently. "
+                  + "Default is false.";
+  protected static final boolean ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_DEFAULT =
+          false;
+
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
 
@@ -1277,6 +1287,12 @@ public class RestConfig extends AbstractConfig {
             RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT,
             Importance.LOW,
             RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC
+        ).define(
+            ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG,
+            Type.BOOLEAN,
+            ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_DEFAULT,
+            Importance.LOW,
+            ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_DOC
         );
   }
 
@@ -1434,6 +1450,10 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getReturn429InsteadOf500ForJettyResponseErrors() {
     return getBoolean(RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG);
+  }
+
+  public final boolean getEnableResponseSizeMetricsCollection() {
+    return getBoolean(ENABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG);
   }
 
   public final List<NamedURI> getListeners() {
