@@ -91,7 +91,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   // method in the names, introducing this variable to keep the compatibility with downstream
   // dependencies, e.g., some applications may not want to report request tags in global stats
   private final boolean enableGlobalStatsRequestTags;
-  private final boolean enableResponseSizeMetricsCollection;
+  private final boolean disableResponseSizeMetricsCollection;
   private static final Logger log = LoggerFactory.getLogger(
           MetricsResourceMethodApplicationListener.class);
 
@@ -110,7 +110,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
                                                   long latencySloMs, long latencySlaMs,
                                                   double percentileMaxLatencyInMs,
                                                   boolean enableGlobalStatsRequestTags,
-                                                  boolean enableResponseSizeMetricsCollection) {
+                                                  boolean disableResponseSizeMetricsCollection) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
@@ -121,7 +121,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     this.latencySlaMs = latencySlaMs;
     this.percentileMaxLatencyInMs = percentileMaxLatencyInMs;
     this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
-    this.enableResponseSizeMetricsCollection = enableResponseSizeMetricsCollection;
+    this.disableResponseSizeMetricsCollection = disableResponseSizeMetricsCollection;
   }
 
   @Override
@@ -163,7 +163,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   @Override
   public RequestEventListener onRequest(final RequestEvent event) {
     return new MetricsRequestEventListener(methodMetrics, time, this.enableGlobalStatsRequestTags,
-            this.enableResponseSizeMetricsCollection);
+            this.disableResponseSizeMetricsCollection);
   }
 
   private static class RequestScopedMetrics {
@@ -533,15 +533,15 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
     private final boolean enableGlobalStatsRequestTags;
-    private final boolean enabledResponseSizeMetricsCollection;
+    private final boolean disableResponseSizeMetricsCollection;
     private Map<String, String> capturedRequestTags = emptyMap();
 
     private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
-        boolean enableGlobalStatsRequestTags, boolean enabledResponseSizeMetricsCollection) {
+        boolean enableGlobalStatsRequestTags, boolean disableResponseSizeMetricsCollection) {
       this.metrics = metrics;
       this.time = time;
       this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
-      this.enabledResponseSizeMetricsCollection = enabledResponseSizeMetricsCollection;
+      this.disableResponseSizeMetricsCollection = disableResponseSizeMetricsCollection;
       // CIAM-2673: if an exception occur in a filter that runs before this method listener,
       // MATCHING_START is never reached, resulting in false latency metrics
       this.started = time.milliseconds();
@@ -565,8 +565,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         this.capturedRequestTags = Objects.requireNonNullElse(tempCapturedRequestTags, emptyMap());
       } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
         // Temporary workaround for prevent response does not exist 500 error
-        // TODO: remove this workaround once <JIRA number> is fixed
-        if (this.enabledResponseSizeMetricsCollection) {
+        // TODO: remove this workaround once KNET-19746 is resolved
+        if (!this.disableResponseSizeMetricsCollection) {
           final ContainerResponse response = event.getContainerResponse();
           wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
           response.setEntityStream(wrappedResponseStream);
