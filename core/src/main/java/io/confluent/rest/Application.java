@@ -709,7 +709,7 @@ public abstract class Application<T extends RestConfig> {
         restConfig.getLong(RestConfig.METRICS_LATENCY_SLA_MS_CONFIG),
         restConfig.getDouble(RestConfig.PERCENTILE_MAX_LATENCY_MS_CONFIG),
         restConfig.getBoolean(RestConfig.METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG),
-        restConfig.getEnableResponseSizeMetricsCollection()));
+        restConfig.getDisableResponseSizeMetricsCollection()));
 
     config.property(ServerProperties.BV_SEND_ERROR_IN_RESPONSE, true);
     config.property(ServerProperties.WADL_FEATURE_DISABLE, true);
