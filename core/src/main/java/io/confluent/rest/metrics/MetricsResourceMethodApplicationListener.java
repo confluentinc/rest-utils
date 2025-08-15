@@ -91,6 +91,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   // method in the names, introducing this variable to keep the compatibility with downstream
   // dependencies, e.g., some applications may not want to report request tags in global stats
   private final boolean enableGlobalStatsRequestTags;
+  private final boolean disableResponseSizeMetricsCollection;
   private static final Logger log = LoggerFactory.getLogger(
           MetricsResourceMethodApplicationListener.class);
 
@@ -98,17 +99,9 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
                                                   Map<String, String> metricTags, Time time,
                                                   boolean enableLatencySloSla,
                                                   long latencySloMs, long latencySlaMs,
-                                                  double percentileMaxLatencyInMs) {
-    this(metrics, metricGrpPrefix, metricTags, time, enableLatencySloSla, latencySloMs,
-        latencySlaMs, percentileMaxLatencyInMs, false);
-  }
-
-  public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-                                                  Map<String, String> metricTags, Time time,
-                                                  boolean enableLatencySloSla,
-                                                  long latencySloMs, long latencySlaMs,
                                                   double percentileMaxLatencyInMs,
-                                                  boolean enableGlobalStatsRequestTags) {
+                                                  boolean enableGlobalStatsRequestTags,
+                                                  boolean disableResponseSizeMetricsCollection) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
@@ -119,6 +112,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     this.latencySlaMs = latencySlaMs;
     this.percentileMaxLatencyInMs = percentileMaxLatencyInMs;
     this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
+    this.disableResponseSizeMetricsCollection = disableResponseSizeMetricsCollection;
   }
 
   @Override
@@ -159,7 +153,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   @Override
   public RequestEventListener onRequest(final RequestEvent event) {
-    return new MetricsRequestEventListener(methodMetrics, time, this.enableGlobalStatsRequestTags);
+    return new MetricsRequestEventListener(methodMetrics, time, this.enableGlobalStatsRequestTags,
+            this.disableResponseSizeMetricsCollection);
   }
 
   private static class RequestScopedMetrics {
@@ -529,13 +524,15 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
     private final boolean enableGlobalStatsRequestTags;
+    private final boolean disableResponseSizeMetricsCollection;
     private Map<String, String> capturedRequestTags = emptyMap();
 
     private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
-        boolean enableGlobalStatsRequestTags) {
+        boolean enableGlobalStatsRequestTags, boolean disableResponseSizeMetricsCollection) {
       this.metrics = metrics;
       this.time = time;
       this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
+      this.disableResponseSizeMetricsCollection = disableResponseSizeMetricsCollection;
       // CIAM-2673: if an exception occur in a filter that runs before this method listener,
       // MATCHING_START is never reached, resulting in false latency metrics
       this.started = time.milliseconds();
@@ -558,9 +555,13 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         }, "request tags");
         this.capturedRequestTags = Objects.requireNonNullElse(tempCapturedRequestTags, emptyMap());
       } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
-        final ContainerResponse response = event.getContainerResponse();
-        wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
-        response.setEntityStream(wrappedResponseStream);
+        // Temporary workaround to prevent response does not exist 500 error (inc3209)
+        // TODO: remove this workaround once KNET-19746 is resolved
+        if (!this.disableResponseSizeMetricsCollection) {
+          final ContainerResponse response = event.getContainerResponse();
+          wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
+          response.setEntityStream(wrappedResponseStream);
+        }
       } else if (event.getType() == RequestEvent.Type.FINISHED) {
         processFinishedEvent(event);
       }
@@ -601,6 +602,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         }
       }
 
+      // give a 0 metric for errorSensor
       globalMetrics.finished(requestSize, responseSize, elapsed);
       final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
       if (metrics != null) {
