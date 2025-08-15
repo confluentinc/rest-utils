@@ -99,15 +99,6 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
                                                   Map<String, String> metricTags, Time time,
                                                   boolean enableLatencySloSla,
                                                   long latencySloMs, long latencySlaMs,
-                                                  double percentileMaxLatencyInMs) {
-    this(metrics, metricGrpPrefix, metricTags, time, enableLatencySloSla, latencySloMs,
-        latencySlaMs, percentileMaxLatencyInMs, false, false);
-  }
-
-  public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-                                                  Map<String, String> metricTags, Time time,
-                                                  boolean enableLatencySloSla,
-                                                  long latencySloMs, long latencySlaMs,
                                                   double percentileMaxLatencyInMs,
                                                   boolean enableGlobalStatsRequestTags,
                                                   boolean disableResponseSizeMetricsCollection) {
@@ -611,6 +602,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         }
       }
 
+      // give a 0 metric for errorSensor
       globalMetrics.finished(requestSize, responseSize, elapsed);
       final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
       if (metrics != null) {
