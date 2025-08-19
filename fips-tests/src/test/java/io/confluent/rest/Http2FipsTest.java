@@ -65,7 +65,6 @@ import org.slf4j.LoggerFactory;
 /**
  * This tests HTTP/2 support in the REST server with FIPS mode enabled.
  **/
-@Disabled("KNET-15387: this test is flaky and needs to be fixed")
 class Http2FipsTest {
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
@@ -148,6 +147,8 @@ class Http2FipsTest {
     return new TestRestConfig(props);
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2() throws Exception {
     TestRestConfig config = buildTestConfig(true, "TLSv1.3", "BCJSSE");
@@ -175,6 +176,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2AmbiguousSegment() throws Exception {
     // This test is ensuring that URI-encoded / characters work in URIs in all variants
@@ -224,6 +227,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2NotEnabled() throws Exception {
     TestRestConfig config = buildTestConfig(false);
@@ -295,8 +300,12 @@ class Http2FipsTest {
   private int makeGetRequestHttps2(String url)
       throws Exception {
     log.debug("Making GET using HTTP/2 " + url);
-    HTTP2Client http2Client = new HTTP2Client();
-    HttpClient httpClient = httpClient(buildSslContextFactory(),http2Client);
+
+    SslContextFactory.Client sslContextFactory = buildSslContextFactory();
+    ClientConnector clientConnector = new ClientConnector();
+    clientConnector.setSslContextFactory(sslContextFactory);
+    HTTP2Client http2Client = new HTTP2Client(clientConnector);
+    HttpClient httpClient = httpClient(sslContextFactory,http2Client);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();

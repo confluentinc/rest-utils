@@ -535,7 +535,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   public void testMetricLatencySloSlaEnabled() {
     makeSuccessfulCall();
 
@@ -544,7 +543,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .collect(Collectors.toMap(
             x -> x.metricName().name(),
             x -> x.metricValue().toString(),
-            (a, b) -> a));
+            (a, b) -> Double.valueOf(a).compareTo(Double.valueOf(b)) > 0 ? a : b));
 
     assertTrue(allMetrics.containsKey("response-below-latency-slo-total"));
     assertTrue(allMetrics.containsKey("response-above-latency-slo-total"));
