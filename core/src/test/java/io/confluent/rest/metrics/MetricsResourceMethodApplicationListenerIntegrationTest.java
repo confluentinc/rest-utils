@@ -543,7 +543,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .collect(Collectors.toMap(
             x -> x.metricName().name(),
             x -> x.metricValue().toString(),
-          (a, b) -> Double.valueOf(a).compareTo(Double.valueOf(b)) > 0 ? a : b));
+            (a, b) -> Double.valueOf(a).compareTo(Double.valueOf(b)) > 0 ? a : b));
 
     assertTrue(allMetrics.containsKey("response-below-latency-slo-total"));
     assertTrue(allMetrics.containsKey("response-above-latency-slo-total"));
