@@ -53,6 +53,9 @@ import org.junit.jupiter.api.Test;
 
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
@@ -191,6 +194,28 @@ public class KafkaExceptionMapperTest {
     verifyMapperResponse(new ExecutionException(authenticationException), Status.UNAUTHORIZED, KAFKA_AUTHENTICATION_ERROR_CODE);
     UnknownServerException unknownServerException = new UnknownServerException("some message");
     verifyMapperResponse(new ExecutionException(unknownServerException), Status.BAD_REQUEST, KAFKA_BAD_REQUEST_ERROR_CODE);
+  }
+
+  @Test
+  public void testGenericExceptionMapper_temp_throw429InsteadOf500() {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG, false);
+    RestConfig configFalse = new RestConfig(RestConfig.baseConfigDef(), props);
+    KafkaExceptionMapper exceptionMapperWithConfigFalse = new KafkaExceptionMapper(configFalse);
+
+    Response responseWithConfigFalse =
+            exceptionMapperWithConfigFalse.toResponse(new IllegalStateException("Response does not exist (likely recycled)"));
+    assertNotNull(responseWithConfigFalse);
+    assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), responseWithConfigFalse.getStatus());
+
+    props.put(RestConfig.RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG, true);
+    RestConfig configTrue = new RestConfig(RestConfig.baseConfigDef(), props);
+    KafkaExceptionMapper exceptionMapperWithConfigTrue = new KafkaExceptionMapper(configTrue);
+    Response responseWithConfigTrue =
+            exceptionMapperWithConfigTrue.toResponse(new IllegalStateException("Response does not exist (likely recycled)"));
+
+    assertNotNull(responseWithConfigTrue);
+    assertEquals(Status.TOO_MANY_REQUESTS.getStatusCode(), responseWithConfigTrue.getStatus());
   }
 
   private void verifyMapperResponse(Throwable throwable, Status status, int errorCode) {
