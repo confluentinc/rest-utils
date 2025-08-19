@@ -91,12 +91,12 @@ public class RequestLogHandlerIntegrationTest {
 
     // get internal application port
     int internalPort =
-        Arrays.stream(server.getConnectors())
-            .filter(connector -> connector.getName().equals("internal"))
-            .findAny()
-            .map(NetworkTrafficServerConnector.class::cast)
-            .map(NetworkTrafficServerConnector::getLocalPort)
-            .orElse(0);
+    Arrays.stream(server.getConnectors())
+        .filter(connector -> connector.getName().equals("internal"))
+        .findAny()
+        .map(NetworkTrafficServerConnector.class::cast)
+        .map(NetworkTrafficServerConnector::getLocalPort)
+        .orElse(0);
     assertTrue(internalPort > 0);
 
     // send a request to internal application
