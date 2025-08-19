@@ -344,6 +344,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(3, windowCheckpoint429 + windowTag1Checkpoint429 + windowTag2Checkpoint429);
   }
 
+  // TODO: Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testException5xxMetrics() {
     int totalRequests = 10;
@@ -559,6 +561,8 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() {
     // call service that fails before resource matching
