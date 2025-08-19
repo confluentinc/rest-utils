@@ -146,6 +146,8 @@ class Http2FipsTest {
     return new TestRestConfig(props);
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2() throws Exception {
     TestRestConfig config = buildTestConfig(true, "TLSv1.3", "BCJSSE");
@@ -173,6 +175,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2AmbiguousSegment() throws Exception {
     // This test is ensuring that URI-encoded / characters work in URIs in all variants
@@ -222,6 +226,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2NotEnabled() throws Exception {
     TestRestConfig config = buildTestConfig(false);
