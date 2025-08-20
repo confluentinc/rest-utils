@@ -827,11 +827,12 @@ public abstract class Application<T extends RestConfig> {
   // TODO: This is temporary code to be removed after tenant rate limit testing
   private void configureTenantDryRunFilter(ServletContextHandler context) {
     TenantDryRunFilter dryRunFilter = new TenantDryRunFilter();
-    FilterHolder filterHolder = new FilterHolder(dryRunFilter);
+    String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
+    FilterHolder filterHolder = configureDosFilter(dryRunFilter, tenantLimit);
     filterHolder.setName("tenant-dry-run-filter");
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
-    log.info("Tenant dry-run classifier enabled. Tenant extraction will be logged "
-        + "without rate limiting");
+    log.info("Tenant dry-run classifier enabled with {}req/sec limit. Tenant extraction and "
+        + "rate limit violations will be logged without actual rate limiting", tenantLimit);
   }
 
   private void configureGlobalDosFilter(ServletContextHandler context) {

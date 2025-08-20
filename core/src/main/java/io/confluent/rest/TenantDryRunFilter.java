@@ -18,63 +18,93 @@ package io.confluent.rest;
 
 import static io.confluent.rest.TenantUtils.UNKNOWN_TENANT;
 
-import jakarta.servlet.Filter;
+import io.confluent.rest.jetty.DoSFilter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * // TODO: This is a temporary class and to be removed after tenant rate limit testing
- * A dry-run filter for measuring tenant classification accuracy
- * without actually performing rate limiting. This filter extracts tenant IDs
- * and logs the results for monitoring and analysis purposes.
+ * A dry run filter for measuring tenant classification accuracy and rate limit detection
+ * without actually performing rate limiting
  */
-public class TenantDryRunFilter implements Filter {
+public class TenantDryRunFilter extends TenantDosFilter {
 
   private static final Logger log = LoggerFactory.getLogger(TenantDryRunFilter.class);
   
-  @Override
-  public void init(FilterConfig filterConfig) throws ServletException {
-    log.info("Tenant dry-run classifier initialized. This filter will extract and log "
-        + "tenant IDs without performing rate limiting.");
+  public TenantDryRunFilter() {
+    super();
+    // set custom listener that logs violations but never blocks requests
+    setListener(new DryRunListener());
   }
 
   @Override
-  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+  public void init(FilterConfig filterConfig) throws ServletException {
+    super.init(filterConfig);
+    log.info("Tenant dry run classifier initialized with max {} requests/sec",
+        getMaxRequestsPerSec());
+  }
+
+  @Override
+  protected void doFilter(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain
+  )
       throws IOException, ServletException {
+    // Log tenant classification for all requests (successful and violations)
+    logTenantClassification(request);
     
+    // Let the parent class handle rate tracking and potential violations
+    super.doFilter(request, response, filterChain);
+  }
+
+  private void logTenantClassification(HttpServletRequest request) {
     try {
-      if (request instanceof HttpServletRequest) {
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        String tenantId = TenantUtils.extractTenantId(httpRequest);
-
-        if (UNKNOWN_TENANT.equals(tenantId)) {
-          log.warn("Tenant classification: Failed to extract tenant ID from request: {} '{}' "
-                  + "(Host: '{}')",
-              httpRequest.getMethod(), httpRequest.getRequestURI(),
-              httpRequest.getServerName());
-        }
-        log.info("Tenant classification: tenant='{}', request='{} {}', host='{}'",
-            tenantId, httpRequest.getMethod(), httpRequest.getRequestURI(),
-            httpRequest.getServerName());
-
+      String tenantId = TenantUtils.extractTenantId(request);
+      
+      if (UNKNOWN_TENANT.equals(tenantId)) {
+        log.warn("Tenant Dry Run: Tenant classification: Failed to extract tenant ID from request: "
+                + "{} '{}' (Host: '{}')",
+            request.getMethod(), request.getRequestURI(), request.getServerName());
       }
+
+      log.info("Tenant Dry Run: Tenant classification: tenant='{}', request='{} {}', host='{}'",
+          tenantId, request.getMethod(), request.getRequestURI(), request.getServerName());
     } catch (Exception e) {
-      log.warn("Exception during tenant extraction in dry-run mode", e);
+      log.warn("Tenant Dry Run: Exception during tenant extraction", e);
     }
-    
-    // Continue with the request chain with no rate limiting applied at the tenant level
-    chain.doFilter(request, response);
   }
 
   @Override
   public void destroy() {
-    log.info("Tenant dry-run classifier destroyed.");
+    super.destroy();
+    log.info("Tenant dry run classifier destroyed.");
+  }
+
+  /**
+   * Custom listener that logs rate limit violations but always returns NO_ACTION
+   * to allow all requests through normally (even if limit exceeded)
+   */
+  private static class DryRunListener extends DoSFilter.Listener {
+    private static final Logger log = LoggerFactory.getLogger(DryRunListener.class);
+
+    @Override
+    public DoSFilter.Action onRequestOverLimit(HttpServletRequest request, 
+                                               DoSFilter.OverLimit overlimit, 
+                                               DoSFilter dosFilter) {
+      String tenantId = TenantUtils.extractTenantId(request);
+      
+      log.warn("Tenant Dry Run: Tenant rate limit WOULD BE EXCEEDED: tenant='{}', "
+          + "rateType='{}', duration={}ms, limit={}req/sec, request='{} {}', host='{}', ip='{}'",
+          tenantId, overlimit.getRateType(), overlimit.getDuration().toMillis(), 
+          overlimit.getCount(), request.getMethod(), request.getRequestURI(),
+          request.getServerName(), request.getRemoteAddr());
+
+      return DoSFilter.Action.NO_ACTION;
+    }
   }
 }
