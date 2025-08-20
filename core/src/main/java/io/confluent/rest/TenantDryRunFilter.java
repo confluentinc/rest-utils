@@ -72,7 +72,7 @@ public class TenantDryRunFilter extends TenantDosFilter {
             request.getMethod(), request.getRequestURI(), request.getServerName());
       }
 
-      log.info("Tenant Dry Run: Tenant classification: tenant='{}', request='{} {}', host='{}'",
+      log.debug("Tenant Dry Run: Tenant classification: tenant='{}', request='{} {}', host='{}'",
           tenantId, request.getMethod(), request.getRequestURI(), request.getServerName());
     } catch (Exception e) {
       log.warn("Tenant Dry Run: Exception during tenant extraction", e);
