@@ -507,12 +507,13 @@ public class RestConfig extends AbstractConfig {
           + "are first delayed, then throttled. Default is 25";
   private static final int DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
 
-  private static final String DOS_FILTER_TENANT_DRY_RUN_CONFIG = "dos.filter.tenant.dry.run";
-  private static final String DOS_FILTER_TENANT_DRY_RUN_DOC =
+  private static final String DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG =
+      "dos.filter.tenant.dry.run.enabled";
+  private static final String DOS_FILTER_TENANT_DRY_RUN_ENABLED_DOC =
       "This is temporary config for tenant rate limit testing. "
           + "When true, enables tenant extraction and classification logging without actually "
           + "performing tenant-based rate limiting. Default is false.";
-  private static final boolean DOS_FILTER_TENANT_DRY_RUN_DEFAULT = false;
+  private static final boolean DOS_FILTER_TENANT_DRY_RUN_ENABLED_DEFAULT = false;
 
   private static final String SERVER_CONNECTION_LIMIT = "server.connection.limit";
   private static final String SERVER_CONNECTION_LIMIT_DOC =
@@ -1172,11 +1173,11 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC
         ).define(
-            DOS_FILTER_TENANT_DRY_RUN_CONFIG,
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG,
             Type.BOOLEAN,
-            DOS_FILTER_TENANT_DRY_RUN_DEFAULT,
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_DEFAULT,
             Importance.LOW,
-            DOS_FILTER_TENANT_DRY_RUN_DOC
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_DOC
         ).define(
             SERVER_CONNECTION_LIMIT,
             Type.INT,
@@ -1448,7 +1449,7 @@ public class RestConfig extends AbstractConfig {
   }
 
   public final boolean isDosFilterTenantDryRunEnabled() {
-    return getBoolean(DOS_FILTER_TENANT_DRY_RUN_CONFIG);
+    return getBoolean(DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG);
   }
 
   public final int getServerConnectionLimit() {
