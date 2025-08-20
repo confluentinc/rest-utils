@@ -58,10 +58,6 @@ public final class TenantUtils {
     if (!tenantId.equals(UNKNOWN_TENANT)) {
       return tenantId;
     }
-
-    log.warn("Failed to extract tenant ID from both path and hostname. "
-        + "Request: {} '{}' (Host: '{}')",
-        request.getMethod(), request.getRequestURI(), request.getServerName());
     return UNKNOWN_TENANT;
   }
 
