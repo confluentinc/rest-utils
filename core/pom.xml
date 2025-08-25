@@ -21,18 +21,6 @@
             <artifactId>java-spiffe-core</artifactId>
             <version>0.8.11</version>
         </dependency>
-        <!-- <dependency>
-            <groupId>io.spiffe</groupId>
-            <artifactId>grpc-netty-linux</artifactId>
-            <version>0.8.11</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.spiffe</groupId>
-            <artifactId>grpc-netty-macos-aarch64</artifactId>
-            <version>0.8.11</version>
-            <scope>runtime</scope>
-        </dependency> -->
         <dependency>
             <groupId>io.spiffe</groupId>
             <artifactId>java-spiffe-provider</artifactId>
