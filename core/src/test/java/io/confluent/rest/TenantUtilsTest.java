@@ -171,19 +171,19 @@ public class TenantUtilsTest {
   public void testTenantIdExtractionWithFallback() {
     HttpServletRequest request = mock(HttpServletRequest.class);
 
-    // Path extraction takes priority when both are available
+    // Hostname extraction takes priority when both are available
     assertTenantExtraction(request, "/kafka/v3/clusters/lkc-6787w2/topics", 
         "lkc-6787w2-env5qj75n.us-west-2.aws.private.glb.stag.cpdev.cloud", "lkc-6787w2");
     
-    // Path extraction works even with non-tenant hostname
+    // Fallback to path extraction when hostname extraction fails  
     assertTenantExtraction(request, "/kafka/v3/clusters/lkc-devc80y73q", 
         "kafka.pkc-devcyypqg6.svc.cluster.local", "lkc-devc80y73q");
     
-    // Fallback to hostname when path extraction fails
+    // Hostname extraction succeeds when path extraction would fail
     assertTenantExtraction(request, "/some/other/path", 
         "lkc-abc123-env456.domain.com", "lkc-abc123");
     
-    // Both path and hostname extraction fail
+    // Both hostname and path extraction fail
     assertTenantExtraction(request, "/api/v1/other", 
         "api.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
   }
