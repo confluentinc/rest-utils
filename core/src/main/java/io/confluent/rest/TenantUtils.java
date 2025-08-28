@@ -51,14 +51,16 @@ public final class TenantUtils {
     // Try hostname extraction first (works for V4 networking and is more reliable)
     String tenantId = extractTenantIdFromHostname(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
-      log.debug("Tenant extracted from hostname: tenant='{}', host='{}'", tenantId, request.getServerName());
+      log.debug("Tenant extracted from hostname: tenant='{}', host='{}'",
+          tenantId, request.getServerName());
       return tenantId;
     }
 
     // Fall back to path extraction for V3 networking
     tenantId = extractTenantIdFromPath(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
-      log.debug("Tenant extracted from path: tenant='{}', uri='{}'", tenantId, request.getRequestURI());
+      log.debug("Tenant extracted from path: tenant='{}', uri='{}'",
+          tenantId, request.getRequestURI());
       return tenantId;
     }
 
