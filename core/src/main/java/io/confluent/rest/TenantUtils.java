@@ -35,8 +35,9 @@ public final class TenantUtils {
   private TenantUtils() {}
 
   /**
-   * Extracts tenant ID from an HTTP request.
-   * Attempts path extraction first, then falls back to hostname extraction.
+   * Extracts tenant ID for request
+   * Attempts hostname extraction first (applies to V4 networking - majority case),
+   * then falls back to request path extraction (applies to V3 networking).
    *
    * @param request the HTTP request
    * @return the tenant ID, or "UNKNOWN" if extraction fails
@@ -47,17 +48,22 @@ public final class TenantUtils {
       return UNKNOWN_TENANT;
     }
 
-    // Always try path extraction first (works for both V3 and V4)
-    String tenantId = extractTenantIdFromPath(request);
+    // Try hostname extraction first (works for V4 networking and is more reliable)
+    String tenantId = extractTenantIdFromHostname(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
+      log.debug("Tenant extracted from hostname: tenant='{}', host='{}'",
+          tenantId, request.getServerName());
       return tenantId;
     }
 
-    // Fall back to hostname extraction (V4)
-    tenantId = extractTenantIdFromHostname(request);
+    // Fall back to path extraction for V3 networking
+    tenantId = extractTenantIdFromPath(request);
     if (!tenantId.equals(UNKNOWN_TENANT)) {
+      log.debug("Tenant extracted from path: tenant='{}', uri='{}'",
+          tenantId, request.getRequestURI());
       return tenantId;
     }
+
     return UNKNOWN_TENANT;
   }
 
