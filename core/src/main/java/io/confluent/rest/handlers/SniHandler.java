@@ -52,7 +52,7 @@ public class SniHandler extends HandlerWrapper {
     super.handle(target, baseRequest, request, response);
   }
 
-  protected static String getSniServerName(Request baseRequest) {
+  public static String getSniServerName(Request baseRequest) {
     EndPoint endpoint = baseRequest.getHttpChannel().getEndPoint();
     if (endpoint instanceof DecryptedEndPoint) {
       SSLSession session = ((DecryptedEndPoint) endpoint)
