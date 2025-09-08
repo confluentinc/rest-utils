@@ -487,6 +487,8 @@ public class ProxyConnectionFactory extends DetectorConnectionFactory {
           LOG.debug("Proxy v2 body {} from {} for {}", _next, BufferUtil.toHexSummary(_buffer), this);
 
         // Do we need to wrap the endpoint?
+        // Below are main changes comparing to the original one at
+        // https://github.com/jetty/jetty.project/blob/jetty-9.4.58.v20250814/jetty-server/src/main/java/org/eclipse/jetty/server/ProxyConnectionFactory.java
         ProxyEndPoint proxyEndPoint;
         EndPoint endPoint = getEndPoint();
         if (_local) {
