@@ -45,6 +45,7 @@ import org.eclipse.jetty.util.log.Logger;
 /**
  * Same as Jetty's ProxyConnectionFactory 9.x but with access to TLVs.
  */
+// CHECKSTYLE:OFF
 public class ProxyConnectionFactory extends DetectorConnectionFactory {
   public static final String TLS_VERSION = "TLS_VERSION";
   private static final Logger LOG = Log.getLogger(ProxyConnectionFactory.class);

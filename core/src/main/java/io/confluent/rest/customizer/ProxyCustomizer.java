@@ -63,20 +63,21 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
     if (endPoint instanceof ProxyConnectionFactory.ProxyEndPoint) {
       ProxyConnectionFactory.ProxyEndPoint proxyEndPoint =
           (ProxyConnectionFactory.ProxyEndPoint) endPoint;
-      InetSocketAddress inetLocal = endPoint.getLocalAddress();
-      InetSocketAddress inetRemote = endPoint.getRemoteAddress();
-      String localAddress = inetLocal == null ?
-          null : inetLocal.getAddress().getHostAddress();
-      String remoteAddress = inetRemote == null ?
-          null : inetRemote.getAddress().getHostAddress();
-      int localPort = inetLocal == null ? 0 : inetLocal.getPort();
-      int remotePort = inetRemote == null ? 0 : inetRemote.getPort();
+      InetSocketAddress inetLocal = proxyEndPoint.getLocalAddress();
+      InetSocketAddress inetRemote = proxyEndPoint.getRemoteAddress();
+      String localAddress = inetLocal == null
+          ? null : inetLocal.getAddress().getHostAddress();
+      String remoteAddress = inetRemote == null
+          ? null : inetRemote.getAddress().getHostAddress();
       if (remoteAddress != null) {
         request.setAttribute(REMOTE_ADDRESS_ATTRIBUTE_NAME, remoteAddress);
       }
       if (localAddress != null) {
         request.setAttribute(LOCAL_ADDRESS_ATTRIBUTE_NAME, localAddress);
       }
+
+      int localPort = inetLocal == null ? 0 : inetLocal.getPort();
+      int remotePort = inetRemote == null ? 0 : inetRemote.getPort();
       request.setAttribute(REMOTE_PORT_ATTRIBUTE_NAME, remotePort);
       request.setAttribute(LOCAL_PORT_ATTRIBUTE_NAME, localPort);
 
