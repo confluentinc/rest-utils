@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
+import io.confluent.rest.customizer.ProxyCustomizer;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
-import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -296,6 +296,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     httpConfiguration.setResponseHeaderSize(
         config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
 
+    final boolean proxyProtocolEnabled =
+        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
+    if (proxyProtocolEnabled) {
+      httpConfiguration.addCustomizer(new ProxyCustomizer());
+    }
+
     // Use original IP in forwarded requests
     if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
       httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
@@ -307,9 +313,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     // Default to supporting HTTP/2 for Java 11 and later
     final boolean http2Enabled = isHttp2Compatible(config.getBaseSslConfig())
                               && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
-
-    final boolean proxyProtocolEnabled =
-        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
 
     for (NamedURI listener : listeners) {
       if (listener.getUri().getScheme().equals("https")) {
