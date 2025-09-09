@@ -33,6 +33,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>io.spiffe</groupId>
+            <artifactId>grpc-netty-linux</artifactId>
+            <version>${javaSpiffe.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.eclipse.jetty.ee10.websocket</groupId>
             <artifactId>jetty-ee10-websocket-jakarta-server</artifactId>
             <version>${jetty.version}</version>
