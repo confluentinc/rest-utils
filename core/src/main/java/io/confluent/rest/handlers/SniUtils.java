@@ -27,7 +27,7 @@ import javax.net.ssl.SSLSession;
 import java.util.List;
 
 public class SniUtils {
-  protected static String getSniServerName(Request baseRequest) {
+  public static String getSniServerName(Request baseRequest) {
     EndPoint endpoint = baseRequest.getConnectionMetaData().getConnection().getEndPoint();
     if (endpoint instanceof SslConnection.SslEndPoint) {
       SSLSession session = ((SslConnection.SslEndPoint) endpoint)
