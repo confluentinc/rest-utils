@@ -175,6 +175,12 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     public MethodMetrics metrics(Map<String, String> requestTags) {
       // The key will also be used to identify a unique sensor,
       // so we want to pass the sorted tags to MethodMetrics
+      if (requestTags == null || requestTags.isEmpty()) {
+        // Method metrics without request tags don't necessarily represent method level aggregations
+        // e.g., when invocations of a method have both requests w/ and w/o tags
+        return methodMetrics;
+      }
+
       SortedMap<String, String> key = new TreeMap<>(requestTags);
       return requestMetrics.computeIfAbsent(key, (k) ->
           new MethodMetrics(context.method, context.performanceMetric, context.metrics,
