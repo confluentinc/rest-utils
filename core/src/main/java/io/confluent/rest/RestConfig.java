@@ -616,6 +616,16 @@ public class RestConfig extends AbstractConfig {
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
 
+  public static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG =
+          "return.429.instead.of.500.for.jetty.response.errors";
+  protected static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC =
+          "If true, return 429 Too Many Requests instead of 500 Internal Server Error "
+                  + "for errors coming from Jetty response handlers, the particular error being "
+                  + "'Response does not exist (likely recycled)'. "
+                  + "Default is false.";
+  protected static final boolean RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT =
+          false;
+
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
 
@@ -1236,6 +1246,12 @@ public class RestConfig extends AbstractConfig {
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR,
             Importance.LOW,
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
+        ).define(
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG,
+            Type.BOOLEAN,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT,
+            Importance.LOW,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC
         );
   }
 
@@ -1383,6 +1399,10 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
   }
 
+  public final boolean getReturn429InsteadOf500ForJettyResponseErrors() {
+    return getBoolean(RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG);
+  }
+
   public final List<NamedURI> getListeners() {
     return parseListeners(
         getList(RestConfig.LISTENERS_CONFIG),
@@ -1394,6 +1414,30 @@ public class RestConfig extends AbstractConfig {
 
   public final SslConfig getBaseSslConfig() {
     return new SslConfig(this);
+  }
+
+  /**
+   * Returns a new RestConfig object that is scoped to the given listener.
+   * The new config will contain all the properties of the original config,
+   * with overrides for the listener-specific properties that are
+   * prefixed with "listener.name.name.".
+   * Unnamed https listeners will be scoped to the default
+   * 'listener.name.https.'.
+   * @param listener the listener to scope the config to
+   * @return a new RestConfig object that is scoped to the given listener
+   */
+  RestConfig getListenerScopedConfig(NamedURI listener) {
+    if (listener.getName() == null && !listener.getUri().getScheme().equals("https")) {
+      return this;
+    }
+    String prefix =
+        "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
+
+    Map<String, Object> originalsMap = originals();
+    Map<String, Object> overridden = new HashMap<>(originalsMap);
+    overridden.putAll(filterByAndStripPrefix(originalsMap, prefix));
+
+    return new RestConfig(baseConfigDef(), overridden, doLog);
   }
 
   private SslConfig getSslConfig(NamedURI listener) {
