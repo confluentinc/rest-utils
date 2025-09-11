@@ -23,7 +23,6 @@ import org.eclipse.jetty.util.Callback;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -344,8 +343,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(3, windowCheckpoint429 + windowTag1Checkpoint429 + windowTag2Checkpoint429);
   }
 
-  // TODO: Flaky test disabled: KNET-19715
-  @Disabled
   @Test
   public void testException5xxMetrics() {
     int totalRequests = 10;
@@ -550,6 +547,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertTrue(allMetrics.containsKey("response-below-latency-sla-total"));
     assertTrue(allMetrics.containsKey("response-above-latency-sla-total"));
 
+    assertTrue(allMetrics.containsKey("hello.response-below-latency-sla-total"));
+    assertTrue(allMetrics.containsKey("hello.response-above-latency-sla-total"));
+    assertTrue(allMetrics.containsKey("hello.response-below-latency-slo-total"));
+    assertTrue(allMetrics.containsKey("hello.response-above-latency-slo-total"));
+
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-slo-total")).intValue()
         + Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue()
@@ -559,10 +561,13 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(1, Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue());
     assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
+
+    assertEquals(0, Double.valueOf(allMetrics.get("hello.response-below-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("hello.response-above-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("hello.response-below-latency-sla-total")).intValue());
+    assertEquals(0, Double.valueOf(allMetrics.get("hello.response-above-latency-sla-total")).intValue());
   }
 
-  // Flaky test disabled: KNET-19715
-  @Disabled
   @Test
   public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() {
     // call service that fails before resource matching
