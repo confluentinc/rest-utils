@@ -19,24 +19,24 @@
         <dependency>
             <groupId>io.spiffe</groupId>
             <artifactId>java-spiffe-core</artifactId>
-            <version>0.8.11</version>
+            <version>${spiffe.version}</version>
         </dependency>
         <dependency>
             <groupId>io.spiffe</groupId>
             <artifactId>grpc-netty-linux</artifactId>
-            <version>0.8.11</version>
+            <version>${spiffe.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.spiffe</groupId>
             <artifactId>grpc-netty-macos-aarch64</artifactId>
-            <version>0.8.11</version>
+            <version>${spiffe.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.spiffe</groupId>
             <artifactId>java-spiffe-provider</artifactId>
-            <version>0.8.11</version>
+            <version>${spiffe.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.ee10.websocket</groupId>
