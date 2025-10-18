@@ -58,6 +58,7 @@
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <io.confluent.rest-utils.version>8.0.2</io.confluent.rest-utils.version>
         <conscrypt.version>2.5.2</conscrypt.version>
+        <spiffe.version>0.8.13</spiffe.version>
     </properties>
 
     <repositories>
