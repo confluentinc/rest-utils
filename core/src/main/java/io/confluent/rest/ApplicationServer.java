@@ -210,7 +210,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     String threadPoolUsageName = "thread-pool-usage";
     final MetricName threadPoolUsageMetricName = metrics.metricName(threadPoolUsageName,
         metricGroupName,  " jetty thread pool usage.",
-        Collections.emptyMap());
+        tags);
     Gauge<Double> threadPoolUsage = (config, now) -> (getBusyThreads() / (double) getMaxThreads());
     metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
   }
