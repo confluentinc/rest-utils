@@ -301,7 +301,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // requests are not automatically rejected
       httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
           UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
-          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
+          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING,
+          UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS)));
 
       final HttpConnectionFactory httpConnectionFactory =
               new HttpConnectionFactory(httpConfiguration);
