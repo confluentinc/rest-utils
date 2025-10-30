@@ -300,8 +300,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       // We must set a URI compliance to allow for this violation so that client
       // requests are not automatically rejected
       httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
+          UriCompliance.Violation.AMBIGUOUS_PATH_SEGMENT,
           UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
-          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
+          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING,
+          UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS,
+          UriCompliance.Violation.AMBIGUOUS_EMPTY_SEGMENT,
+          UriCompliance.Violation.UTF16_ENCODINGS,
+          UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS)));
 
       final HttpConnectionFactory httpConnectionFactory =
               new HttpConnectionFactory(httpConfiguration);
