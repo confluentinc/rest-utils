@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
@@ -294,12 +295,18 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
     // We must set a URI compliance to allow for this violation so that client
     // requests are not automatically rejected
-    UriCompliance backwardCompatibility = UriCompliance.LEGACY.with(
-        "backward-compatibility",
-        UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS,
-        UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS
-    );
-    httpConfiguration.setUriCompliance(backwardCompatibility);
+    if (config.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
+      UriCompliance backwardCompatibility = UriCompliance.LEGACY.with(
+          "backward-compatibility",
+          UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS,
+          UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS
+        );
+      httpConfiguration.setUriCompliance(backwardCompatibility);
+    } else {
+      httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
+          UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
+          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
+    }
 
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);

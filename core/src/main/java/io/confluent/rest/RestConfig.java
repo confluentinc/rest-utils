@@ -382,6 +382,11 @@ public class RestConfig extends AbstractConfig {
           "The capacity of request queue for each thread pool.";
   public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
 
+  public static final String JETTY_LEGACY_URI_COMPLIANCE = "jetty.legacy.uri.compliance";
+  public static final String JETTY_LEGACY_URI_COMPLIANCE_DOC =
+          "Enable legacy URI Compliance in Jetty.";
+  public static final boolean JETTY_LEGACY_URI_COMPLIANCE_DEFAULT = true;
+
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
           "The initial capacity of request queue for each thread pool.";
@@ -1031,6 +1036,12 @@ public class RestConfig extends AbstractConfig {
             REQUEST_QUEUE_CAPACITY_DEFAULT,
             Importance.LOW,
             REQUEST_QUEUE_CAPACITY_DOC
+        ).define(
+            JETTY_LEGACY_URI_COMPLIANCE,
+            Type.BOOLEAN,
+            JETTY_LEGACY_URI_COMPLIANCE_DEFAULT,
+            Importance.LOW,
+            JETTY_LEGACY_URI_COMPLIANCE_DOC
         ).define(
             REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG,
             Type.INT,
