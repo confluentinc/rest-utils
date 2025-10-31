@@ -79,6 +79,9 @@ public class Http2Test {
   private static final String HTTPS_URI = "https://localhost:8081";
   private static final String SSL_PASSWORD = "test1234";
   private static final String EXPECTED_200_MSG = "Response status must be 200.";
+  private static final String EXPECTED_400_MSG = "Response status must be 400.";
+  private static final String UNENCODED_BACKSLASH_PATH = "/test\\unencoded-backslash";
+  private static final String URL_ENCODED_BACKSLASH_PATH = "/test%5Cencoded-backslash";
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -113,11 +116,15 @@ public class Http2Test {
   }
 
   private TestRestConfig buildTestConfig(boolean enableHttp2) {
-    return buildTestConfig(enableHttp2, null, null);
+    return buildTestConfig(enableHttp2, null, null, false);
+  }
+
+  private TestRestConfig buildTestConfig(boolean enableHttp2, boolean enableLegacyURI) {
+    return buildTestConfig(enableHttp2, null, null, enableLegacyURI);
   }
 
   private TestRestConfig buildTestConfig(boolean enableHttp2, String sslProtocol,
-      String sslProvider) {
+      String sslProvider, boolean enableLegacyURI) {
     Properties props = new Properties();
     props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI + "," + HTTPS_URI);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
@@ -129,6 +136,9 @@ public class Http2Test {
     }
     if (sslProvider != null) {
       props.put(RestConfig.SSL_PROVIDER_CONFIG, sslProvider);
+    }
+    if (enableLegacyURI) {
+      props.put(RestConfig.JETTY_LEGACY_URI_COMPLIANCE, true);
     }
     configServerKeystore(props);
     return new TestRestConfig(props);
@@ -166,7 +176,7 @@ public class Http2Test {
 
   @Test
   public void testHttp2WithConscrypt() throws Exception {
-    TestRestConfig config = buildTestConfig(true, "TLSv1.3", SslConfig.TLS_CONSCRYPT);
+    TestRestConfig config = buildTestConfig(true, "TLSv1.3", SslConfig.TLS_CONSCRYPT, false);
     Http2TestApplication app = new Http2TestApplication(config);
     try {
       app.start();
@@ -218,6 +228,242 @@ public class Http2Test {
       statusCode = makeGetRequestHttp(HTTPS_URI + "/test%2fambiguous%2fsegment",
                                       clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
       assertEquals(200, statusCode, EXPECTED_200_MSG);
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testHttp2EncodedBackslashLegacyCompatibility() throws Exception {
+    // This test is ensuring that URI-encoded / characters work in URIs in all variants
+    // With Jetty 12, additional changes to configuring the servlet and URI handling were needed
+    // to allow HTTP requests with ambiguous segments to be handled properly.
+    TestRestConfig config = buildTestConfig(true, true);
+    Http2TestApplication app = new Http2TestApplication(config);
+    try {
+      app.start();
+
+      int statusCode;
+
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        statusCode = makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
+        statusCode = makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
+      }
+
+      // HTTP/1.1 should work whether HTTP/2 is available or not
+      statusCode = makeGetRequestHttp(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      statusCode = makeGetRequestHttp(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+                                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testHttp2EncodedBackslash() throws Exception {
+    // This test is ensuring that URI-encoded / characters work in URIs in all variants
+    // With Jetty 12, additional changes to configuring the servlet and URI handling were needed
+    // to allow HTTP requests with ambiguous segments to be handled properly.
+    TestRestConfig config = buildTestConfig(true);
+    Http2TestApplication app = new Http2TestApplication(config);
+    try {
+      app.start();
+
+      int statusCode;
+
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        statusCode = makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
+        assertEquals(400, statusCode, EXPECTED_400_MSG);
+        statusCode = makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        assertEquals(400, statusCode, EXPECTED_400_MSG);
+      }
+
+      // HTTP/1.1 should work whether HTTP/2 is available or not
+      statusCode = makeGetRequestHttp(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
+      assertEquals(400, statusCode, EXPECTED_400_MSG);
+      statusCode = makeGetRequestHttp(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+                                      clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      assertEquals(400, statusCode, EXPECTED_400_MSG);
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testHttp2UnencodedBackslashLegacyCompatibility() throws Exception {
+    // This test is ensuring that Jetty 12 URI Compliance enforcement is
+    // compatible with the legacy Jetty 9 enforcement.
+    TestRestConfig config = buildTestConfig(true, true);
+    Http2TestApplication app = new Http2TestApplication(config);
+    try {
+      app.start();
+
+      int statusCode;
+
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        HTTP2Client http2Client = new HTTP2Client();
+        HttpClient http2ClientHttp = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
+        http2ClientHttp.start();
+        try {
+          statusCode = http2ClientHttp
+              .newRequest(HTTP_URI)
+              .path(UNENCODED_BACKSLASH_PATH)
+              .send()
+              .getStatus();
+          assertEquals(200, statusCode, EXPECTED_200_MSG);
+        } finally {
+          http2ClientHttp.stop();
+        }
+
+        // HTTPS over HTTP/2 with client keystore, preserving raw backslash
+        SslContextFactory.Client sslContextFactoryH2 = buildSslContextFactory(
+            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        ClientConnector h2TlsConnector = new ClientConnector();
+        h2TlsConnector.setSslContextFactory(sslContextFactoryH2);
+        HTTP2Client http2TlsClient = new HTTP2Client(h2TlsConnector);
+        HttpClient https2Client = new HttpClient(new HttpClientTransportOverHTTP2(http2TlsClient));
+        https2Client.start();
+        try {
+          statusCode = https2Client
+              .newRequest(HTTPS_URI)
+              .path(UNENCODED_BACKSLASH_PATH)
+              .send()
+              .getStatus();
+          assertEquals(200, statusCode, EXPECTED_200_MSG);
+        } finally {
+          https2Client.stop();
+        }
+      }
+
+      // HTTP/1.1 should behave consistently as well (raw backslash)
+      HttpClient http11Client = new HttpClient();
+      http11Client.start();
+      try {
+        statusCode = http11Client
+            .newRequest(HTTP_URI)
+            .path(UNENCODED_BACKSLASH_PATH)
+            .send()
+            .getStatus();
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
+      } finally {
+        http11Client.stop();
+      }
+
+      // HTTPS over HTTP/1.1 with client keystore, preserving raw backslash
+      SslContextFactory.Client sslContextFactory = buildSslContextFactory(
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      HttpClient https11Client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+      https11Client.start();
+      try {
+        statusCode = https11Client
+            .newRequest(HTTPS_URI)
+            .path(UNENCODED_BACKSLASH_PATH)
+            .send()
+            .getStatus();
+        assertEquals(200, statusCode, EXPECTED_200_MSG);
+      } finally {
+        https11Client.stop();
+      }
+
+      assertMetricsCollected();
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void testHttp2UnencodedBackslash() throws Exception {
+    // This test is ensuring that Jetty 12 URI Compliance enforcement is
+    // compatible with the legacy Jetty 9 enforcement.
+    TestRestConfig config = buildTestConfig(true);
+    Http2TestApplication app = new Http2TestApplication(config);
+    try {
+      app.start();
+
+      int statusCode;
+
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        HTTP2Client http2Client = new HTTP2Client();
+        HttpClient http2ClientHttp = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
+        http2ClientHttp.start();
+        try {
+          statusCode = http2ClientHttp
+              .newRequest(HTTP_URI)
+              .path(UNENCODED_BACKSLASH_PATH)
+              .send()
+              .getStatus();
+          assertEquals(400, statusCode, EXPECTED_400_MSG);
+        } finally {
+          http2ClientHttp.stop();
+        }
+
+        // HTTPS over HTTP/2 with client keystore, preserving raw backslash
+        SslContextFactory.Client sslContextFactoryH2 = buildSslContextFactory(
+            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        ClientConnector h2TlsConnector = new ClientConnector();
+        h2TlsConnector.setSslContextFactory(sslContextFactoryH2);
+        HTTP2Client http2TlsClient = new HTTP2Client(h2TlsConnector);
+        HttpClient https2Client = new HttpClient(new HttpClientTransportOverHTTP2(http2TlsClient));
+        https2Client.start();
+        try {
+          statusCode = https2Client
+              .newRequest(HTTPS_URI)
+              .path(UNENCODED_BACKSLASH_PATH)
+              .send()
+              .getStatus();
+          assertEquals(400, statusCode, EXPECTED_400_MSG);
+        } finally {
+          https2Client.stop();
+        }
+      }
+
+      // HTTP/1.1 should behave consistently as well (raw backslash)
+      HttpClient http11Client = new HttpClient();
+      http11Client.start();
+      try {
+        statusCode = http11Client
+            .newRequest(HTTP_URI)
+            .path(UNENCODED_BACKSLASH_PATH)
+            .send()
+            .getStatus();
+        assertEquals(400, statusCode, EXPECTED_400_MSG);
+      } finally {
+        http11Client.stop();
+      }
+
+      // HTTPS over HTTP/1.1 with client keystore, preserving raw backslash
+      SslContextFactory.Client sslContextFactory = buildSslContextFactory(
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      HttpClient https11Client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+      https11Client.start();
+      try {
+        statusCode = https11Client
+            .newRequest(HTTPS_URI)
+            .path(UNENCODED_BACKSLASH_PATH)
+            .send()
+            .getStatus();
+        assertEquals(400, statusCode, EXPECTED_400_MSG);
+      } finally {
+        https11Client.stop();
+      }
+
       assertMetricsCollected();
     } finally {
       app.stop();
@@ -381,6 +627,8 @@ public class Http2Test {
     public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
       config.register(new Http2TestResource());
       config.register(new Http2TestAmbiguousSegmentResource());
+      config.register(new Http2EncodedBackslashResource());
+      config.register(new Http2UnencodedBackslashResource());
     }
 
     @Override
@@ -405,6 +653,40 @@ public class Http2Test {
     @PerformanceMetric("test")
     public Http2TestResponse hello() {
       return new Http2TestResponse();
+    }
+  }
+
+  @Path(URL_ENCODED_BACKSLASH_PATH)
+  @Produces("application/test.v1+json")
+  public static class Http2UnencodedBackslashResource {
+    public static class Http2UnencodedBackslashResponse {
+      @JsonProperty
+      public String getMessage() {
+        return "unencoded-backslash";
+      }
+    }
+
+    @GET
+    @PerformanceMetric("test")
+    public Http2UnencodedBackslashResponse hello() {
+      return new Http2UnencodedBackslashResponse();
+    }
+  }
+
+  @Path(UNENCODED_BACKSLASH_PATH)
+  @Produces("application/test.v1+json")
+  public static class Http2EncodedBackslashResource {
+    public static class Http2EncodedBackslashResponse {
+      @JsonProperty
+      public String getMessage() {
+        return "encoded-backslash";
+      }
+    }
+
+    @GET
+    @PerformanceMetric("test")
+    public Http2EncodedBackslashResponse hello() {
+      return new Http2EncodedBackslashResponse();
     }
   }
 
