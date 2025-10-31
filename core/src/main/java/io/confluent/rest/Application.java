@@ -747,7 +747,6 @@ public abstract class Application<T extends RestConfig> {
     config.register(new GenericExceptionMapper(restConfig));
   }
 
-  
   /**
    * Register header filter to ServletContextHandler.
    * @param context The serverlet context handler
