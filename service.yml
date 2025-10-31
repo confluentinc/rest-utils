@@ -11,6 +11,13 @@ semaphore:
     enable: true
     project_name: rest-utils
   status_level: block
+  branches:
+    - master
+    - main
+    - /^\d+\.\d+\.x$/
+    - /^gh-readonly-queue.*/
+    - /^cc-sr-v0\..+/
+    - /^cc-sc-v0\..+/
   downstream_projects: ["schema-registry", "metadata-service", "kafka-rest", "confluent-security-plugins", "ce-kafka-http-server", "secret-registry", "confluent-cloud-plugins", "kafka-streams-examples"]
 git:
   enable: true
