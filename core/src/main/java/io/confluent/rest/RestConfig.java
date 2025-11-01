@@ -385,7 +385,7 @@ public class RestConfig extends AbstractConfig {
   public static final String JETTY_LEGACY_URI_COMPLIANCE = "jetty.legacy.uri.compliance";
   public static final String JETTY_LEGACY_URI_COMPLIANCE_DOC =
           "Enable legacy URI Compliance in Jetty.";
-  public static final boolean JETTY_LEGACY_URI_COMPLIANCE_DEFAULT = true;
+  public static final boolean JETTY_LEGACY_URI_COMPLIANCE_DEFAULT = false;
 
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
