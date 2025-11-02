@@ -296,6 +296,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     // We must set a URI compliance to allow for this violation so that client
     // requests are not automatically rejected
     if (config.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
+      // If we want to run Jetty 12 with backward-compliance to Jetty 9,
+      // we should allow the following violations. Otherwise, some existing URI
+      // paths will encounter errors
       UriCompliance backwardCompatibility = UriCompliance.LEGACY.with(
           "backward-compatibility",
           UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS,

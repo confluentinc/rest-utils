@@ -119,12 +119,12 @@ public class Http2Test {
     return buildTestConfig(enableHttp2, null, null, false);
   }
 
-  private TestRestConfig buildTestConfig(boolean enableHttp2, boolean enableLegacURI) {
-    return buildTestConfig(enableHttp2, null, null, enableLegacURI);
+  private TestRestConfig buildTestConfig(boolean enableHttp2, boolean enableLegacyURI) {
+    return buildTestConfig(enableHttp2, null, null, enableLegacyURI);
   }
 
   private TestRestConfig buildTestConfig(boolean enableHttp2, String sslProtocol,
-      String sslProvider, boolean enableLegacURI) {
+      String sslProvider, boolean enableLegacyURI) {
     Properties props = new Properties();
     props.put(RestConfig.LISTENERS_CONFIG, HTTP_URI + "," + HTTPS_URI);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
@@ -137,7 +137,7 @@ public class Http2Test {
     if (sslProvider != null) {
       props.put(RestConfig.SSL_PROVIDER_CONFIG, sslProvider);
     }
-    if (enableLegacURI) {
+    if (enableLegacyURI) {
       props.put(RestConfig.JETTY_LEGACY_URI_COMPLIANCE, true);
     }
     configServerKeystore(props);
