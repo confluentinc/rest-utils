@@ -385,7 +385,7 @@ public class Http2Test {
     }
   }
 
-  @Test
+    @Test
   public void testHttp2UnencodedBackslash() throws Exception {
     // This test is ensuring that Jetty 12 URI Compliance enforcement is
     // compatible with the legacy Jetty 9 enforcement.

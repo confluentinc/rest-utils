@@ -124,6 +124,8 @@ public abstract class Application<T extends RestConfig> {
 
   private final List<DoSFilter.Listener> nonGlobalDosfilterListeners = new ArrayList<>();
 
+  private final List<DoSFilter.Listener> tenantDosfilterListeners = new ArrayList<>();
+
   public Application(T config) {
     this(config, "/", null, null, null);
   }
@@ -191,6 +193,15 @@ public abstract class Application<T extends RestConfig> {
   public void addNonGlobalDosfilterListener(
       DoSFilter.Listener listener) {
     this.nonGlobalDosfilterListeners.add(Objects.requireNonNull(listener));
+  }
+
+  /**
+   * Add DosFilter.listener to be called with all other listeners for tenant-dosfilter. This
+   * should be called before configureHandler() is called.
+   */
+  public void addTenantDosfilterListener(
+      DoSFilter.Listener listener) {
+    this.tenantDosfilterListeners.add(Objects.requireNonNull(listener));
   }
 
   protected String requestLogFormat() {
@@ -771,12 +782,23 @@ public abstract class Application<T extends RestConfig> {
   }
 
   private void configureDosFilters(ServletContextHandler context) {
+    // TODO: This is temporary code to be removed after tenant rate limit testing
+    // Configure tenant dry-run classifier if enabled
+    if (config.isDosFilterTenantDryRunEnabled()) {
+      configureTenantDryRunFilter(context);
+    }
+    
     if (!config.isDosFilterEnabled()) {
       return;
     }
 
     // Ensure that the per connection limiter is first - KREST-8391
     configureNonGlobalDosFilter(context);
+
+    if (config.isDosFilterTenantEnabled()) {
+      configureTenantDosFilter(context);
+    }
+
     configureGlobalDosFilter(context);
   }
 
@@ -789,6 +811,28 @@ public abstract class Application<T extends RestConfig> {
     FilterHolder filterHolder = configureDosFilter(dosFilter,
         String.valueOf(config.getDosFilterMaxRequestsPerConnectionPerSec()));
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  private void configureTenantDosFilter(ServletContextHandler context) {
+    TenantDosFilter dosFilter = new TenantDosFilter();
+    tenantDosfilterListeners.add(jetty429MetricsListener);
+    JettyDosFilterMultiListener multiListener = new JettyDosFilterMultiListener(
+        tenantDosfilterListeners);
+    dosFilter.setListener(multiListener);
+    String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
+    FilterHolder filterHolder = configureDosFilter(dosFilter, tenantLimit);
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+  }
+
+  // TODO: This is temporary code to be removed after tenant rate limit testing
+  private void configureTenantDryRunFilter(ServletContextHandler context) {
+    TenantDryRunFilter dryRunFilter = new TenantDryRunFilter();
+    String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
+    FilterHolder filterHolder = configureDosFilter(dryRunFilter, tenantLimit);
+    filterHolder.setName("tenant-dry-run-filter");
+    context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    log.info("Tenant dry-run classifier enabled with {}req/sec limit. Tenant extraction and "
+        + "rate limit violations will be logged without actual rate limiting", tenantLimit);
   }
 
   private void configureGlobalDosFilter(ServletContextHandler context) {
