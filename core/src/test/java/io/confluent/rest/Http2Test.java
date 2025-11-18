@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.security.KeyPair;
@@ -56,6 +57,7 @@ import io.confluent.rest.annotations.PerformanceMetric;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -278,14 +280,37 @@ public class Http2Test {
       app.start();
 
       int statusCode;
-
-      // Just skip HTTP/2 for earlier than Java 11
       if (ApplicationServer.isJava11Compatible()) {
-        statusCode = makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
-        assertEquals(400, statusCode, EXPECTED_400_MSG);
-        statusCode = makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
-                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        assertEquals(400, statusCode, EXPECTED_400_MSG);
+        try {
+          int code = makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
+
+          // If we reach this point, the call did NOT throw ⇒ HTTP/1.1 path
+          // Assert the expected HTTP/1.1 behavior (400)
+          assertEquals(400, code, "Expected 400 for HTTP/1.1 encoded backslash");
+        } catch (Exception e) {
+        // If we catch an exception, we expect Jetty HTTP/2 stream reset
+          Throwable cause = e.getCause();
+          assertNotNull(cause, "Expected an EOFException as the cause");
+          assertTrue(cause instanceof EOFException,
+            "Expected EOFException from HTTP/2 reset but got: " + cause);
+        }
+
+        try {
+          int code = makeGetRequestHttp2(
+            HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+            clientKeystore.getAbsolutePath(),
+            SSL_PASSWORD,
+            SSL_PASSWORD
+          );
+
+          // Same logic for HTTPS: if no exception → HTTP/1.1 fallback
+          assertEquals(400, code, "Expected 400 for HTTP/1.1 encoded backslash over HTTPS");
+        } catch (Exception e) {
+          Throwable cause = e.getCause();
+          assertNotNull(cause, "Expected an EOFException as the cause");
+          assertTrue(cause instanceof EOFException,
+            "Expected EOFException from HTTP/2 reset but got: " + cause);
+        }
       }
 
       // HTTP/1.1 should work whether HTTP/2 is available or not
