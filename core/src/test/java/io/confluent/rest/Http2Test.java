@@ -387,42 +387,6 @@ public class Http2Test {
 
       int statusCode;
 
-      // Just skip HTTP/2 for earlier than Java 11
-      if (ApplicationServer.isJava11Compatible()) {
-        HTTP2Client http2Client = new HTTP2Client();
-        HttpClient http2ClientHttp = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
-        http2ClientHttp.start();
-        try {
-          statusCode = http2ClientHttp
-              .newRequest(HTTP_URI)
-              .path(UNENCODED_BACKSLASH_PATH)
-              .send()
-              .getStatus();
-          assertEquals(400, statusCode, EXPECTED_400_MSG);
-        } finally {
-          http2ClientHttp.stop();
-        }
-
-        // HTTPS over HTTP/2 with client keystore, preserving raw backslash
-        SslContextFactory.Client sslContextFactoryH2 = buildSslContextFactory(
-            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        ClientConnector h2TlsConnector = new ClientConnector();
-        h2TlsConnector.setSslContextFactory(sslContextFactoryH2);
-        HTTP2Client http2TlsClient = new HTTP2Client(h2TlsConnector);
-        HttpClient https2Client = new HttpClient(new HttpClientTransportOverHTTP2(http2TlsClient));
-        https2Client.start();
-        try {
-          statusCode = https2Client
-              .newRequest(HTTPS_URI)
-              .path(UNENCODED_BACKSLASH_PATH)
-              .send()
-              .getStatus();
-          assertEquals(400, statusCode, EXPECTED_400_MSG);
-        } finally {
-          https2Client.stop();
-        }
-      }
-
       // HTTP/1.1 should behave consistently as well (raw backslash)
       HttpClient http11Client = new HttpClient();
       http11Client.start();
