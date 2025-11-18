@@ -279,15 +279,6 @@ public class Http2Test {
 
       int statusCode;
 
-      // Just skip HTTP/2 for earlier than Java 11
-      if (ApplicationServer.isJava11Compatible()) {
-        statusCode = makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
-        assertEquals(400, statusCode, EXPECTED_400_MSG);
-        statusCode = makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
-                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        assertEquals(400, statusCode, EXPECTED_400_MSG);
-      }
-
       // HTTP/1.1 should work whether HTTP/2 is available or not
       statusCode = makeGetRequestHttp(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
       assertEquals(400, statusCode, EXPECTED_400_MSG);
