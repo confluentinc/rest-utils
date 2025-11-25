@@ -17,6 +17,8 @@
 package io.confluent.rest.metrics;
 
 import java.util.Objects;
+import java.util.function.Supplier;
+
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.server.ContainerResponse;
 import org.glassfish.jersey.server.model.Resource;
@@ -38,8 +40,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.Response.StatusType;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Response.StatusType;
 
 import io.confluent.rest.annotations.PerformanceMetric;
 
@@ -54,6 +56,9 @@ import org.apache.kafka.common.metrics.stats.WindowedCount;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.utils.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import static java.util.Collections.emptyMap;
 
@@ -86,22 +91,17 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
   // method in the names, introducing this variable to keep the compatibility with downstream
   // dependencies, e.g., some applications may not want to report request tags in global stats
   private final boolean enableGlobalStatsRequestTags;
-
-  public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
-                                                  Map<String, String> metricTags, Time time,
-                                                  boolean enableLatencySloSla,
-                                                  long latencySloMs, long latencySlaMs,
-                                                  double percentileMaxLatencyInMs) {
-    this(metrics, metricGrpPrefix, metricTags, time, enableLatencySloSla, latencySloMs,
-        latencySlaMs, percentileMaxLatencyInMs, false);
-  }
+  private final boolean disableResponseSizeMetricsCollection;
+  private static final Logger log = LoggerFactory.getLogger(
+          MetricsResourceMethodApplicationListener.class);
 
   public MetricsResourceMethodApplicationListener(Metrics metrics, String metricGrpPrefix,
                                                   Map<String, String> metricTags, Time time,
                                                   boolean enableLatencySloSla,
                                                   long latencySloMs, long latencySlaMs,
                                                   double percentileMaxLatencyInMs,
-                                                  boolean enableGlobalStatsRequestTags) {
+                                                  boolean enableGlobalStatsRequestTags,
+                                                  boolean disableResponseSizeMetricsCollection) {
     super();
     this.metrics = metrics;
     this.metricGrpPrefix = metricGrpPrefix;
@@ -112,6 +112,7 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     this.latencySlaMs = latencySlaMs;
     this.percentileMaxLatencyInMs = percentileMaxLatencyInMs;
     this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
+    this.disableResponseSizeMetricsCollection = disableResponseSizeMetricsCollection;
   }
 
   @Override
@@ -152,7 +153,8 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
 
   @Override
   public RequestEventListener onRequest(final RequestEvent event) {
-    return new MetricsRequestEventListener(methodMetrics, time, this.enableGlobalStatsRequestTags);
+    return new MetricsRequestEventListener(methodMetrics, time, this.enableGlobalStatsRequestTags,
+            this.disableResponseSizeMetricsCollection);
   }
 
   private static class RequestScopedMetrics {
@@ -173,28 +175,18 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     public MethodMetrics metrics(Map<String, String> requestTags) {
       // The key will also be used to identify a unique sensor,
       // so we want to pass the sorted tags to MethodMetrics
+      if (requestTags == null || requestTags.isEmpty()) {
+        // Method metrics without request tags don't necessarily represent method level aggregations
+        // e.g., when invocations of a method have both requests w/ and w/o tags
+        return methodMetrics;
+      }
+
       SortedMap<String, String> key = new TreeMap<>(requestTags);
       return requestMetrics.computeIfAbsent(key, (k) ->
           new MethodMetrics(context.method, context.performanceMetric, context.metrics,
               context.metricGrpPrefix, context.metricTags, k));
     }
 
-    private MethodMetrics getMethodMetrics(RequestEvent event) {
-      Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
-      if (tagsObj == null) {
-        // Method metrics without request tags don't necessarily represent method level aggregations
-        // e.g., when invocations of a method have both requests w/ and w/o tags
-        return this.metrics();
-      }
-      if (!(tagsObj instanceof Map<?, ?>)) {
-        throw new ClassCastException("Expected the value for property " + REQUEST_TAGS_PROP_KEY
-            + " to be a " + Map.class + ", but it is " + tagsObj.getClass());
-      }
-      @SuppressWarnings("unchecked")
-      Map<String, String> tags = (Map<String, String>) tagsObj;
-      // we have additional tags, find the appropriate metrics holder
-      return this.metrics(tags);
-    }
   }
 
   private static class ConstructionContext {
@@ -538,12 +530,15 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
     private CountingInputStream wrappedRequestStream;
     private CountingOutputStream wrappedResponseStream;
     private final boolean enableGlobalStatsRequestTags;
+    private final boolean disableResponseSizeMetricsCollection;
+    private Map<String, String> capturedRequestTags = emptyMap();
 
     private MetricsRequestEventListener(final Map<Method, RequestScopedMetrics> metrics, Time time,
-        boolean enableGlobalStatsRequestTags) {
+        boolean enableGlobalStatsRequestTags, boolean disableResponseSizeMetricsCollection) {
       this.metrics = metrics;
       this.time = time;
       this.enableGlobalStatsRequestTags = enableGlobalStatsRequestTags;
+      this.disableResponseSizeMetricsCollection = disableResponseSizeMetricsCollection;
       // CIAM-2673: if an exception occur in a filter that runs before this method listener,
       // MATCHING_START is never reached, resulting in false latency metrics
       this.started = time.milliseconds();
@@ -555,68 +550,109 @@ public class MetricsResourceMethodApplicationListener implements ApplicationEven
         final ContainerRequest request = event.getContainerRequest();
         wrappedRequestStream = new CountingInputStream(request.getEntityStream());
         request.setEntityStream(wrappedRequestStream);
-      } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
-        final ContainerResponse response = event.getContainerResponse();
-        wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
-        response.setEntityStream(wrappedResponseStream);
-      } else if (event.getType() == RequestEvent.Type.FINISHED) {
-        final long elapsed = time.milliseconds() - started;
-        final long requestSize;
-        if (wrappedRequestStream != null) {
-          requestSize = wrappedRequestStream.size();
-        } else {
-          requestSize = 0;
-        }
-        final long responseSize;
-        // nothing guarantees we always encounter an event where getContainerResponse is not null
-        // in the event of dispatch errors, the error response is delegated to the servlet container
-        if (wrappedResponseStream != null) {
-          responseSize = wrappedResponseStream.size();
-        } else {
-          responseSize = 0;
-        }
-
-        final MethodMetrics globalMetrics = Objects.requireNonNull(getGlobalMetrics(event));
-        // Handle exceptions
-        if (event.getException() != null) {
-          globalMetrics.exception(event);
-
-          // get RequestScopedMetrics for a single resource method
-          final MethodMetrics metrics = getMethodMetrics(event);
-          if (metrics != null) {
-            metrics.exception(event);
+      } else if (event.getType() == RequestEvent.Type.RESOURCE_METHOD_START) {
+        Map<String, String> tempCapturedRequestTags = safeGet(() -> {
+          Object tagsObj = event.getContainerRequest().getProperty(REQUEST_TAGS_PROP_KEY);
+          if (tagsObj instanceof Map) {
+            return new HashMap<>((Map<String, String>) tagsObj);
+          } else {
+            return emptyMap();
           }
+        }, "request tags");
+        this.capturedRequestTags = Objects.requireNonNullElse(tempCapturedRequestTags, emptyMap());
+      } else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
+        // Temporary workaround to prevent response does not exist 500 error (inc3209)
+        // TODO: remove this workaround once KNET-19746 is resolved
+        if (!this.disableResponseSizeMetricsCollection) {
+          final ContainerResponse response = event.getContainerResponse();
+          wrappedResponseStream = new CountingOutputStream(response.getEntityStream());
+          response.setEntityStream(wrappedResponseStream);
         }
-
-        globalMetrics.finished(requestSize, responseSize, elapsed);
-        final MethodMetrics metrics = getMethodMetrics(event);
-        if (metrics != null) {
-          metrics.finished(requestSize, responseSize, elapsed);
-        }
+      } else if (event.getType() == RequestEvent.Type.FINISHED) {
+        processFinishedEvent(event);
       }
     }
 
-    private MethodMetrics getGlobalMetrics(RequestEvent event) {
+    private void processFinishedEvent(RequestEvent event) {
+      final long elapsed = time.milliseconds() - started;
+      Long tempRequestSize = safeGet(() -> {
+        if (wrappedRequestStream != null) {
+          return (long) wrappedRequestStream.size();
+        }
+        return 0L;
+      }, "request size");
+
+      final long requestSize = (tempRequestSize != null) ? tempRequestSize : 0L;
+
+      // nothing guarantees we always encounter an event where getContainerResponse is not null
+      // in the event of dispatch errors, the error response is delegated to the servlet container
+      Long tempResponseSize = safeGet(() -> {
+        if (wrappedResponseStream != null) {
+          return (long) wrappedResponseStream.size();
+        }
+        return 0L;
+      }, "response size");
+
+      final long responseSize = (tempResponseSize != null) ? tempResponseSize : 0L;
+
+      final MethodMetrics globalMetrics =
+              Objects.requireNonNull(getGlobalMetrics(this.capturedRequestTags));
+      // Handle exceptions
+      if (event.getException() != null) {
+        globalMetrics.exception(event);
+
+        // get RequestScopedMetrics for a single resource method
+        final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
+        if (metrics != null) {
+          metrics.exception(event);
+        }
+      }
+
+      // give a 0 metric for errorSensor
+      globalMetrics.finished(requestSize, responseSize, elapsed);
+      final MethodMetrics metrics = getMethodMetrics(event, this.capturedRequestTags);
+      if (metrics != null) {
+        metrics.finished(requestSize, responseSize, elapsed);
+      }
+    }
+
+    private MethodMetrics getGlobalMetrics(Map<String, String> capturedRequestTags) {
       // (null key) RequestScopedMetrics is the global metrics for ALL resource methods, see
       // io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.onEvent in this file
       RequestScopedMetrics globalRequestScopedMetrics = this.metrics.get(null);
-      return this.enableGlobalStatsRequestTags ? globalRequestScopedMetrics.getMethodMetrics(
-          event) : globalRequestScopedMetrics.metrics();
+      return this.enableGlobalStatsRequestTags ? globalRequestScopedMetrics.metrics(
+              capturedRequestTags) : globalRequestScopedMetrics.metrics();
     }
 
-    private MethodMetrics getMethodMetrics(RequestEvent event) {
-      ResourceMethod method = event.getUriInfo().getMatchedResourceMethod();
+    private MethodMetrics getMethodMetrics(RequestEvent event,
+                                           Map<String, String> capturedRequestTags) {
+      ResourceMethod method =
+              safeGet(() -> event.getUriInfo().getMatchedResourceMethod(),
+                      "matched resource method or URI info");
       if (method == null) {
         return null;
       }
 
-      RequestScopedMetrics requestScopedMetrics = this.metrics.get(method.getInvocable()
-          .getDefinitionMethod());
+      RequestScopedMetrics requestScopedMetrics = safeGet(() ->
+                      this.metrics.get(method.getInvocable().getDefinitionMethod()),
+              "request scoped metrics");
       if (requestScopedMetrics == null) {
         return null;
       }
 
-      return requestScopedMetrics.getMethodMetrics(event);
+      return requestScopedMetrics.metrics(capturedRequestTags);
+    }
+
+    private <T> T safeGet(Supplier<T> supplier, String operationName) {
+      try {
+        return supplier.get();
+      } catch (NullPointerException e) {
+        log.error("NPE while getting {}, potentially due to recycled request", operationName, e);
+        return null;
+      } catch (Exception e) {
+        log.error("Error while getting {}", operationName, e);
+        return null;
+      }
     }
 
     private static class CountingInputStream extends FilterInputStream {

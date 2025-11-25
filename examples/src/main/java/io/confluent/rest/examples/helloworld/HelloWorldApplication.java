@@ -17,7 +17,7 @@
 package io.confluent.rest.examples.helloworld;
 
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.resource.ResourceCollection;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,11 +25,14 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Collection;
+import java.util.List;
 
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Configurable;
 
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfigException;
+import io.spiffe.workloadapi.X509Source;
 
 /**
  * An application represents the configured, running, REST service. You have to provide two things:
@@ -48,6 +51,10 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
     super(config);
   }
 
+  public HelloWorldApplication(HelloWorldRestConfig config, X509Source x509Source) {
+    super(config, x509Source);
+  }
+
   @Override
   public void setupResources(Configurable<?> config, HelloWorldRestConfig appConfig) {
     config.register(new HelloWorldResource(appConfig));
@@ -64,8 +71,9 @@ public class HelloWorldApplication extends Application<HelloWorldRestConfig> {
   }
 
   @Override
-  protected ResourceCollection getStaticResources() {
-    return new ResourceCollection(Resource.newClassPathResource("static"));
+  protected Collection<Resource> getStaticResources() {
+    ResourceFactory.LifeCycle resourceFactory = ResourceFactory.lifecycle();
+    return List.of(resourceFactory.newClassLoaderResource("static"));
   }
 
   public static void main(String[] args) {

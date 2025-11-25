@@ -18,29 +18,30 @@ package io.confluent.rest.handlers;
 
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
-import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.server.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SniHandler extends HandlerWrapper {
+public class SniHandler extends Handler.Wrapper {
   private static final Logger log = LoggerFactory.getLogger(SniHandler.class);
 
   @Override
-  public void handle(String target, Request baseRequest,
-      HttpServletRequest request,
-      HttpServletResponse response) throws IOException, ServletException {
-    String serverName = request.getServerName();
+  public boolean handle(Request baseRequest,
+      Response response,
+      Callback callback) throws Exception {
+    String serverName = Request.getServerName(baseRequest);
     String sniServerName = SniUtils.getSniServerName(baseRequest);
+    log.debug("host header: {}, sni value: {}", serverName, sniServerName);
+
     if (sniServerName != null && !sniServerName.equals(serverName)) {
       log.debug("Sni check failed, host header: {}, sni value: {}", serverName, sniServerName);
-      baseRequest.setHandled(true);
-      response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+      Response.writeError(baseRequest, response, callback,
+          MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
-    super.handle(target, baseRequest, request, response);
+    return super.handle(baseRequest, response, callback);
   }
 }

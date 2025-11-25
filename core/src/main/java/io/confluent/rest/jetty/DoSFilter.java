@@ -22,36 +22,38 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpSessionActivationListener;
-import javax.servlet.http.HttpSessionBindingEvent;
-import javax.servlet.http.HttpSessionBindingListener;
-import javax.servlet.http.HttpSessionEvent;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionActivationListener;
+import jakarta.servlet.http.HttpSessionBindingEvent;
+import jakarta.servlet.http.HttpSessionBindingListener;
+import jakarta.servlet.http.HttpSessionEvent;
 
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
 import org.eclipse.jetty.util.annotation.Name;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
+import org.eclipse.jetty.util.thread.AutoLock;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.eclipse.jetty.util.thread.Scheduler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Denial of Service filter (copied from Jetty 9.4.53.v20231009)
@@ -117,7 +119,7 @@ import org.eclipse.jetty.util.thread.Scheduler;
  */
 @ManagedObject("limits exposure to abuse from request flooding, whether malicious, or as a result of a misconfigured client")
 public class DoSFilter implements Filter {
-    private static final Logger LOG = Log.getLogger(DoSFilter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DoSFilter.class);
 
     private static final String IPv4_GROUP = "(\\d{1,3})";
     private static final Pattern IPv4_PATTERN = Pattern.compile(IPv4_GROUP + "\\." + IPv4_GROUP + "\\." + IPv4_GROUP + "\\." + IPv4_GROUP);
@@ -301,7 +303,7 @@ public class DoSFilter implements Filter {
         LOG.debug("Tracker: {}", tracker);
 
         // Calculate the rate and check if it is over the allowed limit
-        final OverLimit overLimit = tracker.isRateExceeded(System.nanoTime());
+        final OverLimit overLimit = tracker.isRateExceeded(NanoTime.now());
 
         // Pass it through if we are not currently over the rate limit.
         if (overLimit == null) {
@@ -405,7 +407,7 @@ public class DoSFilter implements Filter {
                 response.sendError(getTooManyCode());
             }
         } catch (InterruptedException e) {
-            LOG.ignore(e);
+            LOG.trace("IGNORED", e);
             response.sendError(getTooManyCode());
         } finally {
             if (accepted) {
@@ -434,7 +436,7 @@ public class DoSFilter implements Filter {
 
     protected void doFilterChain(FilterChain chain, final HttpServletRequest request, final HttpServletResponse response) throws IOException, ServletException {
         final Thread thread = Thread.currentThread();
-        Runnable requestTimeout = () -> closeConnection(request, response, thread);
+        Runnable requestTimeout = () -> onRequestTimeout(request, response, thread);
         Scheduler.Task task = _scheduler.schedule(requestTimeout, getMaxRequestMs(), TimeUnit.MILLISECONDS);
         try {
             chain.doFilter(request, response);
@@ -459,26 +461,15 @@ public class DoSFilter implements Filter {
             try {
                 response.sendError(HttpStatus.SERVICE_UNAVAILABLE_503);
             } catch (IllegalStateException ise) {
-                LOG.ignore(ise);
+                LOG.trace("IGNORED", ise);
                 // abort instead
                 response.sendError(-1);
             }
         } catch (Throwable x) {
-            LOG.info(x);
+            LOG.info("Failed to sendError", x);
         }
 
         handlingThread.interrupt();
-    }
-
-    /**
-     * @param request  the current request
-     * @param response the current response
-     * @param thread   the handling thread
-     * @deprecated use {@link #onRequestTimeout(HttpServletRequest, HttpServletResponse, Thread)} instead
-     */
-    @Deprecated
-    protected void closeConnection(HttpServletRequest request, HttpServletResponse response, Thread thread) {
-        onRequestTimeout(request, response, thread);
     }
 
     /**
@@ -489,8 +480,9 @@ public class DoSFilter implements Filter {
      * @return the priority for this request
      */
     private RateType getPriority(HttpServletRequest request, RateTracker tracker) {
-        if (extractUserId(request) != null)
+        if (extractUserId(request) != null && !isTenantBasedTracking()) {
             return RateType.AUTH;
+        }
         if (tracker != null)
             return tracker.getType();
         return RateType.UNKNOWN;
@@ -537,7 +529,9 @@ public class DoSFilter implements Filter {
         String loadId = extractUserId(request);
         final RateType type;
         if (loadId != null) {
-            type = RateType.AUTH;
+            // Tenant-based trackers should use RateType.IP to ensure proper cleanup
+            // via scheduler to prevent OOM errors.
+            type = isTenantBasedTracking() ? RateType.IP : RateType.AUTH;
         } else {
             if (isTrackSessions() && session != null && !session.isNew()) {
                 loadId = session.getId();
@@ -700,7 +694,7 @@ public class DoSFilter implements Filter {
         try {
             _scheduler.stop();
         } catch (Exception x) {
-            LOG.ignore(x);
+            LOG.trace("IGNORED", x);
         }
     }
 
@@ -713,6 +707,16 @@ public class DoSFilter implements Filter {
      */
     protected String extractUserId(ServletRequest request) {
         return null;
+    }
+
+    /**
+     * Indicates whether this filter uses tenant-based tracking (i.e. tenant ID like lkc-xxx)
+     * rather than true user authentication.
+     * 
+     * @return true if this filter tracks tenants, false for user auth
+     */
+    protected boolean isTenantBasedTracking() {
+        return false;
     }
 
     /**
@@ -1025,7 +1029,10 @@ public class DoSFilter implements Filter {
 
     private boolean addWhitelistAddress(List<String> list, String address) {
         address = address.trim();
-        return address.length() > 0 && list.add(address);
+        if (address.length() <= 0)
+            return false;
+        list.add(address);
+        return true;
     }
 
     /**
@@ -1053,6 +1060,7 @@ public class DoSFilter implements Filter {
     static class RateTracker implements Runnable, HttpSessionBindingListener, HttpSessionActivationListener, Serializable {
         private static final long serialVersionUID = 3534663738034577872L;
 
+        final AutoLock _lock = new AutoLock();
         protected final String _filterName;
         protected transient ServletContext _context;
         protected final String _id;
@@ -1078,7 +1086,7 @@ public class DoSFilter implements Filter {
          */
         public OverLimit isRateExceeded(long now) {
             final long last;
-            synchronized (this) {
+            try (AutoLock l = _lock.lock()) {
                 last = _timestamps[_next];
                 _timestamps[_next] = now;
                 _next = (_next + 1) % _timestamps.length;
@@ -1088,7 +1096,7 @@ public class DoSFilter implements Filter {
                 return null;
             }
 
-            long rate = (now - last);
+            long rate = NanoTime.elapsed(last, now);
             if (TimeUnit.NANOSECONDS.toSeconds(rate) < 1L) {
                 return new Overage(Duration.ofNanos(rate), _maxRequestsPerSecond);
             }
@@ -1167,7 +1175,7 @@ public class DoSFilter implements Filter {
 
             int latestIndex = _next == 0 ? (_timestamps.length - 1) : (_next - 1);
             long last = _timestamps[latestIndex];
-            boolean hasRecentRequest = last != 0 && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - last) < 1L;
+            boolean hasRecentRequest = last != 0 && NanoTime.secondsSince(last) < 1L;
 
             DoSFilter filter = (DoSFilter) _context.getAttribute(_filterName);
 
@@ -1238,7 +1246,7 @@ public class DoSFilter implements Filter {
             // rate limit is never exceeded, but we keep track of the request timestamps
             // so that we know whether there was recent activity on this tracker
             // and whether it should be expired
-            synchronized (this) {
+            try (AutoLock l = _lock.lock()) {
                 _timestamps[_next] = now;
                 _next = (_next + 1) % _timestamps.length;
             }

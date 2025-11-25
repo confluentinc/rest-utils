@@ -38,8 +38,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriBuilderException;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -95,7 +95,10 @@ public class RestConfig extends AbstractConfig {
   public static final String SHUTDOWN_GRACEFUL_MS_CONFIG = "shutdown.graceful.ms";
   protected static final String SHUTDOWN_GRACEFUL_MS_DOC =
       "Amount of time to wait after a shutdown request for outstanding requests to complete.";
-  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "1000";
+  // When using Jetty 9, the value was 1000, causing tests
+  // to fail due to timeout when stopping the server.
+  // For Jetty 12, bumping the timeout to 5000 allowed the tests to pass.
+  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "5000";
 
   public static final String ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG = "access.control.allow.origin";
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DOC =
@@ -203,6 +206,11 @@ public class RestConfig extends AbstractConfig {
       + " runtime request tags in global stats.";
   protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
+  public static final String SSL_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
+  public static final String SSL_SPIRE_ENABLED_DOC =
+      "Whether to enable SPIRE SSL; once enabled, all keystore and truststore settings "
+      + "are ignored because SPIRE will handle the certificate and key management";
+  protected static final  boolean SSL_SPIRE_ENABLED_DEFAULT = false;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -374,6 +382,11 @@ public class RestConfig extends AbstractConfig {
           "The capacity of request queue for each thread pool.";
   public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
 
+  public static final String JETTY_LEGACY_URI_COMPLIANCE = "jetty.legacy.uri.compliance";
+  public static final String JETTY_LEGACY_URI_COMPLIANCE_DOC =
+          "Enable legacy URI Compliance in Jetty.";
+  public static final boolean JETTY_LEGACY_URI_COMPLIANCE_DEFAULT = false;
+
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
           "The initial capacity of request queue for each thread pool.";
@@ -486,6 +499,27 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
 
+  private static final String DOS_FILTER_TENANT_ENABLED_CONFIG = "dos.filter.tenant.enabled";
+  private static final String DOS_FILTER_TENANT_ENABLED_DOC =
+      "Whether to enable per-tenant DoS filtering. This prevents noisy tenants from exhausting "
+          + "the global DoS filter. Default is false.";
+  private static final boolean DOS_FILTER_TENANT_ENABLED_DEFAULT = false;
+
+  private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG =
+      "dos.filter.tenant.max.requests.per.sec";
+  private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC =
+      "Maximum number of requests per second per tenant. Requests in excess of this "
+          + "are first delayed, then throttled. Default is 25";
+  private static final int DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
+
+  private static final String DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG =
+      "dos.filter.tenant.dry.run.enabled";
+  private static final String DOS_FILTER_TENANT_DRY_RUN_ENABLED_DOC =
+      "This is temporary config for tenant rate limit testing. "
+          + "When true, enables tenant extraction and classification logging without actually "
+          + "performing tenant-based rate limiting. Default is false.";
+  private static final boolean DOS_FILTER_TENANT_DRY_RUN_ENABLED_DEFAULT = false;
+
   private static final String SERVER_CONNECTION_LIMIT = "server.connection.limit";
   private static final String SERVER_CONNECTION_LIMIT_DOC =
       "Limits the number of active connections on that server to the configured number. Once that "
@@ -518,6 +552,26 @@ public class RestConfig extends AbstractConfig {
       "Whether or not to check the SNI against the Host header. If the values don't match, "
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
+
+  public static final String PREFIX_SNI_CHECK_ENABLED_CONFIG =
+      "prefix.sni.check.enabled";
+  protected static final String PREFIX_SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check if the Host header starts with the same prefix from SNI. "
+          + "If the Host header does not start with the prefix from SNI, returns a 421 "
+          + "misdirected response. Default is false.";
+  protected static final boolean PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
+
+  public static final String PREFIX_SNI_PREFIX_CONFIG = "prefix.sni.prefix";
+  protected static final String PREFIX_SNI_PREFIX_DOC =
+      "The prefix to check against the Host header when prefix SNI checking is enabled. "
+          + "Default is empty string.";
+  protected static final String PREFIX_SNI_PREFIX_DEFAULT = "";
+
+  public static final String SNI_HOST_CHECK_ENABLED_CONFIG = "sni.host.check.enabled";
+  protected static final String SNI_HOST_CHECK_ENABLED_DOC =
+      "Whether or not to enable SNI host checking in SecureRequestCustomizer. If disabled, "
+          + "SNI host checking will be disabled for all HTTPS connections. Default is true.";
+  protected static final boolean SNI_HOST_CHECK_ENABLED_DEFAULT = true;
 
   public static final String EXPECTED_SNI_HEADERS_CONFIG = "expected.sni.headers";
   protected static final String EXPECTED_SNI_HEADERS_DOC =
@@ -557,6 +611,13 @@ public class RestConfig extends AbstractConfig {
       "Maximum buffer size for jetty request headers in bytes";
   protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
 
+  protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG =
+          "network.forwarded.request.customizer.enable";
+  protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_DOC =
+          "If true, forwarded requests will propagate the original IP address "
+              + "to remoteAddr based on what is provided through HTTP headers.";
+  protected static final boolean NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT = false;
+
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG =
       "network.traffic.rate.limit.enable";
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC =
@@ -580,6 +641,24 @@ public class RestConfig extends AbstractConfig {
       ConfigDef.Range.atLeast(1);
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
+
+  public static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG =
+          "return.429.instead.of.500.for.jetty.response.errors";
+  protected static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC =
+          "If true, return 429 Too Many Requests instead of 500 Internal Server Error "
+                  + "for errors coming from Jetty response handlers, the particular error being "
+                  + "'Response does not exist (likely recycled)'. "
+                  + "Default is false.";
+  protected static final boolean RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT =
+          false;
+
+  public static final String DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG =
+          "disable.response.size.metrics.collection";
+  protected static final String DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DOC =
+          "If true, we not will use the counting output stream to collect "
+                  + "response size metrics. Default is false.";
+  protected static final boolean DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DEFAULT =
+          false;
 
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
@@ -779,6 +858,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC
         ).define(
+            SSL_SPIRE_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_SPIRE_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_ENABLED_DOC
+        ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
             SSL_KEYSTORE_RELOAD_DEFAULT,
@@ -973,6 +1058,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             REQUEST_QUEUE_CAPACITY_DOC
         ).define(
+            JETTY_LEGACY_URI_COMPLIANCE,
+            Type.BOOLEAN,
+            JETTY_LEGACY_URI_COMPLIANCE_DEFAULT,
+            Importance.LOW,
+            JETTY_LEGACY_URI_COMPLIANCE_DOC
+        ).define(
             REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG,
             Type.INT,
             REQUEST_QUEUE_CAPACITY_GROWBY_DEFAULT,
@@ -1081,6 +1172,24 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MANAGED_ATTR_DOC
         ).define(
+            DOS_FILTER_TENANT_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TENANT_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_ENABLED_DOC
+        ).define(
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC
+        ).define(
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_DOC
+        ).define(
             SERVER_CONNECTION_LIMIT,
             Type.INT,
             SERVER_CONNECTION_LIMIT_DEFAULT,
@@ -1104,6 +1213,24 @@ public class RestConfig extends AbstractConfig {
             SNI_CHECK_ENABLED_DEFAULT,
             Importance.LOW,
             SNI_CHECK_ENABLED_DOC
+        ).define(
+            SNI_HOST_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SNI_HOST_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            SNI_HOST_CHECK_ENABLED_DOC
+        ).define(
+            PREFIX_SNI_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            PREFIX_SNI_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            PREFIX_SNI_CHECK_ENABLED_DOC
+        ).define(
+            PREFIX_SNI_PREFIX_CONFIG,
+            Type.STRING,
+            PREFIX_SNI_PREFIX_DEFAULT,
+            Importance.LOW,
+            PREFIX_SNI_PREFIX_DOC
         ).define(
             EXPECTED_SNI_HEADERS_CONFIG,
             Type.LIST,
@@ -1153,6 +1280,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             MAX_REQUEST_HEADER_SIZE_DOC
         ).define(
+            NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT,
+            Importance.LOW,
+            NETWORK_FORWARDED_REQUEST_ENABLE_DOC
+        ).define(
             NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG,
             Type.BOOLEAN,
             NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DEFAULT,
@@ -1171,6 +1304,18 @@ public class RestConfig extends AbstractConfig {
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR,
             Importance.LOW,
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
+        ).define(
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG,
+            Type.BOOLEAN,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT,
+            Importance.LOW,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC
+        ).define(
+            DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG,
+            Type.BOOLEAN,
+            DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DEFAULT,
+            Importance.LOW,
+            DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DOC
         );
   }
 
@@ -1306,6 +1451,18 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
   }
 
+  public final boolean isDosFilterTenantEnabled() {
+    return getBoolean(DOS_FILTER_TENANT_ENABLED_CONFIG);
+  }
+
+  public final int getDosFilterTenantMaxRequestsPerSec() {
+    return getInt(DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG);
+  }
+
+  public final boolean isDosFilterTenantDryRunEnabled() {
+    return getBoolean(DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG);
+  }
+
   public final int getServerConnectionLimit() {
     return getInt(SERVER_CONNECTION_LIMIT);
   }
@@ -1316,6 +1473,14 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSuppressStackTraceInResponse() {
     return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
+  }
+
+  public final boolean getReturn429InsteadOf500ForJettyResponseErrors() {
+    return getBoolean(RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG);
+  }
+
+  public final boolean getDisableResponseSizeMetricsCollection() {
+    return getBoolean(DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG);
   }
 
   public final List<NamedURI> getListeners() {
@@ -1329,6 +1494,30 @@ public class RestConfig extends AbstractConfig {
 
   public final SslConfig getBaseSslConfig() {
     return new SslConfig(this);
+  }
+
+  /**
+   * Returns a new RestConfig object that is scoped to the given listener.
+   * The new config will contain all the properties of the original config,
+   * with overrides for the listener-specific properties that are
+   * prefixed with "listener.name.name.".
+   * Unnamed https listeners will be scoped to the default
+   * 'listener.name.https.'.
+   * @param listener the listener to scope the config to
+   * @return a new RestConfig object that is scoped to the given listener
+   */
+  RestConfig getListenerScopedConfig(NamedURI listener) {
+    if (listener.getName() == null && !listener.getUri().getScheme().equals("https")) {
+      return this;
+    }
+    String prefix =
+        "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
+
+    Map<String, Object> originalsMap = originals();
+    Map<String, Object> overridden = new HashMap<>(originalsMap);
+    overridden.putAll(filterByAndStripPrefix(originalsMap, prefix));
+
+    return new RestConfig(baseConfigDef(), overridden, doLog);
   }
 
   private SslConfig getSslConfig(NamedURI listener) {
@@ -1469,6 +1658,18 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSniCheckEnable() {
     return getBoolean(SNI_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getSniHostCheckEnable() {
+    return getBoolean(SNI_HOST_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getPrefixSniCheckEnable() {
+    return getBoolean(PREFIX_SNI_CHECK_ENABLED_CONFIG);
+  }
+
+  public final String getPrefixSniPrefix() {
+    return getString(PREFIX_SNI_PREFIX_CONFIG);
   }
 
   public final List<String> getExpectedSniHeaders() {

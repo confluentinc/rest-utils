@@ -1,9 +1,12 @@
 package io.confluent.rest;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -12,8 +15,9 @@ import org.apache.http.impl.client.HttpClients;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.resource.ResourceFactory;
+import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,16 +30,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Collection;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.container.ContainerResponseContext;
+import jakarta.ws.rs.container.ContainerResponseFilter;
+import jakarta.ws.rs.container.PreMatching;
+import jakarta.ws.rs.ext.Provider;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -118,9 +130,9 @@ public class ApplicationServerTest {
       }
 
       @Override
-      protected ResourceCollection getStaticResources() {
-        return new ResourceCollection(Resource.newClassPathResource("static"));
-      }
+      protected Collection<Resource> getStaticResources() {
+        ResourceFactory.LifeCycle resourceFactory = ResourceFactory.lifecycle();
+        return List.of(resourceFactory.newClassLoaderResource("static"));      }
     };
 
     server.registerApplication(app1);
@@ -278,6 +290,47 @@ public class ApplicationServerTest {
     applicationServer.stop();
   }
 
+  @Test
+  public void testForwardedRequestCustomizer() throws Exception {
+    TestRestConfig appConfig = new TestRestConfig();
+    Configurable<?> config = new ResourceConfig();
+    TestApp app1 = new TestApp("/app");
+    app1.setupResources(config, appConfig);
+    String path = "/app/resource";
+    server.registerApplication(app1);
+
+    Properties props = new Properties();
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:0");
+    props.setProperty(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG, "true");
+    RestConfig restConfig = new RestConfig(RestConfig.baseConfigDef(), props);
+    ApplicationServer applicationServer = new ApplicationServer(restConfig);
+
+    TestApp app2 = new TestApp("/app") {
+      @Override
+      public void setupResources(final Configurable<?> config, final TestRestConfig appConfig) {
+        config.register(RestResource.class);
+        config.register(RemoteAddressFilter.class);
+      }
+    };
+    app2.setupResources(config, appConfig);
+    applicationServer.registerApplication(app2);
+    applicationServer.start();
+
+    final HttpGet httpget = new HttpGet(getListeners(applicationServer).get(0).toString() + path);
+    httpget.setHeader("X-Forwarded-For", "10.0.0.1");
+
+    try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+      HttpContext context = new BasicHttpContext();
+      try (CloseableHttpResponse response = httpClient.execute(httpget, context)) {
+        // Verify that the remote IP address is correctly set in the header
+        String remoteIpAddress = response.getFirstHeader("X-Remote-Address").getValue();
+        assertEquals("10.0.0.1", remoteIpAddress);
+      }
+    }
+
+    applicationServer.stop();
+  }
+
   // There is additional testing of parseListeners in ApplictionTest
 
   private static class TestApp extends Application<TestRestConfig> implements AutoCloseable {
@@ -331,6 +384,27 @@ public class ApplicationServerTest {
               .entity(throwable.getMessage())
               .type(MediaType.APPLICATION_JSON)
               .build();
+    }
+  }
+
+  @Provider
+  @PreMatching
+  public static class RemoteAddressFilter implements ContainerRequestFilter, ContainerResponseFilter {
+    @Override
+    public void filter(ContainerRequestContext requestContext) throws IOException {
+      String remoteAddress = requestContext.getHeaderString("X-Forwarded-For");
+      if (remoteAddress == null) {
+        remoteAddress = requestContext.getUriInfo().getRequestUri().getHost();
+      }
+      requestContext.setProperty("remoteAddress", remoteAddress);
+    }
+
+    @Override
+    public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {
+      String remoteAddress = (String) requestContext.getProperty("remoteAddress");
+      if (remoteAddress != null) {
+        responseContext.getHeaders().add("X-Remote-Address", remoteAddress);
+      }
     }
   }
 }

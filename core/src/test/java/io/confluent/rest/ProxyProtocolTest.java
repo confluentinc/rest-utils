@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import io.confluent.rest.customizer.ProxyCustomizer;
+import io.confluent.rest.customizer.TlvProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -36,13 +38,13 @@ import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -54,6 +56,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,6 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ProxyProtocolTest {
   private static TestRestConfig testConfig;
@@ -242,6 +246,13 @@ public class ProxyProtocolTest {
     return array;
   }
 
+  public static String toHexString(byte[] bytes) {
+    StringBuilder sb = new StringBuilder();
+    for (byte b : bytes) {
+      sb.append(String.format("%02x", b));
+    }
+    return sb.toString().toUpperCase(Locale.ROOT);
+  }
 
   private byte[] getProxyProtocolHeader(boolean isPpv2, String remoteAddr, String remotePort) {
     if (!isPpv2) {
@@ -272,44 +283,6 @@ public class ProxyProtocolTest {
       // Custom 0xE1 {0xFF,0xFF,0xFF}
       "E10003FFFFFF";
     return fromHexString(proxy);
-  }
-    // returns the http response status code.
-  private void makeProxyProtocolGetRequest(String path, boolean isPpv2) throws Exception {
-    final String remoteAddr = "192.168.0.1";
-    final String remotePort = "12345";
-
-    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
-
-    try (Socket socket = new Socket("localhost", connector.getLocalPort())) {
-
-      byte[] header = getProxyProtocolHeader(isPpv2, remoteAddr, remotePort);
-      String httpString = "HTTP/1.1";
-      String request1 =
-              String.format("GET %s %s\r\n" +
-                      "Host: localhost\r\n" +
-                      "Connection: close\r\n" +
-                      "\r\n", path, httpString);
-      OutputStream output = socket.getOutputStream();
-      output.write(header);
-      output.write(request1.getBytes(StandardCharsets.UTF_8));
-      output.flush();
-
-      InputStream input = socket.getInputStream();
-      BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
-      String response1 = reader.readLine();
-      assertThat(response1, startsWith(httpString + " 200 "));
-      String lastLine = response1;
-      while (true) {
-        String l = reader.readLine();
-        if (l == null)
-          break;
-        lastLine = l;
-      }
-      String[] tokens = lastLine.split(":", 2);
-      assertThat(tokens.length, is(2));
-      assertThat(tokens[0], is(remoteAddr));
-      assertThat(tokens[1], is(remotePort));
-    }
   }
 
   private void makeProxyProtocolGetRequest(String path, boolean isPpv2, boolean sslEnabled) throws Exception {
@@ -366,8 +339,14 @@ public class ProxyProtocolTest {
           break;
         lastLine = l;
       }
-      String[] tokens = lastLine.split(":", 2);
-      assertThat(tokens.length, is(2));
+      String[] tokens = lastLine.split(":");
+      if (isPpv2) {
+        assertThat(tokens.length, is(4));
+        assertThat(tokens[2], is("0102"));
+        assertThat(tokens[3], is("FFFFFF"));
+      } else {
+        assertThat(tokens.length, is(2));
+      }
       assertThat(tokens[0], is(remoteAddr));
       assertThat(tokens[1], is(remotePort));
     }
@@ -410,7 +389,24 @@ public class ProxyProtocolTest {
     @GET
     @Path("/resource")
     public String get(@Context HttpServletRequest request) {
-      return request.getRemoteAddr() + ":" + request.getRemotePort()  + "\r\n";
+      TlvProvider tlvProvider = (TlvProvider) request.getAttribute(ProxyCustomizer.TLV_PROVIDER_ATTRIBUTE_NAME);
+      String tlvs = "";
+      if (tlvProvider != null) {
+        byte[] tlvVal1 = tlvProvider.getTlv(0xE0);
+        byte[] tlvVal2 = tlvProvider.getTlv(0xE1);
+        if (tlvVal1 != null) {
+          assertNotNull(tlvVal2);
+          tlvs = String.format(Locale.ROOT,
+              "%s:%s",
+              toHexString(tlvVal1),
+              toHexString(tlvVal2));
+        }
+      }
+      String rs = String.format("%s:%s", request.getRemoteAddr(), request.getRemotePort());
+      if (!tlvs.isEmpty()) {
+        rs = rs + ":" + tlvs;
+      }
+      return rs + "\r\n";
     }
   }
 }
