@@ -124,6 +124,12 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   }
 
   private Response handleException(final Throwable exception) {
+    // Check for Odyssey schema validation errors first
+    Response odysseyResponse = tryHandleOdysseySchemaError(exception);
+    if (odysseyResponse != null) {
+      return odysseyResponse;
+    }
+
     if (exception instanceof AuthenticationException) {
       return getResponse(exception, Status.UNAUTHORIZED,
           KAFKA_AUTHENTICATION_ERROR_CODE);
@@ -133,17 +139,7 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
     } else if (HANDLED.containsKey(exception.getClass())) {
       return getResponse(exception);
     } else if (exception instanceof RetriableException) {
-      log.debug("Kafka retriable exception", exception);
-      //A TimeoutException is thrown in many cases.  Here we are looking for the case where the
-      //topic specified doesn't exist and can't be automatically created
-      if (exception instanceof TimeoutException
-          && exception.getMessage().toLowerCase().contains(TOPIC_NOT_PRESENT_MESSAGE_PATTERN)) {
-        log.debug("Topic not present in metadata exception");
-        return getResponse(exception, Status.NOT_FOUND, TOPIC_NOT_FOUND_ERROR_CODE);
-      }
-      log.error("Internal Server Error returned to REST client after TimeoutException", exception);
-      return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
-          KAFKA_RETRIABLE_ERROR_ERROR_CODE);
+      return handleRetriableException(exception);
     } else if (exception instanceof InvalidTopicException) {
       return getResponse(exception, Status.BAD_REQUEST, KAFKA_BAD_REQUEST_ERROR_CODE);
     } else if (exception instanceof KafkaException) {
@@ -171,6 +167,55 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
     ErrorMessage errorMessage = new ErrorMessage(responsePair.errorCode, cause.getMessage());
     return Response.status(responsePair.status)
         .entity(errorMessage).build();
+  }
+
+  private Response handleRetriableException(final Throwable exception) {
+    log.debug("Kafka retriable exception", exception);
+    //A TimeoutException is thrown in many cases.  Here we are looking for the case where the
+    //topic specified doesn't exist and can't be automatically created
+    if (exception instanceof TimeoutException
+        && exception.getMessage().toLowerCase().contains(TOPIC_NOT_PRESENT_MESSAGE_PATTERN)) {
+      log.debug("Topic not present in metadata exception");
+      return getResponse(exception, Status.NOT_FOUND, TOPIC_NOT_FOUND_ERROR_CODE);
+    }
+    log.error("Internal Server Error returned to REST client after TimeoutException", exception);
+    return getResponse(exception, Status.INTERNAL_SERVER_ERROR,
+        KAFKA_RETRIABLE_ERROR_ERROR_CODE);
+  }
+
+  private static final String ODYSSEY_SCHEMA_EXCEPTION_CLASS =
+      "io.confluent.kafkarest.exceptions.InvalidConfigurationWithSchemaException";
+
+  private Response tryHandleOdysseySchemaError(final Throwable exception) {
+    if (exception.getClass().getName().equals(ODYSSEY_SCHEMA_EXCEPTION_CLASS)) {
+      try {
+        java.lang.reflect.Method getSchemaErrorCode =
+            exception.getClass().getMethod("getSchemaErrorCode");
+        int schemaErrorCode = (Integer) getSchemaErrorCode.invoke(exception);
+        return getResponseWithSchemaError(
+            exception, Status.BAD_REQUEST,
+            KAFKA_BAD_REQUEST_ERROR_CODE, schemaErrorCode
+        );
+      } catch (Exception e) {
+        log.warn("Failed to extract schema error code", e);
+        return getResponse(exception, Status.BAD_REQUEST, KAFKA_BAD_REQUEST_ERROR_CODE);
+      }
+    }
+    return null;
+  }
+
+  private Response getResponseWithSchemaError(
+      final Throwable exception,
+      final Status status,
+      final int errorCode,
+      final int schemaErrorCode
+  ) {
+    ErrorMessage errorMessage = new ErrorMessage(
+        errorCode,
+        exception.getMessage(),
+        schemaErrorCode != 0 ? schemaErrorCode : null
+    );
+    return Response.status(status).entity(errorMessage).build();
   }
 
   private static class ResponsePair {
