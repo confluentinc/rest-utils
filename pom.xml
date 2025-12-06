@@ -53,7 +53,7 @@
         <activation.version>1.1.1</activation.version>
         <apache.httpclient.version>4.5.13</apache.httpclient.version>
         <confluent.maven.repo>https://packages.confluent.io/maven/</confluent.maven.repo>
-        <jersey.version>3.1.9</jersey.version>
+        <jersey.version>3.1.11</jersey.version>
         <asynchttpclient.version>2.12.4</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <io.confluent.rest-utils.version>8.1.1-0</io.confluent.rest-utils.version>
