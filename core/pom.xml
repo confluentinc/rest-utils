@@ -25,12 +25,6 @@
             <groupId>io.spiffe</groupId>
             <artifactId>java-spiffe-provider</artifactId>
             <version>${spiffe.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.spiffe</groupId>
-                    <artifactId>grpc-netty-macos-aarch64</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.spiffe</groupId>
