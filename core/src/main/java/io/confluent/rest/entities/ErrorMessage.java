@@ -16,6 +16,8 @@
 
 package io.confluent.rest.entities;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
@@ -28,12 +30,25 @@ public class ErrorMessage {
   private int errorCode;
   private String message;
 
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private Integer schemaErrorCode;
+
   public ErrorMessage(
       @JsonProperty("error_code") int errorCode,
       @JsonProperty("message") String message
   ) {
+    this(errorCode, message, null);
+  }
+
+  @JsonCreator
+  public ErrorMessage(
+      @JsonProperty("error_code") int errorCode,
+      @JsonProperty("message") String message,
+      @JsonProperty("schema_error_code") Integer schemaErrorCode
+  ) {
     this.errorCode = errorCode;
     this.message = message;
+    this.schemaErrorCode = schemaErrorCode;
   }
 
   @JsonProperty("error_code")
@@ -56,6 +71,16 @@ public class ErrorMessage {
     this.message = message;
   }
 
+  @JsonProperty("schema_error_code")
+  public Integer getSchemaErrorCode() {
+    return schemaErrorCode;
+  }
+
+  @JsonProperty("schema_error_code")
+  public void setSchemaErrorCode(Integer schemaErrorCode) {
+    this.schemaErrorCode = schemaErrorCode;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -66,11 +91,12 @@ public class ErrorMessage {
     }
     ErrorMessage that = (ErrorMessage) o;
     return errorCode == that.errorCode
-            && Objects.equals(message, that.message);
+            && Objects.equals(message, that.message)
+            && Objects.equals(schemaErrorCode, that.schemaErrorCode);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(errorCode, message);
+    return Objects.hash(errorCode, message, schemaErrorCode);
   }
 }

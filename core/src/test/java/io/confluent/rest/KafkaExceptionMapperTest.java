@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import io.confluent.kafkarest.exceptions.InvalidConfigurationWithSchemaException;
 import io.confluent.rest.entities.ErrorMessage;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
 import org.apache.kafka.clients.consumer.CommitFailedException;
@@ -49,6 +50,7 @@ import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import jakarta.ws.rs.core.Response;
@@ -70,6 +72,7 @@ import static io.confluent.rest.exceptions.KafkaExceptionMapper.TOO_MANY_REQUEST
 import static io.confluent.rest.exceptions.KafkaExceptionMapper.TOPIC_NOT_FOUND_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class KafkaExceptionMapperTest {
 
@@ -216,6 +219,69 @@ public class KafkaExceptionMapperTest {
 
     assertNotNull(responseWithConfigTrue);
     assertEquals(Status.TOO_MANY_REQUESTS.getStatusCode(), responseWithConfigTrue.getStatus());
+  }
+
+  @Test
+  @DisplayName("InvalidConfigurationWithSchemaException is handled and includes schemaErrorCode")
+  public void testOdysseySchemaErrorException() {
+    InvalidConfigurationWithSchemaException exception =
+        new InvalidConfigurationWithSchemaException("Schema validation failed", 40901);
+
+    Response response = exceptionMapper.toResponse(exception);
+
+    assertNotNull(response);
+    assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    ErrorMessage errorMessage = (ErrorMessage) response.getEntity();
+    assertEquals(KAFKA_BAD_REQUEST_ERROR_CODE, errorMessage.getErrorCode());
+    assertEquals("Schema validation failed", errorMessage.getMessage());
+    assertEquals(Integer.valueOf(40901), errorMessage.getSchemaErrorCode());
+  }
+
+  @Test
+  @DisplayName("schemaErrorCode 0 is converted to null; omitted from response")
+  public void testOdysseySchemaErrorExceptionWithZeroCode() {
+    InvalidConfigurationWithSchemaException exception =
+        new InvalidConfigurationWithSchemaException("Some error", 0);
+
+    Response response = exceptionMapper.toResponse(exception);
+
+    assertNotNull(response);
+    assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    ErrorMessage errorMessage = (ErrorMessage) response.getEntity();
+    assertEquals(KAFKA_BAD_REQUEST_ERROR_CODE, errorMessage.getErrorCode());
+    assertNull(errorMessage.getSchemaErrorCode());
+  }
+
+  @Test
+  @DisplayName("Wrapped InvalidConfigurationWithSchemaException in CompletionException is handled")
+  public void testOdysseySchemaErrorExceptionWrappedInCompletionException() {
+    InvalidConfigurationWithSchemaException schemaException =
+        new InvalidConfigurationWithSchemaException("Incompatible schema", 40901);
+    CompletionException wrappedException = new CompletionException(schemaException);
+
+    Response response = exceptionMapper.toResponse(wrappedException);
+
+    assertNotNull(response);
+    assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    ErrorMessage errorMessage = (ErrorMessage) response.getEntity();
+    assertEquals(KAFKA_BAD_REQUEST_ERROR_CODE, errorMessage.getErrorCode());
+    assertEquals(Integer.valueOf(40901), errorMessage.getSchemaErrorCode());
+  }
+
+  @Test
+  @DisplayName("Wrapped InvalidConfigurationWithSchemaException in ExecutionException is handled")
+  public void testOdysseySchemaErrorExceptionWrappedInExecutionException() {
+    InvalidConfigurationWithSchemaException schemaException =
+        new InvalidConfigurationWithSchemaException("Association already exists", 40903);
+    ExecutionException wrappedException = new ExecutionException(schemaException);
+
+    Response response = exceptionMapper.toResponse(wrappedException);
+
+    assertNotNull(response);
+    assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    ErrorMessage errorMessage = (ErrorMessage) response.getEntity();
+    assertEquals(KAFKA_BAD_REQUEST_ERROR_CODE, errorMessage.getErrorCode());
+    assertEquals(Integer.valueOf(40903), errorMessage.getSchemaErrorCode());
   }
 
   private void verifyMapperResponse(Throwable throwable, Status status, int errorCode) {
