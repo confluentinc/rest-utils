@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.net.SocketException;
 import java.util.Objects;
+import javax.net.ssl.SSLHandshakeException;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.core.Context;
@@ -61,6 +62,7 @@ import javax.ws.rs.core.Configurable;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import io.confluent.rest.annotations.PerformanceMetric;
 
+import static io.confluent.rest.TestUtils.getFreePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -79,7 +81,6 @@ public class SslTest {
   public static final String SSL_PASSWORD = "test1234";
   public static final String EXPECTED_200_MSG = "Response status must be 200.";
   public static final String EXPECTED_500_MSG = "Response status must be 500.";
-  public static final int CERT_RELOAD_WAIT_TIME = 20000;
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -147,8 +148,8 @@ public class SslTest {
   public void testHttpAndHttps() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
-    String httpUri = "http://localhost:8080";
-    String httpsUri = "https://localhost:8081";
+    String httpUri = "http://localhost:" + getFreePort();
+    String httpsUri = "https://localhost:" + getFreePort();
     props.put(RestConfig.LISTENERS_CONFIG, httpUri + "," + httpsUri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     configServerKeystore(props);
@@ -172,8 +173,8 @@ public class SslTest {
   public void testServerSideHttpAndHttpsResolution() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
-    String httpUri = "http://localhost:8080";
-    String httpsUri = "https://localhost:8081";
+    String httpUri = "http://localhost:" + getFreePort();
+    String httpsUri = "https://localhost:" + getFreePort();
     props.put(RestConfig.LISTENERS_CONFIG, httpUri + "," + httpsUri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     configServerKeystore(props);
@@ -205,7 +206,8 @@ public class SslTest {
   public void testHttpsOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
-    String uri = "https://localhost:8080";
+    int port = getFreePort();
+    String uri = "https://localhost:" + port;
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     configServerKeystore(props);
@@ -220,7 +222,52 @@ public class SslTest {
       assertMetricsCollected();
       assertThrows(ClientProtocolException.class,
           () ->
-              makeGetRequest("http://localhost:8080/test"));
+              makeGetRequest("http://localhost:" + port + "/test"));
+    } finally {
+      app.stop();
+    }
+  }
+
+  @Test
+  public void test_WhenCalledWithRestrictedCipher_ConnFails() throws Exception {
+    TestMetricsReporter.reset();
+    Properties props = new Properties();
+    String uri = "https://localhost:" + getFreePort();
+    props.put(RestConfig.LISTENERS_CONFIG, uri);
+    props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
+    configServerKeystore(props);
+    // TLSv1.3 should be specified with TLS_AES_128_GCM_SHA256 only for test-setup, as this cipher is specific to TLSv1.3.
+    final String tlsV1_3 = "TLSv1.3";
+
+    String cipherAllowed = "TLS_AES_128_GCM_SHA256";
+    String cipherNotAllowed = "TLS_AES_256_GCM_SHA384";
+
+    // Restrict HTTPs Server to cipher TLS_AES_128_GCM_SHA256
+    props.put(RestConfig.SSL_CIPHER_SUITES_CONFIG, cipherAllowed);
+    TestRestConfig config = new TestRestConfig(props);
+    SslTestApplication app = new SslTestApplication(config);
+    try {
+      app.start();
+
+      // Request with allowed cipher returns 200.
+      // NOTE - the behaviour of restricting cipher in REST is agnostic of TLS protocol version.
+      int statusCode = makeGetRequest(uri + "/test",
+          clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, tlsV1_3, cipherAllowed);
+      assertEquals(200, statusCode, EXPECTED_200_MSG);
+      assertMetricsCollected();
+      // Request with cipher not allowed, throws an exception.
+      SSLHandshakeException ex = assertThrows(SSLHandshakeException.class,
+          () ->
+              makeGetRequest(uri + "/test",
+                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, tlsV1_3, cipherNotAllowed));
+      assertTrue(ex.getMessage().contains("handshake_failure"));
+
+      // Request with cipher allowed, but incompatible tls protocol version, throws an exception.
+      ex = assertThrows(SSLHandshakeException.class,
+          () ->
+              makeGetRequest(uri + "/test",
+                  clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD, null , cipherAllowed));
+      assertTrue(ex.getMessage().contains("No appropriate protocol (protocol is disabled or cipher suites are inappropriate)"));
     } finally {
       app.stop();
     }
@@ -230,7 +277,8 @@ public class SslTest {
   public void testHttpOnly() throws Exception {
     TestMetricsReporter.reset();
     Properties props = new Properties();
-    String uri = "http://localhost:8080";
+    int port = getFreePort();
+    String uri = "http://localhost:" + port;
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     props.put(RestConfig.METRICS_REPORTER_CLASSES_CONFIG, "io.confluent.rest.TestMetricsReporter");
     TestRestConfig config = new TestRestConfig(props);
@@ -243,7 +291,7 @@ public class SslTest {
       assertMetricsCollected();
       assertThrows(SSLException.class,
           () ->
-              makeGetRequest("https://localhost:8080/test",
+              makeGetRequest("https://localhost:" + port + "/test",
                   clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD));
     } finally {
       app.stop();
@@ -273,7 +321,7 @@ public class SslTest {
   @Test
   public void testHttpsWithNoClientCertAndNoServerTruststore() throws Exception {
     Properties props = new Properties();
-    String uri = "https://localhost:8080";
+    String uri = "https://localhost:" + getFreePort();
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     TestRestConfig config = new TestRestConfig(props);
@@ -291,7 +339,7 @@ public class SslTest {
   @Test
   public void testHttpsWithAuthAndBadClientCert() throws Exception {
     Properties props = new Properties();
-    String uri = "https://localhost:8080";
+    String uri = "https://localhost:" + getFreePort();
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     configServerTruststore(props);
@@ -322,7 +370,7 @@ public class SslTest {
   @Test
   public void testHttpsWithAuthAndNoClientCert() throws Exception {
     Properties props = new Properties();
-    String uri = "https://localhost:8080";
+    String uri = "https://localhost:" + getFreePort();
     props.put(RestConfig.LISTENERS_CONFIG, uri);
     configServerKeystore(props);
     configServerTruststore(props);
@@ -352,6 +400,16 @@ public class SslTest {
       String clientKeystorePassword,
       String clientKeyPassword)
       throws Exception {
+    return makeGetRequest(url, clientKeystoreLocation, clientKeystorePassword, clientKeyPassword, null, null);
+  }
+
+  // returns the http response status code.
+  private int makeGetRequest(String url, String clientKeystoreLocation,
+      String clientKeystorePassword,
+      String clientKeyPassword,
+      String tlsProtocol,
+      String cipherSuite)
+      throws Exception {
     log.debug("Making GET " + url);
     HttpGet httpget = new HttpGet(url);
     CloseableHttpClient httpclient;
@@ -369,10 +427,11 @@ public class SslTest {
             clientKeyPassword.toCharArray());
       }
       SSLContext sslContext = sslContextBuilder.build();
-
+      String ctxTlsProtocol = tlsProtocol == null ? "TLSv1.2" : tlsProtocol;
       SSLConnectionSocketFactory sslSf = new SSLConnectionSocketFactory(sslContext,
-          new String[]{"TLSv1.2"},
-          null, SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+          new String[]{ctxTlsProtocol},
+          cipherSuite != null ? new String[]{cipherSuite}: null,
+          SSLConnectionSocketFactory.getDefaultHostnameVerifier());
 
       httpclient = HttpClients.custom()
           .setSSLSocketFactory(sslSf)

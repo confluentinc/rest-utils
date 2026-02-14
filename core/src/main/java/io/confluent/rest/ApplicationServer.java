@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import org.apache.kafka.common.MetricName;
@@ -41,6 +42,7 @@ import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -74,6 +76,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private final List<NamedURI> listeners;
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationServer.class);
+  // two years is the recommended value for HSTS max age, see https://hstspreload.org
+  private static final long HSTS_MAX_AGE_SECONDS = 63072000L; // 2 years
 
   @VisibleForTesting
   static boolean isHttp2Compatible(SslConfig sslConfig) {
@@ -128,18 +132,37 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return Collections.unmodifiableList(applications);
   }
 
-  private void attachMetricsListener(Metrics metrics, Map<String, String> tags) {
-    MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+  private boolean isHstsHeaderEnabled() {
+    return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
+  }
+
+  private void attachMetricsListener(String listenerName, Metrics metrics,
+      Map<String, String> tags) {
     for (NetworkTrafficServerConnector connector : connectors) {
-      connector.addNetworkTrafficListener(metricsListener);
+      if (Objects.equals(connector.getName(), listenerName)) {
+        MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
+        connector.addNetworkTrafficListener(metricsListener);
+        log.info("Registered {} to connector of listener: {}",
+            metricsListener.getClass().getSimpleName(), listenerName);
+      }
+    }
+    if (connectors.isEmpty()) {
+      log.warn("No network connector configured for listener: {}", listenerName);
     }
   }
 
-  private void attachNetworkTrafficRateLimitListener() {
-    if (config.getNetworkTrafficRateLimitEnable()) {
-      NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(config);
+  private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String listenerName) {
+    if (appConfig.getNetworkTrafficRateLimitEnable()) {
       for (NetworkTrafficServerConnector connector : connectors) {
-        connector.addNetworkTrafficListener(rateLimitListener);
+        if (Objects.equals(connector.getName(), listenerName)) {
+          NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(appConfig);
+          connector.addNetworkTrafficListener(rateLimitListener);
+          log.info("Registered {} to connector of listener: {}",
+              rateLimitListener.getClass().getSimpleName(), listenerName);
+        }
+      }
+      if (connectors.isEmpty()) {
+        log.warn("No network connector configured for listener: {}", listenerName);
       }
     }
   }
@@ -206,8 +229,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     HandlerCollection handlers = new HandlerCollection();
     HandlerCollection wsHandlers = new HandlerCollection();
     for (Application<?> app : applications) {
-      attachMetricsListener(app.getMetrics(), app.getMetricsTags());
-      attachNetworkTrafficRateLimitListener();
+      attachMetricsListener(app.getListenerName(), app.getMetrics(), app.getMetricsTags());
+      attachNetworkTrafficRateLimitListener(app.getConfiguration(), app.getListenerName());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
@@ -239,6 +262,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     httpConfiguration.setResponseHeaderSize(
         config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
 
+    // Use original IP in forwarded requests
+    if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
+      httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
+    }
+
     final HttpConnectionFactory httpConnectionFactory =
             new HttpConnectionFactory(httpConfiguration);
 
@@ -253,9 +281,20 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
           SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
-          // Explicitly making sure that SNI is checked against Host in HTTP request
-          Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
-              "Host name matching SNI certificate check must be enabled.");
+          // SniHostCheckEnable is enabled by default
+          if (!config.getSniHostCheckEnable()) {
+            secureRequestCustomizer.setSniHostCheck(false);
+            log.info("Disabled SNI host check for listener: {}", listener);
+          } else {
+            // Explicitly making sure that SNI is checked against Host in HTTP request
+            Preconditions.checkArgument(secureRequestCustomizer.isSniHostCheck(),
+                "Host name matching SNI certificate check must be enabled.");
+          }
+          
+          if (isHstsHeaderEnabled()) {
+            secureRequestCustomizer.setStsMaxAge(HSTS_MAX_AGE_SECONDS);
+            secureRequestCustomizer.setStsIncludeSubDomains(true);
+          }
           httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
