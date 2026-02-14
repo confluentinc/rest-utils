@@ -6,6 +6,10 @@ codeowners:
 semaphore:
   enable: true
   pipeline_type: cp
+  pr_ci_gating:
+    enable: true
+    project_name: rest-utils
+  status_level: block
   downstream_projects: ["schema-registry", "metadata-service", "kafka-rest",
     "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
     "confluent-cloud-plugins"]
