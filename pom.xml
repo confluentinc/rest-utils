@@ -8,13 +8,13 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>common</artifactId>
-        <version>[7.6.10-0, 7.6.11-0)</version>
+        <version>[7.7.8-0, 7.7.9-0)</version>
     </parent>
 
     <artifactId>rest-utils-parent</artifactId>
     <packaging>pom</packaging>
     <name>rest-utils-parent</name>
-    <version>7.6.10-0</version>
+    <version>7.7.8-0</version>
     <organization>
         <name>Confluent, Inc.</name>
         <url>https://confluent.io</url>
@@ -45,6 +45,7 @@
         <module>test</module>
         <module>examples</module>
         <module>package</module>
+        <module>fips-tests</module>
     </modules>
 
     <properties>
@@ -54,7 +55,7 @@
         <jersey.version>2.46</jersey.version>
         <asynchttpclient.version>2.12.4</asynchttpclient.version>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
-        <io.confluent.rest-utils.version>7.6.10-0</io.confluent.rest-utils.version>
+        <io.confluent.rest-utils.version>7.7.8-0</io.confluent.rest-utils.version>
         <conscrypt.version>2.5.2</conscrypt.version>
     </properties>
 
@@ -77,6 +78,12 @@
             <dependency>
                 <groupId>io.confluent</groupId>
                 <artifactId>rest-utils-test</artifactId>
+                <version>${io.confluent.rest-utils.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>rest-utils-fips-tests</artifactId>
                 <version>${io.confluent.rest-utils.version}</version>
                 <scope>test</scope>
             </dependency>

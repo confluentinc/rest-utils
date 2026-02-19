@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -119,15 +120,28 @@ public class RestConfig extends AbstractConfig {
 
   public static final String ACCESS_CONTROL_ALLOW_HEADERS = "access.control.allow.headers";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DOC =
-      "Set value to Jetty Access-Control-Allow-Origin header for specified headers. "
+      "Set value to Jetty Access-Control-Allow-Headers header for specified headers. "
       + "Leave blank to use Jetty's default.";
   protected static final String ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT = "";
+
+  public static final String ACCESS_CONTROL_EXPOSE_HEADERS = "access.control.expose.headers";
+  protected static final String ACCESS_CONTROL_EXPOSE_HEADERS_DOC =
+      "set value to Jetty Access-Control-Expose-Headers header for specified headers. "
+      + "Leave blank to use Jetty's default.";
+  protected static final String ACCESS_CONTROL_EXPOSE_HEADERS_DEFAULT = "";
 
   public static final String NOSNIFF_PROTECTION_ENABLED = "nosniff.prevention.enable";
   public static final boolean NOSNIFF_PROTECTION_ENABLED_DEFAULT = false;
   protected static final String NOSNIFF_PROTECTION_ENABLED_DOC =
       "Enable response to request be blocked due to nosniff. The header allows you to avoid "
       + "MIME type sniffing by saying that the MIME types are deliberately configured.";
+
+  public static final String HSTS_HEADER_ENABLE_CONFIG = "hsts.header.enable";
+  public static final boolean HSTS_HEADER_ENABLE_DEFAULT = false;
+  protected static final String HSTS_HEADER_ENABLE_DOC =
+      "Enable HTTP Strict-Transport-Security (HSTS) response header. The header informs that "
+      + "the site should only be accessed using HTTPS, and that any future attempts to access "
+      + "it using HTTP should automatically be converted to HTTPS. Defaults to false.";
 
   public static final String REQUEST_LOGGER_NAME_CONFIG = "request.logger.name";
   protected static final String REQUEST_LOGGER_NAME_DOC =
@@ -501,6 +515,20 @@ public class RestConfig extends AbstractConfig {
           + "returns a 421 misdirected response. Default is false.";
   protected static final boolean SNI_CHECK_ENABLED_DEFAULT = false;
 
+  public static final String PREFIX_SNI_CHECK_ENABLED_CONFIG =
+      "prefix.sni.check.enabled";
+  protected static final String PREFIX_SNI_CHECK_ENABLED_DOC =
+      "Whether or not to check if the Host header starts with the same prefix from SNI. "
+          + "If the Host header does not start with the prefix from SNI, returns a 421 "
+          + "misdirected response. Default is false.";
+  protected static final boolean PREFIX_SNI_CHECK_ENABLED_DEFAULT = false;
+
+  public static final String SNI_HOST_CHECK_ENABLED_CONFIG = "sni.host.check.enabled";
+  protected static final String SNI_HOST_CHECK_ENABLED_DOC =
+      "Whether or not to enable SNI host checking in SecureRequestCustomizer. If disabled, "
+          + "SNI host checking will be disabled for all HTTPS connections. Default is true.";
+  protected static final boolean SNI_HOST_CHECK_ENABLED_DEFAULT = true;
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -533,6 +561,13 @@ public class RestConfig extends AbstractConfig {
       "Maximum buffer size for jetty request headers in bytes";
   protected static final int MAX_REQUEST_HEADER_SIZE_DEFAULT = 8192;
 
+  protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG =
+          "network.forwarded.request.customizer.enable";
+  protected static final String NETWORK_FORWARDED_REQUEST_ENABLE_DOC =
+          "If true, forwarded requests will propagate the original IP address "
+              + "to remoteAddr based on what is provided through HTTP headers.";
+  protected static final boolean NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT = false;
+
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG =
       "network.traffic.rate.limit.enable";
   protected static final String NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_DOC =
@@ -559,6 +594,8 @@ public class RestConfig extends AbstractConfig {
 
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
+
+  protected final boolean doLog;
 
   public static ConfigDef baseConfigDef() {
     return baseConfigDef(
@@ -670,6 +707,12 @@ public class RestConfig extends AbstractConfig {
             ACCESS_CONTROL_ALLOW_HEADERS_DEFAULT,
             Importance.LOW,
             ACCESS_CONTROL_ALLOW_HEADERS_DOC
+        ).define(
+            ACCESS_CONTROL_EXPOSE_HEADERS,
+            Type.STRING,
+            ACCESS_CONTROL_EXPOSE_HEADERS_DEFAULT,
+            Importance.LOW,
+            ACCESS_CONTROL_EXPOSE_HEADERS_DOC
         ).define(
             ACCESS_CONTROL_SKIP_OPTIONS,
             Type.BOOLEAN,
@@ -1066,6 +1109,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             SNI_CHECK_ENABLED_DOC
         ).define(
+            SNI_HOST_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SNI_HOST_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            SNI_HOST_CHECK_ENABLED_DOC
+        ).define(
+            PREFIX_SNI_CHECK_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            PREFIX_SNI_CHECK_ENABLED_DEFAULT,
+            Importance.LOW,
+            PREFIX_SNI_CHECK_ENABLED_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1084,6 +1139,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             NOSNIFF_PROTECTION_ENABLED_DOC
         ).define(
+            HSTS_HEADER_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            HSTS_HEADER_ENABLE_DEFAULT,
+            Importance.LOW,
+            HSTS_HEADER_ENABLE_DOC
+        ).define(
             SUPPRESS_STACK_TRACE_IN_RESPONSE,
             Type.BOOLEAN,
             SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT,
@@ -1101,6 +1162,12 @@ public class RestConfig extends AbstractConfig {
             MAX_REQUEST_HEADER_SIZE_DEFAULT,
             Importance.LOW,
             MAX_REQUEST_HEADER_SIZE_DOC
+        ).define(
+            NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            NETWORK_FORWARDED_REQUEST_ENABLE_DEAFULT,
+            Importance.LOW,
+            NETWORK_FORWARDED_REQUEST_ENABLE_DOC
         ).define(
             NETWORK_TRAFFIC_RATE_LIMIT_ENABLE_CONFIG,
             Type.BOOLEAN,
@@ -1125,11 +1192,16 @@ public class RestConfig extends AbstractConfig {
 
   private static Time defaultTime = Time.SYSTEM;
 
-  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
-    super(definition, originals);
+  public RestConfig(ConfigDef definition, Map<?, ?> originals, boolean doLog) {
+    super(definition, originals, doLog);
+    this.doLog = doLog;
     metricsContext = new RestMetricsContext(
             this.getString(METRICS_JMX_PREFIX_CONFIG),
             originalsWithPrefix(METRICS_CONTEXT_PREFIX));
+  }
+
+  public RestConfig(ConfigDef definition, Map<?, ?> originals) {
+    this(definition, originals, true);
   }
 
   public RestConfig(ConfigDef definition) {
@@ -1146,6 +1218,10 @@ public class RestConfig extends AbstractConfig {
 
   public RestMetricsContext getMetricsContext() {
     return metricsContext;
+  }
+
+  public boolean getDoLog() {
+    return doLog;
   }
 
   public static void validateHttpResponseHeaderConfig(String config) {
@@ -1274,7 +1350,7 @@ public class RestConfig extends AbstractConfig {
     Map<String, Object> overridden = originals();
     overridden.putAll(filterByAndStripPrefix(originals(), prefix));
 
-    return new SslConfig(new RestConfig(baseConfigDef(), overridden));
+    return new SslConfig(new RestConfig(baseConfigDef(), overridden, doLog));
   }
 
   public final Map<NamedURI, SslConfig> getSslConfigs() {
@@ -1407,6 +1483,14 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(SNI_CHECK_ENABLED_CONFIG);
   }
 
+  public final boolean getSniHostCheckEnable() {
+    return getBoolean(SNI_HOST_CHECK_ENABLED_CONFIG);
+  }
+
+  public final boolean getPrefixSniCheckEnable() {
+    return getBoolean(PREFIX_SNI_CHECK_ENABLED_CONFIG);
+  }
+
   /**
    * <p>A helper method for extracting multi-instance application configuration,
    * specified via property names of the form PREFIX[.LISTENER_NAME].PROPERTY.</p>
@@ -1510,5 +1594,33 @@ public class RestConfig extends AbstractConfig {
       }
     }
     return stripped;
+  }
+
+  public static boolean getBooleanOrDefault(
+      Map<String, ?> configs, String configKey, boolean defaultValue) {
+    boolean configValue = defaultValue;
+    if (configKey != null && configs != null) {
+      Object value = configs.get(configKey);
+      if (value instanceof Boolean) {
+        configValue = (boolean) value;
+      } else if (value instanceof String) {
+        configValue = Boolean.parseBoolean((String) value);
+      }
+    }
+    return configValue;
+  }
+
+  public static boolean getBooleanOrDefault(
+      Properties props, String configKey, boolean defaultValue) {
+    boolean configValue = defaultValue;
+    if (configKey != null && props != null) {
+      Object value = props.get(configKey);
+      if (value instanceof Boolean) {
+        configValue = (boolean) value;
+      } else if (value instanceof String) {
+        configValue = Boolean.parseBoolean((String) value);
+      }
+    }
+    return configValue;
   }
 }

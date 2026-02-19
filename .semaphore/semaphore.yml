@@ -37,7 +37,8 @@ blocks:
       jobs:
         - name: Test
           commands:
-            - ci-sem-pint -c
+            - . sem-pint -c
+            - ci-tools ci-update-version
             - mvn -U -Dmaven.wagon.http.retryHandler.count=10 --batch-mode --no-transfer-progress clean verify install dependency:analyze validate
             - . cache-maven store
       epilogue:
@@ -55,8 +56,9 @@ blocks:
       jobs:
         - name: Release
           commands:
-            - mvn -U -Dmaven.wagon.http.retryHandler.count=10 --batch-mode 
-              -DaltDeploymentRepository=confluent-codeartifact-internal::default::https://confluent-519856050701.d.codeartifact.us-west-2.amazonaws.com/maven/maven-snapshots/ 
+            - ci-tools ci-update-version
+            - ci-tools ci-push-tag
+            - mvn -U -Dmaven.wagon.http.retryHandler.count=10 --batch-mode -DaltDeploymentRepository=confluent-codeartifact-internal::default::https://confluent-519856050701.d.codeartifact.us-west-2.amazonaws.com/maven/maven-snapshots/
               -DrepositoryId=confluent-codeartifact-internal deploy -DskipTests
   - name: CP Jar Build CI Gating
     dependencies: []
@@ -102,6 +104,7 @@ after_pipeline:
       - name: SonarQube
         commands:
           - checkout
+          - sem-version java 11
           - artifact pull workflow target
           - emit-sonarqube-data --run_only_sonar_scan
       - name: Trigger downstream projects
@@ -115,4 +118,5 @@ after_pipeline:
               sem-trigger -p ce-kafka-http-server -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p secret-registry -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p confluent-cloud-plugins -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
+              sem-trigger -p kafka-streams-examples -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
             fi

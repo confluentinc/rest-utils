@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package io.confluent.rest;
 
 import org.slf4j.Logger;
@@ -25,10 +25,9 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchService;
-import java.nio.file.WatchKey;
 import java.nio.file.WatchEvent;
-
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -66,9 +65,9 @@ public class FileWatcher implements Runnable {
   }
 
   /**
-    * Starts watching a file calls the callback when it is changed.
-    * A shutdown hook is registered to stop watching.
-  */
+   * Starts watching a file calls the callback when it is changed.
+   * A shutdown hook is registered to stop watching.
+   */
   public static void onFileChange(Path file, Callback callback) throws IOException {
     log.info("Constructing a new watch service: " + file);
     FileWatcher fileWatcher = new FileWatcher(file, callback);

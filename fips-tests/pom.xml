@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.confluent</groupId>
+        <artifactId>rest-utils-parent</artifactId>
+        <version>7.7.8-0</version>
+    </parent>
+
+    <artifactId>rest-utils-fips-tests</artifactId>
+    <packaging>jar</packaging>
+    <name>rest-utils-fips-tests</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>rest-utils</artifactId>
+            <version>${io.confluent.rest-utils.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-reload4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <classifier>test</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bc-fips</artifactId>
+            <version>${bouncycastle.fips.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bctls-fips</artifactId>
+            <version>${bouncycastle.tls-fips.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-fips</artifactId>
+            <version>${bouncycastle.bcpkix-fips.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
