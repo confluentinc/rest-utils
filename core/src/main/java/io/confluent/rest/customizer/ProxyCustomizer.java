@@ -16,14 +16,17 @@
 
 package io.confluent.rest.customizer;
 
-import io.confluent.rest.ProxyConnectionFactory;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection;
-import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Request;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Similar to {@link org.eclipse.jetty.server.ProxyCustomizer} but allowing access to tlvs as well
@@ -48,42 +51,81 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
 
   // The tlvs attribute name.
   // With value is an instance of {@link TlvProvider} that can be used to retrieve TLVs
-  public static final String TLV_PROVIDER_ATTRIBUTE_NAME = "io.confluent.rest.proxy.tlv.provider";
+  public static final String TLV_PROVIDER_ATTRIBUTE_NAME
+      = "io.confluent.rest.proxy.tlv.provider";
 
   @Override
-  public void customize(Connector connector, HttpConfiguration httpConfiguration, Request request) {
-    EndPoint endPoint = request.getHttpChannel().getEndPoint();
+  public Request customize(Request request, HttpFields.Mutable mutable) {
+    EndPoint endPoint = request.getConnectionMetaData().getConnection().getEndPoint();
+
     // The EndPoint wrapping order is reversed of the connection factory order.
-    if (endPoint instanceof SslConnection.DecryptedEndPoint) {
-      if (endPoint.getTransport() instanceof EndPoint) {
-        endPoint = (EndPoint) endPoint.getTransport();
-      }
+    if (endPoint instanceof SslConnection.SslEndPoint) {
+      endPoint = ((SslConnection.SslEndPoint) endPoint).unwrap();
     }
 
-    if (endPoint instanceof ProxyConnectionFactory.ProxyEndPoint) {
-      ProxyConnectionFactory.ProxyEndPoint proxyEndPoint =
-          (ProxyConnectionFactory.ProxyEndPoint) endPoint;
-      InetSocketAddress inetLocal = proxyEndPoint.getLocalAddress();
-      InetSocketAddress inetRemote = proxyEndPoint.getRemoteAddress();
-      String localAddress = inetLocal == null
-          ? null : inetLocal.getAddress().getHostAddress();
-      String remoteAddress = inetRemote == null
-          ? null : inetRemote.getAddress().getHostAddress();
-      if (remoteAddress != null) {
-        request.setAttribute(REMOTE_ADDRESS_ATTRIBUTE_NAME, remoteAddress);
-      }
-      if (localAddress != null) {
-        request.setAttribute(LOCAL_ADDRESS_ATTRIBUTE_NAME, localAddress);
-      }
-
-      int localPort = inetLocal == null ? 0 : inetLocal.getPort();
-      int remotePort = inetRemote == null ? 0 : inetRemote.getPort();
-      request.setAttribute(REMOTE_PORT_ATTRIBUTE_NAME, remotePort);
-      request.setAttribute(LOCAL_PORT_ATTRIBUTE_NAME, localPort);
-
-      TlvProvider tlvProvider = proxyEndPoint::getTLV;
-      request.setAttribute(TLV_PROVIDER_ATTRIBUTE_NAME, tlvProvider);
+    if (endPoint instanceof ProxyConnectionFactory.ProxyEndPoint proxyEndPoint) {
+      EndPoint underlyingEndpoint = proxyEndPoint.unwrap();
+      request = new ProxyRequest(request,
+          underlyingEndpoint.getLocalSocketAddress(),
+          underlyingEndpoint.getRemoteSocketAddress(),
+          proxyEndPoint::getTLV);
     }
+    return request;
   }
 
+  private static class ProxyRequest extends Request.Wrapper {
+    private final String remoteAddress;
+    private final String localAddress;
+    private final int remotePort;
+    private final int localPort;
+    private final TlvProvider tlvProvider;
+
+    private ProxyRequest(Request request,
+                         SocketAddress local,
+                         SocketAddress remote,
+                         TlvProvider tlvProvider) {
+      super(request);
+      InetSocketAddress inetLocal = local instanceof InetSocketAddress
+          ? (InetSocketAddress) local : null;
+      InetSocketAddress inetRemote = remote instanceof InetSocketAddress
+          ? (InetSocketAddress) remote : null;
+      this.localAddress = inetLocal == null ? null : inetLocal.getAddress().getHostAddress();
+      this.remoteAddress = inetRemote == null ? null : inetRemote.getAddress().getHostAddress();
+      this.localPort = inetLocal == null ? 0 : inetLocal.getPort();
+      this.remotePort = inetRemote == null ? 0 : inetRemote.getPort();
+      this.tlvProvider = tlvProvider;
+    }
+
+    @Override
+    public Object getAttribute(String name) {
+      return switch (name) {
+        case REMOTE_ADDRESS_ATTRIBUTE_NAME -> remoteAddress;
+        case REMOTE_PORT_ATTRIBUTE_NAME -> remotePort;
+        case LOCAL_ADDRESS_ATTRIBUTE_NAME -> localAddress;
+        case LOCAL_PORT_ATTRIBUTE_NAME -> localPort;
+        case TLV_PROVIDER_ATTRIBUTE_NAME -> tlvProvider;
+        default -> super.getAttribute(name);
+      };
+    }
+
+    @Override
+    public Set<String> getAttributeNameSet() {
+      Set<String> names = new HashSet<>(super.getAttributeNameSet());
+      names.remove(REMOTE_ADDRESS_ATTRIBUTE_NAME);
+      names.remove(LOCAL_ADDRESS_ATTRIBUTE_NAME);
+
+      if (remoteAddress != null) {
+        names.add(REMOTE_ADDRESS_ATTRIBUTE_NAME);
+      }
+      if (localAddress != null) {
+        names.add(LOCAL_ADDRESS_ATTRIBUTE_NAME);
+      }
+
+      names.add(REMOTE_PORT_ATTRIBUTE_NAME);
+      names.add(LOCAL_PORT_ATTRIBUTE_NAME);
+      names.add(TLV_PROVIDER_ATTRIBUTE_NAME);
+
+      return names;
+    }
+  }
 }
