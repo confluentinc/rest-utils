@@ -35,6 +35,30 @@ public final class TenantUtils {
   private TenantUtils() {}
 
   /**
+   * Checks if the request is a health check request that should bypass tenant rate limiting.
+   * Matches the simple health probe endpoint and health check produce requests.
+   */
+  public static boolean isHealthCheckRequest(HttpServletRequest request) {
+    if (request == null) {
+      return false;
+    }
+    String path = request.getRequestURI();
+    if (path == null) {
+      return false;
+    }
+    // Simple health probe endpoint
+    if (path.equals("/kafka/health")) {
+      return true;
+    }
+    // Health check produce to _confluent-healthcheck-rest topics
+    // Matches paths like /kafka/v3/clusters/lkc-xxx/topics/_confluent-healthcheck-rest_12/records
+    if (path.contains("/topics/_confluent-healthcheck")) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Extracts tenant ID for request
    * Attempts hostname extraction first (applies to V4 networking - majority case),
    * then falls back to request path extraction (applies to V3 networking).
