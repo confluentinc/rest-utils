@@ -215,6 +215,11 @@ public class TenantUtilsTest {
 
     when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-abc123");
     assertFalse(TenantUtils.isHealthCheckRequest(request));
+
+    // Topic name containing the healthcheck substring should not match
+    when(request.getRequestURI()).thenReturn(
+        "/kafka/v3/clusters/lkc-abc123/topics/malicioususer_confluent-healthcheck/records");
+    assertFalse(TenantUtils.isHealthCheckRequest(request));
   }
 
   @Test

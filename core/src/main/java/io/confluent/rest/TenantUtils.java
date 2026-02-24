@@ -50,8 +50,9 @@ public final class TenantUtils {
     if (path.equals("/kafka/health")) {
       return true;
     }
-    // Health check produce to _confluent-healthcheck topics
-    if (path.contains("_confluent-healthcheck")) {
+    // Health check produce to _confluent-healthcheck-rest topics
+    // Matches paths like /kafka/v3/clusters/lkc-xxx/topics/_confluent-healthcheck-rest_12/records
+    if (path.contains("/topics/_confluent-healthcheck")) {
       return true;
     }
     return false;
