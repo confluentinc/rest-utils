@@ -39,6 +39,9 @@ public final class TenantUtils {
    * Matches the simple health probe endpoint and health check produce requests.
    */
   public static boolean isHealthCheckRequest(HttpServletRequest request) {
+    if (request == null) {
+      return false;
+    }
     String path = request.getRequestURI();
     if (path == null) {
       return false;

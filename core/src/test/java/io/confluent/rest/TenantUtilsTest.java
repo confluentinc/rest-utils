@@ -224,6 +224,11 @@ public class TenantUtilsTest {
     assertFalse(TenantUtils.isHealthCheckRequest(request));
   }
 
+  @Test
+  public void testIsHealthCheckRequest_NullRequest() {
+    assertFalse(TenantUtils.isHealthCheckRequest(null));
+  }
+
   private void assertTenantExtraction(HttpServletRequest request, String requestURI,
       String serverName, String expectedTenantId) {
     when(request.getRequestURI()).thenReturn(requestURI);
