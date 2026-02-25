@@ -25,6 +25,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,10 @@ import org.slf4j.LoggerFactory;
 public class TenantDosFilter extends DoSFilter {
 
   private static final Logger log = LoggerFactory.getLogger(TenantDosFilter.class);
-  
+  private static final long LOG_INTERVAL_MS = 10_000;
+
+  private final AtomicLong lastLogTimeMs = new AtomicLong(0);
+
   public TenantDosFilter() {
     super();
   }
@@ -48,6 +52,16 @@ public class TenantDosFilter extends DoSFilter {
       return;
     }
     super.doFilter(request, response, filterChain);
+    if (response.getStatus() == 429) {
+      long now = System.currentTimeMillis();
+      long lastLog = lastLogTimeMs.get();
+      if (now - lastLog >= LOG_INTERVAL_MS && lastLogTimeMs.compareAndSet(lastLog, now)) {
+        String tenantId = TenantUtils.extractTenantId(request);
+        log.warn("Tenant rate limit exceeded: tenant='{}', request='{} {}', host='{}', ip='{}'",
+            tenantId, request.getMethod(), request.getRequestURI(),
+            request.getServerName(), request.getRemoteAddr());
+      }
+    }
   }
 
   @Override
