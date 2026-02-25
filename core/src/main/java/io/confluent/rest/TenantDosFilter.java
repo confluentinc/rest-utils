@@ -35,7 +35,10 @@ import org.slf4j.LoggerFactory;
 public class TenantDosFilter extends DoSFilter {
 
   private static final Logger log = LoggerFactory.getLogger(TenantDosFilter.class);
-  
+  private static final long LOG_INTERVAL_MS = 10_000;
+
+  private long lastLogTimeMs = 0;
+
   public TenantDosFilter() {
     super();
   }
@@ -48,6 +51,16 @@ public class TenantDosFilter extends DoSFilter {
       return;
     }
     super.doFilter(request, response, filterChain);
+    if (response.getStatus() == 429) {
+      long now = System.currentTimeMillis();
+      if (now - lastLogTimeMs >= LOG_INTERVAL_MS) {
+        lastLogTimeMs = now;
+        String tenantId = TenantUtils.extractTenantId(request);
+        log.warn("Tenant rate limit exceeded: tenant='{}', request='{} {}', host='{}', ip='{}'",
+            tenantId, request.getMethod(), request.getRequestURI(),
+            request.getServerName(), request.getRemoteAddr());
+      }
+    }
   }
 
   @Override
