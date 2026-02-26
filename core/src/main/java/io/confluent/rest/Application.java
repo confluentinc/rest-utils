@@ -822,6 +822,7 @@ public abstract class Application<T extends RestConfig> {
     String tenantLimit = String.valueOf(config.getDosFilterTenantMaxRequestsPerSec());
     FilterHolder filterHolder = configureDosFilter(dosFilter, tenantLimit);
     context.addFilter(filterHolder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    log.info("Tenant rate limiting enabled with {}req/sec limit", tenantLimit);
   }
 
   // TODO: This is temporary code to be removed after tenant rate limit testing
