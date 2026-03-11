@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.confluent.rest.customizer.CidrRange;
 import io.confluent.rest.customizer.ProxyCustomizer;
 import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
@@ -287,7 +288,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           connectorConfig.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
 
       if (proxyProtocolEnabled) {
-        httpConfiguration.addCustomizer(new ProxyCustomizer());
+        httpConfiguration.addCustomizer(
+            new ProxyCustomizer(parseAcceptedIpRange(connectorConfig)));
       }
 
       // Use original IP in forwarded requests
@@ -445,6 +447,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
 
     return connectionFactories.toArray(new ConnectionFactory[0]);
+  }
+
+  private static CidrRange parseAcceptedIpRange(RestConfig connectorConfig) {
+    String value = connectorConfig.getString(
+        RestConfig.PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG).trim();
+    return value.isEmpty() ? null : CidrRange.parse(value);
   }
 
   private void configureConnectionLimits() {
