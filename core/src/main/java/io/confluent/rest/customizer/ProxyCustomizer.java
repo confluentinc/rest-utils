@@ -19,19 +19,31 @@ package io.confluent.rest.customizer;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection;
+import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Similar to {@link org.eclipse.jetty.server.ProxyCustomizer} but allowing access to tlvs as well
+ * Similar to {@link org.eclipse.jetty.server.ProxyCustomizer} but allowing access to tlvs as well.
+ *
+ * <p>When an {@code acceptedIpRange} is configured, this customizer checks whether the
+ * underlying (raw) peer IP falls within the CIDR range. If it does NOT, the PROXY protocol
+ * data is ignored and the request's remote address is overridden to the raw TCP peer IP.
+ * This prevents IP spoofing during v3/v4 migrations where some connections arrive through
+ * a proxy (e.g., Envoy) and others come directly through a load balancer.</p>
  */
 public class ProxyCustomizer implements HttpConfiguration.Customizer {
+
+  private static final Logger log = LoggerFactory.getLogger(ProxyCustomizer.class);
 
   // The remote address attribute name.
   public static final String REMOTE_ADDRESS_ATTRIBUTE_NAME =
@@ -54,6 +66,16 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
   public static final String TLV_PROVIDER_ATTRIBUTE_NAME
       = "io.confluent.rest.proxy.tlv.provider";
 
+  private final CidrRange acceptedIpRange;
+
+  public ProxyCustomizer() {
+    this(null);
+  }
+
+  public ProxyCustomizer(CidrRange acceptedIpRange) {
+    this.acceptedIpRange = acceptedIpRange;
+  }
+
   @Override
   public Request customize(Request request, HttpFields.Mutable mutable) {
     EndPoint endPoint = request.getConnectionMetaData().getConnection().getEndPoint();
@@ -65,12 +87,60 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
 
     if (endPoint instanceof ProxyConnectionFactory.ProxyEndPoint proxyEndPoint) {
       EndPoint underlyingEndpoint = proxyEndPoint.unwrap();
+
+      // Check peer IP against accepted range before using PROXY data
+      if (acceptedIpRange != null) {
+        SocketAddress rawRemote = underlyingEndpoint.getRemoteSocketAddress();
+        if (rawRemote instanceof InetSocketAddress inetRemote) {
+          InetAddress peerAddress = inetRemote.getAddress();
+          if (!acceptedIpRange.contains(peerAddress)) {
+            log.debug(
+                "Peer IP {} is not in accepted range, ignoring PROXY protocol data",
+                peerAddress.getHostAddress());
+            // Override the connection metadata to use raw TCP addresses,
+            // undoing the ProxyEndPoint's effect on getRemoteAddr()
+            return new RawPeerRequest(request, underlyingEndpoint);
+          }
+        }
+      }
+
       request = new ProxyRequest(request,
           underlyingEndpoint.getLocalSocketAddress(),
           underlyingEndpoint.getRemoteSocketAddress(),
           proxyEndPoint::getTLV);
     }
     return request;
+  }
+
+  /**
+   * Request wrapper that overrides the connection metadata to use raw TCP peer
+   * addresses instead of the PROXY-parsed addresses. This effectively "undoes"
+   * the {@link ProxyConnectionFactory.ProxyEndPoint}'s address override when
+   * the peer is not in the accepted IP range.
+   */
+  private static class RawPeerRequest extends Request.Wrapper {
+    private final ConnectionMetaData rawMetaData;
+
+    private RawPeerRequest(Request request, EndPoint rawEndpoint) {
+      super(request);
+      this.rawMetaData = new ConnectionMetaData.Wrapper(
+          request.getConnectionMetaData()) {
+        @Override
+        public SocketAddress getRemoteSocketAddress() {
+          return rawEndpoint.getRemoteSocketAddress();
+        }
+
+        @Override
+        public SocketAddress getLocalSocketAddress() {
+          return rawEndpoint.getLocalSocketAddress();
+        }
+      };
+    }
+
+    @Override
+    public ConnectionMetaData getConnectionMetaData() {
+      return rawMetaData;
+    }
   }
 
   private static class ProxyRequest extends Request.Wrapper {
