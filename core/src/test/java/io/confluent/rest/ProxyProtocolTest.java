@@ -353,7 +353,113 @@ public class ProxyProtocolTest {
   }
 
 
-    private static class ProxyTestApp extends Application<TestRestConfig> implements AutoCloseable {
+  /**
+   * When accepted.ip.range is configured and the peer IP (localhost/127.0.0.1) is NOT in the
+   * range, the PROXY protocol header should be ignored and the server should see the raw
+   * peer IP (127.0.0.1) instead of the spoofed IP from the PROXY header.
+   */
+  @Test
+  public void testAcceptedIpRange_peerNotInRange_proxyDataIgnored() throws Exception {
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://localhost:0");
+    // Set accepted range to Envoy CIDR — localhost is NOT in this range
+    props.setProperty(RestConfig.PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG, "10.240.0.0/16");
+
+    testConfig = new TestRestConfig(props);
+    server = new ApplicationServer<>(testConfig);
+    ProxyTestApp app = new ProxyTestApp("/app");
+    server.registerApplication(app);
+    server.start();
+
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+
+    // Send a PROXY v1 header with a spoofed IP (192.168.0.1)
+    try (Socket proxySocket = new Socket("localhost", connector.getLocalPort())) {
+      byte[] header = getProxyProtocolHeader(false, "192.168.0.1", "12345");
+      OutputStream proxyWriter = proxySocket.getOutputStream();
+      proxyWriter.write(header);
+      proxyWriter.flush();
+
+      String httpString = "HTTP/1.1";
+      String request1 = String.format(
+          "GET /app/resource %s\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+          httpString);
+      proxyWriter.write(request1.getBytes(StandardCharsets.UTF_8));
+      proxyWriter.flush();
+
+      InputStream input = proxySocket.getInputStream();
+      BufferedReader reader = new BufferedReader(
+          new InputStreamReader(input, StandardCharsets.UTF_8));
+      String responseLine = reader.readLine();
+      assertThat(responseLine, startsWith(httpString + " 200 "));
+
+      // Read to the last line (the body)
+      String lastLine = responseLine;
+      while (true) {
+        String l = reader.readLine();
+        if (l == null) break;
+        lastLine = l;
+      }
+
+      String[] tokens = lastLine.split(":");
+      // The server should see 127.0.0.1 (raw peer IP), NOT 192.168.0.1 (spoofed)
+      assertThat(tokens[0], is("127.0.0.1"));
+    }
+  }
+
+  /**
+   * When accepted.ip.range is configured and the peer IP IS in the range (using 127.0.0.0/8
+   * to match localhost), the PROXY protocol header should be used and the server should see
+   * the client IP from the PROXY header.
+   */
+  @Test
+  public void testAcceptedIpRange_peerInRange_proxyDataUsed() throws Exception {
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://localhost:0");
+    // Set accepted range to include localhost (127.0.0.0/8)
+    props.setProperty(RestConfig.PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG, "127.0.0.0/8");
+
+    testConfig = new TestRestConfig(props);
+    server = new ApplicationServer<>(testConfig);
+    ProxyTestApp app = new ProxyTestApp("/app");
+    server.registerApplication(app);
+    server.start();
+
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+
+    // Send a PROXY v1 header with client IP 192.168.0.1
+    try (Socket proxySocket = new Socket("localhost", connector.getLocalPort())) {
+      byte[] header = getProxyProtocolHeader(false, "192.168.0.1", "12345");
+      OutputStream proxyWriter = proxySocket.getOutputStream();
+      proxyWriter.write(header);
+      proxyWriter.flush();
+
+      String httpString = "HTTP/1.1";
+      String request1 = String.format(
+          "GET /app/resource %s\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+          httpString);
+      proxyWriter.write(request1.getBytes(StandardCharsets.UTF_8));
+      proxyWriter.flush();
+
+      InputStream input = proxySocket.getInputStream();
+      BufferedReader reader = new BufferedReader(
+          new InputStreamReader(input, StandardCharsets.UTF_8));
+      String responseLine = reader.readLine();
+      assertThat(responseLine, startsWith(httpString + " 200 "));
+
+      String lastLine = responseLine;
+      while (true) {
+        String l = reader.readLine();
+        if (l == null) break;
+        lastLine = l;
+      }
+
+      String[] tokens = lastLine.split(":");
+      // The server should see 192.168.0.1 (from PROXY header), since peer is in range
+      assertThat(tokens[0], is("192.168.0.1"));
+      assertThat(tokens[1], is("12345"));
+    }
+  }
+
+  private static class ProxyTestApp extends Application<TestRestConfig> implements AutoCloseable {
       private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
 
     ProxyTestApp(String path) {
