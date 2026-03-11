@@ -593,6 +593,18 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
 
+  public static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG =
+      "proxy.protocol.accepted.ip.range";
+  protected static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DOC =
+      "If set, the server will only use PROXY protocol header information from connections "
+          + "whose peer IP address falls within the specified CIDR range (e.g., '10.240.0.0/16'). "
+          + "Connections from outside this range will have their PROXY protocol data ignored, "
+          + "and the raw peer IP will be used instead. This prevents IP spoofing during migrations "
+          + "where some connections come through a proxy (e.g., Envoy) and others do not. "
+          + "If empty (default), PROXY protocol data is used unconditionally when "
+          + "proxy.protocol.enabled is true.";
+  protected static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DEFAULT = "";
+
   public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
 
   protected static final String SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC =
@@ -1249,6 +1261,12 @@ public class RestConfig extends AbstractConfig {
             PROXY_PROTOCOL_ENABLED_DEFAULT,
             Importance.LOW,
             PROXY_PROTOCOL_ENABLED_DOC
+        ).define(
+            PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG,
+            Type.STRING,
+            PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DEFAULT,
+            Importance.LOW,
+            PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DOC
         ).define(
             NOSNIFF_PROTECTION_ENABLED,
             Type.BOOLEAN,
