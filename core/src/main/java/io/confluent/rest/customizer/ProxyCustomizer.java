@@ -88,19 +88,32 @@ public class ProxyCustomizer implements HttpConfiguration.Customizer {
     if (endPoint instanceof ProxyConnectionFactory.ProxyEndPoint proxyEndPoint) {
       EndPoint underlyingEndpoint = proxyEndPoint.unwrap();
 
-      // Check peer IP against accepted range before using PROXY data
+      // Check peer IP against accepted range before using PROXY data.
+      // Fail closed: if the peer address cannot be evaluated, ignore PROXY data.
       if (acceptedIpRange != null) {
         SocketAddress rawRemote = underlyingEndpoint.getRemoteSocketAddress();
-        if (rawRemote instanceof InetSocketAddress inetRemote) {
-          InetAddress peerAddress = inetRemote.getAddress();
-          if (!acceptedIpRange.contains(peerAddress)) {
-            log.debug(
-                "Peer IP {} is not in accepted range, ignoring PROXY protocol data",
-                peerAddress.getHostAddress());
-            // Override the connection metadata to use raw TCP addresses,
-            // undoing the ProxyEndPoint's effect on getRemoteAddr()
-            return new RawPeerRequest(request, underlyingEndpoint);
-          }
+        if (!(rawRemote instanceof InetSocketAddress inetRemote)) {
+          log.debug(
+              "Raw remote address {} is not an InetSocketAddress;"
+                  + " ignoring PROXY protocol data",
+              rawRemote);
+          return new RawPeerRequest(request, underlyingEndpoint);
+        }
+
+        InetAddress peerAddress = inetRemote.getAddress();
+        if (peerAddress == null) {
+          log.debug(
+              "Raw remote InetSocketAddress {} has null InetAddress;"
+                  + " ignoring PROXY protocol data",
+              inetRemote);
+          return new RawPeerRequest(request, underlyingEndpoint);
+        }
+
+        if (!acceptedIpRange.contains(peerAddress)) {
+          log.debug(
+              "Peer IP {} is not in accepted range, ignoring PROXY protocol data",
+              peerAddress.getHostAddress());
+          return new RawPeerRequest(request, underlyingEndpoint);
         }
       }
 

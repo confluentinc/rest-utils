@@ -16,10 +16,11 @@
 
 package io.confluent.rest.customizer;
 
+import com.google.common.net.InetAddresses;
+
 import org.apache.kafka.common.config.ConfigException;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 /**
  * Represents a CIDR range (e.g., "10.240.0.0/16") and provides a method to check
@@ -48,18 +49,22 @@ public class CidrRange {
       throw new ConfigException("Invalid CIDR notation: " + cidr);
     }
 
+    String addressStr = parts[0].trim();
+    String prefixStr = parts[1].trim();
+
     InetAddress network;
     try {
-      network = InetAddress.getByName(parts[0]);
-    } catch (UnknownHostException e) {
-      throw new ConfigException("Invalid network address in CIDR: " + parts[0]);
+      // Use InetAddresses.forString() to reject hostnames and avoid DNS resolution.
+      network = InetAddresses.forString(addressStr);
+    } catch (IllegalArgumentException e) {
+      throw new ConfigException("Invalid network address in CIDR: " + addressStr);
     }
 
     int prefixLength;
     try {
-      prefixLength = Integer.parseInt(parts[1]);
+      prefixLength = Integer.parseInt(prefixStr);
     } catch (NumberFormatException e) {
-      throw new ConfigException("Invalid prefix length in CIDR: " + parts[1]);
+      throw new ConfigException("Invalid prefix length in CIDR: " + prefixStr);
     }
 
     byte[] networkBytes = network.getAddress();
