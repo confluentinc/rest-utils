@@ -927,8 +927,14 @@ public abstract class Application<T extends RestConfig> {
       }
     });
 
-    onShutdown();
-    shutdownLatch.countDown();
+    try {
+      onShutdown();
+    } catch (RuntimeException e) {
+      log.error("Unexpected exception during onShutdown", e);
+      throw e;
+    } finally {
+      shutdownLatch.countDown();
+    }
   }
 
   /**

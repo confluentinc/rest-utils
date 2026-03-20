@@ -523,7 +523,15 @@ public class Http2Test {
       int statusCode = request.execute();
       assertEquals(400, statusCode, EXPECTED_400_MSG);
     } catch (java.util.concurrent.ExecutionException e) {
-      // HTTP/2 may reject the request via RST_STREAM instead of a 400 response
+      // HTTP/2 may reject the request via RST_STREAM instead of a 400 response.
+      // Ensure that we only accept the expected HTTP/2 stream reset/rejection here.
+      Throwable cause = e.getCause();
+      Assertions.assertNotNull(cause, "ExecutionException must have a cause for HTTP/2 rejection");
+      String message = cause.getMessage();
+      if (message == null
+          || !(message.contains("RST_STREAM") || message.toLowerCase().contains("stream reset"))) {
+        throw e;
+      }
       log.debug("HTTP/2 request rejected via stream reset", e);
     }
   }
