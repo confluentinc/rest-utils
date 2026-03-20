@@ -25,12 +25,15 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.kafka.common.config.ConfigException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Properties;
 import java.util.Arrays;
+import java.util.Properties;
+import java.util.stream.Stream;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -38,6 +41,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Configurable;
 import jakarta.ws.rs.core.MediaType;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -53,7 +57,6 @@ public class TestCustomizedHttpResponseHeaders {
       "addX-XSS-Protection",
       "X-XSS-Protection:",
       "add set X-XSS-Protection:",
-      "add X-XSS-Protection:1 X-XSS-Protection:1 ",
       "add X-XSS-Protection:1,   ,",
       "set X-Frame-Options:DENY, add  :no-cache, no-store, must-revalidate "})
   public void testInvalidHeaderConfigFormat(String invalidHeaderConfig) throws Exception {
@@ -79,6 +82,53 @@ public class TestCustomizedHttpResponseHeaders {
             app.stop();
           }
         });
+  }
+
+  private static Stream<Arguments> validHeaderConfigProvider() {
+    return Stream.of(
+        // Header value containing multiple colons (e.g. CSP with protocol schemes)
+        Arguments.of(
+            "set Content-Security-Policy:default-src 'self' 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self'; worker-src 'self' blob:; connect-src 'self' wss:",
+            "Content-Security-Policy",
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self'; worker-src 'self' blob:; connect-src 'self' wss:"),
+        // Header value with URL containing colons
+        Arguments.of(
+            "add X-Custom-Header:https://example.com:8080/path",
+            "X-Custom-Header",
+            "https://example.com:8080/path"),
+        // Header value with multiple colons but no protocol scheme
+        Arguments.of("set X-Custom:a:b:c:d", "X-Custom", "a:b:c:d"),
+        // Header value that is a single colon
+        Arguments.of("add X-Custom::", "X-Custom", ":"),
+        // Simple valid headers
+        Arguments.of("set X-Frame-Options:DENY", "X-Frame-Options", "DENY"),
+        Arguments.of("add Cache-Control:no-cache", "Cache-Control", "no-cache"),
+        Arguments.of("setDate Expires:0", "Expires", "0"),
+        Arguments.of("addDate X-Custom-Date:now", "X-Custom-Date", "now")
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("validHeaderConfigProvider")
+  public void testValidHeaderConfig(String headerConfig,
+      String expectedHeaderName, String expectedHeaderValue) {
+    assertDoesNotThrow(() -> RestConfig.validateHttpResponseHeaderConfig(headerConfig));
+
+    String header = headerConfig.trim().split("\\s+", 2)[1];
+    String[] headerTokens = header.trim().split(":", 2);
+    assertEquals(expectedHeaderName, headerTokens[0].trim());
+    assertEquals(expectedHeaderValue, headerTokens[1]);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+      // Missing colon entirely (no header value)
+      "add X-XSS-Protection",
+      // Header name with spaces
+      "set Invalid Header:value"})
+  public void testInvalidHeaderNameOrValue(String headerConfig) {
+    assertThrows(ConfigException.class,
+        () -> RestConfig.validateHttpResponseHeaderConfig(headerConfig));
   }
 
   @Test
