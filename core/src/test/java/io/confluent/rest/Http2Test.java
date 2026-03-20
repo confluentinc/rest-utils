@@ -281,11 +281,13 @@ public class Http2Test {
 
       // Just skip HTTP/2 for earlier than Java 11
       if (ApplicationServer.isJava11Compatible()) {
-        statusCode = makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
-        assertEquals(400, statusCode, EXPECTED_400_MSG);
-        statusCode = makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
-                                         clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
-        assertEquals(400, statusCode, EXPECTED_400_MSG);
+        // With HTTP/2, the server may reject the request via RST_STREAM (causing an
+        // ExecutionException) instead of returning a 400 response. Both are valid rejections.
+        assertHttp2RequestRejected(() ->
+            makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH));
+        assertHttp2RequestRejected(() ->
+            makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+                clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD));
       }
 
       // HTTP/1.1 should work whether HTTP/2 is available or not
@@ -514,6 +516,29 @@ public class Http2Test {
     } finally {
       app.stop();
     }
+  }
+
+  private void assertHttp2RequestRejected(Http2Request request) throws Exception {
+    try {
+      int statusCode = request.execute();
+      assertEquals(400, statusCode, EXPECTED_400_MSG);
+    } catch (java.util.concurrent.ExecutionException e) {
+      // HTTP/2 may reject the request via RST_STREAM instead of a 400 response.
+      // Ensure that we only accept the expected HTTP/2 stream reset/rejection here.
+      Throwable cause = e.getCause();
+      Assertions.assertNotNull(cause, "ExecutionException must have a cause for HTTP/2 rejection");
+      String message = cause.getMessage();
+      if (message == null
+          || !(message.contains("RST_STREAM") || message.toLowerCase().contains("stream reset"))) {
+        throw e;
+      }
+      log.debug("HTTP/2 request rejected via stream reset", e);
+    }
+  }
+
+  @FunctionalInterface
+  private interface Http2Request {
+    int execute() throws Exception;
   }
 
   private void assertMetricsCollected() {
