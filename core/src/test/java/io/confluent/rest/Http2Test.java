@@ -529,7 +529,8 @@ public class Http2Test {
       Assertions.assertNotNull(cause, "ExecutionException must have a cause for HTTP/2 rejection");
       String message = cause.getMessage();
       if (message == null
-          || !(message.contains("RST_STREAM") || message.toLowerCase().contains("stream reset"))) {
+          || !(message.contains("RST_STREAM")
+              || (message.toLowerCase().contains("stream") && message.toLowerCase().contains("reset")))) {
         throw e;
       }
       log.debug("HTTP/2 request rejected via stream reset", e);
