@@ -15,6 +15,7 @@ import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import jakarta.ws.rs.container.PreMatching;
 import jakarta.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
+import org.apache.kafka.test.TestUtils;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
@@ -123,9 +124,18 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void testSuccessMetrics() {
+  public void testSuccessMetrics() throws Exception {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> makeSuccessfulCall());
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response,
+    // so wait for the global request-total metric to reach the expected count.
+    TestUtils.waitForCondition(
+        () -> TestMetricsReporter.getMetricTimeseries().stream()
+            .anyMatch(m -> m.metricName().group().equals("jersey-metrics")
+                && m.metricName().name().equals("request-total")
+                && ((Double) m.metricValue()) >= totalRequests),
+        "request-total metric did not reach " + totalRequests);
 
     // checkpoints ensure that all the assertions are tested
     int totalRequestsCheckpoint = 0;
