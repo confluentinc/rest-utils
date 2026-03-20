@@ -927,8 +927,8 @@ public abstract class Application<T extends RestConfig> {
       }
     });
 
-    shutdownLatch.countDown();
     onShutdown();
+    shutdownLatch.countDown();
   }
 
   /**
