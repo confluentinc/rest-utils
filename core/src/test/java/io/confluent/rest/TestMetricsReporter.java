@@ -19,13 +19,14 @@ package io.confluent.rest;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TestMetricsReporter implements MetricsReporter {
 
-  private static List<KafkaMetric> metricTimeseries = new LinkedList<>();
+  private static volatile List<KafkaMetric> metricTimeseries = new CopyOnWriteArrayList<>();
 
   private Map<String, ?> configs;
 
@@ -39,10 +40,10 @@ public class TestMetricsReporter implements MetricsReporter {
   }
 
   public static List<KafkaMetric> getMetricTimeseries() {
-    return metricTimeseries;
+    return new ArrayList<>(metricTimeseries);
   }
 
-  public static void reset() { metricTimeseries = new LinkedList<>(); }
+  public static void reset() { metricTimeseries = new CopyOnWriteArrayList<>(); }
 
   public static void print() {
     for (KafkaMetric metric : metricTimeseries) {
