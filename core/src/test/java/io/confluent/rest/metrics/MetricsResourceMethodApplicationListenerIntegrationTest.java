@@ -1,7 +1,7 @@
 package io.confluent.rest.metrics;
 
-import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
-import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
+import com.fasterxml.jackson.jakarta.rs.base.JsonMappingExceptionMapper;
+import com.fasterxml.jackson.jakarta.rs.base.JsonParseExceptionMapper;
 import io.confluent.rest.Application;
 import io.confluent.rest.RestConfig;
 import io.confluent.rest.TestMetricsReporter;
@@ -12,24 +12,22 @@ import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.KafkaExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 
-import javax.ws.rs.container.PreMatching;
-import javax.ws.rs.core.Response.Status;
+import jakarta.ws.rs.container.PreMatching;
+import jakarta.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.util.Callback;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInfo;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -37,20 +35,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.Produces;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerRequestFilter;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TAG;
 import static io.confluent.rest.metrics.MetricsResourceMethodApplicationListener.HTTP_STATUS_CODE_TEXT;
@@ -537,7 +532,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   public void testMetricLatencySloSlaEnabled() {
     makeSuccessfulCall();
 
@@ -546,12 +540,17 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .collect(Collectors.toMap(
             x -> x.metricName().name(),
             x -> x.metricValue().toString(),
-            (a, b) -> a));
+            (a, b) -> Double.valueOf(a).compareTo(Double.valueOf(b)) > 0 ? a : b));
 
     assertTrue(allMetrics.containsKey("response-below-latency-slo-total"));
     assertTrue(allMetrics.containsKey("response-above-latency-slo-total"));
     assertTrue(allMetrics.containsKey("response-below-latency-sla-total"));
     assertTrue(allMetrics.containsKey("response-above-latency-sla-total"));
+
+    assertTrue(allMetrics.containsKey("hello.response-below-latency-sla-total"));
+    assertTrue(allMetrics.containsKey("hello.response-above-latency-sla-total"));
+    assertTrue(allMetrics.containsKey("hello.response-below-latency-slo-total"));
+    assertTrue(allMetrics.containsKey("hello.response-above-latency-slo-total"));
 
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-slo-total")).intValue()
         + Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
@@ -562,6 +561,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(1, Double.valueOf(allMetrics.get("response-above-latency-slo-total")).intValue());
     assertEquals(1, Double.valueOf(allMetrics.get("response-below-latency-sla-total")).intValue());
     assertEquals(0, Double.valueOf(allMetrics.get("response-above-latency-sla-total")).intValue());
+
+    assertEquals(0, Double.valueOf(allMetrics.get("hello.response-below-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("hello.response-above-latency-slo-total")).intValue());
+    assertEquals(1, Double.valueOf(allMetrics.get("hello.response-below-latency-sla-total")).intValue());
+    assertEquals(0, Double.valueOf(allMetrics.get("hello.response-above-latency-sla-total")).intValue());
   }
 
   @Test
@@ -669,14 +673,13 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     protected void configurePostResourceHandling(ServletContextHandler context) {
       context.setErrorHandler(new ErrorHandler() {
         @Override
-        public void handle(
-            String target,
-            Request baseRequest,
-            HttpServletRequest request,
-            HttpServletResponse response
-        ) throws IOException, ServletException {
+        public boolean handle(
+            Request request,
+            org.eclipse.jetty.server.Response response,
+            Callback callback
+        ) throws Exception {
           handledException = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
-          super.handle(target, baseRequest, request, response);
+          return super.handle(request, response, callback);
         }
       });
     }

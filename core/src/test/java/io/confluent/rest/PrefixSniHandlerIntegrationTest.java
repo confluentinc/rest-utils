@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
+import static io.confluent.rest.TestUtils.httpClient;
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 import static org.eclipse.jetty.http.HttpStatus.Code.OK;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -34,17 +35,17 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -116,7 +117,7 @@ public class PrefixSniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI
-        .header(HttpHeader.HOST, getInvalidHostHeader())
+        .headers(headers -> headers.put(HttpHeader.HOST, getInvalidHostHeader()))
         .send();
 
     assertEquals(OK.getCode(), response.getStatus());
@@ -140,7 +141,7 @@ public class PrefixSniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is lsrc-123.* but Host is lsrc-456.*
-        .header(HttpHeader.HOST, getAlternateSniHostname())
+        .headers(headers -> headers.put(HttpHeader.HOST, getAlternateSniHostname()))
         .send();
 
     // the request is successful because tenant prefix check is disabled
@@ -166,7 +167,7 @@ public class PrefixSniHandlerIntegrationTest {
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
         // SNI is lsrc-123.* but Host doesn't start with lsrc-123
-        .header(HttpHeader.HOST, getInvalidHostHeader())
+        .headers(headers -> headers.put(HttpHeader.HOST, getInvalidHostHeader()))
         .send();
 
     // 421 because tenant prefix SNI check is enabled and host doesn't start with tenant ID
@@ -194,7 +195,7 @@ public class PrefixSniHandlerIntegrationTest {
     ContentResponse response = httpClient.newRequest("https://localhost:" + port)
         .path("/resource")
         .accept(MediaType.TEXT_PLAIN)
-        .header(HttpHeader.HOST, "localhost")
+        .headers(headers -> headers.put(HttpHeader.HOST, "localhost"))
         .send();
 
     // fallback to the original SNI check if sniServerName does not start with the tenant prefix
@@ -223,7 +224,7 @@ public class PrefixSniHandlerIntegrationTest {
           .path("/resource")
           .accept(MediaType.TEXT_PLAIN)
           // Test each valid host header pattern
-          .header(HttpHeader.HOST, validHost)
+          .headers(headers -> headers.put(HttpHeader.HOST, validHost))
           .send();
 
       // 421 because host header does not match the SNI value
@@ -261,7 +262,7 @@ public class PrefixSniHandlerIntegrationTest {
           .path("/resource")
           .accept(MediaType.TEXT_PLAIN)
           // Test each valid host header pattern
-          .header(HttpHeader.HOST, validHost)
+          .headers(headers -> headers.put(HttpHeader.HOST, validHost))
           .send();
 
       assertEquals(OK.getCode(), response.getStatus(), 
@@ -300,7 +301,7 @@ public class PrefixSniHandlerIntegrationTest {
           SslContextFactory.Client.SniProvider.NON_DOMAIN_SNI_PROVIDER);
       sslContextFactory.setSslContext(sslContext);
 
-      httpClient = new HttpClient(sslContextFactory);
+      httpClient = httpClient(sslContextFactory);
     } else {
       httpClient = new HttpClient();
     }

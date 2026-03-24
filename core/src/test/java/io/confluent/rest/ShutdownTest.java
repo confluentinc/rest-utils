@@ -26,11 +26,11 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.core.Configurable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.jupiter.api.Assertions.*;
@@ -153,7 +153,7 @@ public class ShutdownTest {
           log.info("Marking request finished");
           finished = true;
           return;
-        } catch (javax.ws.rs.ProcessingException e) {
+        } catch (jakarta.ws.rs.ProcessingException e) {
           // ignore and retry
           log.info("Request failed, will retry", e);
         }

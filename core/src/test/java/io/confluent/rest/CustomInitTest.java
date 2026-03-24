@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
-import static javax.ws.rs.core.Response.Status.FORBIDDEN;
-import static javax.ws.rs.core.Response.Status.OK;
+import static jakarta.ws.rs.core.Response.Status.FORBIDDEN;
+import static jakarta.ws.rs.core.Response.Status.OK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -28,23 +28,23 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import javax.websocket.EndpointConfig;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.server.ServerEndpoint;
-import javax.websocket.server.ServerEndpointConfig;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import jakarta.websocket.EndpointConfig;
+import jakarta.websocket.OnOpen;
+import jakarta.websocket.Session;
+import jakarta.websocket.server.ServerEndpoint;
+import jakarta.websocket.server.ServerEndpointConfig;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 
 import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -55,16 +55,19 @@ import org.asynchttpclient.Dsl;
 import org.asynchttpclient.ws.WebSocket;
 import org.asynchttpclient.ws.WebSocketListener;
 import org.asynchttpclient.ws.WebSocketUpgradeHandler;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
 import org.eclipse.jetty.security.AbstractLoginService;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.RolePrincipal;
+import org.eclipse.jetty.security.UserPrincipal;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.security.Constraint;
 import org.eclipse.jetty.util.security.Password;
-import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
+import jakarta.websocket.server.ServerContainer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -198,12 +201,11 @@ public class CustomInitTest {
     @Override
     public void accept(final ServletContextHandler context) {
       final List<String> roles = config.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      final Constraint constraint = new Constraint();
-      constraint.setAuthenticate(true);
-      constraint.setRoles(roles.toArray(new String[0]));
+      final Constraint.Builder constraint = new Constraint.Builder();
+      constraint.roles(roles.toArray(new String[0]));
 
       final ConstraintMapping constraintMapping = new ConstraintMapping();
-      constraintMapping.setConstraint(constraint);
+      constraintMapping.setConstraint(constraint.build());
       constraintMapping.setMethod("*");
       constraintMapping.setPathSpec("/*");
 
@@ -220,14 +222,14 @@ public class CustomInitTest {
 
   private static class TestLoginService extends AbstractLoginService {
     @Override
-    protected String[] loadRoleInfo(final UserPrincipal user) {
+    protected List<RolePrincipal> loadRoleInfo(final UserPrincipal user) {
       if (user.getName().equals("jun")) {
-        return new String[] {"some-role"};
+        return List.of(new RolePrincipal("some-role"));
       }
       if (user.getName().equals("neha")) {
-        return new String[] {"SomeRequiredRole","another"};
+        return List.of(new RolePrincipal("SomeRequiredRole"), new RolePrincipal("another"));
       }
-      return new String[0];
+      return List.of();
     }
 
     @Override
@@ -246,13 +248,13 @@ public class CustomInitTest {
     @Override
     public void accept(final ServletContextHandler context) {
       try {
-        ServerContainer container = context.getBean(ServerContainer.class);
-
-        container.addEndpoint(ServerEndpointConfig.Builder
-            .create(
-                WSEndpoint.class,
-                WSEndpoint.class.getAnnotation(ServerEndpoint.class).value()
-            ).build());
+        JakartaWebSocketServletContainerInitializer.configure(context, (servletContext, serverContainer) -> {
+          serverContainer.addEndpoint(ServerEndpointConfig.Builder
+                  .create(
+                          WSEndpoint.class,
+                          WSEndpoint.class.getAnnotation(ServerEndpoint.class).value()
+                  ).build());
+        });
       } catch (Exception e) {
         fail("Invalid test");
       }
@@ -268,7 +270,7 @@ public class CustomInitTest {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        javax.servlet.http.HttpServletResponse httpResponse = (javax.servlet.http.HttpServletResponse) response;
+        jakarta.servlet.http.HttpServletResponse httpResponse = (jakarta.servlet.http.HttpServletResponse) response;
       httpResponse.addHeader("this-filter", "was-triggered");
 
       chain.doFilter(request, httpResponse);
