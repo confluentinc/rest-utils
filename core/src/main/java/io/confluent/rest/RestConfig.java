@@ -1042,8 +1042,9 @@ public class RestConfig extends AbstractConfig {
 
       // validate header name and header value pair
       String header = configTokens[1];
-      String[] headerTokens = header.trim().split(":");
-      if (headerTokens.length > 2) {
+      // only split on the first colon so header values may contain colons
+      String[] headerTokens = header.trim().split(":", 2);
+      if (headerTokens.length != 2) {
         throw new ConfigException(
                 String.format("Invalid format of header name and header value pair \"%s\". "
                 + "Expected: \"[header name]:[header value]\"", header));
