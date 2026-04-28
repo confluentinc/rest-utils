@@ -16,6 +16,8 @@
 
 package io.confluent.rest.handlers;
 
+import static org.eclipse.jetty.http.HttpStatus.Code.BAD_REQUEST;
+
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Handler;
@@ -27,10 +29,18 @@ import java.util.List;
 
 public class ExpectedSniHandler extends Handler.Wrapper {
   private static final Logger log = LoggerFactory.getLogger(ExpectedSniHandler.class);
+  private static final String INVALID_SNI_MESSAGE = "Invalid SNI";
+
   private final List<String> expectedSniHeaders;
+  private final boolean rejectInvalidSniHeaders;
 
   public ExpectedSniHandler(List<String> expectedSniHeaders) {
+    this(expectedSniHeaders, false);
+  }
+
+  public ExpectedSniHandler(List<String> expectedSniHeaders, boolean rejectInvalidSniHeaders) {
     this.expectedSniHeaders = expectedSniHeaders;
+    this.rejectInvalidSniHeaders = rejectInvalidSniHeaders;
   }
 
   @Override
@@ -43,6 +53,13 @@ public class ExpectedSniHandler extends Handler.Wrapper {
     } else if (!expectedSniHeaders.contains(sniServerName)) {
       log.warn("SNI header {} is not in the configured list of expected headers {}; "
           + "request URI is {}", sniServerName, this.expectedSniHeaders, baseRequest.getHttpURI());
+    } else {
+      return super.handle(baseRequest, response, callback);
+    }
+    if (rejectInvalidSniHeaders) {
+      Response.writeError(baseRequest, response, callback,
+          BAD_REQUEST.getCode(), INVALID_SNI_MESSAGE);
+      return true;
     }
     return super.handle(baseRequest, response, callback);
   }
