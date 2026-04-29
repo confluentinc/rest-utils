@@ -579,6 +579,13 @@ public class RestConfig extends AbstractConfig {
           + "present, log a warning when handling connections, but do not reject the connection.";
   protected static final String EXPECTED_SNI_HEADERS_DEFAULT = "";
 
+  public static final String REJECT_INVALID_SNI_HEADERS_CONFIG = "reject.invalid.sni.headers";
+  protected static final String REJECT_INVALID_SNI_HEADERS_DOC =
+      "If true, reject incoming requests whose SNI header does not match the configured list "
+          + "of expected SNI headers (see " + EXPECTED_SNI_HEADERS_CONFIG + ") with an HTTP 400 "
+          + "response. If false (default), a warning is logged but the request is allowed.";
+  protected static final boolean REJECT_INVALID_SNI_HEADERS_DEFAULT = false;
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -1250,6 +1257,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             EXPECTED_SNI_HEADERS_DOC
         ).define(
+            REJECT_INVALID_SNI_HEADERS_CONFIG,
+            Type.BOOLEAN,
+            REJECT_INVALID_SNI_HEADERS_DEFAULT,
+            Importance.LOW,
+            REJECT_INVALID_SNI_HEADERS_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1693,6 +1706,10 @@ public class RestConfig extends AbstractConfig {
 
   public final List<String> getExpectedSniHeaders() {
     return getList(EXPECTED_SNI_HEADERS_CONFIG);
+  }
+
+  public final boolean getRejectInvalidSniHeaders() {
+    return getBoolean(REJECT_INVALID_SNI_HEADERS_CONFIG);
   }
 
   /**
