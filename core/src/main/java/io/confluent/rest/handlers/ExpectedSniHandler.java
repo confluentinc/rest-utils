@@ -54,7 +54,7 @@ public class ExpectedSniHandler extends Handler.Wrapper {
     if (sniServerName == null) {
       log.warn("No SNI header present on request; request URI is {}", baseRequest.getHttpURI());
       invalid = true;
-    } else if (!expectedSniHeaders.contains(sniServerName)){
+    } else if (!expectedSniHeaders.contains(sniServerName)) {
       log.warn("SNI header {} is not in the configured list of expected headers {}; "
               + "request URI is {}", sniServerName, expectedSniHeaders, baseRequest.getHttpURI());
       invalid = true;
