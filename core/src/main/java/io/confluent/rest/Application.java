@@ -460,7 +460,8 @@ public abstract class Application<T extends RestConfig> {
     } else if (config.getSniCheckEnable()) {
       context.insertHandler(new SniHandler());
     } else if (!expectedSniHeaders.isEmpty()) {
-      context.insertHandler(new ExpectedSniHandler(expectedSniHeaders));
+      context.insertHandler(
+          new ExpectedSniHandler(expectedSniHeaders, config.getRejectInvalidSniHeaders()));
     }
 
     Sequence handlers = new Sequence();
