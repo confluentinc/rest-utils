@@ -6,7 +6,7 @@ SHELL=/bin/bash
 ifndef VERSION
 # Note that this is sensitive to this package's version being the first
 # <version> tag in the pom.xml
-VERSION=$(shell grep version pom.xml | head -n 1 | awk -F'>|<' '{ print $$3 }')
+VERSION=$(shell grep '<version>' pom.xml | head -n 1 | awk -F'>|<' '{ print $$3 }')
 endif
 
 ifndef SECURITY_SUFFIX
@@ -67,7 +67,6 @@ INSTALL_X=install -D -m 755
 install: build
 	rm -rf $(DESTDIR)$(PREFIX)
 	mkdir -p $(DESTDIR)$(PREFIX)
-	mkdir -p $(DESTDIR)$(BINPATH)
 	mkdir -p $(DESTDIR)$(LIBPATH)
 	mkdir -p $(DESTDIR)$(SYSCONFDIR)
 	pushd "package/target/rest-utils-package-$(VERSION)$(SECURITY_SUFFIX)-package" ; \
