@@ -4,9 +4,7 @@
 SHELL=/bin/bash
 
 ifndef VERSION
-# Note that this is sensitive to this package's version being the first
-# <version> tag in the pom.xml
-VERSION=$(shell grep '<version>' pom.xml | head -n 1 | awk -F'>|<' '{ print $$3 }')
+VERSION=$(shell mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 endif
 
 ifndef SECURITY_SUFFIX
