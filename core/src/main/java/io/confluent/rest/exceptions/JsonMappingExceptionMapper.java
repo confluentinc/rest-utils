@@ -21,10 +21,10 @@ import com.google.common.annotations.VisibleForTesting;
 
 import io.confluent.rest.entities.ErrorMessage;
 
-import javax.annotation.Priority;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.annotation.Priority;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 @Provider
 @Priority(1)

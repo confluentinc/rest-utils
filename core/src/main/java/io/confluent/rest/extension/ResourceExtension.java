@@ -21,7 +21,7 @@ import io.confluent.rest.Application;
 import io.confluent.rest.RestConfig;
 import java.io.Closeable;
 import java.io.IOException;
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Configurable;
 
 /**
  * A extension to the rest server.
