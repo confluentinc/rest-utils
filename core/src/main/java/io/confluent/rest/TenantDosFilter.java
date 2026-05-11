@@ -19,8 +19,12 @@ package io.confluent.rest;
 import static io.confluent.rest.TenantUtils.UNKNOWN_TENANT;
 
 import io.confluent.rest.jetty.DoSFilter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +38,16 @@ public class TenantDosFilter extends DoSFilter {
   
   public TenantDosFilter() {
     super();
+  }
+
+  @Override
+  protected void doFilter(HttpServletRequest request, HttpServletResponse response,
+      FilterChain filterChain) throws IOException, ServletException {
+    if (TenantUtils.isHealthCheckRequest(request)) {
+      filterChain.doFilter(request, response);
+      return;
+    }
+    super.doFilter(request, response, filterChain);
   }
 
   @Override

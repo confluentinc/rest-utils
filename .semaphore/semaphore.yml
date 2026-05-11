@@ -106,7 +106,7 @@ after_pipeline:
         commands:
           - checkout
           - artifact pull workflow target
-          - emit-sonarqube-data --run_only_sonar_scan
+          - emit-sonarqube-data --enable_sonarqube_enterprise --run_only_sonar_scan
       - name: Trigger downstream projects
         commands:
           - >-

@@ -17,6 +17,8 @@
 package io.confluent.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -188,7 +190,51 @@ public class TenantUtilsTest {
         "api.confluent.cloud", TenantUtils.UNKNOWN_TENANT);
   }
 
-  private void assertTenantExtraction(HttpServletRequest request, String requestURI, 
+  @Test
+  public void testIsHealthCheckRequest_HealthEndpoint() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getRequestURI()).thenReturn("/kafka/health");
+    assertTrue(TenantUtils.isHealthCheckRequest(request));
+  }
+
+  @Test
+  public void testIsHealthCheckRequest_HealthCheckRestTopicProduce() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getRequestURI()).thenReturn(
+        "/kafka/v3/clusters/lkc-3kv9m/topics/_confluent-healthcheck-rest_12/records");
+    assertTrue(TenantUtils.isHealthCheckRequest(request));
+  }
+
+  @Test
+  public void testIsHealthCheckRequest_RegularEndpoints() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+
+    when(request.getRequestURI()).thenReturn(
+        "/kafka/v3/clusters/lkc-abc123/topics/my-topic/records");
+    assertFalse(TenantUtils.isHealthCheckRequest(request));
+
+    when(request.getRequestURI()).thenReturn("/kafka/v3/clusters/lkc-abc123");
+    assertFalse(TenantUtils.isHealthCheckRequest(request));
+
+    // Topic name containing the healthcheck substring should not match
+    when(request.getRequestURI()).thenReturn(
+        "/kafka/v3/clusters/lkc-abc123/topics/malicioususer_confluent-healthcheck/records");
+    assertFalse(TenantUtils.isHealthCheckRequest(request));
+  }
+
+  @Test
+  public void testIsHealthCheckRequest_NullUri() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getRequestURI()).thenReturn(null);
+    assertFalse(TenantUtils.isHealthCheckRequest(request));
+  }
+
+  @Test
+  public void testIsHealthCheckRequest_NullRequest() {
+    assertFalse(TenantUtils.isHealthCheckRequest(null));
+  }
+
+  private void assertTenantExtraction(HttpServletRequest request, String requestURI,
       String serverName, String expectedTenantId) {
     when(request.getRequestURI()).thenReturn(requestURI);
     when(request.getServerName()).thenReturn(serverName);
