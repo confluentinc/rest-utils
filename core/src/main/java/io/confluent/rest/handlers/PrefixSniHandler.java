@@ -16,19 +16,16 @@
 
 package io.confluent.rest.handlers;
 
-import static io.confluent.rest.handlers.SniHandler.getSniServerName;
 import static org.eclipse.jetty.http.HttpStatus.Code.MISDIRECTED_REQUEST;
 
-import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.server.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PrefixSniHandler extends HandlerWrapper {
+public class PrefixSniHandler extends Handler.Wrapper {
 
   private static final Logger log = LoggerFactory.getLogger(PrefixSniHandler.class);
   private static final String DOT_SEPARATOR = ".";
@@ -40,12 +37,13 @@ public class PrefixSniHandler extends HandlerWrapper {
   }
 
   @Override
-  public void handle(String target, Request baseRequest,
-      HttpServletRequest request,
-      HttpServletResponse response) throws IOException, ServletException {
-    String hostHeader = request.getServerName();
-    String sniServerName = getSniServerName(baseRequest);
+  public boolean handle(Request request,
+      Response response,
+      Callback callback) throws Exception {
+    String hostHeader = Request.getServerName(request);
+    String sniServerName = SniUtils.getSniServerName(request);
     log.debug("host header: {}, full sni: {}", hostHeader, sniServerName);
+
     if (sniServerName != null && sniServerName.startsWith(sniPrefix)) {
       // Extract the prefix from the sniServerName, which is always the first segment before '.'
       // Example: "lsrc-123.us-east-1.aws.private.confluent.cloud" → "lsrc-123"
@@ -56,20 +54,20 @@ public class PrefixSniHandler extends HandlerWrapper {
       // - "lsrc-123-domxyz.us-east-1.aws.glb.confluent.cloud"
       // - "lsrc-123.domxyz.us-east-1.aws.aws.confluent.cloud"
       if (prefix == null
-              || !(hostHeader.startsWith(prefix + DOT_SEPARATOR)
-                  || hostHeader.startsWith(prefix + DASH_SEPARATOR))) {
+          || !(hostHeader.startsWith(prefix + DOT_SEPARATOR)
+          || hostHeader.startsWith(prefix + DASH_SEPARATOR))) {
         log.warn("SNI prefix check failed, host header: {}, sni tenantId: {}, full sni: {}",
             hostHeader, prefix, sniServerName);
-        baseRequest.setHandled(true);
-        response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+        Response.writeError(request, response, callback,
+            MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
       }
     } else if (sniServerName != null && !sniServerName.equals(hostHeader)) {
       // fallback to the original SniHandler logic
       log.warn("SNI check failed, host header: {}, full sni: {}", hostHeader, sniServerName);
-      baseRequest.setHandled(true);
-      response.sendError(MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
+      Response.writeError(request, response, callback,
+          MISDIRECTED_REQUEST.getCode(), MISDIRECTED_REQUEST.getMessage());
     }
-    super.handle(target, baseRequest, request, response);
+    return super.handle(request, response, callback);
   }
 
   private static String getFirstPart(String hostname) {

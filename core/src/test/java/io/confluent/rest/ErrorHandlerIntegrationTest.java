@@ -1,6 +1,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
+import static io.confluent.rest.TestUtils.httpClient;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,31 +11,35 @@ import java.io.IOException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.net.ssl.SSLContext;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.AbstractLoginService;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.Constraint;
+import org.eclipse.jetty.security.RolePrincipal;
+import org.eclipse.jetty.security.UserPrincipal;
 import org.eclipse.jetty.security.ServerAuthException;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
-import org.eclipse.jetty.server.Authentication;
+import org.eclipse.jetty.security.AuthenticationState;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,12 +97,13 @@ public class ErrorHandlerIntegrationTest {
         .path("/test/path")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI (localhost)
-        .header("Host", "abc.com")
+        .headers(headers -> headers.put("Host", "abc.com"))
         .send();
 
     String responseValue = response.getContentAsString();
     assertEquals(400, response.getStatus());
-    assertTrue(responseValue.toLowerCase().contains("host does not match sni"));
+    // Jetty 12's SecureRequestCustomizer uses "Invalid SNI" as the 400 message
+    assertTrue(responseValue.toLowerCase().contains("invalid sni"));
     assertTrue(responseValue.toLowerCase().contains("caused by"));
   }
 
@@ -131,12 +137,13 @@ public class ErrorHandlerIntegrationTest {
         .path("/test/path")
         .accept(MediaType.TEXT_HTML)
         // make Host different from SNI (localhost)
-        .header("Host", "abc.com")
+        .headers(headers -> headers.put("Host", "abc.com"))
         .send();
 
     String responseValue = response.getContentAsString();
     assertEquals(400, response.getStatus());
-    assertTrue(responseValue.toLowerCase().contains("host does not match sni"));
+    // Jetty 12's SecureRequestCustomizer uses "Invalid SNI" as the 400 message
+    assertTrue(responseValue.toLowerCase().contains("invalid sni"));
     assertFalse(responseValue.toLowerCase().contains("caused by"));
   }
 
@@ -161,9 +168,9 @@ public class ErrorHandlerIntegrationTest {
           SslContextFactory.Client.SniProvider.NON_DOMAIN_SNI_PROVIDER);
       sslContextFactory.setSslContext(sslContext);
 
-      httpClient = new HttpClient(sslContextFactory);
+      httpClient = httpClient(sslContextFactory);
     } else {
-      httpClient = new HttpClient();
+      httpClient = httpClient(null);
     }
 
     httpClient.start();
@@ -237,12 +244,11 @@ public class ErrorHandlerIntegrationTest {
     @Override
     protected void configureSecurityHandler(ServletContextHandler context) {
       final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-      Constraint constraint = new Constraint();
-      constraint.setAuthenticate(true);
+      Constraint.Builder constraint = new Constraint.Builder();
       String[] roles = {"**"};
-      constraint.setRoles(roles);
+      constraint.roles(roles);
       ConstraintMapping mapping = new ConstraintMapping();
-      mapping.setConstraint(constraint);
+      mapping.setConstraint(constraint.build());
       mapping.setMethod("*");
       mapping.setPathSpec("/*");
 
@@ -257,8 +263,8 @@ public class ErrorHandlerIntegrationTest {
   private static class DummyAuthenticator extends BasicAuthenticator {
 
     @Override
-    public Authentication validateRequest(ServletRequest req, ServletResponse res,
-        boolean mandatory) throws ServerAuthException {
+    public AuthenticationState validateRequest(Request req, Response res,
+        Callback callback) throws ServerAuthException {
       throw new RuntimeException(DUMMY_EXCEPTION);
     }
   }
@@ -266,8 +272,8 @@ public class ErrorHandlerIntegrationTest {
   private static class DummyLoginService extends AbstractLoginService {
 
     @Override
-    protected String[] loadRoleInfo(final UserPrincipal user) {
-      return new String[0];
+    protected List<RolePrincipal> loadRoleInfo(final UserPrincipal user) {
+      return List.of();
     }
 
     @Override

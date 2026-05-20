@@ -25,7 +25,7 @@ public final class SslConfig {
   public static final String TLS_CONSCRYPT = "Conscrypt";
 
   private static final SslConfig DEFAULT_CONFIG =
-      new SslConfig(new RestConfig(RestConfig.baseConfigDef()));
+      new SslConfig(new RestConfig(RestConfig.baseConfigDef(), false));
 
   private final RestConfig restConfig;
 
