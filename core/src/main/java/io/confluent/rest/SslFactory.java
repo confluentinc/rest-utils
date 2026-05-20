@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.confluent.rest.handlers.CapturingSniMatcher;
 import io.spiffe.provider.SpiffeSslContextFactory;
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
@@ -27,9 +28,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -114,7 +118,15 @@ public final class SslFactory {
   public static SslContextFactory createSslContextFactory(
       SslConfig sslConfig,
       X509Source x509Source) {
-    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server() {
+      @Override
+      public void customize(SSLEngine sslEngine) {
+        super.customize(sslEngine);
+        SSLParameters params = sslEngine.getSSLParameters();
+        params.setSNIMatchers(Collections.singletonList(new CapturingSniMatcher()));
+        sslEngine.setSSLParameters(params);
+      }
+    };
     
     /*
      * When sslConfig.getIsSpireEnabled() == true, the application is expected to use SPIFFE/SPIRE 
