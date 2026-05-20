@@ -27,13 +27,17 @@ import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.StandardConstants;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -123,8 +127,18 @@ public final class SslFactory {
       public void customize(SSLEngine sslEngine) {
         super.customize(sslEngine);
         SSLParameters params = sslEngine.getSSLParameters();
-        params.setSNIMatchers(Collections.singletonList(new CapturingSniMatcher()));
-        sslEngine.setSSLParameters(params);
+        Collection<SNIMatcher> existing = params.getSNIMatchers();
+        boolean hasHostNameMatcher = existing != null && existing.stream()
+            .anyMatch(m -> m.getType() == StandardConstants.SNI_HOST_NAME);
+        if (!hasHostNameMatcher) {
+          List<SNIMatcher> matchers = new ArrayList<>();
+          if (existing != null) {
+            matchers.addAll(existing);
+          }
+          matchers.add(new CapturingSniMatcher());
+          params.setSNIMatchers(matchers);
+          sslEngine.setSSLParameters(params);
+        }
       }
     };
     
