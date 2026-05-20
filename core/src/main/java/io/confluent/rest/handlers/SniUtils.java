@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 - 2024 Confluent Inc.
+ * Copyright 2014 - 2026 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,29 +20,23 @@ import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection;
 import org.eclipse.jetty.server.Request;
 
-import javax.net.ssl.ExtendedSSLSession;
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SNIServerName;
-import javax.net.ssl.SSLSession;
-import java.util.List;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SSLEngine;
+import java.util.Collection;
 
 public class SniUtils {
   public static String getSniServerName(Request baseRequest) {
     EndPoint endpoint = baseRequest.getConnectionMetaData().getConnection().getEndPoint();
     if (endpoint instanceof SslConnection.SslEndPoint) {
-      SSLSession session = ((SslConnection.SslEndPoint) endpoint)
+      SSLEngine engine = ((SslConnection.SslEndPoint) endpoint)
           .getSslConnection()
-          .getSSLEngine()
-          .getSession();
-      if (session instanceof ExtendedSSLSession) {
-        List<SNIServerName> servers = ((ExtendedSSLSession) session).getRequestedServerNames();
-        if (servers != null) {
-          return servers.stream()
-              .findAny()
-              .filter(SNIHostName.class::isInstance)
-              .map(SNIHostName.class::cast)
-              .map(SNIHostName::getAsciiName)
-              .orElse(null);
+          .getSSLEngine();
+      Collection<SNIMatcher> matchers = engine.getSSLParameters().getSNIMatchers();
+      if (matchers != null) {
+        for (SNIMatcher matcher : matchers) {
+          if (matcher instanceof CapturingSniMatcher) {
+            return ((CapturingSniMatcher) matcher).getCapturedServerName();
+          }
         }
       }
     }
