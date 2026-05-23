@@ -18,6 +18,7 @@ package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.spiffe.provider.SpiffeSslContextFactory;
+import io.spiffe.provider.SpiffeTrustManagerFactory;
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
@@ -27,9 +28,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyStore;
 import java.security.Security;
+import java.security.cert.CRL;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -114,22 +119,7 @@ public final class SslFactory {
   public static SslContextFactory createSslContextFactory(
       SslConfig sslConfig,
       X509Source x509Source) {
-    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
-    
-    /*
-     * When sslConfig.getIsSpireEnabled() == true, the application is expected to use SPIFFE/SPIRE 
-     * for mTLS, which means it will get its certificates and keys from the SPIFFE Workload API 
-     * (via X509Source), not from a traditional Java keystore.
-     * 
-     * X509Source establishes a connection to the Workload API and sets up a watcher to monitor for 
-     * updates to the X.509 SVIDs and bundles. This watcher listens for changes and automatically 
-     * updates the in-memory certificates when new ones are issued, ensuring that expired 
-     * certificates are replaced seamlessly.
-     * 
-     */
-    if (sslConfig.getIsSpireEnabled()) {
-      configureSpiffeSslContext(sslContextFactory, x509Source);
-    }
+    SslContextFactory.Server sslContextFactory = createServerFactory(sslConfig, x509Source);
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
       configureKeyStore(sslContextFactory, sslConfig);
@@ -196,6 +186,43 @@ public final class SslFactory {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /*
+   * Builds the SslContextFactory.Server for the listener, dispatching on SPIRE config:
+   *   - Plain (no SPIRE): a vanilla SslContextFactory.Server.
+   *   - SPIRE full mode: vanilla factory + pre-built SPIFFE SSLContext installed via
+   *     setSslContext(...). SPIRE owns both KeyManager and TrustManager.
+   *   - SPIRE trust-only mode: subclassed factory that overrides getTrustManagers(...) to
+   *     return a SpiffeTrustManager. KeyManager continues to come from the keystore via
+   *     Jetty's lazy load() path.
+   */
+  private static SslContextFactory.Server createServerFactory(
+      SslConfig sslConfig, X509Source x509Source) {
+    if (!sslConfig.getIsSpireEnabled()) {
+      return new SslContextFactory.Server();
+    }
+    if (sslConfig.getIsSpireTrustOnlyEnabled()) {
+      return createSpireTrustOnlyServer(x509Source);
+    }
+    SslContextFactory.Server factory = new SslContextFactory.Server();
+    configureSpiffeSslContext(factory, x509Source);
+    return factory;
+  }
+
+  private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
+    if (x509Source == null) {
+      throw new RuntimeException(
+          "X509Source must be provided when SPIRE trust-only SSL is enabled");
+    }
+    return new SslContextFactory.Server() {
+      @Override
+      protected TrustManager[] getTrustManagers(KeyStore trustStore,
+                                                Collection<? extends CRL> crls) throws Exception {
+        return new SpiffeTrustManagerFactory()
+            .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+      }
+    };
   }
 
   private static void configureClientAuth(

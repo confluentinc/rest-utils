@@ -16,6 +16,8 @@
 
 package io.confluent.rest;
 
+import io.spiffe.provider.SpiffeTrustManager;
+import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.test.TestUtils;
@@ -23,12 +25,17 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
+import javax.net.ssl.TrustManager;
 import java.io.FileWriter;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.security.cert.CRL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -193,6 +200,49 @@ public class SslFactoryTest {
     rawConfig.put(RestConfig.SSL_TRUSTSTORE_TYPE_CONFIG, PEM_TYPE);
     setConfigs(rawConfig);
     Assertions.assertThrows(InvalidConfigurationException.class, () -> SslFactory.createSslContextFactory(new SslConfig(config)));
+  }
+
+  @Test
+  public void testSpireTrustOnlyUsesKeystoreKeyManagerAndSpireTrustManager() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
+    rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
+    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "true");
+    setConfigs(rawConfig);
+
+    X509Source mockSource = Mockito.mock(X509Source.class);
+    SslContextFactory factory =
+        SslFactory.createSslContextFactory(new SslConfig(config), mockSource);
+
+    Assertions.assertNotNull(factory.getKeyStore());
+    Assertions.assertEquals(getKeyStoreType(), factory.getKeyStore().getType());
+
+    Assertions.assertNotEquals(SslContextFactory.Server.class, factory.getClass(),
+        "Trust-only mode should return an SslContextFactory.Server subclass");
+
+    Method getTrustManagers = SslContextFactory.class.getDeclaredMethod(
+        "getTrustManagers", KeyStore.class, Collection.class);
+    getTrustManagers.setAccessible(true);
+    TrustManager[] tms = (TrustManager[]) getTrustManagers.invoke(factory, null, null);
+    Assertions.assertNotNull(tms);
+    Assertions.assertTrue(tms.length > 0, "Expected at least one TrustManager");
+    Assertions.assertTrue(tms[0] instanceof SpiffeTrustManager,
+        "Expected SpiffeTrustManager, got: " + tms[0].getClass().getName());
+  }
+
+  @Test
+  public void testSpireTrustOnlyIgnoredWhenSpireDisabled() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
+    rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "false");
+    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "true");
+    setConfigs(rawConfig);
+
+    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(config));
+    Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
+        "Trust-only should be a no-op when SPIRE is disabled");
   }
 
   private String asString(String... pems) {
