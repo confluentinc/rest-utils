@@ -119,7 +119,26 @@ public final class SslFactory {
   public static SslContextFactory createSslContextFactory(
       SslConfig sslConfig,
       X509Source x509Source) {
-    SslContextFactory.Server sslContextFactory = createServerFactory(sslConfig, x509Source);
+    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    
+    /*
+     * When sslConfig.getIsSpireEnabled() == true, the application is expected to use SPIFFE/SPIRE 
+     * for mTLS, which means it will get its certificates and keys from the SPIFFE Workload API 
+     * (via X509Source), not from a traditional Java keystore.
+     * 
+     * X509Source establishes a connection to the Workload API and sets up a watcher to monitor for 
+     * updates to the X.509 SVIDs and bundles. This watcher listens for changes and automatically 
+     * updates the in-memory certificates when new ones are issued, ensuring that expired 
+     * certificates are replaced seamlessly.
+     * 
+     */
+    if (sslConfig.getIsSpireEnabled()) {
+      if (sslConfig.getIsSpireTrustOnlyEnabled()) {
+        sslContextFactory = createSpireTrustOnlyServer(x509Source);
+      } else {
+        configureSpiffeSslContext(sslContextFactory, x509Source);
+      }
+    }
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
       configureKeyStore(sslContextFactory, sslConfig);
@@ -188,28 +207,9 @@ public final class SslFactory {
     }
   }
 
-  /*
-   * Builds the SslContextFactory.Server for the listener, dispatching on SPIRE config:
-   *   - Plain (no SPIRE): a vanilla SslContextFactory.Server.
-   *   - SPIRE full mode: vanilla factory + pre-built SPIFFE SSLContext installed via
-   *     setSslContext(...). SPIRE owns both KeyManager and TrustManager.
-   *   - SPIRE trust-only mode: subclassed factory that overrides getTrustManagers(...) to
-   *     return a SpiffeTrustManager. KeyManager continues to come from the keystore via
-   *     Jetty's lazy load() path.
-   */
-  private static SslContextFactory.Server createServerFactory(
-      SslConfig sslConfig, X509Source x509Source) {
-    if (!sslConfig.getIsSpireEnabled()) {
-      return new SslContextFactory.Server();
-    }
-    if (sslConfig.getIsSpireTrustOnlyEnabled()) {
-      return createSpireTrustOnlyServer(x509Source);
-    }
-    SslContextFactory.Server factory = new SslContextFactory.Server();
-    configureSpiffeSslContext(factory, x509Source);
-    return factory;
-  }
-
+  // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
+  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
+  // keystore via Jetty's normal load() path.
   private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
     if (x509Source == null) {
       throw new RuntimeException(
