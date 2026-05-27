@@ -244,6 +244,32 @@ public class SslFactoryTest {
         "Trust-only should be a no-op when SPIRE is disabled");
   }
 
+  @Test
+  public void testSpireTrustOnlyIgnoredWhenSpireTrustOnlyNotEnabled() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
+    rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
+    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "false");
+    setConfigs(rawConfig);
+
+    X509Source mockSource = Mockito.mock(X509Source.class);
+    SslContextFactory factory =
+        SslFactory.createSslContextFactory(new SslConfig(config), mockSource);
+
+    Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
+        "When trust-only is disabled, factory should be a base SslContextFactory.Server, "
+            + "not the trust-only subclass");
+
+    Method getTrustManagers = SslContextFactory.class.getDeclaredMethod(
+        "getTrustManagers", KeyStore.class, Collection.class);
+    getTrustManagers.setAccessible(true);
+    TrustManager[] tms = (TrustManager[]) getTrustManagers.invoke(factory, null, null);
+    Assertions.assertTrue(tms == null || tms.length == 0
+            || !(tms[0] instanceof SpiffeTrustManager),
+        "Without trust-only, getTrustManagers should not return a SpiffeTrustManager");
+  }
+
   private String asString(String... pems) {
     StringBuilder builder = new StringBuilder();
     for (String pem : pems) {
