@@ -55,6 +55,7 @@
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-alpn-java-client</artifactId>
+            <version>${jetty.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -88,12 +89,6 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-fips</artifactId>
             <version>${bouncycastle.bcpkix-fips.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-fips</artifactId>
-            <version>1.0.7</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
