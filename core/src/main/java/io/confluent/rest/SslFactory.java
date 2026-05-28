@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.confluent.rest.handlers.CapturingSniMatcher;
 import io.spiffe.provider.SpiffeSslContextFactory;
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
@@ -26,10 +27,17 @@ import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.StandardConstants;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -114,7 +122,25 @@ public final class SslFactory {
   public static SslContextFactory createSslContextFactory(
       SslConfig sslConfig,
       X509Source x509Source) {
-    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    SslContextFactory.Server sslContextFactory = new SslContextFactory.Server() {
+      @Override
+      public void customize(SSLEngine sslEngine) {
+        super.customize(sslEngine);
+        SSLParameters params = sslEngine.getSSLParameters();
+        Collection<SNIMatcher> existing = params.getSNIMatchers();
+        boolean hasHostNameMatcher = existing != null && existing.stream()
+            .anyMatch(m -> m.getType() == StandardConstants.SNI_HOST_NAME);
+        if (!hasHostNameMatcher) {
+          List<SNIMatcher> matchers = new ArrayList<>();
+          if (existing != null) {
+            matchers.addAll(existing);
+          }
+          matchers.add(new CapturingSniMatcher());
+          params.setSNIMatchers(matchers);
+          sslEngine.setSSLParameters(params);
+        }
+      }
+    };
     
     /*
      * When sslConfig.getIsSpireEnabled() == true, the application is expected to use SPIFFE/SPIRE 
