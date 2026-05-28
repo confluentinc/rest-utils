@@ -59,6 +59,7 @@
         <io.confluent.rest-utils.version>8.0.2</io.confluent.rest-utils.version>
         <conscrypt.version>2.5.2</conscrypt.version>
         <spiffe.version>0.8.13</spiffe.version>
+        <log4j2.version>2.25.4</log4j2.version>
     </properties>
 
     <repositories>
