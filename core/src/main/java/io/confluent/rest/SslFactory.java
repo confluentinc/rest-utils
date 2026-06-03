@@ -138,16 +138,12 @@ public final class SslFactory {
         if (sslConfig.getKeyStorePath().isEmpty()) {
           throw new ConfigException(
               RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
-                  + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled; "
-                  + "SPIRE supplies the TrustManager but the KeyManager is still "
-                  + "loaded from the configured keystore.");
+                  + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled.");
         }
-        log.info("SPIRE trust-only SSL mode enabled: KeyManager from configured "
-            + "keystore, TrustManager from SPIRE bundle");
+        log.info("SPIRE trust-only SSL mode enabled");
         sslContextFactory = createSpireTrustOnlyServer(x509Source);
       } else {
-        log.info("SPIRE SSL mode enabled: KeyManager and TrustManager sourced from SPIRE; "
-            + "configured ssl.keystore.* and ssl.truststore.* settings are ignored");
+        log.info("SPIRE SSL mode enabled");
         configureSpiffeSslContext(sslContextFactory, x509Source);
       }
     }
