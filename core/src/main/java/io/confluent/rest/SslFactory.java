@@ -18,7 +18,9 @@ package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.spiffe.provider.SpiffeSslContextFactory;
+import io.spiffe.provider.SpiffeTrustManagerFactory;
 import io.spiffe.workloadapi.X509Source;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -27,9 +29,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyStore;
 import java.security.Security;
+import java.security.cert.CRL;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -128,7 +134,22 @@ public final class SslFactory {
      * 
      */
     if (sslConfig.getIsSpireEnabled()) {
-      configureSpiffeSslContext(sslContextFactory, x509Source);
+      if (sslConfig.getIsSpireTrustOnlyEnabled()) {
+        if (sslConfig.getKeyStorePath().isEmpty()) {
+          throw new ConfigException(
+              RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
+                  + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled; "
+                  + "SPIRE supplies the TrustManager but the KeyManager is still "
+                  + "loaded from the configured keystore.");
+        }
+        log.info("SPIRE trust-only SSL mode enabled: KeyManager from configured "
+            + "keystore, TrustManager from SPIRE bundle");
+        sslContextFactory = createSpireTrustOnlyServer(x509Source);
+      } else {
+        log.info("SPIRE SSL mode enabled: KeyManager and TrustManager sourced from SPIRE; "
+            + "configured ssl.keystore.* and ssl.truststore.* settings are ignored");
+        configureSpiffeSslContext(sslContextFactory, x509Source);
+      }
     }
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
@@ -196,6 +217,24 @@ public final class SslFactory {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
+  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
+  // keystore via Jetty's normal load() path.
+  private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
+    if (x509Source == null) {
+      throw new RuntimeException(
+          "X509Source must be provided when SPIRE trust-only SSL is enabled");
+    }
+    return new SslContextFactory.Server() {
+      @Override
+      protected TrustManager[] getTrustManagers(KeyStore trustStore,
+                                                Collection<? extends CRL> crls) throws Exception {
+        return new SpiffeTrustManagerFactory()
+            .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+      }
+    };
   }
 
   private static void configureClientAuth(
