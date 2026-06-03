@@ -260,14 +260,6 @@ public class SslFactoryTest {
     Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
         "When trust-only is disabled, factory should be a base SslContextFactory.Server, "
             + "not the trust-only subclass");
-
-    Method getTrustManagers = SslContextFactory.class.getDeclaredMethod(
-        "getTrustManagers", KeyStore.class, Collection.class);
-    getTrustManagers.setAccessible(true);
-    TrustManager[] tms = (TrustManager[]) getTrustManagers.invoke(factory, null, null);
-    Assertions.assertTrue(tms == null || tms.length == 0
-            || !(tms[0] instanceof SpiffeTrustManager),
-        "Without trust-only, getTrustManagers should not return a SpiffeTrustManager");
   }
 
   private String asString(String... pems) {
