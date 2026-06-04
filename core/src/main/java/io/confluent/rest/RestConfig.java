@@ -207,10 +207,22 @@ public class RestConfig extends AbstractConfig {
   protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
   public static final String SSL_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
+  public static final String SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG =
+      "ssl.spire.trust.only.enabled";
   public static final String SSL_SPIRE_ENABLED_DOC =
-      "Whether to enable SPIRE SSL; once enabled, all keystore and truststore settings "
-      + "are ignored because SPIRE will handle the certificate and key management";
+      "Whether to enable SPIRE SSL. By default, SPIRE provides both the KeyManager "
+      + "(cert/key) and the TrustManager (peer-verification bundle), so all configured "
+      + "ssl.keystore.* and ssl.truststore.* settings are ignored. To keep using the "
+      + "configured keystore for the server cert/key while sourcing only the TrustManager "
+      + "from SPIRE, also enable " + SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + ".";
   protected static final  boolean SSL_SPIRE_ENABLED_DEFAULT = false;
+  public static final String SSL_SPIRE_TRUST_ONLY_ENABLED_DOC =
+      "Sub-case of " + SSL_SPIRE_ENABLED_CONFIG + ". When true, SPIRE is used only to "
+      + "source the TrustManager (peer-verification bundle); the server's KeyManager "
+      + "(cert/key) is still loaded from the configured keystore. The configured "
+      + "ssl.keystore.* settings are honored while ssl.truststore.* settings are "
+      + "ignored. Has no effect unless " + SSL_SPIRE_ENABLED_CONFIG + " is also true.";
+  protected static final boolean SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT = false;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -863,6 +875,12 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_ENABLED_DEFAULT,
             Importance.LOW,
             SSL_SPIRE_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_TRUST_ONLY_ENABLED_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
