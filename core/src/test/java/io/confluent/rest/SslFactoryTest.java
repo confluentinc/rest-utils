@@ -25,6 +25,8 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 
 import javax.net.ssl.TrustManager;
@@ -218,7 +220,7 @@ public class SslFactoryTest {
     Assertions.assertEquals(getKeyStoreType(), factory.getKeyStore().getType());
 
     Assertions.assertNotEquals(SslContextFactory.Server.class, factory.getClass(),
-        "Trust-only mode should return an SslContextFactory.Server subclass");
+        "Trust-only mode should return an anonymous SslContextFactory.Server subclass");
 
     Method getTrustManagers = SslContextFactory.class.getDeclaredMethod(
         "getTrustManagers", KeyStore.class, Collection.class);
@@ -230,27 +232,23 @@ public class SslFactoryTest {
         "Expected SpiffeTrustManager, got: " + tms[0].getClass().getName());
   }
 
-  @Test
-  public void testSpireTrustOnlyIgnoredWhenSpireDisabled() throws Exception {
+  // The trust-only subclass must only be installed when BOTH ssl.spire.enabled and
+  // ssl.spire.trust.only.enabled are true. Either flag being false keeps the base
+  // SslContextFactory.Server: spire=false skips the SPIRE block entirely, while
+  // spire=true/trust-only=false takes the full-SPIRE path (mutates the base instance).
+  @ParameterizedTest(name = "spire.enabled={0}, trust.only.enabled={1}")
+  @CsvSource({
+      "false, true",
+      "false,  false",
+      "true,  false"
+  })
+  public void testTrustOnlySubclassNotUsedWhenTrustOnlyInactive(
+      boolean spireEnabled, boolean trustOnlyEnabled) throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "false");
-    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "true");
-    setConfigs(rawConfig);
-
-    SslContextFactory factory = SslFactory.createSslContextFactory(new SslConfig(config));
-    Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
-        "Trust-only should be a no-op when SPIRE is disabled");
-  }
-
-  @Test
-  public void testSpireTrustOnlyIgnoredWhenSpireTrustOnlyNotEnabled() throws Exception {
-    Map<String, String> rawConfig = new HashMap<>();
-    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
-    rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
-    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
-    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "false");
+    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, String.valueOf(spireEnabled));
+    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, String.valueOf(trustOnlyEnabled));
     setConfigs(rawConfig);
 
     X509Source mockSource = Mockito.mock(X509Source.class);
@@ -258,8 +256,8 @@ public class SslFactoryTest {
         SslFactory.createSslContextFactory(new SslConfig(config), mockSource);
 
     Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
-        "When trust-only is disabled, factory should be a base SslContextFactory.Server, "
-            + "not the trust-only subclass");
+        "Trust-only subclass should only be used when both ssl.spire.enabled and "
+            + "ssl.spire.trust.only.enabled are true");
   }
 
   private String asString(String... pems) {
