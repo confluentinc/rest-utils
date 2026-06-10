@@ -522,4 +522,10 @@ public class RestConfigTest {
     assertTrue(namedListenerConfig.getSniCheckEnable());
     assertEquals(doLog, namedListenerConfig.getDoLog());
   }
+
+  @Test
+  public void testRequestTimeoutMsDisabledByDefault() {
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef());
+    assertEquals(-1L, config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG));
+  }
 }
