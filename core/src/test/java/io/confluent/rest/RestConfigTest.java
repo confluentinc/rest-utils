@@ -440,4 +440,10 @@ public class RestConfigTest {
     props.put(PROPERTY_KEY, "FaLse");
     assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
   }
+
+  @Test
+  public void testRequestTimeoutMsDisabledByDefault() {
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef());
+    assertEquals(-1L, config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG));
+  }
 }
