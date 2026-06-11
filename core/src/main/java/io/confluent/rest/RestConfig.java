@@ -379,6 +379,13 @@ public class RestConfig extends AbstractConfig {
           "The number of milliseconds to hold an idle session open for.";
   public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
+  public static final String REQUEST_TIMEOUT_MS_CONFIG = "request.timeout.ms";
+  public static final String REQUEST_TIMEOUT_MS_DOC =
+          "Maximum time in milliseconds a single HTTP request is allowed to take before the "
+          + "server aborts it and returns HTTP 504 Gateway Timeout. Guards against requests that "
+          + "hold a worker thread indefinitely. A value <= 0 (the default) disables the timeout.";
+  public static final long REQUEST_TIMEOUT_MS_DEFAULT = -1;
+
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =
           "The minimum number of threads will be started for HTTP Servlet server.";
@@ -1030,6 +1037,12 @@ public class RestConfig extends AbstractConfig {
             IDLE_TIMEOUT_MS_DEFAULT,
             Importance.LOW,
             IDLE_TIMEOUT_MS_DOC
+        ).define(
+            REQUEST_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            REQUEST_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            REQUEST_TIMEOUT_MS_DOC
         ).define(
             THREAD_POOL_MIN_CONFIG,
             Type.INT,
