@@ -383,8 +383,9 @@ public class RestConfig extends AbstractConfig {
   public static final String REQUEST_TIMEOUT_MS_DOC =
           "Maximum time in milliseconds a single HTTP request is allowed to take before the "
           + "server aborts it and returns HTTP 504 Gateway Timeout. Guards against requests that "
-          + "hold a worker thread indefinitely. A value <= 0 (the default) disables the timeout.";
-  public static final long REQUEST_TIMEOUT_MS_DEFAULT = -1;
+          + "hold a worker thread indefinitely. A value of 0 (the default) or less disables "
+          + "the timeout.";
+  public static final long REQUEST_TIMEOUT_MS_DEFAULT = 0;
 
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =

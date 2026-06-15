@@ -81,6 +81,21 @@ public class RequestTimeoutIntegrationTest {
   }
 
   @Test
+  public void testIoBoundRequestTimesOutWith504() throws Exception {
+    startServer(500);
+
+    long start = System.currentTimeMillis();
+    int status = makeGetRequest("/slow-io");
+    long elapsed = System.currentTimeMillis() - start;
+
+    assertEquals(504, status,
+        "a long I/O-bound operation that blocks the worker thread should be aborted with a 504");
+    // The handler sleeps far longer than the timeout; the 504 must come back from the scheduler
+    // thread while the worker thread is still blocked in the I/O call.
+    assertTrue(elapsed < 5_000, "504 should be returned promptly, took " + elapsed + " ms");
+  }
+
+  @Test
   public void testFastRequestIsUnaffected() throws Exception {
     startServer(10_000);
     assertEquals(200, makeGetRequest("/fast"), "fast request should succeed normally");
@@ -127,6 +142,7 @@ public class RequestTimeoutIntegrationTest {
   @Produces(MediaType.TEXT_PLAIN)
   public static class SlowResource {
     private static volatile CountDownLatch latch = new CountDownLatch(1);
+    private static volatile Thread ioThread;
 
     static void reset() {
       latch = new CountDownLatch(1);
@@ -134,6 +150,11 @@ public class RequestTimeoutIntegrationTest {
 
     static void release() {
       latch.countDown();
+      // Unblock the I/O-bound handler thread (if any) so teardown is prompt.
+      Thread t = ioThread;
+      if (t != null) {
+        t.interrupt();
+      }
     }
 
     @GET
@@ -143,6 +164,16 @@ public class RequestTimeoutIntegrationTest {
       // thread never lingers).
       latch.await(60, TimeUnit.SECONDS);
       return "slow";
+    }
+
+    @GET
+    @Path("/slow-io")
+    public String slowIo() throws InterruptedException {
+      // Simulate a long, synchronous I/O-bound operation (e.g. a slow downstream call) that
+      // occupies the worker thread well beyond the configured timeout.
+      ioThread = Thread.currentThread();
+      Thread.sleep(60_000);
+      return "slow-io";
     }
 
     @GET

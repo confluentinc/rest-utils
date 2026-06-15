@@ -58,11 +58,14 @@ public class RequestTimeoutHandler extends Handler.Wrapper {
     // Shared between the timeout task and the wrapped callback so that whichever fires first
     // wins and the request is completed exactly once.
     final AtomicBoolean done = new AtomicBoolean(false);
+    final long startNanos = System.nanoTime();
 
     final Scheduler.Task timeoutTask = request.getComponents().getScheduler().schedule(() -> {
       if (done.compareAndSet(false, true)) {
-        log.warn("Request to {} exceeded the configured timeout of {} ms; returning 504",
-            request.getHttpURI(), timeoutMs);
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        log.warn("Request to {} exceeded the configured timeout of {} ms (elapsed {} ms); "
+                + "returning {}",
+            request.getHttpURI(), timeoutMs, elapsedMs, HttpStatus.GATEWAY_TIMEOUT_504);
         Response.writeError(request, response, callback,
             HttpStatus.GATEWAY_TIMEOUT_504, "Request timed out");
       }

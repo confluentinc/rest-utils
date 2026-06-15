@@ -444,6 +444,6 @@ public class RestConfigTest {
   @Test
   public void testRequestTimeoutMsDisabledByDefault() {
     RestConfig config = new RestConfig(RestConfig.baseConfigDef());
-    assertEquals(-1L, config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG));
+    assertEquals(0L, config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG));
   }
 }
