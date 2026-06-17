@@ -54,9 +54,16 @@ public class RequestTimeoutIntegrationTest {
   }
 
   private void startServer(long requestTimeoutMs) throws Exception {
+    startServer(requestTimeoutMs, false);
+  }
+
+  private void startServer(long requestTimeoutMs, boolean interruptOnTimeout) throws Exception {
+    SlowResource.reset();
     Properties props = new Properties();
     props.setProperty(RestConfig.LISTENERS_CONFIG, "http://0.0.0.0:0");
     props.setProperty(RestConfig.REQUEST_TIMEOUT_MS_CONFIG, String.valueOf(requestTimeoutMs));
+    props.setProperty(RestConfig.REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG,
+        String.valueOf(interruptOnTimeout));
 
     TestRestConfig config = new TestRestConfig(props);
     server = new ApplicationServer<>(config);
@@ -66,7 +73,6 @@ public class RequestTimeoutIntegrationTest {
 
   @Test
   public void testSlowRequestTimesOutWith504() throws Exception {
-    SlowResource.reset();
     startServer(500);
 
     long start = System.currentTimeMillis();
@@ -93,6 +99,30 @@ public class RequestTimeoutIntegrationTest {
     // The handler sleeps far longer than the timeout; the 504 must come back from the scheduler
     // thread while the worker thread is still blocked in the I/O call.
     assertTrue(elapsed < 5_000, "504 should be returned promptly, took " + elapsed + " ms");
+  }
+
+  @Test
+  public void testInterruptOnTimeoutReleasesInterruptibleThread() throws Exception {
+    startServer(500, true); // interrupt-on-timeout enabled
+
+    long start = System.currentTimeMillis();
+    int status = makeGetRequest("/slow-io");
+
+    assertEquals(504, status, "request should be aborted with a 504");
+
+    // With interrupt enabled, the interruptible sleep should be released shortly after the
+    // timeout instead of running its full 60s.
+    long deadline = System.currentTimeMillis() + 5_000;
+    while (SlowResource.ioEndMs == 0 && System.currentTimeMillis() < deadline) {
+      Thread.sleep(20);
+    }
+    long handlerDuration = SlowResource.ioEndMs - start;
+
+    assertTrue(SlowResource.ioInterrupted,
+        "worker thread should have been interrupted by the timeout");
+    assertTrue(SlowResource.ioEndMs > 0 && handlerDuration < 5_000,
+        "worker thread should be released shortly after the timeout (not run the full 60s); "
+            + "handler ran ~" + handlerDuration + " ms");
   }
 
   @Test
@@ -143,9 +173,14 @@ public class RequestTimeoutIntegrationTest {
   public static class SlowResource {
     private static volatile CountDownLatch latch = new CountDownLatch(1);
     private static volatile Thread ioThread;
+    static volatile boolean ioInterrupted;
+    static volatile long ioEndMs;
 
     static void reset() {
       latch = new CountDownLatch(1);
+      ioThread = null;
+      ioInterrupted = false;
+      ioEndMs = 0;
     }
 
     static void release() {
@@ -168,11 +203,18 @@ public class RequestTimeoutIntegrationTest {
 
     @GET
     @Path("/slow-io")
-    public String slowIo() throws InterruptedException {
-      // Simulate a long, synchronous I/O-bound operation (e.g. a slow downstream call) that
-      // occupies the worker thread well beyond the configured timeout.
+    public String slowIo() {
+      // Simulate a long, synchronous I/O-bound (interruptible) operation, e.g. a slow downstream
+      // call, that occupies the worker thread well beyond the configured timeout.
       ioThread = Thread.currentThread();
-      Thread.sleep(60_000);
+      try {
+        Thread.sleep(60_000);
+      } catch (InterruptedException e) {
+        ioInterrupted = true;
+        Thread.currentThread().interrupt();
+      } finally {
+        ioEndMs = System.currentTimeMillis();
+      }
       return "slow-io";
     }
 

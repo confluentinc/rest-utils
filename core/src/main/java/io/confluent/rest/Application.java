@@ -457,7 +457,9 @@ public abstract class Application<T extends RestConfig> {
     // the outermost wrapper and measures total in-context processing time.
     long requestTimeoutMs = config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG);
     if (requestTimeoutMs > 0) {
-      context.insertHandler(new RequestTimeoutHandler(requestTimeoutMs));
+      boolean interruptOnTimeout =
+          config.getBoolean(RestConfig.REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG);
+      context.insertHandler(new RequestTimeoutHandler(requestTimeoutMs, interruptOnTimeout));
     }
 
     Sequence handlers = new Sequence();

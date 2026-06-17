@@ -39,18 +39,26 @@ import org.slf4j.LoggerFactory;
  * {@code AsyncContext.setTimeout} would never start counting. Scheduling out-of-band lets us
  * return a response to the client even while the worker thread remains blocked.
  *
- * <p>Note: this frees the client and the response/connection, but cannot force-kill the stuck
- * worker thread (Java has no safe way to do so). The thread is reclaimed only once its downstream
- * call returns or its own socket/idle timeout trips.
+ * <p>Note: by default this frees the client and the response/connection, but cannot force-kill
+ * the stuck worker thread (Java has no safe way to do so). The thread is reclaimed only once its
+ * downstream call returns or its own socket/idle timeout trips.
+ *
+ * <p>When {@code interruptOnTimeout} is enabled, the handler additionally interrupts the worker
+ * thread on timeout. This can reclaim a thread blocked on an <em>interruptible</em> operation
+ * (e.g. network I/O such as leader forwarding, {@code sleep}, lock/wait); it has <em>no</em>
+ * effect on CPU-bound work that never checks the interrupt status, nor on non-interruptible
+ * blocking calls. Enable it only where the long-running work is known to be interruptible.
  */
 public class RequestTimeoutHandler extends Handler.Wrapper {
 
   private static final Logger log = LoggerFactory.getLogger(RequestTimeoutHandler.class);
 
   private final long timeoutMs;
+  private final boolean interruptOnTimeout;
 
-  public RequestTimeoutHandler(long timeoutMs) {
+  public RequestTimeoutHandler(long timeoutMs, boolean interruptOnTimeout) {
     this.timeoutMs = timeoutMs;
+    this.interruptOnTimeout = interruptOnTimeout;
   }
 
   @Override
@@ -59,13 +67,21 @@ public class RequestTimeoutHandler extends Handler.Wrapper {
     // wins and the request is completed exactly once.
     final AtomicBoolean done = new AtomicBoolean(false);
     final long startNanos = System.nanoTime();
+    // The handler chain runs synchronously on this thread, so it is the worker thread that will
+    // execute (and potentially block in) the downstream request handling.
+    final Thread handlingThread = Thread.currentThread();
 
     final Scheduler.Task timeoutTask = request.getComponents().getScheduler().schedule(() -> {
       if (done.compareAndSet(false, true)) {
         long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
         log.warn("Request to {} exceeded the configured timeout of {} ms (elapsed {} ms); "
-                + "returning {}",
-            request.getHttpURI(), timeoutMs, elapsedMs, HttpStatus.GATEWAY_TIMEOUT_504);
+                + "returning {}{}",
+            request.getHttpURI(), timeoutMs, elapsedMs, HttpStatus.GATEWAY_TIMEOUT_504,
+            interruptOnTimeout ? " and interrupting the worker thread" : "");
+        if (interruptOnTimeout) {
+          // Nudge the worker to abort; only effective for interruptible operations.
+          handlingThread.interrupt();
+        }
         Response.writeError(request, response, callback,
             HttpStatus.GATEWAY_TIMEOUT_504, "Request timed out");
       }

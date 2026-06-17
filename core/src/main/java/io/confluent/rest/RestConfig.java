@@ -387,6 +387,16 @@ public class RestConfig extends AbstractConfig {
           + "the timeout.";
   public static final long REQUEST_TIMEOUT_MS_DEFAULT = 0;
 
+  public static final String REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG =
+          "request.timeout.interrupt.enable";
+  public static final String REQUEST_TIMEOUT_INTERRUPT_ENABLE_DOC =
+          "When a request exceeds " + REQUEST_TIMEOUT_MS_CONFIG + ", also interrupt the worker "
+          + "thread handling it. This can reclaim a thread blocked on an interruptible operation "
+          + "(e.g. network I/O), but has no effect on CPU-bound work that does not check the "
+          + "interrupt status, nor on non-interruptible blocking calls. Only has an effect when "
+          + REQUEST_TIMEOUT_MS_CONFIG + " is greater than 0.";
+  public static final boolean REQUEST_TIMEOUT_INTERRUPT_ENABLE_DEFAULT = false;
+
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =
           "The minimum number of threads will be started for HTTP Servlet server.";
@@ -1044,6 +1054,12 @@ public class RestConfig extends AbstractConfig {
             REQUEST_TIMEOUT_MS_DEFAULT,
             Importance.LOW,
             REQUEST_TIMEOUT_MS_DOC
+        ).define(
+            REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            REQUEST_TIMEOUT_INTERRUPT_ENABLE_DEFAULT,
+            Importance.LOW,
+            REQUEST_TIMEOUT_INTERRUPT_ENABLE_DOC
         ).define(
             THREAD_POOL_MIN_CONFIG,
             Type.INT,
