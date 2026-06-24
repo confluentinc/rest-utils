@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
 // CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class ApplicationServer<T extends RestConfig> extends Server {
   // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
-  private final T config;
+  private final T serverConfig;
   private final List<Application<?>> applications;
   private final ImmutableMap<NamedURI, SslContextFactory> sslContextFactories;
 
@@ -114,7 +114,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   public ApplicationServer(T config, ThreadPool threadPool, X509Source x509Source) {
     super(threadPool);
 
-    this.config = config;
+    this.serverConfig = config;
     this.applications = new ArrayList<>();
 
     int gracefulShutdownMs = config.getInt(RestConfig.SHUTDOWN_GRACEFUL_MS_CONFIG);
@@ -156,8 +156,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return Collections.unmodifiableList(applications);
   }
 
-  private boolean isHstsHeaderEnabled() {
-    return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
+  private static boolean isHstsHeaderEnabled(RestConfig connectorConfig) {
+    return connectorConfig.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
   }
 
   private void attachNetworkTrafficListener(RestConfig appConfig,
@@ -243,7 +243,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   @Override
   protected final void doStart() throws Exception {
     // set the default error handler
-    this.setErrorHandler(new StackTraceErrorHandler(config.getSuppressStackTraceInResponse()));
+    this.setErrorHandler(new StackTraceErrorHandler(
+        serverConfig.getSuppressStackTraceInResponse()));
 
     Sequence handlers = new Sequence();
     Sequence wsHandlers = new Sequence();
@@ -271,31 +272,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return sslContextFactories;
   }
 
-  private void configureConnectors() {
-    final boolean proxyProtocolEnabled =
-        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
-    final HttpConfiguration httpConfiguration = new HttpConfiguration();
-    httpConfiguration.setSendServerVersion(false);
-
-    // Allow requests/responses with large URLs/token headers
-    httpConfiguration.setRequestHeaderSize(
-        config.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
-    httpConfiguration.setResponseHeaderSize(
-        config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
-
-    if (proxyProtocolEnabled) {
-      httpConfiguration.addCustomizer(new ProxyCustomizer());
-    }
-    // Use original IP in forwarded requests
-    if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
-      httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
-    }
-
+  private void setJettyUriCompliance(HttpConfiguration httpConfiguration) {
     // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
     // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
     // We must set a URI compliance to allow for this violation so that client
     // requests are not automatically rejected
-    if (config.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
+    if (serverConfig.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
       // If we want to run Jetty 12 with backward-compliance to Jetty 9,
       // we should allow the following violations. Otherwise, some existing URI
       // paths will encounter errors
@@ -310,20 +292,45 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
           UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
     }
+  }
 
-    final HttpConnectionFactory httpConnectionFactory =
-            new HttpConnectionFactory(httpConfiguration);
-
-    // Default to supporting HTTP/2 for Java 11 and later
-    final boolean http2Enabled = isHttp2Compatible(config.getBaseSslConfig())
-                              && config.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
-
+  private void configureConnectors() {
     for (NamedURI listener : listeners) {
+      RestConfig connectorConfig = serverConfig.getListenerScopedConfig(listener);
+      final boolean proxyProtocolEnabled =
+          connectorConfig.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
+      final HttpConfiguration httpConfiguration = new HttpConfiguration();
+      httpConfiguration.setSendServerVersion(false);
+
+      // Allow requests/responses with large URLs/token headers
+      httpConfiguration.setRequestHeaderSize(
+          connectorConfig.getInt(RestConfig.MAX_REQUEST_HEADER_SIZE_CONFIG));
+      httpConfiguration.setResponseHeaderSize(
+          connectorConfig.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
+
+      if (proxyProtocolEnabled) {
+        httpConfiguration.addCustomizer(new ProxyCustomizer());
+      }
+
+      // Use original IP in forwarded requests
+      if (connectorConfig.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
+        httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
+      }
+
+      setJettyUriCompliance(httpConfiguration);
+
+      final HttpConnectionFactory httpConnectionFactory =
+              new HttpConnectionFactory(httpConfiguration);
+
+      // Default to supporting HTTP/2 for Java 11 and later
+      final boolean http2Enabled = isHttp2Compatible(serverConfig.getBaseSslConfig())
+                                && connectorConfig.getBoolean(RestConfig.HTTP2_ENABLED_CONFIG);
+
       if (listener.getUri().getScheme().equals("https")) {
         if (httpConfiguration.getCustomizer(SecureRequestCustomizer.class) == null) {
           SecureRequestCustomizer secureRequestCustomizer = new SecureRequestCustomizer();
           // SniHostCheckEnable is enabled by default
-          if (!config.getSniHostCheckEnable()) {
+          if (!connectorConfig.getSniHostCheckEnable()) {
             secureRequestCustomizer.setSniHostCheck(false);
             log.info("Disabled SNI host check for listener: {}", listener);
           } else {
@@ -332,19 +339,20 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                 "Host name matching SNI certificate check must be enabled.");
           }
 
-          if (isHstsHeaderEnabled()) {
+          if (isHstsHeaderEnabled(connectorConfig)) {
             secureRequestCustomizer.setStsMaxAge(HSTS_MAX_AGE_SECONDS);
             secureRequestCustomizer.setStsIncludeSubDomains(true);
           }
           httpConfiguration.addCustomizer(secureRequestCustomizer);
         }
       }
-      addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,
+      addConnectorForListener(connectorConfig, httpConfiguration, httpConnectionFactory, listener,
           http2Enabled, proxyProtocolEnabled);
     }
   }
 
-  private void addConnectorForListener(HttpConfiguration httpConfiguration,
+  private void addConnectorForListener(RestConfig connectorConfig,
+                                       HttpConfiguration httpConfiguration,
                                        HttpConnectionFactory httpConnectionFactory,
                                        NamedURI listener,
                                        boolean http2Enabled,
@@ -367,7 +375,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     connector.setPort(listener.getUri().getPort());
     connector.setHost(listener.getUri().getHost());
-    connector.setIdleTimeout(config.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
+    connector.setIdleTimeout(connectorConfig.getLong(RestConfig.IDLE_TIMEOUT_MS_CONFIG));
     if (listener.getName() != null) {
       connector.setName(listener.getName());
     }
@@ -444,11 +452,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   private void configureConnectionLimits() {
-    int serverConnectionLimit = config.getServerConnectionLimit();
+    int serverConnectionLimit = serverConfig.getServerConnectionLimit();
     if (serverConnectionLimit > 0) {
       addBean(new ConnectionLimit(serverConnectionLimit, getServer()));
     }
-    int connectorConnectionLimit = config.getConnectorConnectionLimit();
+    int connectorConnectionLimit = serverConfig.getConnectorConnectionLimit();
     if (connectorConnectionLimit > 0) {
       addBean(new ConnectionLimit(connectorConnectionLimit, connectors.toArray(new Connector[0])));
     }
@@ -476,7 +484,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
    * @return the total number of maximum threads configured in the pool.
    */
   public int getMaxThreads() {
-    return config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG);
+    return serverConfig.getInt(RestConfig.THREAD_POOL_MAX_CONFIG);
   }
 
   /**
@@ -506,7 +514,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   private Handler wrapWithGzipHandler(Handler handler) {
-    return wrapWithGzipHandler(config, handler);
+    return wrapWithGzipHandler(serverConfig, handler);
   }
 
   /**
