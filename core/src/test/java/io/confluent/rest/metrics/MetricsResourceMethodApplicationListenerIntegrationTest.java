@@ -15,6 +15,7 @@ import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
 import jakarta.ws.rs.container.PreMatching;
 import jakarta.ws.rs.core.Response.Status;
 import org.apache.kafka.common.metrics.KafkaMetric;
+import org.apache.kafka.test.TestUtils;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
@@ -123,9 +124,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void testSuccessMetrics() {
+  public void testSuccessMetrics() throws Exception {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> makeSuccessfulCall());
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-total", totalRequests);
 
     // checkpoints ensure that all the assertions are tested
     int totalRequestsCheckpoint = 0;
@@ -164,7 +168,7 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void test4xxMetrics() {
+  public void test4xxMetrics() throws Exception {
     Response response = ClientBuilder.newClient(app.resourceConfig.getConfiguration())
         .target(server.getURI())
         .path("/private/fake")
@@ -177,6 +181,9 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
         .path("/private/fake")
         .request(MediaType.APPLICATION_JSON_TYPE)
         .get();
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-error-count", "4xx", 2);
 
     //checkpoints ensure that all the assertions are tested
     int rateCheckpoint4xx = 0;
@@ -247,16 +254,16 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void test429Metrics() throws InterruptedException {
+  public void test429Metrics() throws Exception {
     make429Call();
     make429Call();
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-error-count", "429", 2);
 
     //checkpoints ensure that all the assertions are tested
     int windowCheckpoint429 = 0;
     int rateCheckpoint429 = 0;
-
-    // Frustrating, but we get a concurrent modification exception if we don't wait for the metrics to finish writing before querying the metrics list
-    Thread.sleep(500);
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")
@@ -291,18 +298,18 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Test
   // This tests validates that with METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG enabled true,
   // the request-tags "value1" "value2" are on the global metrics for 429
-  public void test429Metrics_WithGlobalStatsRequestTagsEnabled() throws InterruptedException {
+  public void test429Metrics_WithGlobalStatsRequestTagsEnabled() throws Exception {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> make429Call());
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetricSum("request-error-count", "429", totalRequests);
 
     //checkpoints ensure that all the assertions are tested
     int rateCheckpoint429 = 0;
     int windowCheckpoint429 = 0;
     int windowTag1Checkpoint429 = 0;
     int windowTag2Checkpoint429 = 0;
-
-    // Frustrating, but we get a concurrent modification exception if we don't wait for the metrics to finish writing before querying the metrics list
-    Thread.sleep(500);
 
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
       if (metric.metricName().name().equals("request-error-rate")
@@ -347,9 +354,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   // TODO: Flaky test disabled: KNET-19715
   @Disabled
   @Test
-  public void testException5xxMetrics() {
+  public void testException5xxMetrics() throws Exception {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> makeFailedCall());
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-error-total", "5xx", totalRequests);
 
     int totalCheckpoint = 0;
     int totalCheckpoint5xx = 0;
@@ -425,9 +435,12 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   @Test
   // This tests validates that with METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG enabled true,
   // the request-tags "value1" "value2" are on the global metrics for 5XX
-  public void testException5xxMetrics_WithGlobalStatsRequestTagsEnabled() {
+  public void testException5xxMetrics_WithGlobalStatsRequestTagsEnabled() throws Exception {
     int totalRequests = 10;
     IntStream.range(0, totalRequests).forEach((i) -> makeFailedCall());
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetricSum("request-error-total", "5xx", totalRequests);
 
     int totalCheckpoint = 0;
     int totalCheckpoint5xx = 0;
@@ -535,8 +548,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void testMetricLatencySloSlaEnabled() {
+  public void testMetricLatencySloSlaEnabled() throws Exception {
     makeSuccessfulCall();
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-total", 1);
 
     Map<String, String> allMetrics = TestMetricsReporter.getMetricTimeseries()
         .stream()
@@ -574,11 +590,14 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   // TODO: Flaky test disabled: KNET-19715
   @Disabled
   @Test
-  public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() {
+  public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() throws Exception {
     // call service that fails before resource matching
     long start = System.currentTimeMillis();
     makeFilterErrorCall();
     long elapsed = System.currentTimeMillis() - start + 100; // add buffer of a 100 ms
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-latency-avg", Double.MIN_VALUE);
 
     // assert that global request latency metrics should all be under client elapsed time
     for (KafkaMetric metric : TestMetricsReporter.getMetricTimeseries()) {
@@ -634,6 +653,48 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   private boolean is5xxError(Map<String, String> tags) {
     return tags.getOrDefault(HTTP_STATUS_CODE_TAG, "").equals("5xx");
+  }
+
+  /**
+   * Wait for a jersey-metrics metric to reach a minimum value.
+   */
+  private void waitForJerseyMetric(String metricName, double minValue) throws Exception {
+    TestUtils.waitForCondition(
+        () -> TestMetricsReporter.getMetricTimeseries().stream()
+            .anyMatch(m -> m.metricName().group().equals("jersey-metrics")
+                && m.metricName().name().equals(metricName)
+                && ((Double) m.metricValue()) >= minValue),
+        metricName + " metric did not reach " + minValue);
+  }
+
+  /**
+   * Wait for a jersey-metrics metric with a specific HTTP status code tag to reach a minimum value.
+   */
+  private void waitForJerseyMetric(String metricName, String statusCode, double minValue)
+      throws Exception {
+    TestUtils.waitForCondition(
+        () -> TestMetricsReporter.getMetricTimeseries().stream()
+            .anyMatch(m -> m.metricName().group().equals("jersey-metrics")
+                && m.metricName().name().equals(metricName)
+                && m.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals(statusCode)
+                && ((Double) m.metricValue()) >= minValue),
+        metricName + " [" + statusCode + "] metric did not reach " + minValue);
+  }
+
+  /**
+   * Wait for the sum of jersey-metrics metrics (across tag variants) with a specific
+   * HTTP status code tag to reach a minimum total.
+   */
+  private void waitForJerseyMetricSum(String metricName, String statusCode, double minTotal)
+      throws Exception {
+    TestUtils.waitForCondition(
+        () -> TestMetricsReporter.getMetricTimeseries().stream()
+            .filter(m -> m.metricName().group().equals("jersey-metrics")
+                && m.metricName().name().equals(metricName)
+                && m.metricName().tags().getOrDefault(HTTP_STATUS_CODE_TAG, "").equals(statusCode))
+            .mapToDouble(m -> (Double) m.metricValue())
+            .sum() >= minTotal,
+        metricName + " [" + statusCode + "] metrics sum did not reach " + minTotal);
   }
 
   private void assertMetric(KafkaMetric metric, int expectedValue) {
