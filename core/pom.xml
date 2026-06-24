@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>rest-utils-parent</artifactId>
-        <version>8.0.7-0</version>
+        <version>8.4.0-0</version>
     </parent>
 
     <artifactId>rest-utils</artifactId>
@@ -25,12 +25,6 @@
             <groupId>io.spiffe</groupId>
             <artifactId>java-spiffe-provider</artifactId>
             <version>${spiffe.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.spiffe</groupId>
-                    <artifactId>grpc-netty-macos-aarch64</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.spiffe</groupId>
@@ -192,6 +186,13 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <classifier>test</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+            <classifier>test-fixtures</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>

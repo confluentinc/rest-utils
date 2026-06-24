@@ -529,6 +529,27 @@ public class RestConfig extends AbstractConfig {
           + "Default is false.";
   private static final boolean DOS_FILTER_MANAGED_ATTR_DEFAULT = false;
 
+  private static final String DOS_FILTER_TENANT_ENABLED_CONFIG = "dos.filter.tenant.enabled";
+  private static final String DOS_FILTER_TENANT_ENABLED_DOC =
+      "Whether to enable per-tenant DoS filtering. This prevents noisy tenants from exhausting "
+          + "the global DoS filter. Default is false.";
+  private static final boolean DOS_FILTER_TENANT_ENABLED_DEFAULT = false;
+
+  private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG =
+      "dos.filter.tenant.max.requests.per.sec";
+  private static final String DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC =
+      "Maximum number of requests per second per tenant. Requests in excess of this "
+          + "are first delayed, then throttled. Default is 25";
+  private static final int DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT = 25;
+
+  private static final String DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG =
+      "dos.filter.tenant.dry.run.enabled";
+  private static final String DOS_FILTER_TENANT_DRY_RUN_ENABLED_DOC =
+      "This is temporary config for tenant rate limit testing. "
+          + "When true, enables tenant extraction and classification logging without actually "
+          + "performing tenant-based rate limiting. Default is false.";
+  private static final boolean DOS_FILTER_TENANT_DRY_RUN_ENABLED_DEFAULT = false;
+
   private static final String SERVER_CONNECTION_LIMIT = "server.connection.limit";
   private static final String SERVER_CONNECTION_LIMIT_DOC =
       "Limits the number of active connections on that server to the configured number. Once that "
@@ -588,6 +609,13 @@ public class RestConfig extends AbstractConfig {
           + "present, log a warning when handling connections, but do not reject the connection.";
   protected static final String EXPECTED_SNI_HEADERS_DEFAULT = "";
 
+  public static final String REJECT_INVALID_SNI_HEADERS_CONFIG = "reject.invalid.sni.headers";
+  protected static final String REJECT_INVALID_SNI_HEADERS_DOC =
+      "If true, reject incoming requests whose SNI header does not match the configured list "
+          + "of expected SNI headers (see " + EXPECTED_SNI_HEADERS_CONFIG + ") with an HTTP 400 "
+          + "response. If false (default), a warning is logged but the request is allowed.";
+  protected static final boolean REJECT_INVALID_SNI_HEADERS_DEFAULT = false;
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -601,6 +629,18 @@ public class RestConfig extends AbstractConfig {
           + "https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt for more information. "
           + "Default is false.";
   protected static final boolean PROXY_PROTOCOL_ENABLED_DEFAULT = false;
+
+  public static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG =
+      "proxy.protocol.accepted.ip.range";
+  protected static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DOC =
+      "If set, the server will only use PROXY protocol header information from connections "
+          + "whose peer IP address falls within the specified CIDR range (e.g., '10.240.0.0/16'). "
+          + "Connections from outside this range will have their PROXY protocol data ignored, "
+          + "and the raw peer IP will be used instead. This prevents IP spoofing during migrations "
+          + "where some connections come through a proxy (e.g., Envoy) and others do not. "
+          + "If empty (default), PROXY protocol data is used unconditionally when "
+          + "proxy.protocol.enabled is true.";
+  protected static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DEFAULT = "";
 
   public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
 
@@ -1199,6 +1239,24 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             DOS_FILTER_MANAGED_ATTR_DOC
         ).define(
+            DOS_FILTER_TENANT_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TENANT_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_ENABLED_DOC
+        ).define(
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG,
+            Type.INT,
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_DOC
+        ).define(
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_DEFAULT,
+            Importance.LOW,
+            DOS_FILTER_TENANT_DRY_RUN_ENABLED_DOC
+        ).define(
             SERVER_CONNECTION_LIMIT,
             Type.INT,
             SERVER_CONNECTION_LIMIT_DEFAULT,
@@ -1247,6 +1305,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             EXPECTED_SNI_HEADERS_DOC
         ).define(
+            REJECT_INVALID_SNI_HEADERS_CONFIG,
+            Type.BOOLEAN,
+            REJECT_INVALID_SNI_HEADERS_DEFAULT,
+            Importance.LOW,
+            REJECT_INVALID_SNI_HEADERS_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1258,6 +1322,12 @@ public class RestConfig extends AbstractConfig {
             PROXY_PROTOCOL_ENABLED_DEFAULT,
             Importance.LOW,
             PROXY_PROTOCOL_ENABLED_DOC
+        ).define(
+            PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG,
+            Type.STRING,
+            PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DEFAULT,
+            Importance.LOW,
+            PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DOC
         ).define(
             NOSNIFF_PROTECTION_ENABLED,
             Type.BOOLEAN,
@@ -1461,6 +1531,18 @@ public class RestConfig extends AbstractConfig {
     return getBoolean(DOS_FILTER_MANAGED_ATTR_CONFIG);
   }
 
+  public final boolean isDosFilterTenantEnabled() {
+    return getBoolean(DOS_FILTER_TENANT_ENABLED_CONFIG);
+  }
+
+  public final int getDosFilterTenantMaxRequestsPerSec() {
+    return getInt(DOS_FILTER_TENANT_MAX_REQUESTS_PER_SEC_CONFIG);
+  }
+
+  public final boolean isDosFilterTenantDryRunEnabled() {
+    return getBoolean(DOS_FILTER_TENANT_DRY_RUN_ENABLED_CONFIG);
+  }
+
   public final int getServerConnectionLimit() {
     return getInt(SERVER_CONNECTION_LIMIT);
   }
@@ -1492,6 +1574,30 @@ public class RestConfig extends AbstractConfig {
 
   public final SslConfig getBaseSslConfig() {
     return new SslConfig(this);
+  }
+
+  /**
+   * Returns a new RestConfig object that is scoped to the given listener.
+   * The new config will contain all the properties of the original config,
+   * with overrides for the listener-specific properties that are
+   * prefixed with "listener.name.name.".
+   * Unnamed https listeners will be scoped to the default
+   * 'listener.name.https.'.
+   * @param listener the listener to scope the config to
+   * @return a new RestConfig object that is scoped to the given listener
+   */
+  RestConfig getListenerScopedConfig(NamedURI listener) {
+    if (listener.getName() == null && !listener.getUri().getScheme().equals("https")) {
+      return this;
+    }
+    String prefix =
+        "listener.name." + Optional.ofNullable(listener.getName()).orElse("https") + ".";
+
+    Map<String, Object> originalsMap = originals();
+    Map<String, Object> overridden = new HashMap<>(originalsMap);
+    overridden.putAll(filterByAndStripPrefix(originalsMap, prefix));
+
+    return new RestConfig(baseConfigDef(), overridden, doLog);
   }
 
   private SslConfig getSslConfig(NamedURI listener) {
@@ -1648,6 +1754,10 @@ public class RestConfig extends AbstractConfig {
 
   public final List<String> getExpectedSniHeaders() {
     return getList(EXPECTED_SNI_HEADERS_CONFIG);
+  }
+
+  public final boolean getRejectInvalidSniHeaders() {
+    return getBoolean(REJECT_INVALID_SNI_HEADERS_CONFIG);
   }
 
   /**

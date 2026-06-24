@@ -69,7 +69,7 @@ blocks:
     task:
       agent:
         machine:
-          type: s1-prod-ubuntu24-04-arm64-0
+          type: s1-prod-ubuntu24-04-arm64-00
       env_vars:
         - name: COMPONENT_NAME
           value: rest-utils
@@ -106,7 +106,7 @@ after_pipeline:
         commands:
           - checkout
           - artifact pull workflow target
-          - emit-sonarqube-data --run_only_sonar_scan
+          - emit-sonarqube-data --enable_sonarqube_enterprise --run_only_sonar_scan
       - name: Trigger downstream projects
         commands:
           - >-
@@ -115,7 +115,6 @@ after_pipeline:
               sem-trigger -p metadata-service -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p kafka-rest -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p confluent-security-plugins -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
-              sem-trigger -p ce-kafka-http-server -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p secret-registry -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p confluent-cloud-plugins -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
               sem-trigger -p kafka-streams-examples -b $SEMAPHORE_GIT_BRANCH -f .semaphore/semaphore.yml
