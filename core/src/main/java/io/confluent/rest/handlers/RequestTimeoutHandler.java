@@ -71,21 +71,40 @@ public class RequestTimeoutHandler extends Handler.Wrapper {
     // execute (and potentially block in) the downstream request handling.
     final Thread handlingThread = Thread.currentThread();
 
-    final Scheduler.Task timeoutTask = request.getComponents().getScheduler().schedule(() -> {
-      if (done.compareAndSet(false, true)) {
-        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-        log.warn("Request to {} exceeded the configured timeout of {} ms (elapsed {} ms); "
-                + "returning {}{}",
-            request.getHttpURI(), timeoutMs, elapsedMs, HttpStatus.GATEWAY_TIMEOUT_504,
-            interruptOnTimeout ? " and interrupting the worker thread" : "");
-        if (interruptOnTimeout) {
-          // Nudge the worker to abort; only effective for interruptible operations.
-          handlingThread.interrupt();
+    final Scheduler.Task timeoutTask;
+    try {
+      timeoutTask = request.getComponents().getScheduler().schedule(() -> {
+        if (done.compareAndSet(false, true)) {
+          long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+          log.warn("Request to {} exceeded the configured timeout of {} ms (elapsed {} ms); "
+                  + "returning {}{}",
+              request.getHttpURI(), timeoutMs, elapsedMs, HttpStatus.GATEWAY_TIMEOUT_504,
+              interruptOnTimeout ? " and interrupting the worker thread" : "");
+          // Write the error response before attempting to interrupt the worker thread. If the
+          // interrupt were to throw (e.g. a SecurityException), doing it first would prevent the
+          // 504 from ever reaching the client.
+          Response.writeError(request, response, callback,
+              HttpStatus.GATEWAY_TIMEOUT_504, "Request timed out");
+          if (interruptOnTimeout) {
+            // Nudge the worker to abort; only effective for interruptible operations. Guard
+            // against any failure so it can never mask the response written above.
+            try {
+              handlingThread.interrupt();
+            } catch (RuntimeException e) {
+              log.warn("Failed to interrupt worker thread after request timeout to {}",
+                  request.getHttpURI(), e);
+            }
+          }
         }
-        Response.writeError(request, response, callback,
-            HttpStatus.GATEWAY_TIMEOUT_504, "Request timed out");
-      }
-    }, timeoutMs, TimeUnit.MILLISECONDS);
+      }, timeoutMs, TimeUnit.MILLISECONDS);
+    } catch (RuntimeException e) {
+      // The scheduler can reject new tasks (e.g. RejectedExecutionException while the server is
+      // shutting down). We cannot enforce the timeout in that case, so fall back to handling the
+      // request without one rather than failing it outright.
+      log.warn("Could not schedule request timeout task for {}; handling request without a "
+          + "timeout", request.getHttpURI(), e);
+      return super.handle(request, response, callback);
+    }
 
     // Forward only the first completion downstream and cancel the timer when the request
     // completes normally. If the timeout already fired, these become no-ops.
