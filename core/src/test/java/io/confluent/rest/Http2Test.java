@@ -279,6 +279,17 @@ public class Http2Test {
 
       int statusCode;
 
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        // With HTTP/2, the server may reject the request via RST_STREAM (causing an
+        // ExecutionException) instead of returning a 400 response. Both are valid rejections.
+        assertHttp2RequestRejected(() ->
+            makeGetRequestHttp2(HTTP_URI + URL_ENCODED_BACKSLASH_PATH));
+        assertHttp2RequestRejected(() ->
+            makeGetRequestHttp2(HTTPS_URI + URL_ENCODED_BACKSLASH_PATH,
+                clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD));
+      }
+
       // HTTP/1.1 should work whether HTTP/2 is available or not
       statusCode = makeGetRequestHttp(HTTP_URI + URL_ENCODED_BACKSLASH_PATH);
       assertEquals(400, statusCode, EXPECTED_400_MSG);
@@ -376,7 +387,7 @@ public class Http2Test {
     }
   }
 
-  @Test
+    @Test
   public void testHttp2UnencodedBackslash() throws Exception {
     // This test is ensuring that Jetty 12 URI Compliance enforcement is
     // compatible with the legacy Jetty 9 enforcement.
@@ -386,6 +397,42 @@ public class Http2Test {
       app.start();
 
       int statusCode;
+
+      // Just skip HTTP/2 for earlier than Java 11
+      if (ApplicationServer.isJava11Compatible()) {
+        HTTP2Client http2Client = new HTTP2Client();
+        HttpClient http2ClientHttp = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
+        http2ClientHttp.start();
+        try {
+          statusCode = http2ClientHttp
+              .newRequest(HTTP_URI)
+              .path(UNENCODED_BACKSLASH_PATH)
+              .send()
+              .getStatus();
+          assertEquals(400, statusCode, EXPECTED_400_MSG);
+        } finally {
+          http2ClientHttp.stop();
+        }
+
+        // HTTPS over HTTP/2 with client keystore, preserving raw backslash
+        SslContextFactory.Client sslContextFactoryH2 = buildSslContextFactory(
+            clientKeystore.getAbsolutePath(), SSL_PASSWORD, SSL_PASSWORD);
+        ClientConnector h2TlsConnector = new ClientConnector();
+        h2TlsConnector.setSslContextFactory(sslContextFactoryH2);
+        HTTP2Client http2TlsClient = new HTTP2Client(h2TlsConnector);
+        HttpClient https2Client = new HttpClient(new HttpClientTransportOverHTTP2(http2TlsClient));
+        https2Client.start();
+        try {
+          statusCode = https2Client
+              .newRequest(HTTPS_URI)
+              .path(UNENCODED_BACKSLASH_PATH)
+              .send()
+              .getStatus();
+          assertEquals(400, statusCode, EXPECTED_400_MSG);
+        } finally {
+          https2Client.stop();
+        }
+      }
 
       // HTTP/1.1 should behave consistently as well (raw backslash)
       HttpClient http11Client = new HttpClient();
@@ -469,6 +516,30 @@ public class Http2Test {
     } finally {
       app.stop();
     }
+  }
+
+  private void assertHttp2RequestRejected(Http2Request request) throws Exception {
+    try {
+      int statusCode = request.execute();
+      assertEquals(400, statusCode, EXPECTED_400_MSG);
+    } catch (java.util.concurrent.ExecutionException e) {
+      // HTTP/2 may reject the request via RST_STREAM instead of a 400 response.
+      // Ensure that we only accept the expected HTTP/2 stream reset/rejection here.
+      Throwable cause = e.getCause();
+      Assertions.assertNotNull(cause, "ExecutionException must have a cause for HTTP/2 rejection");
+      String message = cause.getMessage();
+      if (message == null
+          || !(message.contains("RST_STREAM")
+              || (message.toLowerCase().contains("stream") && message.toLowerCase().contains("reset")))) {
+        throw e;
+      }
+      log.debug("HTTP/2 request rejected via stream reset", e);
+    }
+  }
+
+  @FunctionalInterface
+  private interface Http2Request {
+    int execute() throws Exception;
   }
 
   private void assertMetricsCollected() {

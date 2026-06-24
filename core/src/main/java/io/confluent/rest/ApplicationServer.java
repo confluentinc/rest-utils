@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.confluent.rest.customizer.CidrRange;
 import io.confluent.rest.customizer.ProxyCustomizer;
 import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
@@ -272,28 +273,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return sslContextFactories;
   }
 
-  private void setJettyUriCompliance(HttpConfiguration httpConfiguration) {
-    // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
-    // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
-    // We must set a URI compliance to allow for this violation so that client
-    // requests are not automatically rejected
-    if (serverConfig.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
-      // If we want to run Jetty 12 with backward-compliance to Jetty 9,
-      // we should allow the following violations. Otherwise, some existing URI
-      // paths will encounter errors
-      UriCompliance backwardCompatibility = UriCompliance.LEGACY.with(
-          "backward-compatibility",
-          UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS,
-          UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS
-        );
-      httpConfiguration.setUriCompliance(backwardCompatibility);
-    } else {
-      httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
-          UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
-          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
-    }
-  }
-
   private void configureConnectors() {
     for (NamedURI listener : listeners) {
       RestConfig connectorConfig = serverConfig.getListenerScopedConfig(listener);
@@ -309,7 +288,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
           connectorConfig.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
 
       if (proxyProtocolEnabled) {
-        httpConfiguration.addCustomizer(new ProxyCustomizer());
+        httpConfiguration.addCustomizer(
+            new ProxyCustomizer(parseAcceptedIpRange(connectorConfig)));
       }
 
       // Use original IP in forwarded requests
@@ -317,7 +297,25 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
         httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
       }
 
-      setJettyUriCompliance(httpConfiguration);
+      // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
+      // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
+      // We must set a URI compliance to allow for this violation so that client
+      // requests are not automatically rejected
+      if (serverConfig.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
+        // If we want to run Jetty 12 with backward-compliance to Jetty 9,
+        // we should allow the following violations. Otherwise, some existing URI
+        // paths will encounter errors
+        UriCompliance backwardCompatibility = UriCompliance.LEGACY.with(
+            "backward-compatibility",
+            UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS,
+            UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS
+          );
+        httpConfiguration.setUriCompliance(backwardCompatibility);
+      } else {
+        httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
+            UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
+            UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
+      }
 
       final HttpConnectionFactory httpConnectionFactory =
               new HttpConnectionFactory(httpConfiguration);
@@ -449,6 +447,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
 
     return connectionFactories.toArray(new ConnectionFactory[0]);
+  }
+
+  private static CidrRange parseAcceptedIpRange(RestConfig connectorConfig) {
+    String value = connectorConfig.getString(
+        RestConfig.PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG).trim();
+    return value.isEmpty() ? null : CidrRange.parse(value);
   }
 
   private void configureConnectionLimits() {

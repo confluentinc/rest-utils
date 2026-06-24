@@ -480,8 +480,9 @@ public class DoSFilter implements Filter {
      * @return the priority for this request
      */
     private RateType getPriority(HttpServletRequest request, RateTracker tracker) {
-        if (extractUserId(request) != null)
+        if (extractUserId(request) != null && !isTenantBasedTracking()) {
             return RateType.AUTH;
+        }
         if (tracker != null)
             return tracker.getType();
         return RateType.UNKNOWN;
@@ -528,7 +529,9 @@ public class DoSFilter implements Filter {
         String loadId = extractUserId(request);
         final RateType type;
         if (loadId != null) {
-            type = RateType.AUTH;
+            // Tenant-based trackers should use RateType.IP to ensure proper cleanup
+            // via scheduler to prevent OOM errors.
+            type = isTenantBasedTracking() ? RateType.IP : RateType.AUTH;
         } else {
             if (isTrackSessions() && session != null && !session.isNew()) {
                 loadId = session.getId();
@@ -704,6 +707,16 @@ public class DoSFilter implements Filter {
      */
     protected String extractUserId(ServletRequest request) {
         return null;
+    }
+
+    /**
+     * Indicates whether this filter uses tenant-based tracking (i.e. tenant ID like lkc-xxx)
+     * rather than true user authentication.
+     * 
+     * @return true if this filter tracks tenants, false for user auth
+     */
+    protected boolean isTenantBasedTracking() {
+        return false;
     }
 
     /**

@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>rest-utils-parent</artifactId>
-        <version>8.1.5-0</version>
+        <version>8.4.0-0</version>
     </parent>
 
     <artifactId>rest-utils-fips-tests</artifactId>
@@ -38,6 +38,13 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <classifier>test</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+            <classifier>test-fixtures</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
