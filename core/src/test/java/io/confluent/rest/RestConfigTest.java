@@ -442,6 +442,12 @@ public class RestConfigTest {
     assertFalse(getBooleanOrDefault(props, PROPERTY_KEY, true));
   }
 
+  @Test
+  public void testRequestTimeoutMsDisabledByDefault() {
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef());
+    assertEquals(0L, config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG));
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void getListenerScopedConfigNamedListenerReturnsConfigWithOverriddenProperties(
