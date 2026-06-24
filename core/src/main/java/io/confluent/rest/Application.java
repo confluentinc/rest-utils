@@ -30,6 +30,7 @@ import io.confluent.rest.exceptions.JsonParseExceptionMapper;
 import io.confluent.rest.extension.ResourceExtension;
 import io.confluent.rest.filters.CsrfTokenProtectionFilter;
 import io.confluent.rest.handlers.ExpectedSniHandler;
+import io.confluent.rest.handlers.RequestTimeoutHandler;
 import io.confluent.rest.handlers.SniHandler;
 import io.confluent.rest.handlers.PrefixSniHandler;
 import io.confluent.rest.jetty.DoSFilter;
@@ -462,6 +463,15 @@ public abstract class Application<T extends RestConfig> {
     } else if (!expectedSniHeaders.isEmpty()) {
       context.insertHandler(
           new ExpectedSniHandler(expectedSniHeaders, config.getRejectInvalidSniHeaders()));
+    }
+
+    // Enforce a blanket request timeout (returns 504) when configured. Inserted last so it is
+    // the outermost wrapper and measures total in-context processing time.
+    long requestTimeoutMs = config.getLong(RestConfig.REQUEST_TIMEOUT_MS_CONFIG);
+    if (requestTimeoutMs > 0) {
+      boolean interruptOnTimeout =
+          config.getBoolean(RestConfig.REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG);
+      context.insertHandler(new RequestTimeoutHandler(requestTimeoutMs, interruptOnTimeout));
     }
 
     Sequence handlers = new Sequence();
