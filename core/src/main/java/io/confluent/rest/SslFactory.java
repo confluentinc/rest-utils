@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
@@ -216,7 +217,10 @@ public final class SslFactory {
   }
 
   // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
-  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
+  // accepts either a SPIFFE SVID (validated against the SPIFFE bundle) or a traditional
+  // certificate (validated against the configured, or JVM default, trust store) via
+  // DualTrustManager. This lets a listener adopt trust-only mode before every client has been
+  // switched to present a SPIFFE SVID. KeyManager continues to be loaded from the configured
   // keystore via Jetty's normal load() path.
   private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
     if (x509Source == null) {
@@ -227,8 +231,21 @@ public final class SslFactory {
       @Override
       protected TrustManager[] getTrustManagers(KeyStore trustStore,
                                                 Collection<? extends CRL> crls) throws Exception {
-        return new SpiffeTrustManagerFactory()
+        TrustManager[] spiffeTrustManagers = new SpiffeTrustManagerFactory()
             .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+        // Jetty's own getTrustManagers(...) returns null (rather than the JVM default trust
+        // managers) when no trust store is configured; it relies on SSLContext.init(...)
+        // substituting the JVM default when passed a null TrustManager[] later on. Since we
+        // need a concrete legacy TrustManager to combine with the SPIFFE one here, build that
+        // JVM default explicitly instead of forwarding a null onward.
+        TrustManager[] legacyTrustManagers = super.getTrustManagers(trustStore, crls);
+        if (legacyTrustManagers == null) {
+          TrustManagerFactory tmf =
+              TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+          tmf.init((KeyStore) null);
+          legacyTrustManagers = tmf.getTrustManagers();
+        }
+        return DualTrustManager.wrap(spiffeTrustManagers, legacyTrustManagers);
       }
     };
   }
