@@ -118,11 +118,14 @@ final class DualTrustManager extends X509ExtendedTrustManager {
 
   @Override
   public X509Certificate[] getAcceptedIssuers() {
-    // The SPIFFE trust manager reports no accepted issuers of its own (trust is decided
-    // dynamically against the SPIFFE bundle), and SpiffeKeyManager on the client side ignores
-    // the advertised issuers entirely when choosing its alias, so advertising only the legacy
-    // issuers here does not stop SPIFFE clients from presenting their SVID.
-    return legacyTrustManager.getAcceptedIssuers();
+    // This only populates the advisory CA hint in CertificateRequest; it has no bearing on what
+    // we actually accept; that's decided per-connection in checkClientTrusted. Returning the
+    // legacy issuers here (instead of none) would only help clients that filter their offered
+    // certificate by that hint, and would do so at the risk of a SPIFFE-presenting client doing
+    // the same, concluding its SVID doesn't match, and withholding it. Reporting none, as the
+    // SPIFFE-only trust manager already did, keeps every client offering whatever cert it has
+    // and leaves the actual accept/reject decision entirely to checkClientTrusted.
+    return new X509Certificate[0];
   }
 
   private X509ExtendedTrustManager trustManagerFor(X509Certificate[] chain) {

@@ -110,16 +110,15 @@ public class DualTrustManagerTest {
   }
 
   @Test
-  public void getAcceptedIssuersReturnsLegacyIssuersOnly() {
+  public void getAcceptedIssuersReportsNoneSoNoClientIsFilteredOut() {
     X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
-    X509Certificate[] legacyIssuers = new X509Certificate[] {mock(X509Certificate.class)};
-    when(legacyManager.getAcceptedIssuers()).thenReturn(legacyIssuers);
 
     X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
 
-    assertArrayEquals(legacyIssuers, dual.getAcceptedIssuers());
+    assertArrayEquals(new X509Certificate[0], dual.getAcceptedIssuers());
     verify(spiffeManager, never()).getAcceptedIssuers();
+    verify(legacyManager, never()).getAcceptedIssuers();
   }
 
   @Test
