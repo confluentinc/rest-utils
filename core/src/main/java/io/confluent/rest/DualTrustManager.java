@@ -148,14 +148,19 @@ final class DualTrustManager extends X509ExtendedTrustManager {
       return false;
     }
     for (List<?> san : subjectAlternativeNames) {
-      if (san.size() >= 2
-          && san.get(0) instanceof Integer
-          && (Integer) san.get(0) == URI_SAN_TYPE
-          && san.get(1) instanceof String
-          && ((String) san.get(1)).startsWith(SPIFFE_URI_SCHEME)) {
+      if (isSpiffeUriSan(san)) {
         return true;
       }
     }
     return false;
+  }
+
+  private static boolean isSpiffeUriSan(List<?> san) {
+    if (san.size() < 2 || !(san.get(0) instanceof Integer)
+        || (Integer) san.get(0) != URI_SAN_TYPE) {
+      return false;
+    }
+    Object value = san.get(1);
+    return value instanceof String && ((String) value).startsWith(SPIFFE_URI_SCHEME);
   }
 }
