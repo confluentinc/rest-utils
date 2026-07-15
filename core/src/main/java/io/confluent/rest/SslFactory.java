@@ -42,6 +42,20 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public final class SslFactory {
 
+  /**
+   * {@link javax.net.ssl.SSLSession} attribute set to {@link Boolean#TRUE} (via {@link
+   * javax.net.ssl.SSLSession#putValue}) when, in SPIRE trust-only mode (see {@link
+   * #createSpireTrustOnlyServer}), the peer's certificate was validated against the SPIFFE trust
+   * bundle rather than the legacy trust store. Not set at all for a legacy-validated connection.
+   *
+   * <p>Downstream code that reads a {@code spiffe://} SAN off the peer certificate (e.g. for
+   * logging or identification) should check this attribute before treating that SAN as a
+   * verified SPIFFE identity: the SAN by itself is just an unverified claim by whichever CA
+   * issued the certificate, which may not be SPIRE-aware at all.
+   */
+  public static final String SPIFFE_VERIFIED_SESSION_ATTRIBUTE =
+      "io.confluent.rest.sslSpiffeVerified";
+
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
   private static AtomicReference<Exception> watcherExecException = new AtomicReference<>(null);
 
