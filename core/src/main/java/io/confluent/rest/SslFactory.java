@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
@@ -40,6 +41,20 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class SslFactory {
+
+  /**
+   * {@link javax.net.ssl.SSLSession} attribute set to {@link Boolean#TRUE} (via {@link
+   * javax.net.ssl.SSLSession#putValue}) when, in SPIRE trust-only mode (see {@link
+   * #createSpireTrustOnlyServer}), the peer's certificate was validated against the SPIFFE trust
+   * bundle rather than the legacy trust store. Not set at all for a legacy-validated connection.
+   *
+   * <p>Downstream code that reads a {@code spiffe://} SAN off the peer certificate (e.g. for
+   * logging or identification) should check this attribute before treating that SAN as a
+   * verified SPIFFE identity: the SAN by itself is just an unverified claim by whichever CA
+   * issued the certificate, which may not be SPIRE-aware at all.
+   */
+  public static final String SPIFFE_VERIFIED_SESSION_ATTRIBUTE =
+      "io.confluent.rest.sslSpiffeVerified";
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
   private static AtomicReference<Exception> watcherExecException = new AtomicReference<>(null);
@@ -216,7 +231,10 @@ public final class SslFactory {
   }
 
   // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
-  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
+  // accepts either a SPIFFE SVID (validated against the SPIFFE bundle) or a traditional
+  // certificate (validated against the configured, or JVM default, trust store) via
+  // DualTrustManager. This lets a listener adopt trust-only mode before every client has been
+  // switched to present a SPIFFE SVID. KeyManager continues to be loaded from the configured
   // keystore via Jetty's normal load() path.
   private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
     if (x509Source == null) {
@@ -227,8 +245,21 @@ public final class SslFactory {
       @Override
       protected TrustManager[] getTrustManagers(KeyStore trustStore,
                                                 Collection<? extends CRL> crls) throws Exception {
-        return new SpiffeTrustManagerFactory()
+        TrustManager[] spiffeTrustManagers = new SpiffeTrustManagerFactory()
             .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+        // Jetty's own getTrustManagers(...) returns null (rather than the JVM default trust
+        // managers) when no trust store is configured; it relies on SSLContext.init(...)
+        // substituting the JVM default when passed a null TrustManager[] later on. Since we
+        // need a concrete legacy TrustManager to combine with the SPIFFE one here, build that
+        // JVM default explicitly instead of forwarding a null onward.
+        TrustManager[] legacyTrustManagers = super.getTrustManagers(trustStore, crls);
+        if (legacyTrustManagers == null) {
+          TrustManagerFactory tmf =
+              TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+          tmf.init((KeyStore) null);
+          legacyTrustManagers = tmf.getTrustManagers();
+        }
+        return DualTrustManager.wrap(spiffeTrustManagers, legacyTrustManagers);
       }
     };
   }
