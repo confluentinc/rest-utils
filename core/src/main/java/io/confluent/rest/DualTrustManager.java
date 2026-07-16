@@ -32,18 +32,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Trust manager for SPIRE trust-only listeners that accepts either a SPIFFE SVID (validated
- * against the SPIFFE trust bundle) or a traditional certificate (validated against the
- * listener's configured, or JVM default, trust store). Which path applies is decided by
- * inspecting the presented leaf certificate for a {@code spiffe://} URI SAN, so a certificate
- * that does carry one is held to the stricter SPIFFE validation rather than silently falling
- * back to the legacy path if that validation fails. This lets a listener adopt trust-only mode
- * before every client has been switched to present a SPIFFE SVID.
+ * Trust manager for SPIRE trust-only listeners that accepts either a SPIFFE SVID or a
+ * traditional certificate, based on whether the leaf certificate carries a {@code spiffe://}
+ * URI SAN. Lets a listener adopt trust-only mode before every client presents a SPIFFE SVID.
  *
- * <p>When a connection is validated via the SPIFFE path, {@link
- * SslFactory#SPIFFE_VERIFIED_SESSION_ATTRIBUTE} is set on the negotiated {@link SSLSession} so
- * downstream code can distinguish a SPIFFE-bundle-verified identity from a certificate that
- * merely carries a {@code spiffe://} SAN.
+ * <p>Sets {@link SslFactory#SPIFFE_VERIFIED_SESSION_ATTRIBUTE} on the session when a connection
+ * is validated via the SPIFFE path.
  */
 final class DualTrustManager extends X509ExtendedTrustManager {
 
@@ -113,10 +107,7 @@ final class DualTrustManager extends X509ExtendedTrustManager {
     }
   }
 
-  // Tags the session so downstream code (e.g. code reading a spiffe:// SAN off the peer
-  // certificate for logging/identification) can tell this connection's certificate was actually
-  // validated against the SPIFFE trust bundle, rather than just carrying a spiffe:// SAN claimed
-  // by whichever CA issued it. Only called after checkClientTrusted has already succeeded.
+  // Only called after checkClientTrusted has already succeeded.
   private static void markSpiffeVerified(SSLSession session) {
     if (session != null) {
       session.putValue(SslFactory.SPIFFE_VERIFIED_SESSION_ATTRIBUTE, Boolean.TRUE);
@@ -143,13 +134,8 @@ final class DualTrustManager extends X509ExtendedTrustManager {
 
   @Override
   public X509Certificate[] getAcceptedIssuers() {
-    // This only populates the advisory CA hint in CertificateRequest; it has no bearing on what
-    // we actually accept; that's decided per-connection in checkClientTrusted. Returning the
-    // legacy issuers here (instead of none) would only help clients that filter their offered
-    // certificate by that hint, and would do so at the risk of a SPIFFE-presenting client doing
-    // the same, concluding its SVID doesn't match, and withholding it. Reporting none, as the
-    // SPIFFE-only trust manager already did, keeps every client offering whatever cert it has
-    // and leaves the actual accept/reject decision entirely to checkClientTrusted.
+    // Only an advisory CA hint; the real decision is in checkClientTrusted. Reporting none
+    // avoids a SPIFFE client withholding its SVID because the hint doesn't look like a match.
     return new X509Certificate[0];
   }
 
