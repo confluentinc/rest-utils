@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
@@ -215,9 +216,9 @@ public final class SslFactory {
     }
   }
 
-  // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
-  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
-  // keystore via Jetty's normal load() path.
+  // SPIRE trust-only mode: subclass to override getTrustManagers(...) with a DualTrustManager
+  // that accepts either a SPIFFE SVID or a traditional certificate. KeyManager continues to be
+  // loaded from the configured keystore via Jetty's normal load() path.
   private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
     if (x509Source == null) {
       throw new RuntimeException(
@@ -227,8 +228,18 @@ public final class SslFactory {
       @Override
       protected TrustManager[] getTrustManagers(KeyStore trustStore,
                                                 Collection<? extends CRL> crls) throws Exception {
-        return new SpiffeTrustManagerFactory()
+        TrustManager[] spiffeTrustManagers = new SpiffeTrustManagerFactory()
             .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+        // Jetty returns null here (not the JVM defaults) when no trust store is configured, so
+        // build the default explicitly for DualTrustManager to combine with the SPIFFE one.
+        TrustManager[] legacyTrustManagers = super.getTrustManagers(trustStore, crls);
+        if (legacyTrustManagers == null) {
+          TrustManagerFactory tmf =
+              TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+          tmf.init((KeyStore) null);
+          legacyTrustManagers = tmf.getTrustManagers();
+        }
+        return DualTrustManager.wrap(spiffeTrustManagers, legacyTrustManagers);
       }
     };
   }
