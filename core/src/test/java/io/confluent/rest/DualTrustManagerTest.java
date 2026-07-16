@@ -24,15 +24,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.net.Socket;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import org.junit.jupiter.api.Test;
@@ -111,73 +107,6 @@ public class DualTrustManagerTest {
     dual.checkClientTrusted(chain, "RSA");
 
     verify(legacyManager).checkClientTrusted(chain, "RSA");
-  }
-
-  @Test
-  public void checkClientTrustedViaEngineMarksSessionVerifiedForSpiffeCert() throws Exception {
-    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
-
-    X509Certificate[] chain = {certWithSans(
-        Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
-    SSLEngine engine = mock(SSLEngine.class);
-    SSLSession handshakeSession = mock(SSLSession.class);
-    when(engine.getHandshakeSession()).thenReturn(handshakeSession);
-
-    dual.checkClientTrusted(chain, "RSA", engine);
-
-    verify(handshakeSession).putValue(SslFactory.SPIFFE_VERIFIED_SESSION_ATTRIBUTE, Boolean.TRUE);
-  }
-
-  @Test
-  public void checkClientTrustedViaEngineDoesNotMarkSessionForLegacyCert() throws Exception {
-    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
-
-    X509Certificate[] chain = {certWithSans(
-        Collections.singletonList(Arrays.asList(2, "leader.internal.example.com")))};
-    SSLEngine engine = mock(SSLEngine.class);
-    SSLSession handshakeSession = mock(SSLSession.class);
-    when(engine.getHandshakeSession()).thenReturn(handshakeSession);
-
-    dual.checkClientTrusted(chain, "RSA", engine);
-
-    verify(handshakeSession, never()).putValue(any(String.class), any());
-  }
-
-  @Test
-  public void checkClientTrustedViaSslSocketMarksSessionVerifiedForSpiffeCert() throws Exception {
-    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
-
-    X509Certificate[] chain = {certWithSans(
-        Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
-    SSLSocket socket = mock(SSLSocket.class);
-    SSLSession handshakeSession = mock(SSLSession.class);
-    when(socket.getHandshakeSession()).thenReturn(handshakeSession);
-
-    dual.checkClientTrusted(chain, "RSA", (Socket) socket);
-
-    verify(handshakeSession).putValue(SslFactory.SPIFFE_VERIFIED_SESSION_ATTRIBUTE, Boolean.TRUE);
-  }
-
-  @Test
-  public void checkClientTrustedViaPlainSocketDoesNotAttemptToMarkSession() throws Exception {
-    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
-    X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
-
-    X509Certificate[] chain = {certWithSans(
-        Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
-    Socket socket = mock(Socket.class);
-
-    // Must not throw despite the socket not being an SSLSocket (no session to mark).
-    dual.checkClientTrusted(chain, "RSA", socket);
-
-    verify(spiffeManager).checkClientTrusted(chain, "RSA", socket);
   }
 
   @Test

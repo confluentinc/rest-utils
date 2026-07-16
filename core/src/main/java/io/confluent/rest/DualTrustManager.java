@@ -24,8 +24,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import org.slf4j.Logger;
@@ -35,9 +33,6 @@ import org.slf4j.LoggerFactory;
  * Trust manager for SPIRE trust-only listeners that accepts either a SPIFFE SVID or a
  * traditional certificate, based on whether the leaf certificate carries a {@code spiffe://}
  * URI SAN. Lets a listener adopt trust-only mode before every client presents a SPIFFE SVID.
- *
- * <p>Sets {@link SslFactory#SPIFFE_VERIFIED_SESSION_ATTRIBUTE} on the session when a connection
- * is validated via the SPIFFE path.
  */
 final class DualTrustManager extends X509ExtendedTrustManager {
 
@@ -90,28 +85,13 @@ final class DualTrustManager extends X509ExtendedTrustManager {
   @Override
   public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
       throws CertificateException {
-    X509ExtendedTrustManager manager = trustManagerFor(chain);
-    manager.checkClientTrusted(chain, authType, socket);
-    if (manager == spiffeTrustManager && socket instanceof SSLSocket) {
-      markSpiffeVerified(((SSLSocket) socket).getHandshakeSession());
-    }
+    trustManagerFor(chain).checkClientTrusted(chain, authType, socket);
   }
 
   @Override
   public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
       throws CertificateException {
-    X509ExtendedTrustManager manager = trustManagerFor(chain);
-    manager.checkClientTrusted(chain, authType, engine);
-    if (manager == spiffeTrustManager) {
-      markSpiffeVerified(engine.getHandshakeSession());
-    }
-  }
-
-  // Only called after checkClientTrusted has already succeeded.
-  private static void markSpiffeVerified(SSLSession session) {
-    if (session != null) {
-      session.putValue(SslFactory.SPIFFE_VERIFIED_SESSION_ATTRIBUTE, Boolean.TRUE);
-    }
+    trustManagerFor(chain).checkClientTrusted(chain, authType, engine);
   }
 
   @Override
