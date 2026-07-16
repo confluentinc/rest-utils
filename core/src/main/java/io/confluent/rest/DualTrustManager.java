@@ -147,7 +147,7 @@ final class DualTrustManager extends X509ExtendedTrustManager {
   }
 
   private static boolean isSpiffeUriSan(List<?> san) {
-    if (san.size() < 2 || !(san.get(0) instanceof Integer)
+    if (san == null || san.size() < 2 || !(san.get(0) instanceof Integer)
         || (Integer) san.get(0) != URI_SAN_TYPE) {
       return false;
     }
