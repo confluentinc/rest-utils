@@ -94,6 +94,19 @@ public class DualTrustManagerTest {
   }
 
   @Test
+  public void checkClientTrustedUsesLegacyManagerWhenSanEntryIsNull() throws Exception {
+    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
+    X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
+    X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
+
+    X509Certificate[] chain = {certWithSans(Collections.singletonList(null))};
+
+    dual.checkClientTrusted(chain, "RSA");
+
+    verify(legacyManager).checkClientTrusted(chain, "RSA");
+  }
+
+  @Test
   public void checkClientTrustedUsesLegacyManagerWhenSansUnparseable() throws Exception {
     X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
