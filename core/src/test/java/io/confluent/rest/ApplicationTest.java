@@ -236,13 +236,39 @@ public class ApplicationTest {
     assertThat(mappings.get(0).getPathSpec(), is("/*"));
     assertEquals(Constraint.Authorization.KNOWN_ROLE, securityHandler.getConstraintMappings().get(0).getConstraint().getAuthorization());
 
-    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#INHERIT
-    // In Jetty 12, when no roles are set and setAuthenticate(false), the authorization is set to INHERIT.
     assertThat(mappings.get(1).getPathSpec(), is("/path/1"));
-    assertEquals(Constraint.Authorization.INHERIT, securityHandler.getConstraintMappings().get(1).getConstraint().getAuthorization());
+    assertEquals(Constraint.Authorization.ALLOWED, securityHandler.getConstraintMappings().get(1).getConstraint().getAuthorization());
 
     assertThat(mappings.get(2).getPathSpec(), is("/path/2"));
-    assertEquals(Constraint.Authorization.INHERIT, securityHandler.getConstraintMappings().get(2).getConstraint().getAuthorization());
+    assertEquals(Constraint.Authorization.ALLOWED, securityHandler.getConstraintMappings().get(2).getConstraint().getAuthorization());
+  }
+
+  @Test
+  public void testUnsecurePathConstraintWildcardOverridesGlobalConstraint() throws Exception {
+    // Regression test: authentication.skip.paths="/*" must actually disable authentication for
+    // all paths, matching the documented behavior of AUTHENTICATION_SKIP_PATHS. Previously, since
+    // this pathSpec is identical to the hardcoded global auth constraint's pathSpec ("/*"), both
+    // mappings were merged by ConstraintSecurityHandler into a single entry, and the unsecured
+    // mapping's Authorization.INHERIT default always deferred to the global constraint's real
+    // authorization requirement, silently discarding the skip path.
+    final Map<String, Object> config = ImmutableMap.of(
+        RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BASIC,
+        RestConfig.AUTHENTICATION_REALM_CONFIG, REALM,
+        RestConfig.AUTHENTICATION_SKIP_PATHS, "/*");
+
+    ConstraintSecurityHandler securityHandler = new TestApp(config).createBasicSecurityHandler();
+    securityHandler.start();
+
+    org.eclipse.jetty.server.Request request =
+        org.mockito.Mockito.mock(org.eclipse.jetty.server.Request.class);
+    org.mockito.Mockito.when(request.getMethod()).thenReturn("GET");
+
+    java.lang.reflect.Method getConstraint = ConstraintSecurityHandler.class
+        .getDeclaredMethod("getConstraint", String.class, org.eclipse.jetty.server.Request.class);
+    getConstraint.setAccessible(true);
+    Constraint constraint = (Constraint) getConstraint.invoke(securityHandler, "/subjects", request);
+
+    assertEquals(Constraint.Authorization.ALLOWED, constraint.getAuthorization());
   }
 
   @Test
