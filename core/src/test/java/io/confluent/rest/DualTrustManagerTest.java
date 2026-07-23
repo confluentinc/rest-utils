@@ -65,7 +65,22 @@ public class DualTrustManagerTest {
   }
 
   @Test
-  public void checkClientTrustedUsesLegacyManagerForNonSpiffeCert() throws Exception {
+  public void checkClientTrustedPropagatesFailureForInvalidSpiffeCert() throws Exception {
+    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
+    X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
+    X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
+
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
+    org.mockito.Mockito.doThrow(new java.security.cert.CertificateException("untrusted SVID"))
+        .when(spiffeManager).checkClientTrusted(chain, "RSA");
+
+    assertThrows(java.security.cert.CertificateException.class,
+        () -> dual.checkClientTrusted(chain, "RSA"));
+  }
+
+  @Test
+  public void checkClientTrustedBypassesValidationForNonSpiffeCert() throws Exception {
     X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
@@ -75,13 +90,14 @@ public class DualTrustManagerTest {
 
     dual.checkClientTrusted(chain, "RSA");
 
-    verify(legacyManager).checkClientTrusted(chain, "RSA");
+    verify(legacyManager, never())
+        .checkClientTrusted(any(X509Certificate[].class), any(String.class));
     verify(spiffeManager, never())
         .checkClientTrusted(any(X509Certificate[].class), any(String.class));
   }
 
   @Test
-  public void checkClientTrustedUsesLegacyManagerWhenNoSansPresent() throws Exception {
+  public void checkClientTrustedBypassesValidationWhenNoSansPresent() throws Exception {
     X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
@@ -90,11 +106,12 @@ public class DualTrustManagerTest {
 
     dual.checkClientTrusted(chain, "RSA");
 
-    verify(legacyManager).checkClientTrusted(chain, "RSA");
+    verify(legacyManager, never())
+        .checkClientTrusted(any(X509Certificate[].class), any(String.class));
   }
 
   @Test
-  public void checkClientTrustedUsesLegacyManagerWhenSanEntryIsNull() throws Exception {
+  public void checkClientTrustedBypassesValidationWhenSanEntryIsNull() throws Exception {
     X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
@@ -103,11 +120,12 @@ public class DualTrustManagerTest {
 
     dual.checkClientTrusted(chain, "RSA");
 
-    verify(legacyManager).checkClientTrusted(chain, "RSA");
+    verify(legacyManager, never())
+        .checkClientTrusted(any(X509Certificate[].class), any(String.class));
   }
 
   @Test
-  public void checkClientTrustedUsesLegacyManagerWhenSansUnparseable() throws Exception {
+  public void checkClientTrustedBypassesValidationWhenSansUnparseable() throws Exception {
     X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager legacyManager = mock(X509ExtendedTrustManager.class);
     X509ExtendedTrustManager dual = wrappedDualTrustManager(spiffeManager, legacyManager);
@@ -119,7 +137,8 @@ public class DualTrustManagerTest {
 
     dual.checkClientTrusted(chain, "RSA");
 
-    verify(legacyManager).checkClientTrusted(chain, "RSA");
+    verify(legacyManager, never())
+        .checkClientTrusted(any(X509Certificate[].class), any(String.class));
   }
 
   @Test
