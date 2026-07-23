@@ -33,6 +33,15 @@ import org.slf4j.LoggerFactory;
  * Trust manager for SPIRE trust-only listeners that accepts either a SPIFFE SVID or a
  * traditional certificate, based on whether the leaf certificate carries a {@code spiffe://}
  * URI SAN. Lets a listener adopt trust-only mode before every client presents a SPIFFE SVID.
+ *
+ * <p>Client certificates without a {@code spiffe://} URI SAN are not cryptographically
+ * validated: the connection is allowed to proceed the same as if no client certificate had
+ * been presented at all, rather than failing the handshake. This matches {@code WANT} client
+ * auth semantics, where an absent certificate is already an accepted case, and avoids hard
+ * connection failures caused by legacy trust-store configuration drift. Callers must not treat
+ * the mere presence of a client certificate as authorization; only a certificate verified via
+ * the SPIFFE branch (see {@link SpiffeVerifiedRequestCustomizer}) should be used to grant
+ * SPIFFE-based privileges.
  */
 final class DualTrustManager extends X509ExtendedTrustManager {
 
@@ -79,19 +88,25 @@ final class DualTrustManager extends X509ExtendedTrustManager {
   @Override
   public void checkClientTrusted(X509Certificate[] chain, String authType)
       throws CertificateException {
-    trustManagerFor(chain).checkClientTrusted(chain, authType);
+    if (isSpiffeCert(chain)) {
+      spiffeTrustManager.checkClientTrusted(chain, authType);
+    }
   }
 
   @Override
   public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
       throws CertificateException {
-    trustManagerFor(chain).checkClientTrusted(chain, authType, socket);
+    if (isSpiffeCert(chain)) {
+      spiffeTrustManager.checkClientTrusted(chain, authType, socket);
+    }
   }
 
   @Override
   public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
       throws CertificateException {
-    trustManagerFor(chain).checkClientTrusted(chain, authType, engine);
+    if (isSpiffeCert(chain)) {
+      spiffeTrustManager.checkClientTrusted(chain, authType, engine);
+    }
   }
 
   @Override
@@ -123,7 +138,7 @@ final class DualTrustManager extends X509ExtendedTrustManager {
     return isSpiffeCert(chain) ? spiffeTrustManager : legacyTrustManager;
   }
 
-  private static boolean isSpiffeCert(X509Certificate[] chain) {
+  static boolean isSpiffeCert(X509Certificate[] chain) {
     if (chain == null || chain.length == 0) {
       return false;
     }
