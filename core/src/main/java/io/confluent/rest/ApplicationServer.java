@@ -337,6 +337,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             secureRequestCustomizer.setStsIncludeSubDomains(true);
           }
           httpConfiguration.addCustomizer(secureRequestCustomizer);
+          // Must run after SecureRequestCustomizer, which populates the X509_ATTRIBUTE this
+          // customizer reads from.
+          httpConfiguration.addCustomizer(new SpiffeVerifiedRequestCustomizer());
         }
       }
       addConnectorForListener(httpConfiguration, httpConnectionFactory, listener,

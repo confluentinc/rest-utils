@@ -223,6 +223,18 @@ public class RestConfig extends AbstractConfig {
       + "ssl.keystore.* settings are honored while ssl.truststore.* settings are "
       + "ignored. Has no effect unless " + SSL_SPIRE_ENABLED_CONFIG + " is also true.";
   protected static final boolean SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT = false;
+  public static final String SKIP_LEGACY_CLIENT_VALIDATION_CONFIG =
+      "skip.legacy.client.validation";
+  public static final String SKIP_LEGACY_CLIENT_VALIDATION_DOC =
+      "Sub-case of " + SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + ". When true, non-SPIFFE "
+      + "(\"legacy\") client certificates are not validated at all on this listener: the "
+      + "connection proceeds the same as if no client certificate had been presented, "
+      + "instead of being validated via the PKIX certification path algorithm against the "
+      + "legacy trust store. This is an operational kill switch to fall back to the prior "
+      + "behavior if PKIX-based legacy validation causes unexpected rejections in "
+      + "production. Has no effect unless " + SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG
+      + " is also true.";
+  protected static final boolean SKIP_LEGACY_CLIENT_VALIDATION_DEFAULT = false;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -878,6 +890,12 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT,
             Importance.LOW,
             SSL_SPIRE_TRUST_ONLY_ENABLED_DOC
+        ).define(
+            SKIP_LEGACY_CLIENT_VALIDATION_CONFIG,
+            Type.BOOLEAN,
+            SKIP_LEGACY_CLIENT_VALIDATION_DEFAULT,
+            Importance.LOW,
+            SKIP_LEGACY_CLIENT_VALIDATION_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
