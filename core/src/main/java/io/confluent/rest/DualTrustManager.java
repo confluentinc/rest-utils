@@ -57,6 +57,15 @@ import org.slf4j.LoggerFactory;
  * as a legacy S2S peer identity ahead of a SPIFFE migration) be accepted, while a genuinely
  * invalid chain (untrusted root, expired, wrong signature, bad path constraints) is still
  * rejected.
+ *
+ * <p>If {@code skipLegacyClientValidation} is set (see
+ * {@link RestConfig#SKIP_LEGACY_CLIENT_VALIDATION_CONFIG}), legacy certificates are not
+ * validated at all: the connection proceeds the same as if no client certificate had been
+ * presented. This is an operational kill switch, not the default behavior.
+ *
+ * <p>Callers must not treat the mere presence of a client certificate as authorization; only
+ * a certificate verified via the SPIFFE branch (see {@link SpiffeVerifiedRequestCustomizer})
+ * should be used to grant SPIFFE-based privileges.
  */
 final class DualTrustManager extends X509ExtendedTrustManager {
 
@@ -71,12 +80,14 @@ final class DualTrustManager extends X509ExtendedTrustManager {
   private final X509ExtendedTrustManager spiffeTrustManager;
   private final X509ExtendedTrustManager legacyTrustManager;
   private final Set<TrustAnchor> legacyTrustAnchors;
+  private final boolean skipLegacyClientValidation;
 
   private DualTrustManager(X509ExtendedTrustManager spiffeTrustManager,
-      X509ExtendedTrustManager legacyTrustManager) {
+      X509ExtendedTrustManager legacyTrustManager, boolean skipLegacyClientValidation) {
     this.spiffeTrustManager = Objects.requireNonNull(spiffeTrustManager, "spiffeTrustManager");
     this.legacyTrustManager = Objects.requireNonNull(legacyTrustManager, "legacyTrustManager");
     this.legacyTrustAnchors = toTrustAnchors(legacyTrustManager.getAcceptedIssuers());
+    this.skipLegacyClientValidation = skipLegacyClientValidation;
   }
 
   private static Set<TrustAnchor> toTrustAnchors(X509Certificate[] certificates) {
@@ -90,13 +101,17 @@ final class DualTrustManager extends X509ExtendedTrustManager {
   /**
    * Wraps the first {@link X509ExtendedTrustManager} found in each array into a single
    * dual-mode trust manager.
+   *
+   * @param skipLegacyClientValidation see
+   *     {@link RestConfig#SKIP_LEGACY_CLIENT_VALIDATION_CONFIG}
    */
   static TrustManager[] wrap(TrustManager[] spiffeTrustManagers,
-      TrustManager[] legacyTrustManagers) {
+      TrustManager[] legacyTrustManagers, boolean skipLegacyClientValidation) {
     return new TrustManager[] {
         new DualTrustManager(
             firstX509(spiffeTrustManagers, "SPIFFE"),
-            firstX509(legacyTrustManagers, "legacy"))
+            firstX509(legacyTrustManagers, "legacy"),
+            skipLegacyClientValidation)
     };
   }
 
@@ -119,6 +134,9 @@ final class DualTrustManager extends X509ExtendedTrustManager {
       spiffeTrustManager.checkClientTrusted(chain, authType);
       return;
     }
+    if (skipLegacyClientValidation) {
+      return;
+    }
     validateLegacyChain(chain);
   }
 
@@ -129,6 +147,9 @@ final class DualTrustManager extends X509ExtendedTrustManager {
       spiffeTrustManager.checkClientTrusted(chain, authType, socket);
       return;
     }
+    if (skipLegacyClientValidation) {
+      return;
+    }
     validateLegacyChain(chain);
   }
 
@@ -137,6 +158,9 @@ final class DualTrustManager extends X509ExtendedTrustManager {
       throws CertificateException {
     if (isSpiffeCert(chain)) {
       spiffeTrustManager.checkClientTrusted(chain, authType, engine);
+      return;
+    }
+    if (skipLegacyClientValidation) {
       return;
     }
     validateLegacyChain(chain);
@@ -156,6 +180,8 @@ final class DualTrustManager extends X509ExtendedTrustManager {
       PKIXParameters params = new PKIXParameters(legacyTrustAnchors);
       params.setRevocationEnabled(false);
       CertPathValidator.getInstance(PKIX_ALGORITHM).validate(certPath, params);
+      log.debug("Legacy client certificate chain passed PKIX validation (EKU check skipped): "
+          + "subject={}, chain length={}", chain[0].getSubjectX500Principal(), chain.length);
     } catch (CertPathValidatorException | InvalidAlgorithmParameterException
         | NoSuchAlgorithmException e) {
       throw new CertificateException("Legacy client certificate chain failed PKIX validation",
@@ -192,7 +218,7 @@ final class DualTrustManager extends X509ExtendedTrustManager {
     return isSpiffeCert(chain) ? spiffeTrustManager : legacyTrustManager;
   }
 
-  private static boolean isSpiffeCert(X509Certificate[] chain) {
+  static boolean isSpiffeCert(X509Certificate[] chain) {
     if (chain == null || chain.length == 0) {
       return false;
     }
