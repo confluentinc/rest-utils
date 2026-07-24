@@ -142,7 +142,8 @@ public final class SslFactory {
                   + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled.");
         }
         log.info("SPIRE trust-only SSL mode enabled");
-        sslContextFactory = createSpireTrustOnlyServer(x509Source);
+        sslContextFactory = createSpireTrustOnlyServer(x509Source,
+            sslConfig.getSkipLegacyClientValidation());
       } else {
         log.info("SPIRE SSL mode enabled");
         configureSpiffeSslContext(sslContextFactory, x509Source);
@@ -219,10 +220,15 @@ public final class SslFactory {
   // SPIRE trust-only mode: subclass to override getTrustManagers(...) with a DualTrustManager
   // that accepts either a SPIFFE SVID or a traditional certificate. KeyManager continues to be
   // loaded from the configured keystore via Jetty's normal load() path.
-  private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
+  private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source,
+      boolean skipLegacyClientValidation) {
     if (x509Source == null) {
       throw new RuntimeException(
           "X509Source must be provided when SPIRE trust-only SSL is enabled");
+    }
+    if (skipLegacyClientValidation) {
+      log.warn("{} is enabled: legacy (non-SPIFFE) client certificates will not be validated "
+          + "on this listener.", RestConfig.SKIP_LEGACY_CLIENT_VALIDATION_CONFIG);
     }
     return new SslContextFactory.Server() {
       @Override
@@ -239,7 +245,8 @@ public final class SslFactory {
           tmf.init((KeyStore) null);
           legacyTrustManagers = tmf.getTrustManagers();
         }
-        return DualTrustManager.wrap(spiffeTrustManagers, legacyTrustManagers);
+        return DualTrustManager.wrap(spiffeTrustManagers, legacyTrustManagers,
+            skipLegacyClientValidation);
       }
     };
   }
