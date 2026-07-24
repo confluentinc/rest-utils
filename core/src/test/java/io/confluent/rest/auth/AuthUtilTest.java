@@ -212,11 +212,10 @@ public class AuthUtilTest {
     assertThat(mappings.size(), is(2));
     assertThat(mappings.get(0).getMethod(), is("*"));
     assertThat(mappings.get(0).getPathSpec(), is("/path/1"));
-    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#INHERIT
-    assertEquals(Constraint.Authorization.INHERIT, mappings.get(0).getConstraint().getAuthorization());
+    assertEquals(Constraint.Authorization.ALLOWED, mappings.get(0).getConstraint().getAuthorization());
     assertThat(mappings.get(1).getMethod(), is("*"));
     assertThat(mappings.get(1).getPathSpec(), is("/path/2"));
-    assertEquals(Constraint.Authorization.INHERIT, mappings.get(1).getConstraint().getAuthorization());
+    assertEquals(Constraint.Authorization.ALLOWED, mappings.get(1).getConstraint().getAuthorization());
   }
 
   @Test
@@ -229,10 +228,9 @@ public class AuthUtilTest {
         AuthUtil.createUnsecuredConstraint(config, "/path/*");
 
     // Then:
-    // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#INHERIT
     assertThat(mappings.getMethod(), is("*"));
     assertThat(mappings.getPathSpec(), is("/path/*"));
-    assertEquals(Constraint.Authorization.INHERIT, mappings.getConstraint().getAuthorization());
+    assertEquals(Constraint.Authorization.ALLOWED, mappings.getConstraint().getAuthorization());
   }
 
   @Test
