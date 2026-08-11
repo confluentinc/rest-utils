@@ -44,7 +44,7 @@ public class DualTrustManagerTest {
   private static X509ExtendedTrustManager wrappedDualTrustManager(
       X509ExtendedTrustManager spiffeManager, X509ExtendedTrustManager legacyManager) {
     TrustManager[] wrapped = DualTrustManager.wrap(
-        new TrustManager[] {spiffeManager}, new TrustManager[] {legacyManager});
+        new TrustManager[] {spiffeManager}, new TrustManager[] {legacyManager}, false);
     return (X509ExtendedTrustManager) wrapped[0];
   }
 
@@ -139,7 +139,8 @@ public class DualTrustManagerTest {
     TrustManager[] notExtended = new TrustManager[] {mock(TrustManager.class)};
     TrustManager[] legacy = new TrustManager[] {mock(X509ExtendedTrustManager.class)};
 
-    assertThrows(IllegalStateException.class, () -> DualTrustManager.wrap(notExtended, legacy));
+    assertThrows(IllegalStateException.class,
+        () -> DualTrustManager.wrap(notExtended, legacy, false));
   }
 
   @Test
@@ -147,6 +148,7 @@ public class DualTrustManagerTest {
     TrustManager[] spiffe = new TrustManager[] {mock(X509ExtendedTrustManager.class)};
     TrustManager[] notExtended = new TrustManager[] {mock(TrustManager.class)};
 
-    assertThrows(IllegalStateException.class, () -> DualTrustManager.wrap(spiffe, notExtended));
+    assertThrows(IllegalStateException.class,
+        () -> DualTrustManager.wrap(spiffe, notExtended, false));
   }
 }

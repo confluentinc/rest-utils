@@ -133,4 +133,8 @@ public final class SslConfig {
   public Boolean getIsSpireTrustOnlyEnabled() {
     return restConfig.getBoolean(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG);
   }
+
+  public Boolean getSkipLegacyClientValidation() {
+    return restConfig.getBoolean(RestConfig.SKIP_LEGACY_CLIENT_VALIDATION_CONFIG);
+  }
 }
