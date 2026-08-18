@@ -135,11 +135,7 @@ public final class SslFactory {
      */
     if (sslConfig.getIsSpireEnabled()) {
       if (sslConfig.getIsSpireTrustOnlyEnabled()) {
-        if (sslConfig.getKeyStorePath().isEmpty()) {
-          throw new ConfigException(
-              RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
-                  + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled.");
-        }
+        validateSpireTrustOnlyConfig(sslConfig);
         log.info("SPIRE trust-only SSL mode enabled");
         sslContextFactory = createSpireTrustOnlyServer(x509Source);
       } else {
@@ -212,6 +208,22 @@ public final class SslFactory {
       sslContextFactory.setSslContext(sslContext);
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private static void validateSpireTrustOnlyConfig(SslConfig sslConfig) {
+    if (sslConfig.getKeyStorePath().isEmpty()) {
+      throw new ConfigException(
+          RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
+              + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled.");
+    }
+    if (sslConfig.getClientAuth() == SslClientAuth.NEED) {
+      throw new ConfigException(
+          RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG + "="
+              + RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED + " is incompatible with "
+              + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + ": on this listener, a "
+              + "non-SPIFFE client certificate is not validated at all, so requiring a "
+              + "client certificate would accept any certificate without verifying it.");
     }
   }
 
