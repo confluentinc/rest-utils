@@ -215,9 +215,10 @@ public final class SslFactory {
     }
   }
 
-  // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
-  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
-  // keystore via Jetty's normal load() path.
+  // SPIRE trust-only mode: subclass to override getTrustManagers(...) with a
+  // SpireOptionalTrustManager that validates spiffe:// SAN certs against the SPIFFE bundle and
+  // skips validation entirely for any other certificate. KeyManager continues to be loaded from
+  // the configured keystore via Jetty's normal load() path.
   private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
     if (x509Source == null) {
       throw new RuntimeException(
@@ -227,8 +228,9 @@ public final class SslFactory {
       @Override
       protected TrustManager[] getTrustManagers(KeyStore trustStore,
                                                 Collection<? extends CRL> crls) throws Exception {
-        return new SpiffeTrustManagerFactory()
+        TrustManager[] spiffeTrustManagers = new SpiffeTrustManagerFactory()
             .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+        return SpireOptionalTrustManager.wrap(spiffeTrustManagers);
       }
     };
   }
