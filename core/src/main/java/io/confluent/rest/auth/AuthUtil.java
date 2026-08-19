@@ -146,6 +146,15 @@ public final class AuthUtil {
 
     if (authenticate) {
       configureAuthentication(constraint, restConfig);
+    } else {
+      // Explicitly mark as ALLOWED rather than leaving Authorization unset (which
+      // defaults to INHERIT). If this pathSpec exactly matches another already-registered
+      // constraint (e.g. the global "/*" auth constraint created by
+      // createGlobalAuthConstraint), ConstraintSecurityHandler merges the two mappings
+      // together. INHERIT always defers to the other side of that merge, which silently
+      // discards this "unsecured" mapping's intent whenever a skip path collides with an
+      // existing pathSpec such as "/*".
+      constraint.authorization(Constraint.ALLOWED.getAuthorization());
     }
 
     final ConstraintMapping mapping = new ConstraintMapping();
