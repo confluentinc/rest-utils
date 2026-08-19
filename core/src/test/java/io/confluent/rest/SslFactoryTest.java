@@ -16,6 +16,7 @@
 
 package io.confluent.rest;
 
+import io.spiffe.provider.SpiffeTrustManager;
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
@@ -203,7 +204,7 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testSpireTrustOnlyUsesKeystoreKeyManagerAndDualTrustManager() throws Exception {
+  public void testSpireTrustOnlyUsesKeystoreKeyManagerAndSpireTrustManager() throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
@@ -227,8 +228,8 @@ public class SslFactoryTest {
     TrustManager[] tms = (TrustManager[]) getTrustManagers.invoke(factory, null, null);
     Assertions.assertNotNull(tms);
     Assertions.assertTrue(tms.length > 0, "Expected at least one TrustManager");
-    Assertions.assertEquals("io.confluent.rest.DualTrustManager", tms[0].getClass().getName(),
-        "Expected DualTrustManager, got: " + tms[0].getClass().getName());
+    Assertions.assertTrue(tms[0] instanceof SpiffeTrustManager,
+        "Expected SpiffeTrustManager, got: " + tms[0].getClass().getName());
   }
 
   // The trust-only subclass must only be installed when BOTH ssl.spire.enabled and
