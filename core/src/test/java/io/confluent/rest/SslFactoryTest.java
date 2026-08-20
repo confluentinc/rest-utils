@@ -16,8 +16,8 @@
 
 package io.confluent.rest;
 
-import io.spiffe.provider.SpiffeTrustManager;
 import io.spiffe.workloadapi.X509Source;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.test.TestUtils;
@@ -204,7 +204,8 @@ public class SslFactoryTest {
   }
 
   @Test
-  public void testSpireTrustOnlyUsesKeystoreKeyManagerAndSpireTrustManager() throws Exception {
+  public void testSpireTrustOnlyUsesKeystoreKeyManagerAndSpireOptionalTrustManager()
+      throws Exception {
     Map<String, String> rawConfig = new HashMap<>();
     rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
     rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
@@ -228,8 +229,24 @@ public class SslFactoryTest {
     TrustManager[] tms = (TrustManager[]) getTrustManagers.invoke(factory, null, null);
     Assertions.assertNotNull(tms);
     Assertions.assertTrue(tms.length > 0, "Expected at least one TrustManager");
-    Assertions.assertTrue(tms[0] instanceof SpiffeTrustManager,
-        "Expected SpiffeTrustManager, got: " + tms[0].getClass().getName());
+    Assertions.assertTrue(tms[0] instanceof SpireOptionalTrustManager,
+        "Expected SpireOptionalTrustManager, got: " + tms[0].getClass().getName());
+  }
+
+  @Test
+  public void testSpireTrustOnlyRejectsRequiredClientAuth() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
+    rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
+    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "true");
+    rawConfig.put(RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG,
+        RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED);
+    setConfigs(rawConfig);
+
+    X509Source mockSource = Mockito.mock(X509Source.class);
+    Assertions.assertThrows(ConfigException.class,
+        () -> SslFactory.createSslContextFactory(new SslConfig(config), mockSource));
   }
 
   // The trust-only subclass must only be installed when BOTH ssl.spire.enabled and

@@ -135,11 +135,7 @@ public final class SslFactory {
      */
     if (sslConfig.getIsSpireEnabled()) {
       if (sslConfig.getIsSpireTrustOnlyEnabled()) {
-        if (sslConfig.getKeyStorePath().isEmpty()) {
-          throw new ConfigException(
-              RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
-                  + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled.");
-        }
+        validateSpireTrustOnlyConfig(sslConfig);
         log.info("SPIRE trust-only SSL mode enabled");
         sslContextFactory = createSpireTrustOnlyServer(x509Source);
       } else {
@@ -215,9 +211,26 @@ public final class SslFactory {
     }
   }
 
-  // SPIRE trust-only mode: subclass to override getTrustManagers(...) so the TrustManager
-  // comes from the SPIFFE bundle. KeyManager continues to be loaded from the configured
-  // keystore via Jetty's normal load() path.
+  private static void validateSpireTrustOnlyConfig(SslConfig sslConfig) {
+    if (sslConfig.getKeyStorePath().isEmpty()) {
+      throw new ConfigException(
+          RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
+              + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + " is enabled.");
+    }
+    if (sslConfig.getClientAuth() == SslClientAuth.NEED) {
+      throw new ConfigException(
+          RestConfig.SSL_CLIENT_AUTHENTICATION_CONFIG + "="
+              + RestConfig.SSL_CLIENT_AUTHENTICATION_REQUIRED + " is incompatible with "
+              + RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + ": on this listener, a "
+              + "non-SPIFFE client certificate is not validated at all, so requiring a "
+              + "client certificate would accept any certificate without verifying it.");
+    }
+  }
+
+  // SPIRE trust-only mode: subclass to override getTrustManagers(...) with a
+  // SpireOptionalTrustManager that validates spiffe:// SAN certs against the SPIFFE bundle and
+  // skips validation entirely for any other certificate. KeyManager continues to be loaded from
+  // the configured keystore via Jetty's normal load() path.
   private static SslContextFactory.Server createSpireTrustOnlyServer(X509Source x509Source) {
     if (x509Source == null) {
       throw new RuntimeException(
@@ -227,8 +240,9 @@ public final class SslFactory {
       @Override
       protected TrustManager[] getTrustManagers(KeyStore trustStore,
                                                 Collection<? extends CRL> crls) throws Exception {
-        return new SpiffeTrustManagerFactory()
+        TrustManager[] spiffeTrustManagers = new SpiffeTrustManagerFactory()
             .engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+        return SpireOptionalTrustManager.wrap(spiffeTrustManagers);
       }
     };
   }
