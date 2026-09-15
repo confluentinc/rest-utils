@@ -1,6 +1,7 @@
 package io.confluent.rest;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -54,6 +55,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 public class ApplicationServerTest {
 
@@ -101,6 +103,31 @@ public class ApplicationServerTest {
     props.put(RestConfig.AUTHENTICATION_SKIP_PATHS, skipPaths);
 
     return new TestRestConfig(props);
+  }
+
+  // The SSL factory captures per-listener metrics suppliers (for the SPIRE counters), which resolve
+  // to the Application registered under that listener name — or null before it registers.
+  @Test
+  public void metricsForListener_resolvesRegisteredListenerElseNull() throws Exception {
+    Application<TestRestConfig> app =
+        new Application<TestRestConfig>(testConfig, "/x", "my-listener") {
+          @Override
+          public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
+          }
+        };
+    server.registerApplication(app);
+
+    Method metricsForListener =
+        ApplicationServer.class.getDeclaredMethod("metricsForListener", String.class);
+    metricsForListener.setAccessible(true);
+    assertSame(app.getMetrics(), metricsForListener.invoke(server, "my-listener"));
+    assertNull(metricsForListener.invoke(server, "not-registered"));
+
+    Method metricsTagsForListener =
+        ApplicationServer.class.getDeclaredMethod("metricsTagsForListener", String.class);
+    metricsTagsForListener.setAccessible(true);
+    assertEquals(app.getMetricsTags(), metricsTagsForListener.invoke(server, "my-listener"));
+    assertNull(metricsTagsForListener.invoke(server, "not-registered"));
   }
 
   /* Ensure security handlers are confined to a single context */

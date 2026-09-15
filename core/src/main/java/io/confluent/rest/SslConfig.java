@@ -133,4 +133,14 @@ public final class SslConfig {
   public Boolean getIsSpireTrustOnlyEnabled() {
     return restConfig.getBoolean(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG);
   }
+
+  /**
+   * Regex allowlist matched against a client's {@code spiffe://} SVID URI. Empty means "any SPIFFE
+   * ID that chains to the SPIRE bundle is accepted"; non-empty additionally requires the ID to
+   * fully match one of the patterns. Consumed by {@link SpireSpiffeAllowlistTrustManager} on a
+   * full-SPIRE listener.
+   */
+  public List<String> getAcceptedSpiffeIdPatterns() {
+    return restConfig.getList(RestConfig.SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG);
+  }
 }
