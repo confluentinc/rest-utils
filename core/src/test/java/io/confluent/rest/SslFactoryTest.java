@@ -36,12 +36,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Non-FIPS specific tests for SslFactory, please see SslFactoryFipsTest for FIPS tests.
@@ -275,6 +277,49 @@ public class SslFactoryTest {
     Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
         "Trust-only subclass should only be used when both ssl.spire.enabled and "
             + "ssl.spire.trust.only.enabled are true");
+  }
+
+  // Full-SPIRE + non-empty allowlist: the allowlist branch must build the SSLContext by hand
+  // (key + trust managers wrapped in SpireSpiffeAllowlistTrustManager) without throwing, and
+  // must NOT return the trust-only subclass.
+  @Test
+  public void testSpireAllowlistPathBuildsFactory() throws Exception {
+    Map<String, String> rawConfig = new HashMap<>();
+    rawConfig.put(RestConfig.SSL_KEYSTORE_LOCATION_CONFIG, asFile(asString(KEY, CERTCHAIN)));
+    rawConfig.put(RestConfig.SSL_KEYSTORE_TYPE_CONFIG, PEM_TYPE);
+    rawConfig.put(RestConfig.SSL_SPIRE_ENABLED_CONFIG, "true");
+    rawConfig.put(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG, "false");
+    rawConfig.put(RestConfig.SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG,
+        ".*/service-a/.*");
+    setConfigs(rawConfig);
+
+    X509Source mockSource = Mockito.mock(X509Source.class);
+    SslContextFactory factory =
+        SslFactory.createSslContextFactory(new SslConfig(config), mockSource, null, null);
+
+    Assertions.assertNotNull(factory);
+    Assertions.assertEquals(SslContextFactory.Server.class, factory.getClass(),
+        "allowlist path mutates the base Server (not the trust-only subclass)");
+    Assertions.assertNotNull(factory.getSslContext(),
+        "the allowlist path must set an SSLContext built from the wrapped trust manager");
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testCompilePatternsSkipsNullAndBlankEntries() throws Exception {
+    Method compile = SslFactory.class.getDeclaredMethod("compilePatterns", List.class);
+    compile.setAccessible(true);
+
+    Assertions.assertTrue(((List<Pattern>) compile.invoke(null, (List<String>) null)).isEmpty(),
+        "null input -> empty");
+    Assertions.assertTrue(((List<Pattern>) compile.invoke(null, Collections.emptyList())).isEmpty(),
+        "empty input -> empty");
+
+    List<Pattern> compiled =
+        (List<Pattern>) compile.invoke(null, Arrays.asList("a.*", "", null, "b.*"));
+    Assertions.assertEquals(2, compiled.size(), "null/blank entries are skipped");
+    Assertions.assertTrue(compiled.get(0).matcher("abc").matches());
+    Assertions.assertTrue(compiled.get(1).matcher("bcd").matches());
   }
 
   private String asString(String... pems) {
