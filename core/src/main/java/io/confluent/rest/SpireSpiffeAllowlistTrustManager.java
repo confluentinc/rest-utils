@@ -216,6 +216,7 @@ final class SpireSpiffeAllowlistTrustManager extends X509ExtendedTrustManager {
   private void enforceSpiffeAllowlist(X509Certificate[] chain) throws CertificateException {
     if (acceptedSpiffeIdPatterns.isEmpty()) {
       // No allowlist configured: chain-to-bundle validation only.
+      log.debug("SPIFFE allowlist empty; accepting any SVID that chained to the SPIRE bundle");
       return;
     }
     String spiffeId = (chain != null && chain.length > 0) ? spiffeIdOf(chain[0]) : null;
@@ -227,6 +228,7 @@ final class SpireSpiffeAllowlistTrustManager extends X509ExtendedTrustManager {
       throw new CertificateException(
           "SPIFFE ID " + spiffeId + " is not in the accepted-identity allowlist");
     }
+    log.debug("Client SPIFFE ID [{}] passed the accepted allowlist", spiffeId);
   }
 
   /**

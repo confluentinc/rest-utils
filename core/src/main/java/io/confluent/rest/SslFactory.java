@@ -247,7 +247,7 @@ public final class SslFactory {
     }
 
     // Allowlist configured: server SVID from SPIRE + SPIFFE trust wrapped with allowlist + metrics.
-    log.info("SPIRE SSL allowlist enforcement enabled ({} accepted SPIFFE-ID pattern(s))",
+    log.debug("SPIRE SSL allowlist enforcement enabled ({} accepted SPIFFE-ID pattern(s))",
         compiledAcceptedSpiffeIds.size());
     try {
       KeyManager[] keyManagers =
