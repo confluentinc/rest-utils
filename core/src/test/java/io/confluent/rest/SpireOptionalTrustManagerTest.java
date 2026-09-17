@@ -201,8 +201,6 @@ public class SpireOptionalTrustManagerTest {
   @Test
   public void safeSanSummaryHandlesGetSubjectAlternativeNamesThrowingRuntimeException()
       throws Exception {
-    // Not part of the documented contract, but a hostile/buggy X509Certificate implementation
-    // could still do this; the summary must degrade gracefully rather than propagate it.
     X509Certificate cert = mock(X509Certificate.class);
     when(cert.getSubjectAlternativeNames()).thenThrow(new IllegalStateException("boom"));
     X509Certificate[] chain = {cert};
@@ -249,8 +247,6 @@ public class SpireOptionalTrustManagerTest {
 
   @Test
   public void safeSanSummaryHandlesSanEntryWithWrongTypeForFirstElement() throws Exception {
-    // The first element is documented as an Integer (the GeneralName CHOICE tag); this feeds in a
-    // String instead to prove the summary does not blindly cast it.
     X509Certificate[] chain = {certWithSans(
         Collections.singletonList(Arrays.asList("not-an-integer", "spiffe://example.org/x")))};
 

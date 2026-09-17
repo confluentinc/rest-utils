@@ -102,10 +102,6 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
   }
 
   private static void logValidatingSpiffeCert(X509Certificate[] chain) {
-    // The SAN summary is only computed when debug logging is enabled: it walks attacker-influenced
-    // ASN.1 data that the JDK hands back as a loosely-typed Collection<List<?>>, and there is no
-    // reason to pay that cost -- or accept any risk from it, however well-guarded -- on every
-    // handshake in production.
     if (log.isDebugEnabled()) {
       log.debug("Client certificate carries a spiffe:// SAN; validating against the SPIFFE "
           + "trust bundle. SAN entries: {}", safeSanSummary(chain));
@@ -119,16 +115,6 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
     }
   }
 
-  /**
-   * Best-effort, exception-safe rendering of a certificate chain's leaf SAN entries, for debug
-   * logging only. SAN entries are attacker-influenced ASN.1 data that {@link
-   * X509Certificate#getSubjectAlternativeNames()} hands back as a loosely-typed {@code
-   * Collection<List<?>>}; a malformed or unexpected entry here must never propagate out of this
-   * method and fail (or otherwise affect) an otherwise-valid handshake for an unrelated,
-   * logging-only reason. Every failure mode is caught and turned into a descriptive placeholder
-   * instead. Package-private so tests can call it directly, independent of the logger's
-   * configured level.
-   */
   static String safeSanSummary(X509Certificate[] chain) {
     try {
       if (chain == null || chain.length == 0 || chain[0] == null) {
@@ -152,8 +138,6 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
       }
       return entries.toString();
     } catch (RuntimeException e) {
-      // Belt-and-suspenders: nothing above is expected to throw an unchecked exception, but this
-      // is debug-only logging support code, so a bug here must never affect the handshake outcome.
       return "<error summarizing SAN entries: " + e + ">";
     }
   }
@@ -161,7 +145,6 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
   private static String safeSanEntry(List<?> san) {
     try {
       if (san == null) {
-        // getSubjectAlternativeNames() can legally contain null entries.
         return "<null entry>";
       }
       if (san.size() < 2) {
