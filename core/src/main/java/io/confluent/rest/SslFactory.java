@@ -17,29 +17,40 @@
 package io.confluent.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.spiffe.provider.SpiffeKeyManagerFactory;
 import io.spiffe.provider.SpiffeSslContextFactory;
 import io.spiffe.provider.SpiffeTrustManagerFactory;
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.types.Password;
+import org.apache.kafka.common.metrics.Metrics;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.Security;
 import java.security.cert.CRL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
+// CHECKSTYLE_RULES.OFF: ClassDataAbstractionCoupling
 public final class SslFactory {
+  // CHECKSTYLE_RULES.ON: ClassDataAbstractionCoupling
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
   private static AtomicReference<Exception> watcherExecException = new AtomicReference<>(null);
@@ -114,12 +125,27 @@ public final class SslFactory {
 
 
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
-    return createSslContextFactory(sslConfig, null);
+    return createSslContextFactory(sslConfig, null, null, null);
   }
 
   public static SslContextFactory createSslContextFactory(
       SslConfig sslConfig,
       X509Source x509Source) {
+    return createSslContextFactory(sslConfig, x509Source, null, null);
+  }
+
+  /**
+   * Build the listener's {@link SslContextFactory}. The optional {@code metricsSupplier} /
+   * {@code metricsTagsSupplier} are resolved lazily at handshake time and used only on a
+   * full-SPIRE listener with a non-empty SPIFFE-ID allowlist, to record per-listener SPIRE
+   * client-cert validation counters (see {@link SpireSpiffeAllowlistTrustManager}). Both may be
+   * null (no metrics recorded).
+   */
+  public static SslContextFactory createSslContextFactory(
+      SslConfig sslConfig,
+      X509Source x509Source,
+      Supplier<Metrics> metricsSupplier,
+      Supplier<Map<String, String>> metricsTagsSupplier) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
     
     /*
@@ -140,7 +166,8 @@ public final class SslFactory {
         sslContextFactory = createSpireTrustOnlyServer(x509Source);
       } else {
         log.info("SPIRE SSL mode enabled");
-        configureSpiffeSslContext(sslContextFactory, x509Source);
+        configureSpiffeSslContext(sslContextFactory, x509Source,
+            sslConfig.getAcceptedSpiffeIdPatterns(), metricsSupplier, metricsTagsSupplier);
       }
     }
 
@@ -181,30 +208,65 @@ public final class SslFactory {
     return sslContextFactory;
   }
 
+  // Full-SPIRE mode (ssl.spire.enabled=true, ssl.spire.trust.only.enabled=false): the server
+  // presents its own SVID (KeyManager from the X509Source) and validates client certs against the
+  // live SPIRE bundle (TrustManager from the X509Source).
+  //
+  // Two behaviors, selected by whether an accepted-SPIFFE-ID allowlist is configured:
+  //   * allowlist EMPTY (default): accept any SVID that chains to the bundle. Uses the java-spiffe
+  //     helper unchanged: pre-existing behavior.
+  //   * allowlist NON-EMPTY (a full-SPIRE listener that restricts callers by SPIFFE ID):
+  //     build the SSLContext explicitly so the SPIFFE TrustManager can be wrapped
+  //     in a SpireSpiffeAllowlistTrustManager that additionally enforces the SPIFFE-ID allowlist
+  //     and records per-listener validation metrics. The java-spiffe helper's acceptAnySpiffeId /
+  //     callback path is bypassed here because it offers neither regex allowlisting nor metric
+  //     hooks.
   private static void configureSpiffeSslContext(
       SslContextFactory.Server sslContextFactory,
-      X509Source x509Source) {
+      X509Source x509Source,
+      List<String> acceptedSpiffeIdPatterns,
+      Supplier<Metrics> metricsSupplier,
+      Supplier<Map<String, String>> metricsTagsSupplier) {
 
-    /*
-     * The underlying 'java-spiffe' library does not support complex pattern matching for SPIFFE 
-     * IDs. Supplying a static list of accepted IDs is too restrictive for dynamic environments 
-     * where all client IDs may not be known in advance.
-     *
-     * To provide more flexible authorization, a callback function can be supplied to the 
-     * constructor. If the callback is provided, it will be invoked to authorize a client's 
-     * SPIFFE ID. If the callback is null, any SPIFFE ID will be accepted.
-     *
-     * This approach serves as an interim solution until a more comprehensive authorization 
-     * layer is implemented.
-     */
-    SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
-        .builder()
-        .x509Source(x509Source)
-        .acceptAnySpiffeId()
-        .build();
+    List<Pattern> compiledAcceptedSpiffeIds = compilePatterns(acceptedSpiffeIdPatterns);
 
+    if (compiledAcceptedSpiffeIds.isEmpty()) {
+      // No allowlist configured: accept any SPIFFE ID that chains to the bundle (unchanged).
+      SpiffeSslContextFactory.SslContextOptions options = SpiffeSslContextFactory.SslContextOptions
+          .builder()
+          .x509Source(x509Source)
+          .acceptAnySpiffeId()
+          .build();
+      try {
+        SSLContext sslContext = SpiffeSslContextFactory.getSslContext(options);
+        sslContextFactory.setSslContext(sslContext);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return;
+    }
+
+    // Allowlist configured: server SVID from SPIRE + SPIFFE trust wrapped with allowlist + metrics.
+    log.debug("SPIRE SSL allowlist enforcement enabled ({} accepted SPIFFE-ID pattern(s))",
+        compiledAcceptedSpiffeIds.size());
     try {
-      SSLContext sslContext = SpiffeSslContextFactory.getSslContext(options);
+      KeyManager[] keyManagers =
+          new SpiffeKeyManagerFactory().engineGetKeyManagers(x509Source);
+      TrustManager[] spiffeTrustManagers =
+          new SpiffeTrustManagerFactory().engineGetTrustManagersAcceptAnySpiffeId(x509Source);
+      TrustManager[] wrapped = new TrustManager[spiffeTrustManagers.length];
+      for (int i = 0; i < spiffeTrustManagers.length; i++) {
+        wrapped[i] = (spiffeTrustManagers[i] instanceof X509ExtendedTrustManager)
+            ? new SpireSpiffeAllowlistTrustManager(
+                (X509ExtendedTrustManager) spiffeTrustManagers[i],
+                x509Source,
+                compiledAcceptedSpiffeIds,
+                metricsSupplier,
+                metricsTagsSupplier)
+            : spiffeTrustManagers[i];
+      }
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      sslContext.init(keyManagers, wrapped, null);
       sslContextFactory.setSslContext(sslContext);
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -225,6 +287,21 @@ public final class SslFactory {
               + "non-SPIFFE client certificate is not validated at all, so requiring a "
               + "client certificate would accept any certificate without verifying it.");
     }
+  }
+
+  // Compile the accepted-SPIFFE-ID regex allowlist once at startup (not per handshake). Empty or
+  // blank entries are skipped. An empty result means "no allowlist configured".
+  private static List<Pattern> compilePatterns(List<String> patterns) {
+    if (patterns == null || patterns.isEmpty()) {
+      return List.of();
+    }
+    List<Pattern> compiled = new ArrayList<>(patterns.size());
+    for (String p : patterns) {
+      if (p != null && !p.isEmpty()) {
+        compiled.add(Pattern.compile(p));
+      }
+    }
+    return compiled;
   }
 
   // SPIRE trust-only mode: subclass to override getTrustManagers(...) with a
