@@ -223,6 +223,16 @@ public class RestConfig extends AbstractConfig {
       + "ssl.keystore.* settings are honored while ssl.truststore.* settings are "
       + "ignored. Has no effect unless " + SSL_SPIRE_ENABLED_CONFIG + " is also true.";
   protected static final boolean SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT = false;
+  public static final String SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG =
+      "ssl.spire.accepted.spiffe.id.patterns";
+  public static final String SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DOC =
+      "Comma-separated regex allowlist matched (full match) against a client's spiffe:// SVID URI "
+      + "on a SPIRE-enabled listener. Empty (the default) means any SVID that chains to the SPIRE "
+      + "bundle is accepted; when non-empty, the SVID must additionally match one of these "
+      + "patterns or the handshake is rejected. Has no effect unless " + SSL_SPIRE_ENABLED_CONFIG
+      + " is also true.";
+  protected static final List<String> SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DEFAULT =
+      java.util.Collections.emptyList();
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -918,6 +928,12 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT,
             Importance.LOW,
             SSL_SPIRE_TRUST_ONLY_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG,
+            Type.LIST,
+            SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
