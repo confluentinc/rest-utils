@@ -18,8 +18,8 @@ package io.confluent.rest.exceptions;
 
 import java.util.Set;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 
 /**
  * ConstraintViolationException that includes RestException-like data to create a standard error

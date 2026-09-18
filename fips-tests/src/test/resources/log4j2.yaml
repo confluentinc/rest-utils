@@ -13,9 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##
-
-log4j.rootLogger=INFO, stdout
-
-log4j.appender.stdout=org.apache.log4j.ConsoleAppender
-log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
-log4j.appender.stdout.layout.ConversionPattern=[%d] %p %m (%c:%L)%n
+Configuration:
+  name: "Log4j2"
+  Appenders:
+    Console:
+      name: "STDOUT"
+      target: "SYSTEM_OUT"
+      PatternLayout:
+        pattern: "[%d] %p %m (%c:%L)%n"
+  Loggers:
+    Root:
+      level: "INFO"
+      AppenderRef:
+        ref: "STDOUT"

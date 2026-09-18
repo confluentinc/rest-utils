@@ -22,11 +22,11 @@ import com.google.common.collect.ImmutableMap;
 
 import java.net.URI;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;

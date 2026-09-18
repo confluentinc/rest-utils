@@ -15,8 +15,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpStatus.Code;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.junit.jupiter.api.AfterEach;
@@ -30,22 +30,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Collection;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerRequestFilter;
-import javax.ws.rs.container.ContainerResponseContext;
-import javax.ws.rs.container.ContainerResponseFilter;
-import javax.ws.rs.container.PreMatching;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.container.ContainerResponseContext;
+import jakarta.ws.rs.container.ContainerResponseFilter;
+import jakarta.ws.rs.container.PreMatching;
+import jakarta.ws.rs.ext.Provider;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -81,6 +83,26 @@ public class ApplicationServerTest {
     return new TestRestConfig(props);
   }
 
+  private TestRestConfig configBasicWithWildcardSkipPath() {
+    Properties props = new Properties();
+    props.put(RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BASIC);
+    props.put(RestConfig.AUTHENTICATION_REALM_CONFIG, "c3");
+    props.put(RestConfig.AUTHENTICATION_ROLES_CONFIG, Collections.singletonList("Administrators"));
+    props.put(RestConfig.AUTHENTICATION_SKIP_PATHS, "/*");
+
+    return new TestRestConfig(props);
+  }
+
+  private TestRestConfig configBasicWithSkipPaths(String skipPaths) {
+    Properties props = new Properties();
+    props.put(RestConfig.AUTHENTICATION_METHOD_CONFIG, RestConfig.AUTHENTICATION_METHOD_BASIC);
+    props.put(RestConfig.AUTHENTICATION_REALM_CONFIG, "c3");
+    props.put(RestConfig.AUTHENTICATION_ROLES_CONFIG, Collections.singletonList("Administrators"));
+    props.put(RestConfig.AUTHENTICATION_SKIP_PATHS, skipPaths);
+
+    return new TestRestConfig(props);
+  }
+
   /* Ensure security handlers are confined to a single context */
   @Test
   public void testSecurityHandlerIsolation() throws Exception {
@@ -93,6 +115,47 @@ public class ApplicationServerTest {
 
     assertThat(makeGetRequest( "/app1/resource"), is(Code.OK));
     assertThat(makeGetRequest( "/app2/resource"), is(Code.UNAUTHORIZED));
+  }
+
+  /*
+   * Regression test: authentication.skip.paths="/*" must actually disable authentication for
+   * all paths, even though this skip pathSpec is identical to the hardcoded global auth
+   * constraint's pathSpec ("/*"). Before the fix in AuthUtil#createConstraint, an unauthenticated
+   * request here was rejected because Jetty's ConstraintSecurityHandler merges two mappings that
+   * share the same pathSpec, and the skip mapping's default Authorization.INHERIT deferred to the
+   * global constraint's real BASIC auth requirement instead of actually allowing the request.
+   */
+  @Test
+  public void testUnsecuredWildcardSkipPathOverridesGlobalAuthConstraint() throws Exception {
+    TestApp app1 = new TestApp("/app1");
+    TestApp app2 = new TestApp(configBasicWithWildcardSkipPath(), "/app2");
+
+    server.registerApplication(app1);
+    server.registerApplication(app2);
+    server.start();
+
+    // app1 has no auth configured at all; sanity check that it stays open.
+    assertThat(makeGetRequest("/app1/resource"), is(Code.OK));
+    // app2 has BASIC auth enabled globally, but skips it for "/*": an unauthenticated request
+    // must still succeed.
+    assertThat(makeGetRequest("/app2/resource"), is(Code.OK));
+  }
+
+  /*
+   * Non-wildcard skip path: only the exact configured pathSpec should bypass authentication;
+   * every other path under the same app must remain protected by the global auth constraint.
+   */
+  @Test
+  public void testUnsecuredSpecificSkipPathLeavesOtherPathsSecured() throws Exception {
+    TestApp app = new TestApp(configBasicWithSkipPaths("/resource"), "/app");
+
+    server.registerApplication(app);
+    server.start();
+
+    // "/resource" is an explicit skip path: unauthenticated requests must succeed.
+    assertThat(makeGetRequest("/app/resource"), is(Code.OK));
+    // "/exception" was not listed as a skip path, so it must still require authentication.
+    assertThat(makeGetRequest("/app/exception"), is(Code.UNAUTHORIZED));
   }
 
   /* Test Exception Mapper isolation */
@@ -128,9 +191,9 @@ public class ApplicationServerTest {
       }
 
       @Override
-      protected ResourceCollection getStaticResources() {
-        return new ResourceCollection(Resource.newClassPathResource("static"));
-      }
+      protected Collection<Resource> getStaticResources() {
+        ResourceFactory.LifeCycle resourceFactory = ResourceFactory.lifecycle();
+        return List.of(resourceFactory.newClassLoaderResource("static"));      }
     };
 
     server.registerApplication(app1);
