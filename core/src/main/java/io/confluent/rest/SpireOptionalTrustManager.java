@@ -20,6 +20,7 @@ import java.net.Socket;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -71,10 +72,10 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
   public void checkClientTrusted(X509Certificate[] chain, String authType)
       throws CertificateException {
     if (isSpiffeCert(chain)) {
-      logValidatingSpiffeCert();
+      logValidatingSpiffeCert(chain);
       spiffeTrustManager.checkClientTrusted(chain, authType);
     } else {
-      logSkippingNonSpiffeCert();
+      logSkippingNonSpiffeCert(chain);
     }
   }
 
@@ -82,10 +83,10 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
   public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
       throws CertificateException {
     if (isSpiffeCert(chain)) {
-      logValidatingSpiffeCert();
+      logValidatingSpiffeCert(chain);
       spiffeTrustManager.checkClientTrusted(chain, authType, socket);
     } else {
-      logSkippingNonSpiffeCert();
+      logSkippingNonSpiffeCert(chain);
     }
   }
 
@@ -93,21 +94,71 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
   public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
       throws CertificateException {
     if (isSpiffeCert(chain)) {
-      logValidatingSpiffeCert();
+      logValidatingSpiffeCert(chain);
       spiffeTrustManager.checkClientTrusted(chain, authType, engine);
     } else {
-      logSkippingNonSpiffeCert();
+      logSkippingNonSpiffeCert(chain);
     }
   }
 
-  private static void logValidatingSpiffeCert() {
-    log.debug("Client certificate carries a spiffe:// SAN; validating against the SPIFFE "
-        + "trust bundle");
+  private static void logValidatingSpiffeCert(X509Certificate[] chain) {
+    if (log.isDebugEnabled()) {
+      log.debug("Client certificate carries a spiffe:// SAN; validating against the SPIFFE "
+          + "trust bundle. SAN entries: {}", safeSanSummary(chain));
+    }
   }
 
-  private static void logSkippingNonSpiffeCert() {
-    log.debug("Client certificate does not carry a spiffe:// SAN; skipping validation and "
-        + "treating the connection as unauthenticated");
+  private static void logSkippingNonSpiffeCert(X509Certificate[] chain) {
+    if (log.isDebugEnabled()) {
+      log.debug("Client certificate does not carry a spiffe:// SAN; skipping validation and "
+          + "treating the connection as unauthenticated. SAN entries: {}", safeSanSummary(chain));
+    }
+  }
+
+  static String safeSanSummary(X509Certificate[] chain) {
+    try {
+      if (chain == null || chain.length == 0 || chain[0] == null) {
+        return "<no certificate>";
+      }
+      Collection<List<?>> sans;
+      try {
+        sans = chain[0].getSubjectAlternativeNames();
+      } catch (CertificateParsingException e) {
+        return "<unparsable SAN entries: " + e.getMessage() + ">";
+      }
+      if (sans == null) {
+        return "<no SAN extension>";
+      }
+      if (sans.isEmpty()) {
+        return "<empty SAN extension>";
+      }
+      List<String> entries = new ArrayList<>();
+      for (List<?> san : sans) {
+        entries.add(safeSanEntry(san));
+      }
+      return entries.toString();
+    } catch (RuntimeException e) {
+      return "<error summarizing SAN entries: " + e + ">";
+    }
+  }
+
+  private static String safeSanEntry(List<?> san) {
+    try {
+      if (san == null) {
+        return "<null entry>";
+      }
+      if (san.size() < 2) {
+        return "<malformed entry: " + san + ">";
+      }
+      Object type = san.get(0);
+      Object value = san.get(1);
+      if (type instanceof Integer && (Integer) type == URI_SAN_TYPE && value instanceof String) {
+        return "uniformResourceIdentifier=" + value;
+      }
+      return "type=" + type + ", value=" + value;
+    } catch (RuntimeException e) {
+      return "<error reading entry: " + e + ">";
+    }
   }
 
   @Override
