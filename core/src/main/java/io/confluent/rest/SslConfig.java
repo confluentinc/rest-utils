@@ -25,7 +25,7 @@ public final class SslConfig {
   public static final String TLS_CONSCRYPT = "Conscrypt";
 
   private static final SslConfig DEFAULT_CONFIG =
-      new SslConfig(new RestConfig(RestConfig.baseConfigDef()));
+      new SslConfig(new RestConfig(RestConfig.baseConfigDef(), false));
 
   private final RestConfig restConfig;
 
@@ -128,5 +128,9 @@ public final class SslConfig {
 
   public Boolean getIsSpireEnabled() {
     return restConfig.getBoolean(RestConfig.SSL_SPIRE_ENABLED_CONFIG);
+  }
+
+  public Boolean getIsSpireTrustOnlyEnabled() {
+    return restConfig.getBoolean(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG);
   }
 }

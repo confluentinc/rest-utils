@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import io.confluent.rest.jetty.DoSFilter;
 import org.apache.kafka.common.MetricName;

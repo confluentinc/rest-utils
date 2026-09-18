@@ -16,12 +16,29 @@
 
 package io.confluent.rest;
 
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
+import org.eclipse.jetty.io.ClientConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 
 class TestUtils {
   private TestUtils() {
     // prevent instantiation of this class
+  }
+
+  static HttpClient httpClient(SslContextFactory.Client sslContextFactory) {
+    final HttpClient client;
+    if (sslContextFactory != null) {
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+    } else {
+      client = new HttpClient();
+    }
+    return client;
   }
 
   static int getFreePort() {

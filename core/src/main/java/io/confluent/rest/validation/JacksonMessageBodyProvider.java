@@ -19,13 +19,13 @@ package io.confluent.rest.validation;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import com.fasterxml.jackson.jakarta.rs.json.JacksonXmlBindJsonProvider;
 import io.confluent.rest.exceptions.RestTimeoutException;
 
-import javax.validation.ConstraintViolationException;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.ext.Provider;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.ext.Provider;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,7 +40,7 @@ import java.util.concurrent.TimeoutException;
  * is accessed multiple times).
  */
 @Provider
-public class JacksonMessageBodyProvider extends JacksonJaxbJsonProvider {
+public class JacksonMessageBodyProvider extends JacksonXmlBindJsonProvider {
 
   public JacksonMessageBodyProvider() {
     setMapper(new ObjectMapper());

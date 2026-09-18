@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
+import static io.confluent.rest.TestUtils.httpClient;
 import static org.eclipse.jetty.http.HttpStatus.Code.OK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -29,17 +30,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -141,7 +142,7 @@ public class HstsIntegrationTest {
       SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
       sslContextFactory.setSslContext(sslContext);
 
-      httpClient = new HttpClient(sslContextFactory);
+      httpClient = httpClient(sslContextFactory);
     } else {
       httpClient = new HttpClient();
     }
