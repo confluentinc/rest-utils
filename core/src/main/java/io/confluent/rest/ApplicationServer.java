@@ -20,13 +20,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import io.confluent.rest.errorhandlers.NoJettyDefaultStackTraceErrorHandler;
 import io.confluent.rest.customizer.ProxyCustomizer;
+import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
@@ -38,6 +39,7 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.io.NetworkTrafficListener;
@@ -50,12 +52,12 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -158,46 +160,31 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return config.getBoolean(RestConfig.HSTS_HEADER_ENABLE_CONFIG);
   }
 
-  private void attachMetricsListener(String appListenerName, Metrics metrics,
-                                     Map<String, String> tags) {
+  private void attachNetworkTrafficListener(RestConfig appConfig,
+                                            String appListenerName,
+                                            Metrics metrics,
+                                            Map<String, String> tags) {
     // if the application listener name is not specified (unnamed), attach NetworkTrafficListener
     // to all connectors of the application,
     // otherwise attach to the specified connector with the name
     // matching the application listener name
     for (NetworkTrafficServerConnector connector : connectors) {
       if (appListenerName == null || Objects.equals(connector.getName(), appListenerName)) {
-        MetricsListener metricsListener = new MetricsListener(metrics, "jetty", tags);
-        connector.addNetworkTrafficListener(metricsListener);
+        List<NetworkTrafficListener> listeners = new ArrayList<>();
+        listeners.add(new MetricsListener(metrics, "jetty", tags));
+        if (appConfig.getNetworkTrafficRateLimitEnable()) {
+          listeners.add(new RateLimitNetworkTrafficListener(appConfig));
+        }
+        NetworkTrafficListener combinedListener = new CombinedNetworkTrafficListener(listeners);
+        connector.setNetworkTrafficListener(combinedListener);
         log.info("Registered {} to network connector {} of listener: {}",
-                 metricsListener.getClass().getSimpleName(),
+                 combinedListener.getClass().getSimpleName(),
                  connector.getName(),
                  appListenerName);
       }
     }
     if (connectors.isEmpty()) {
       log.warn("No network connector configured for listener: {}", appListenerName);
-    }
-  }
-
-  private void attachNetworkTrafficRateLimitListener(RestConfig appConfig, String appListenerName) {
-    if (appConfig.getNetworkTrafficRateLimitEnable()) {
-      // if the application listener name is not specified (unnamed), attach NetworkTrafficListener
-      // to all connectors of the application,
-      // otherwise attach to the specified connector with the name
-      // matching the application listener name
-      for (NetworkTrafficServerConnector connector : connectors) {
-        if (appListenerName == null || Objects.equals(connector.getName(), appListenerName)) {
-          NetworkTrafficListener rateLimitListener = new RateLimitNetworkTrafficListener(appConfig);
-          connector.addNetworkTrafficListener(rateLimitListener);
-          log.info("Registered {} to network connector {} of listener: {}",
-                   rateLimitListener.getClass().getSimpleName(),
-                   connector.getName(),
-                   appListenerName);
-        }
-      }
-      if (connectors.isEmpty()) {
-        log.warn("No network connector configured for listener: {}", appListenerName);
-      }
     }
   }
 
@@ -228,7 +215,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     metrics.addMetric(threadPoolUsageMetricName, threadPoolUsage);
   }
 
-  private void finalizeHandlerCollection(HandlerCollection handlers, HandlerCollection wsHandlers) {
+  private void finalizeHandlerCollection(Sequence handlers, Sequence wsHandlers) {
     /* DefaultHandler must come last to ensure all contexts
      * have a chance to handle a request first */
     handlers.addHandler(new DefaultHandler());
@@ -256,15 +243,13 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   @Override
   protected final void doStart() throws Exception {
     // set the default error handler
-    if (config.getSuppressStackTraceInResponse()) {
-      this.setErrorHandler(new NoJettyDefaultStackTraceErrorHandler());
-    }
+    this.setErrorHandler(new StackTraceErrorHandler(config.getSuppressStackTraceInResponse()));
 
-    HandlerCollection handlers = new HandlerCollection();
-    HandlerCollection wsHandlers = new HandlerCollection();
+    Sequence handlers = new Sequence();
+    Sequence wsHandlers = new Sequence();
     for (Application<?> app : applications) {
-      attachMetricsListener(app.getListenerName(), app.getMetrics(), app.getMetricsTags());
-      attachNetworkTrafficRateLimitListener(app.getConfiguration(), app.getListenerName());
+      attachNetworkTrafficListener(app.getConfiguration(), app.getListenerName(),
+                                   app.getMetrics(), app.getMetricsTags());
       addJettyThreadPoolMetrics(app.getMetrics(), app.getMetricsTags());
       handlers.addHandler(app.configureHandler());
       wsHandlers.addHandler(app.configureWebSocketHandler());
@@ -287,6 +272,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   private void configureConnectors() {
+    final boolean proxyProtocolEnabled =
+        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
     final HttpConfiguration httpConfiguration = new HttpConfiguration();
     httpConfiguration.setSendServerVersion(false);
 
@@ -296,15 +283,32 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     httpConfiguration.setResponseHeaderSize(
         config.getInt(RestConfig.MAX_RESPONSE_HEADER_SIZE_CONFIG));
 
-    final boolean proxyProtocolEnabled =
-        config.getBoolean(RestConfig.PROXY_PROTOCOL_ENABLED_CONFIG);
     if (proxyProtocolEnabled) {
       httpConfiguration.addCustomizer(new ProxyCustomizer());
     }
-
     // Use original IP in forwarded requests
     if (config.getBoolean(RestConfig.NETWORK_FORWARDED_REQUEST_ENABLE_CONFIG)) {
       httpConfiguration.addCustomizer(new ForwardedRequestCustomizer());
+    }
+
+    // Refer to https://github.com/jetty/jetty.project/issues/11890#issuecomment-2156449534
+    // In Jetty 12, using Servlet 6 and ee10+, ambiguous path separators are not allowed
+    // We must set a URI compliance to allow for this violation so that client
+    // requests are not automatically rejected
+    if (config.getBoolean(RestConfig.JETTY_LEGACY_URI_COMPLIANCE)) {
+      // If we want to run Jetty 12 with backward-compliance to Jetty 9,
+      // we should allow the following violations. Otherwise, some existing URI
+      // paths will encounter errors
+      UriCompliance backwardCompatibility = UriCompliance.LEGACY.with(
+          "backward-compatibility",
+          UriCompliance.Violation.ILLEGAL_PATH_CHARACTERS,
+          UriCompliance.Violation.SUSPICIOUS_PATH_CHARACTERS
+        );
+      httpConfiguration.setUriCompliance(backwardCompatibility);
+    } else {
+      httpConfiguration.setUriCompliance(UriCompliance.from(Set.of(
+          UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR,
+          UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING)));
     }
 
     final HttpConnectionFactory httpConnectionFactory =
@@ -402,7 +406,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
         SslConnectionFactory sslConnectionFactory =
             new SslConnectionFactory(
-                sslContextFactories.get(listener), alpnConnectionFactory.getProtocol());
+                    (SslContextFactory.Server) sslContextFactories.get(listener),
+                    alpnConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
@@ -423,7 +428,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       } else {
         SslConnectionFactory sslConnectionFactory =
             new SslConnectionFactory(
-                sslContextFactories.get(listener), httpConnectionFactory.getProtocol());
+                    (SslContextFactory.Server) sslContextFactories.get(listener),
+                    httpConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
           connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));

@@ -38,8 +38,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriBuilderException;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigDef;
@@ -95,7 +95,10 @@ public class RestConfig extends AbstractConfig {
   public static final String SHUTDOWN_GRACEFUL_MS_CONFIG = "shutdown.graceful.ms";
   protected static final String SHUTDOWN_GRACEFUL_MS_DOC =
       "Amount of time to wait after a shutdown request for outstanding requests to complete.";
-  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "1000";
+  // When using Jetty 9, the value was 1000, causing tests
+  // to fail due to timeout when stopping the server.
+  // For Jetty 12, bumping the timeout to 5000 allowed the tests to pass.
+  protected static final String SHUTDOWN_GRACEFUL_MS_DEFAULT = "5000";
 
   public static final String ACCESS_CONTROL_ALLOW_ORIGIN_CONFIG = "access.control.allow.origin";
   protected static final String ACCESS_CONTROL_ALLOW_ORIGIN_DOC =
@@ -193,6 +196,10 @@ public class RestConfig extends AbstractConfig {
   protected static final String METRICS_LATENCY_SLA_MS_DOC = "The threshold (in ms) of whether"
       + " request latency meets or violates SLA";
   protected static final long METRICS_LATENCY_SLA_MS_DEFAULT = 50;
+  public static final String PERCENTILE_MAX_LATENCY_MS_CONFIG = "percentile.max.latency.ms";
+  protected static final String PERCENTILE_MAX_LATENCY_MS_DOC = "The threshold (in ms) of"
+          + " percentile maximum latency";
+  protected static final double PERCENTILE_MAX_LATENCY_MS_DEFAULT = 10000;
   public static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG =
       "metrics.global.stats.request.tags.enable";
   protected static final String METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DOC = "Whether to use "
@@ -200,10 +207,22 @@ public class RestConfig extends AbstractConfig {
   protected static final boolean METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT = false;
 
   public static final String SSL_SPIRE_ENABLED_CONFIG = "ssl.spire.enabled";
+  public static final String SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG =
+      "ssl.spire.trust.only.enabled";
   public static final String SSL_SPIRE_ENABLED_DOC =
-      "Whether to enable SPIRE SSL; once enabled, all keystore and truststore settings "
-      + "are ignored because SPIRE will handle the certificate and key management";
+      "Whether to enable SPIRE SSL. By default, SPIRE provides both the KeyManager "
+      + "(cert/key) and the TrustManager (peer-verification bundle), so all configured "
+      + "ssl.keystore.* and ssl.truststore.* settings are ignored. To keep using the "
+      + "configured keystore for the server cert/key while sourcing only the TrustManager "
+      + "from SPIRE, also enable " + SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG + ".";
   protected static final  boolean SSL_SPIRE_ENABLED_DEFAULT = false;
+  public static final String SSL_SPIRE_TRUST_ONLY_ENABLED_DOC =
+      "Sub-case of " + SSL_SPIRE_ENABLED_CONFIG + ". When true, SPIRE is used only to "
+      + "source the TrustManager (peer-verification bundle); the server's KeyManager "
+      + "(cert/key) is still loaded from the configured keystore. The configured "
+      + "ssl.keystore.* settings are honored while ssl.truststore.* settings are "
+      + "ignored. Has no effect unless " + SSL_SPIRE_ENABLED_CONFIG + " is also true.";
+  protected static final boolean SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT = false;
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -360,6 +379,24 @@ public class RestConfig extends AbstractConfig {
           "The number of milliseconds to hold an idle session open for.";
   public static final long IDLE_TIMEOUT_MS_DEFAULT = 30_000;
 
+  public static final String REQUEST_TIMEOUT_MS_CONFIG = "request.timeout.ms";
+  public static final String REQUEST_TIMEOUT_MS_DOC =
+          "Maximum time in milliseconds a single HTTP request is allowed to take before the "
+          + "server aborts it and returns HTTP 504 Gateway Timeout. Guards against requests that "
+          + "hold a worker thread indefinitely. A value of 0 (the default) or less disables "
+          + "the timeout.";
+  public static final long REQUEST_TIMEOUT_MS_DEFAULT = 0;
+
+  public static final String REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG =
+          "request.timeout.interrupt.enable";
+  public static final String REQUEST_TIMEOUT_INTERRUPT_ENABLE_DOC =
+          "When a request exceeds " + REQUEST_TIMEOUT_MS_CONFIG + ", also interrupt the worker "
+          + "thread handling it. This can reclaim a thread blocked on an interruptible operation "
+          + "(e.g. network I/O), but has no effect on CPU-bound work that does not check the "
+          + "interrupt status, nor on non-interruptible blocking calls. Only has an effect when "
+          + REQUEST_TIMEOUT_MS_CONFIG + " is greater than 0.";
+  public static final boolean REQUEST_TIMEOUT_INTERRUPT_ENABLE_DEFAULT = false;
+
   public static final String THREAD_POOL_MIN_CONFIG = "thread.pool.min";
   public static final String THREAD_POOL_MIN_DOC =
           "The minimum number of threads will be started for HTTP Servlet server.";
@@ -374,6 +411,11 @@ public class RestConfig extends AbstractConfig {
   public static final String REQUEST_QUEUE_CAPACITY_DOC =
           "The capacity of request queue for each thread pool.";
   public static final int REQUEST_QUEUE_CAPACITY_DEFAULT = Integer.MAX_VALUE;
+
+  public static final String JETTY_LEGACY_URI_COMPLIANCE = "jetty.legacy.uri.compliance";
+  public static final String JETTY_LEGACY_URI_COMPLIANCE_DOC =
+          "Enable legacy URI Compliance in Jetty.";
+  public static final boolean JETTY_LEGACY_URI_COMPLIANCE_DEFAULT = false;
 
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_CONFIG = "request.queue.capacity.init";
   public static final String REQUEST_QUEUE_CAPACITY_INITIAL_DOC =
@@ -540,6 +582,12 @@ public class RestConfig extends AbstractConfig {
           + "SNI host checking will be disabled for all HTTPS connections. Default is true.";
   protected static final boolean SNI_HOST_CHECK_ENABLED_DEFAULT = true;
 
+  public static final String EXPECTED_SNI_HEADERS_CONFIG = "expected.sni.headers";
+  protected static final String EXPECTED_SNI_HEADERS_DOC =
+      "Comma-separated list of expected SNI headers for incoming connections. If a value is "
+          + "present, log a warning when handling connections, but do not reject the connection.";
+  protected static final String EXPECTED_SNI_HEADERS_DEFAULT = "";
+
   public static final String PROXY_PROTOCOL_ENABLED_CONFIG =
       "proxy.protocol.enabled";
   protected static final String PROXY_PROTOCOL_ENABLED_DOC =
@@ -602,6 +650,24 @@ public class RestConfig extends AbstractConfig {
       ConfigDef.Range.atLeast(1);
 
   protected static final boolean SUPPRESS_STACK_TRACE_IN_RESPONSE_DEFAULT = true;
+
+  public static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG =
+          "return.429.instead.of.500.for.jetty.response.errors";
+  protected static final String RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC =
+          "If true, return 429 Too Many Requests instead of 500 Internal Server Error "
+                  + "for errors coming from Jetty response handlers, the particular error being "
+                  + "'Response does not exist (likely recycled)'. "
+                  + "Default is false.";
+  protected static final boolean RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT =
+          false;
+
+  public static final String DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG =
+          "disable.response.size.metrics.collection";
+  protected static final String DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DOC =
+          "If true, we not will use the counting output stream to collect "
+                  + "response size metrics. Default is false.";
+  protected static final boolean DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DEFAULT =
+          false;
 
   static final List<String> SUPPORTED_URI_SCHEMES =
       unmodifiableList(Arrays.asList("http", "https"));
@@ -788,6 +854,13 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             METRICS_LATENCY_SLA_MS_DOC
         ).define(
+            PERCENTILE_MAX_LATENCY_MS_CONFIG,
+            Type.DOUBLE,
+            PERCENTILE_MAX_LATENCY_MS_DEFAULT,
+            ConfigDef.Range.atLeast(0),
+            Importance.LOW,
+            PERCENTILE_MAX_LATENCY_MS_DOC
+        ).define(
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_CONFIG,
             Type.BOOLEAN,
             METRICS_GLOBAL_STATS_REQUEST_TAGS_ENABLE_DEFAULT,
@@ -799,6 +872,12 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_ENABLED_DEFAULT,
             Importance.LOW,
             SSL_SPIRE_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_TRUST_ONLY_ENABLED_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
@@ -970,6 +1049,18 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             IDLE_TIMEOUT_MS_DOC
         ).define(
+            REQUEST_TIMEOUT_MS_CONFIG,
+            Type.LONG,
+            REQUEST_TIMEOUT_MS_DEFAULT,
+            Importance.LOW,
+            REQUEST_TIMEOUT_MS_DOC
+        ).define(
+            REQUEST_TIMEOUT_INTERRUPT_ENABLE_CONFIG,
+            Type.BOOLEAN,
+            REQUEST_TIMEOUT_INTERRUPT_ENABLE_DEFAULT,
+            Importance.LOW,
+            REQUEST_TIMEOUT_INTERRUPT_ENABLE_DOC
+        ).define(
             THREAD_POOL_MIN_CONFIG,
             Type.INT,
             THREAD_POOL_MIN_DEFAULT,
@@ -993,6 +1084,12 @@ public class RestConfig extends AbstractConfig {
             REQUEST_QUEUE_CAPACITY_DEFAULT,
             Importance.LOW,
             REQUEST_QUEUE_CAPACITY_DOC
+        ).define(
+            JETTY_LEGACY_URI_COMPLIANCE,
+            Type.BOOLEAN,
+            JETTY_LEGACY_URI_COMPLIANCE_DEFAULT,
+            Importance.LOW,
+            JETTY_LEGACY_URI_COMPLIANCE_DOC
         ).define(
             REQUEST_QUEUE_CAPACITY_GROWBY_CONFIG,
             Type.INT,
@@ -1144,6 +1241,12 @@ public class RestConfig extends AbstractConfig {
             Importance.LOW,
             PREFIX_SNI_PREFIX_DOC
         ).define(
+            EXPECTED_SNI_HEADERS_CONFIG,
+            Type.LIST,
+            EXPECTED_SNI_HEADERS_DEFAULT,
+            Importance.LOW,
+            EXPECTED_SNI_HEADERS_DOC
+        ).define(
             LISTENER_PROTOCOL_MAP_CONFIG,
             Type.LIST,
             LISTENER_PROTOCOL_MAP_DEFAULT,
@@ -1210,6 +1313,18 @@ public class RestConfig extends AbstractConfig {
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_VALIDATOR,
             Importance.LOW,
             NETWORK_TRAFFIC_RATE_LIMIT_BYTES_PER_SEC_DOC
+        ).define(
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG,
+            Type.BOOLEAN,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DEFAULT,
+            Importance.LOW,
+            RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_DOC
+        ).define(
+            DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG,
+            Type.BOOLEAN,
+            DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DEFAULT,
+            Importance.LOW,
+            DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_DOC
         );
   }
 
@@ -1228,7 +1343,11 @@ public class RestConfig extends AbstractConfig {
   }
 
   public RestConfig(ConfigDef definition) {
-    this(definition, new TreeMap<>());
+    this(definition, new TreeMap<>(), false);
+  }
+
+  public RestConfig(ConfigDef definition, boolean doLog) {
+    this(definition, new TreeMap<>(), doLog);
   }
 
   public Time getTime() {
@@ -1352,6 +1471,14 @@ public class RestConfig extends AbstractConfig {
 
   public final boolean getSuppressStackTraceInResponse() {
     return getBoolean(SUPPRESS_STACK_TRACE_IN_RESPONSE);
+  }
+
+  public final boolean getReturn429InsteadOf500ForJettyResponseErrors() {
+    return getBoolean(RETURN_429_INSTEAD_OF_500_FOR_JETTY_RESPONSE_ERRORS_CONFIG);
+  }
+
+  public final boolean getDisableResponseSizeMetricsCollection() {
+    return getBoolean(DISABLE_RESPONSE_SIZE_METRICS_COLLECTION_CONFIG);
   }
 
   public final List<NamedURI> getListeners() {
@@ -1517,6 +1644,10 @@ public class RestConfig extends AbstractConfig {
 
   public final String getPrefixSniPrefix() {
     return getString(PREFIX_SNI_PREFIX_CONFIG);
+  }
+
+  public final List<String> getExpectedSniHeaders() {
+    return getList(EXPECTED_SNI_HEADERS_CONFIG);
   }
 
   /**

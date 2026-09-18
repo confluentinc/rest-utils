@@ -20,8 +20,8 @@ import io.confluent.rest.RestConfig;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
+import org.eclipse.jetty.security.Constraint;
 
 public final class AuthUtil {
 
@@ -141,16 +141,27 @@ public final class AuthUtil {
       final boolean authenticate,
       final String pathSpec
   ) {
-    final Constraint constraint = new Constraint();
-    constraint.setAuthenticate(authenticate);
+
+    final Constraint.Builder constraint = new Constraint.Builder();
+
     if (authenticate) {
-      final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
-      constraint.setRoles(roles.toArray(new String[0]));
+      configureAuthentication(constraint, restConfig);
+    } else {
+      // Explicitly mark as ALLOWED rather than leaving Authorization unset (which
+      // defaults to INHERIT). If this pathSpec exactly matches another already-registered
+      // constraint (e.g. the global "/*" auth constraint created by
+      // createGlobalAuthConstraint), ConstraintSecurityHandler merges the two mappings
+      // together. INHERIT always defers to the other side of that merge, which silently
+      // discards this "unsecured" mapping's intent whenever a skip path collides with an
+      // existing pathSpec such as "/*".
+      constraint.authorization(Constraint.ALLOWED.getAuthorization());
     }
 
     final ConstraintMapping mapping = new ConstraintMapping();
-    mapping.setConstraint(constraint);
-    mapping.setMethod("*");
+    // A null method (rather than "*") is how Jetty's ConstraintMapping represents
+    // "applies to all HTTP methods"; setMethod("*") throws IllegalArgumentException.
+    mapping.setMethod(null);
+    mapping.setConstraint(constraint.build());
 
     if (isRejectOptions(restConfig)) {
       mapping.setMethodOmissions(new String[]{"OPTIONS"});
@@ -163,21 +174,38 @@ public final class AuthUtil {
     return mapping;
   }
 
+  private static void configureAuthentication(Constraint.Builder constraint,
+                                              RestConfig restConfig) {
+    final List<String> roles = restConfig.getList(RestConfig.AUTHENTICATION_ROLES_CONFIG);
+    if (roles.isEmpty()) {
+      //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
+      // forbidding access
+      constraint.authorization(Constraint.FORBIDDEN.getAuthorization());
+    } else if (roles.size() == 1 && roles.get(0).equals("*")) {
+      constraint.authorization(Constraint.KNOWN_ROLE.getAuthorization());
+    } else if (roles.size() == 1 && roles.get(0).equals("**")) {
+      constraint.authorization(Constraint.ANY_USER.getAuthorization());
+    } else {
+      // The authorization would be set to SPECIFIC_ROLE by default if roles is not empty
+      constraint.roles(roles.toArray(new String[0]));
+    }
+  }
+
   public static Optional<ConstraintMapping>
         createDisableOptionsConstraint(final RestConfig config) {
 
     if (isRejectOptions(config)) {
 
-      Constraint forbidConstraint = new Constraint();
-      forbidConstraint.setName("Disable OPTIONS");
+      Constraint.Builder forbidConstraint = new Constraint.Builder();
+      forbidConstraint.name("Disable OPTIONS");
       //equivalent of setting an empty <auth-constraint> if no setRoles(String []) is set,
       // forbidding access
-      forbidConstraint.setAuthenticate(true);
+      forbidConstraint.authorization(Constraint.FORBIDDEN.getAuthorization());
 
       ConstraintMapping forbidMapping = new ConstraintMapping();
       forbidMapping.setMethod("OPTIONS");
       forbidMapping.setPathSpec("/*");
-      forbidMapping.setConstraint(forbidConstraint);
+      forbidMapping.setConstraint(forbidConstraint.build());
       return Optional.of(forbidMapping);
 
     }

@@ -32,10 +32,10 @@ import java.util.Map;
 import java.util.Properties;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
@@ -48,8 +48,10 @@ import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.eclipse.jetty.alpn.java.client.JDK9ClientALPNProcessor;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http2.client.HTTP2Client;
-import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
+import org.eclipse.jetty.http2.client.transport.HttpClientTransportOverHTTP2;
+import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.io.ssl.ALPNProcessor;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterAll;
@@ -63,7 +65,6 @@ import org.slf4j.LoggerFactory;
 /**
  * This tests HTTP/2 support in the REST server with FIPS mode enabled.
  **/
-@Disabled("KNET-15387: this test is flaky and needs to be fixed")
 class Http2FipsTest {
   private static final String BC_FIPS_APPROVED_ONLY_PROP = "org.bouncycastle.fips.approved_only";
   private static final Logger log = LoggerFactory.getLogger(Http2FipsTest.class);
@@ -75,6 +76,19 @@ class Http2FipsTest {
   private String SERVER_CERT;
   private String SERVER_KEY;
 
+  HttpClient httpClient(SslContextFactory.Client sslContextFactory, HTTP2Client http2Client) {
+    final HttpClient client;
+    if (http2Client != null) {
+      client = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
+    } else if (sslContextFactory != null) {
+      ClientConnector clientConnector = new ClientConnector();
+      clientConnector.setSslContextFactory(sslContextFactory);
+      client = new HttpClient(new HttpClientTransportDynamic(clientConnector));
+    } else {
+      client = new HttpClient();
+    }
+    return client;
+  }
   @BeforeAll
   public static void setupAll() {
     // set fips approved mode for the system
@@ -133,6 +147,8 @@ class Http2FipsTest {
     return new TestRestConfig(props);
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2() throws Exception {
     TestRestConfig config = buildTestConfig(true, "TLSv1.3", "BCJSSE");
@@ -160,6 +176,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2AmbiguousSegment() throws Exception {
     // This test is ensuring that URI-encoded / characters work in URIs in all variants
@@ -209,6 +227,8 @@ class Http2FipsTest {
     }
   }
 
+  // Flaky test disabled: KNET-19715
+  @Disabled
   @Test
   public void testHttp2NotEnabled() throws Exception {
     TestRestConfig config = buildTestConfig(false);
@@ -230,9 +250,9 @@ class Http2FipsTest {
     }
   }
 
-  private SslContextFactory buildSslContextFactory()
+  private SslContextFactory.Client buildSslContextFactory()
       throws Exception {
-    SslContextFactory sslContextFactory = new SslContextFactory.Client();
+    SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
     // trust all self-signed certs.
     SSLContextBuilder sslContextBuilder = SSLContexts.custom()
         .loadTrustMaterial(new TrustSelfSignedStrategy());
@@ -256,7 +276,7 @@ class Http2FipsTest {
   private int makeGetRequestHttps(String url)
       throws Exception {
     log.debug("Making GET using HTTPS " + url);
-    HttpClient httpClient = new HttpClient(buildSslContextFactory());
+    HttpClient httpClient = httpClient(buildSslContextFactory(),null);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
@@ -268,7 +288,7 @@ class Http2FipsTest {
   private int makeGetRequestHttp2(String url) throws Exception {
     log.debug("Making GET using HTTP over HTTP/2 Cleartext " + url);
     HTTP2Client http2Client = new HTTP2Client();
-    HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client));
+    HttpClient httpClient = httpClient(buildSslContextFactory(),http2Client);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();
@@ -280,9 +300,12 @@ class Http2FipsTest {
   private int makeGetRequestHttps2(String url)
       throws Exception {
     log.debug("Making GET using HTTP/2 " + url);
-    HTTP2Client http2Client = new HTTP2Client();
-    HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client),
-        buildSslContextFactory());
+
+    SslContextFactory.Client sslContextFactory = buildSslContextFactory();
+    ClientConnector clientConnector = new ClientConnector();
+    clientConnector.setSslContextFactory(sslContextFactory);
+    HTTP2Client http2Client = new HTTP2Client(clientConnector);
+    HttpClient httpClient = httpClient(sslContextFactory,http2Client);
     httpClient.start();
 
     int statusCode = httpClient.GET(url).getStatus();

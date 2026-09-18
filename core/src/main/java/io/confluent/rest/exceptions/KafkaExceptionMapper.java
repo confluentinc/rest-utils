@@ -37,16 +37,18 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.TopicDeletionDisabledException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.errors.UnknownTopicIdException;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.errors.UnsupportedVersionException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 public class KafkaExceptionMapper extends GenericExceptionMapper {
@@ -95,6 +97,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
         KAFKA_BAD_REQUEST_ERROR_CODE));
     errorMap.put(UnknownTopicOrPartitionException.class, new ResponsePair(Status.NOT_FOUND,
         KAFKA_UNKNOWN_TOPIC_PARTITION_CODE));
+    errorMap.put(UnknownTopicIdException.class, new ResponsePair(Status.NOT_FOUND,
+        KAFKA_UNKNOWN_TOPIC_PARTITION_CODE));
     errorMap.put(PolicyViolationException.class, new ResponsePair(Status.BAD_REQUEST,
         KAFKA_BAD_REQUEST_ERROR_CODE));
     errorMap.put(TopicExistsException.class, new ResponsePair(Status.BAD_REQUEST,
@@ -111,6 +115,8 @@ public class KafkaExceptionMapper extends GenericExceptionMapper {
   @Override
   public Response toResponse(Throwable exception) {
     if (exception instanceof ExecutionException) {
+      return handleException(exception.getCause());
+    } else if (exception instanceof CompletionException) {
       return handleException(exception.getCause());
     } else {
       return handleException(exception);
