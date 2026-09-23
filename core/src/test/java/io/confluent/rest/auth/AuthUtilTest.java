@@ -73,7 +73,7 @@ public class AuthUtilTest {
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
-    assertThat(mapping.getMethod(), is("*"));
+    assertThat(mapping.getMethod(), is(nullValue()));
   }
 
   @Test
@@ -202,10 +202,10 @@ public class AuthUtilTest {
 
     // Then:
     assertThat(mappings.size(), is(2));
-    assertThat(mappings.get(0).getMethod(), is("*"));
+    assertThat(mappings.get(0).getMethod(), is(nullValue()));
     assertThat(mappings.get(0).getPathSpec(), is("/path/1"));
     assertThat(mappings.get(0).getConstraint().getAuthenticate(), is(false));
-    assertThat(mappings.get(1).getMethod(), is("*"));
+    assertThat(mappings.get(1).getMethod(), is(nullValue()));
     assertThat(mappings.get(1).getPathSpec(), is("/path/2"));
     assertThat(mappings.get(1).getConstraint().getAuthenticate(), is(false));
   }
@@ -220,7 +220,7 @@ public class AuthUtilTest {
         AuthUtil.createUnsecuredConstraint(config, "/path/*");
 
     // Then:
-    assertThat(mappings.getMethod(), is("*"));
+    assertThat(mappings.getMethod(), is(nullValue()));
     assertThat(mappings.getPathSpec(), is("/path/*"));
     assertThat(mappings.getConstraint().getAuthenticate(), is(false));
   }
@@ -235,7 +235,7 @@ public class AuthUtilTest {
         AuthUtil.createSecuredConstraint(config, "/path/*");
 
     // Then:
-    assertThat(mappings.getMethod(), is("*"));
+    assertThat(mappings.getMethod(), is(nullValue()));
     assertThat(mappings.getPathSpec(), is("/path/*"));
     assertThat(mappings.getConstraint().getAuthenticate(), is(true));
   }

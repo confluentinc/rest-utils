@@ -184,7 +184,7 @@ public class CustomInitTest {
 
       final ConstraintMapping constraintMapping = new ConstraintMapping();
       constraintMapping.setConstraint(constraint);
-      constraintMapping.setMethod("*");
+      constraintMapping.setMethod(null);
       constraintMapping.setPathSpec("/*");
 
       final ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
