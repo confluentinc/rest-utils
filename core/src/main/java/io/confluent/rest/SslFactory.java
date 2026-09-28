@@ -16,29 +16,99 @@
 
 package io.confluent.rest;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.Security;
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.kafka.common.config.types.Password;
 import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.Security;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+
 public final class SslFactory {
 
   private static final Logger log = LoggerFactory.getLogger(SslFactory.class);
+  private static AtomicReference<Exception> watcherExecException = new AtomicReference<>(null);
 
-  private SslFactory() {}
+  @VisibleForTesting
+  public static Optional<Exception> lastLoadFailure() {
+    return Optional.ofNullable(watcherExecException.get());
+  }
+
+  private SslFactory() {
+  }
+
+  private static void setSecurityStoreProps(SslConfig sslConfig,
+                                            SslContextFactory.Server sslContextFactory,
+                                            boolean isKeyStore,
+                                            boolean setPathOnly) {
+    boolean isPem = SslFactoryPemHelper.isPemSecurityStore(
+        isKeyStore ? sslConfig.getKeyStoreType() : sslConfig.getTrustStoreType());
+
+    if (isPem) {
+      log.info("PEM security store detected! Converting to {} - isKeyStore {}",
+          SslFactoryPemHelper.getKeyStoreType(sslConfig.getProvider()),
+          isKeyStore);
+
+      if (isKeyStore) {
+        sslContextFactory.setKeyStore(
+            SslFactoryPemHelper.getKeyStoreFromPem(
+                sslConfig.getKeyStorePath(), sslConfig.getKeyStoreType(),
+                new Password(sslConfig.getKeyManagerPassword()),
+                sslConfig.getProvider(), isKeyStore));
+      } else {
+        sslContextFactory.setTrustStore(
+            SslFactoryPemHelper.getKeyStoreFromPem(
+                sslConfig.getTrustStorePath(), sslConfig.getTrustStoreType(),
+                new Password(sslConfig.getKeyManagerPassword()),
+                sslConfig.getProvider(), isKeyStore));
+      }
+    } else {
+      if (isKeyStore) {
+        sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
+        if (!setPathOnly) {
+          sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());
+          sslContextFactory.setKeyStoreType(sslConfig.getKeyStoreType());
+        }
+      } else {
+        sslContextFactory.setTrustStorePath(sslConfig.getTrustStorePath());
+        if (!setPathOnly) {
+          sslContextFactory.setTrustStorePassword(sslConfig.getTrustStorePassword());
+          sslContextFactory.setTrustStoreType(sslConfig.getTrustStoreType());
+        }
+      }
+    }
+  }
+
+  private static FileWatcher.Callback onFileChangeCallback(SslConfig sslConfig,
+                                                  SslContextFactory.Server sslContextFactory) {
+    return () -> {
+      // Need to reset the key store path for symbolic link case
+      try {
+        setSecurityStoreProps(sslConfig, sslContextFactory, true, true);
+        sslContextFactory.reload(scf -> {
+          log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
+        });
+        log.info("SSL cert auto reload complete");
+        watcherExecException.set(null);
+      } catch (Exception e) {
+        watcherExecException.set(e);
+        throw e;
+      }
+    };
+  }
 
   public static SslContextFactory createSslContextFactory(SslConfig sslConfig) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
     if (!sslConfig.getKeyStorePath().isEmpty()) {
-      sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
-      sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());
+      setSecurityStoreProps(sslConfig, sslContextFactory, true, false);
       sslContextFactory.setKeyManagerPassword(sslConfig.getKeyManagerPassword());
-      sslContextFactory.setKeyStoreType(sslConfig.getKeyStoreType());
 
       if (!sslConfig.getKeyManagerFactoryAlgorithm().isEmpty()) {
         sslContextFactory.setKeyManagerFactoryAlgorithm(sslConfig.getKeyManagerFactoryAlgorithm());
@@ -47,15 +117,8 @@ public final class SslFactory {
       if (sslConfig.getReloadOnKeyStoreChange()) {
         Path watchLocation = Paths.get(sslConfig.getReloadOnKeyStoreChangePath());
         try {
-          FileWatcher.onFileChange(watchLocation, () -> {
-                // Need to reset the key store path for symbolic link case
-                sslContextFactory.setKeyStorePath(sslConfig.getKeyStorePath());
-                sslContextFactory.reload(scf -> {
-                  log.info("SSL cert auto reload begun: " + scf.getKeyStorePath());
-                });
-                log.info("SSL cert auto reload complete");
-              }
-          );
+          FileWatcher.onFileChange(watchLocation,
+              onFileChangeCallback(sslConfig, sslContextFactory));
           log.info("Enabled SSL cert auto reload for: " + watchLocation);
         } catch (java.io.IOException e) {
           log.error("Cannot enable SSL cert auto reload", e);
@@ -79,10 +142,7 @@ public final class SslFactory {
         sslConfig.getEndpointIdentificationAlgorithm());
 
     if (!sslConfig.getTrustStorePath().isEmpty()) {
-      sslContextFactory.setTrustStorePath(sslConfig.getTrustStorePath());
-      sslContextFactory.setTrustStorePassword(sslConfig.getTrustStorePassword());
-      sslContextFactory.setTrustStoreType(sslConfig.getTrustStoreType());
-
+      setSecurityStoreProps(sslConfig, sslContextFactory, false, false);
       if (!sslConfig.getTrustManagerFactoryAlgorithm().isEmpty()) {
         sslContextFactory.setTrustManagerFactoryAlgorithm(
             sslConfig.getTrustManagerFactoryAlgorithm());

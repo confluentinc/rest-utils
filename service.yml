@@ -10,8 +10,16 @@ semaphore:
     enable: true
     project_name: rest-utils
   status_level: block
-  downstream_projects: ["schema-registry", "metadata-service", "kafka-rest",
-    "confluent-security-plugins", "ce-kafka-http-server", "secret-registry",
-    "confluent-cloud-plugins"]
+  nano_version: true
+  downstream_projects: ["schema-registry", "metadata-service", "kafka-rest", "confluent-security-plugins", "ce-kafka-http-server", "secret-registry", "confluent-cloud-plugins", "kafka-streams-examples"]
 git:
   enable: true
+code_artifact:
+  enable: true
+  package_paths:
+    - maven-snapshots/maven/io.confluent/rest-utils-package
+    - maven-snapshots/maven/io.confluent/rest-utils-examples
+    - maven-snapshots/maven/io.confluent/rest-utils-test
+    - maven-snapshots/maven/io.confluent/rest-utils
+    - maven-snapshots/maven/io.confluent/rest-utils-parent
+    - maven-snapshots/maven/io.confluent/rest-utils-fips-tests
