@@ -73,7 +73,12 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
       throws CertificateException {
     if (isSpiffeCert(chain)) {
       logValidatingSpiffeCert(chain);
-      spiffeTrustManager.checkClientTrusted(chain, authType);
+      try {
+        spiffeTrustManager.checkClientTrusted(chain, authType);
+      } catch (CertificateException e) {
+        logHandshakeFailure(chain, e);
+        throw e;
+      }
     } else {
       logSkippingNonSpiffeCert(chain);
     }
@@ -84,7 +89,12 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
       throws CertificateException {
     if (isSpiffeCert(chain)) {
       logValidatingSpiffeCert(chain);
-      spiffeTrustManager.checkClientTrusted(chain, authType, socket);
+      try {
+        spiffeTrustManager.checkClientTrusted(chain, authType, socket);
+      } catch (CertificateException e) {
+        logHandshakeFailure(chain, e);
+        throw e;
+      }
     } else {
       logSkippingNonSpiffeCert(chain);
     }
@@ -95,7 +105,12 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
       throws CertificateException {
     if (isSpiffeCert(chain)) {
       logValidatingSpiffeCert(chain);
-      spiffeTrustManager.checkClientTrusted(chain, authType, engine);
+      try {
+        spiffeTrustManager.checkClientTrusted(chain, authType, engine);
+      } catch (CertificateException e) {
+        logHandshakeFailure(chain, e);
+        throw e;
+      }
     } else {
       logSkippingNonSpiffeCert(chain);
     }
@@ -105,6 +120,13 @@ final class SpireOptionalTrustManager extends X509ExtendedTrustManager {
     if (log.isDebugEnabled()) {
       log.debug("Client certificate carries a spiffe:// SAN; validating against the SPIFFE "
           + "trust bundle. SAN entries: {}", safeSanSummary(chain));
+    }
+  }
+
+  private static void logHandshakeFailure(X509Certificate[] chain, CertificateException e) {
+    if (log.isDebugEnabled()) {
+      log.debug("TLS handshake failed: SPIFFE client certificate was rejected by trust bundle "
+          + "validation. SAN entries: {}", safeSanSummary(chain), e);
     }
   }
 
