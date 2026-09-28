@@ -551,8 +551,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
 
   @Test
   @Disabled("KNET-15387: this test is flaky and needs to be fixed")
-  public void testMetricLatencySloSlaEnabled() {
+  public void testMetricLatencySloSlaEnabled() throws Exception {
     makeSuccessfulCall();
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-total", 1);
 
     Map<String, String> allMetrics = TestMetricsReporter.getMetricTimeseries()
         .stream()
