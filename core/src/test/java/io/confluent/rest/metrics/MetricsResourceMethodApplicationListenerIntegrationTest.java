@@ -545,8 +545,11 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
   }
 
   @Test
-  public void testMetricLatencySloSlaEnabled() {
+  public void testMetricLatencySloSlaEnabled() throws Exception {
     makeSuccessfulCall();
+
+    // Metrics recording in the Jersey listener may lag behind the HTTP response.
+    waitForJerseyMetric("request-total", 1);
 
     Map<String, String> allMetrics = TestMetricsReporter.getMetricTimeseries()
         .stream()
