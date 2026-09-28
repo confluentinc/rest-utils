@@ -243,7 +243,7 @@ public class ErrorHandlerIntegrationTest {
       constraint.setRoles(roles);
       ConstraintMapping mapping = new ConstraintMapping();
       mapping.setConstraint(constraint);
-      mapping.setMethod("*");
+      mapping.setMethod(null);
       mapping.setPathSpec("/*");
 
       securityHandler.addConstraintMapping(mapping);
