@@ -30,12 +30,16 @@ import static org.mockito.Mockito.when;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -83,6 +87,50 @@ public class SpireOptionalTrustManagerTest {
         .when(spiffeManager).checkClientTrusted(chain, "RSA");
 
     assertThrows(CertificateException.class, () -> trustManager.checkClientTrusted(chain, "RSA"));
+  }
+
+  private static final class CapturingAppender extends AbstractAppender {
+    private final List<LogEvent> events = new ArrayList<>();
+
+    CapturingAppender() {
+      super("capturing-test-appender", null, null);
+    }
+
+    @Override
+    public void append(LogEvent event) {
+      events.add(event.toImmutable());
+    }
+  }
+
+  @Test
+  public void checkClientTrustedLogsHandshakeFailureForInvalidSpiffeCert() throws Exception {
+    Configurator.setLevel(SpireOptionalTrustManager.class, Level.DEBUG);
+    org.apache.logging.log4j.core.Logger coreLogger =
+        (org.apache.logging.log4j.core.Logger) LogManager.getLogger(SpireOptionalTrustManager.class);
+    CapturingAppender appender = new CapturingAppender();
+    appender.start();
+    coreLogger.addAppender(appender);
+
+    try {
+      X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
+      X509ExtendedTrustManager trustManager = wrappedTrustManager(spiffeManager);
+
+      X509Certificate[] chain = {certWithSans(
+          Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
+      CertificateException cause = new CertificateException("untrusted SVID");
+      doThrow(cause).when(spiffeManager).checkClientTrusted(chain, "RSA");
+
+      assertThrows(CertificateException.class,
+          () -> trustManager.checkClientTrusted(chain, "RSA"));
+
+      assertTrue(appender.events.stream().anyMatch(e ->
+          e.getLevel() == Level.DEBUG
+              && e.getMessage().getFormattedMessage().contains("TLS handshake failed")
+              && e.getThrown() == cause));
+    } finally {
+      coreLogger.removeAppender(appender);
+      appender.stop();
+    }
   }
 
   @Test
