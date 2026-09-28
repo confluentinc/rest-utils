@@ -1,5 +1,3 @@
-# $schema: https://raw.githubusercontent.com/semaphoreio/semaphore/98bb4752c79049d36324e8c76451cd704c7924f3/plumber/spec/priv/v1.0.yml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/semaphoreio/semaphore/98bb4752c79049d36324e8c76451cd704c7924f3/plumber/spec/priv/v1.0.yml
 # This file is managed by ServiceBot plugin - Semaphore. The content in this file is created using a common
 # template and configurations in service.yml.
 # Any modifications made to ths file will be overwritten by the generated content in nightly runs.
@@ -71,7 +69,7 @@ blocks:
     task:
       agent:
         machine:
-          type: s1-prod-ubuntu24-04-arm64-00
+          type: s1-prod-ubuntu24-04-arm64-0
       env_vars:
         - name: COMPONENT_NAME
           value: rest-utils

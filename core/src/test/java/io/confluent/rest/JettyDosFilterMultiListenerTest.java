@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import io.confluent.rest.jetty.DoSFilter;
 import org.junit.jupiter.api.Test;

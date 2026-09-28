@@ -17,6 +17,7 @@
 package io.confluent.rest;
 
 import static io.confluent.rest.TestUtils.getFreePort;
+import static org.eclipse.jetty.server.Request.getServerName;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
@@ -28,20 +29,19 @@ import static org.mockito.Mockito.verify;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Configurable;
+import jakarta.ws.rs.core.MediaType;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -71,7 +71,6 @@ public class RequestLogHandlerIntegrationTest {
   }
 
   @Test
-  @Disabled("KNET-15387: this test is flaky and needs to be fixed")
   public void test_CustomRequestLog_registeredToCorrectListener() throws Exception {
     Map<String, Object> props = new HashMap<>();
     props.put(RestConfig.LISTENERS_CONFIG,
@@ -79,15 +78,15 @@ public class RequestLogHandlerIntegrationTest {
     props.put(RestConfig.LISTENER_PROTOCOL_MAP_CONFIG, "INTERNAL:http,EXTERNAL:http");
     TestRestConfig config = new TestRestConfig(props);
 
-    // internal application
-    CustomRequestLog mockLogInternal = createSpiedCustomRequestLog(config);
-    TestApp internalApp = new TestApp(config, "/", "internal", mockLogInternal);
-    Server server = internalApp.createServer();
-
     // external application
     CustomRequestLog mockLogExternal = createSpiedCustomRequestLog(config);
     TestApp externalApp = new TestApp(config, "/", "external", mockLogExternal);
-    ((ApplicationServer<TestRestConfig>) server).registerApplication(externalApp);
+    Server server = externalApp.createServer();
+
+    // internal application
+    CustomRequestLog mockLogInternal = createSpiedCustomRequestLog(config);
+    TestApp internalApp = new TestApp(config, "/", "internal", mockLogInternal);
+    ((ApplicationServer<TestRestConfig>) server).registerApplication(internalApp);
     server.start();
 
     // get internal application port
@@ -106,11 +105,11 @@ public class RequestLogHandlerIntegrationTest {
         .path("/custom/resource")
         .send();
 
-    // check that only internal application logs the request
-    verify(mockLogInternal, times(1)).log(requestCaptor.capture(), responseCaptor.capture());
     // check that external application never logs the request
     verify(mockLogExternal, never()).log(any(), any());
-    assertEquals("127.0.0.1", requestCaptor.getValue().getServerName());
+    // check that only internal application logs the request
+    verify(mockLogInternal, times(1)).log(requestCaptor.capture(), responseCaptor.capture());
+    assertEquals("127.0.0.1", getServerName(requestCaptor.getValue()));
     assertEquals(200, responseCaptor.getValue().getStatus());
     assertEquals(200, response.getStatus());
 
