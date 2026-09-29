@@ -21,6 +21,7 @@ import static javax.ws.rs.core.Response.Status.OK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,14 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Configurable;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+
+import org.apache.http.Header;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -51,6 +60,7 @@ import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.security.Password;
@@ -109,6 +119,16 @@ public class CustomInitTest {
   @Test
   public void shouldBeAbleToAddWebSocketEndPoint() throws Exception {
     makeWsGetRequest();
+  }
+
+  @Test
+  public void shouldBeAbleToConfigureJettyFilter() throws Exception {
+    try (CloseableHttpResponse response = makeRestGetRequest(NEHAS_BASIC_AUTH)) {
+      Header header = response.getFirstHeader("this-filter");
+      assertEquals("this-filter", header.getName());
+      assertEquals("was-triggered", header.getValue());
+      assertEquals(OK.getStatusCode(), response.getStatusLine().getStatusCode());
+    }
   }
 
   private CloseableHttpResponse makeRestGetRequest(String basicAuth) throws Exception {
@@ -194,6 +214,7 @@ public class CustomInitTest {
       securityHandler.setRealmName("TestRealm");
 
      context.setSecurityHandler(securityHandler);
+     context.addFilter(new FilterHolder(new CustomJettyFilter()), "/*", null);
     }
   }
 
@@ -235,6 +256,26 @@ public class CustomInitTest {
       } catch (Exception e) {
         fail("Invalid test");
       }
+    }
+  }
+
+  public static class CustomJettyFilter implements Filter {
+
+    @Override
+    public void init(FilterConfig filterConfig)  {
+    }
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        javax.servlet.http.HttpServletResponse httpResponse = (javax.servlet.http.HttpServletResponse) response;
+      httpResponse.addHeader("this-filter", "was-triggered");
+
+      chain.doFilter(request, httpResponse);
+    }
+
+    @Override
+    public void destroy() {
     }
   }
 
