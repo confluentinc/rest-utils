@@ -276,11 +276,38 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   protected void doStop() throws Exception {
-    super.doStop();
-    for (Application<?> application : applications) {
-      application.getMetrics().close();
-      application.doShutdown();
+    Exception failure = null;
+    try {
+      super.doStop();
+    } catch (Exception e) {
+      // For example a TimeoutException when requests outlive shutdown.graceful.ms.
+      failure = e;
     }
+    // Shut every application down even if stopping Jetty failed, so each one still closes its
+    // metrics and resource extensions, runs onShutdown(), and releases join().
+    for (Application<?> application : applications) {
+      try {
+        application.getMetrics().close();
+      } catch (RuntimeException e) {
+        failure = addFailure(failure, e);
+      }
+      try {
+        application.doShutdown();
+      } catch (RuntimeException e) {
+        failure = addFailure(failure, e);
+      }
+    }
+    if (failure != null) {
+      throw failure;
+    }
+  }
+
+  private static Exception addFailure(Exception failure, Exception e) {
+    if (failure == null) {
+      return e;
+    }
+    failure.addSuppressed(e);
+    return failure;
   }
 
   @Override
