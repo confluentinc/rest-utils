@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.MetricName;
@@ -84,6 +85,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private static final long HSTS_MAX_AGE_SECONDS = 63072000L; // 2 years
 
   private final X509Source x509Source;
+
+  // Applications are shut down at most once, even if stop() is called again (for example by both
+  // Jetty's shutdown hook and the application) after a failed stop.
+  private final AtomicBoolean applicationsShutDown = new AtomicBoolean(false);
 
   @VisibleForTesting
   static boolean isHttp2Compatible(SslConfig sslConfig) {
@@ -276,11 +281,42 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   protected void doStop() throws Exception {
-    super.doStop();
-    for (Application<?> application : applications) {
-      application.getMetrics().close();
-      application.doShutdown();
+    Exception failure = null;
+    try {
+      super.doStop();
+    } catch (Exception e) {
+      // For example a TimeoutException when requests outlive shutdown.graceful.ms.
+      failure = e;
     }
+    // Shut every application down even if stopping Jetty failed, so each one still closes its
+    // metrics and resource extensions, runs onShutdown(), and releases join().
+    if (applicationsShutDown.compareAndSet(false, true)) {
+      for (Application<?> application : applications) {
+        try {
+          application.getMetrics().close();
+        } catch (Exception e) {
+          failure = addFailure(failure, e);
+        }
+        try {
+          application.doShutdown();
+        } catch (Exception e) {
+          failure = addFailure(failure, e);
+        }
+      }
+    }
+    if (failure != null) {
+      throw failure;
+    }
+  }
+
+  private static Exception addFailure(Exception failure, Exception e) {
+    if (failure == null) {
+      return e;
+    }
+    if (failure != e) {
+      failure.addSuppressed(e);
+    }
+    return failure;
   }
 
   @Override
