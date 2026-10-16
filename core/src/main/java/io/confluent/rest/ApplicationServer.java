@@ -86,8 +86,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   private final X509Source x509Source;
 
-  // Set once the applications have been shut down, so a second stop() (for example from both
-  // Jetty's shutdown hook and the application) doesn't shut them down twice.
+  // Applications are shut down at most once, even if stop() is called again (for example by both
+  // Jetty's shutdown hook and the application) after a failed stop.
   private final AtomicBoolean applicationsShutDown = new AtomicBoolean(false);
 
   @VisibleForTesting
@@ -294,12 +294,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       for (Application<?> application : applications) {
         try {
           application.getMetrics().close();
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
           failure = addFailure(failure, e);
         }
         try {
           application.doShutdown();
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
           failure = addFailure(failure, e);
         }
       }
@@ -321,7 +321,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   @Override
   protected final void doStart() throws Exception {
-    applicationsShutDown.set(false);
     // set the default error handler
     this.setErrorHandler(new StackTraceErrorHandler(
         serverConfig.getSuppressStackTraceInResponse()));
