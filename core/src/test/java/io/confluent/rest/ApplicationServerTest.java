@@ -52,10 +52,12 @@ import jakarta.ws.rs.ext.Provider;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ApplicationServerTest {
 
@@ -417,6 +419,35 @@ public class ApplicationServerTest {
     }
 
     applicationServer.stop();
+  }
+
+  @Test
+  public void testFailedOnShutdownDoesNotStopOtherApplicationsShuttingDown() throws Exception {
+    RuntimeException first = new RuntimeException("first onShutdown failed");
+    RuntimeException second = new RuntimeException("second onShutdown failed");
+    AtomicBoolean secondShutDown = new AtomicBoolean(false);
+    TestApp app1 = new TestApp("/app1") {
+      @Override
+      public void onShutdown() {
+        throw first;
+      }
+    };
+    TestApp app2 = new TestApp("/app2") {
+      @Override
+      public void onShutdown() {
+        secondShutDown.set(true);
+        throw second;
+      }
+    };
+    server.registerApplication(app1);
+    server.registerApplication(app2);
+    server.start();
+
+    RuntimeException thrown = assertThrows(RuntimeException.class, server::stop);
+
+    assertSame(first, thrown);
+    assertTrue(secondShutDown.get(), "second application should still shut down");
+    assertArrayEquals(new Throwable[] {second}, thrown.getSuppressed());
   }
 
   // There is additional testing of parseListeners in ApplictionTest
