@@ -306,7 +306,9 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     if (failure == null) {
       return e;
     }
-    failure.addSuppressed(e);
+    if (failure != e) {
+      failure.addSuppressed(e);
+    }
     return failure;
   }
 

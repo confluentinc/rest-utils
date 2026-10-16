@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -88,12 +89,19 @@ public class ShutdownTest {
     Server server = app.createServer();
     server.start();
 
-    RequestThread req = new RequestThread(server.getURI());
-    req.setDaemon(true);
+    // A single attempt: the request is expected to fail once the server stops, so don't retry.
+    Client client = ClientBuilder.newClient();
+    Thread req = new Thread(() -> {
+      try {
+        client.target(server.getURI()).path("/").request().get(String.class);
+      } catch (jakarta.ws.rs.ProcessingException e) {
+        log.info("Request ended by shutdown", e);
+      }
+    });
     req.start();
-    app.resource.requestProcessingStarted.await();
 
     try {
+      assertTrue(app.resource.requestProcessingStarted.await(10, TimeUnit.SECONDS));
       // The request is still running when the graceful period ends, so the drain times out.
       assertThrows(TimeoutException.class, app::stop);
 
@@ -112,6 +120,8 @@ public class ShutdownTest {
       assertFalse(join.isAlive(), "join() should return after a timed-out drain");
     } finally {
       app.resource.release.countDown();
+      req.join(10_000);
+      client.close();
     }
   }
 
