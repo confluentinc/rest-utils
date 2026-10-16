@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import jakarta.ws.rs.GET;
@@ -79,6 +81,50 @@ public class ShutdownTest {
     assertEquals("done", req.response);
   }
 
+  @Test
+  public void testShutdownHookRunsWhenGracefulShutdownTimesOut() throws Exception {
+    Properties props = new Properties();
+    props.put("shutdown.graceful.ms", "100");
+    HangingApplication app = new HangingApplication(new TestRestConfig(props));
+    Server server = app.createServer();
+    server.start();
+
+    // A single attempt: the request is expected to fail once the server stops, so don't retry.
+    Client client = ClientBuilder.newClient();
+    Thread req = new Thread(() -> {
+      try {
+        client.target(server.getURI()).path("/").request().get(String.class);
+      } catch (jakarta.ws.rs.ProcessingException e) {
+        log.info("Request ended by shutdown", e);
+      }
+    });
+    req.start();
+
+    try {
+      assertTrue(app.resource.requestProcessingStarted.await(10, TimeUnit.SECONDS));
+      // The request is still running when the graceful period ends, so the drain times out.
+      assertThrows(TimeoutException.class, app::stop);
+
+      Thread join = new Thread(() -> {
+        try {
+          app.join();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      });
+      join.setDaemon(true);
+      join.start();
+      join.join(10_000);
+
+      assertTrue(app.shutdown.get(), "onShutdown should run after a timed-out drain");
+      assertFalse(join.isAlive(), "join() should return after a timed-out drain");
+    } finally {
+      app.resource.release.countDown();
+      req.join(10_000);
+      client.close();
+    }
+  }
+
 
   private static class ShutdownApplication extends Application<TestRestConfig> {
     public AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -107,6 +153,38 @@ public class ShutdownTest {
     public String test() throws InterruptedException {
       requestProcessingStarted.countDown();
       Thread.sleep(25);
+      return "done";
+    }
+  }
+
+  private static class HangingApplication extends Application<TestRestConfig> {
+    public AtomicBoolean shutdown = new AtomicBoolean(false);
+    public HangingResource resource = new HangingResource();
+
+    HangingApplication(TestRestConfig props) {
+      super(props);
+    }
+
+    @Override
+    public void onShutdown() {
+      shutdown.set(true);
+    }
+
+    @Override
+    public void setupResources(Configurable<?> config, TestRestConfig appConfig) {
+      config.register(resource);
+    }
+  }
+
+  @Path("/")
+  public static class HangingResource {
+    public CountDownLatch requestProcessingStarted = new CountDownLatch(1);
+    public CountDownLatch release = new CountDownLatch(1);
+
+    @GET
+    public String test() throws InterruptedException {
+      requestProcessingStarted.countDown();
+      release.await();
       return "done";
     }
   }
