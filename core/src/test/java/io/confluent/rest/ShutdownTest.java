@@ -27,6 +27,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -116,8 +117,17 @@ public class ShutdownTest {
       join.start();
       join.join(10_000);
 
-      assertTrue(app.shutdown.get(), "onShutdown should run after a timed-out drain");
+      assertEquals(1, app.shutdownCalls.get(), "onShutdown should run after a timed-out drain");
       assertFalse(join.isAlive(), "join() should return after a timed-out drain");
+
+      // A second stop(), e.g. from Jetty's shutdown hook as well as the application, must not
+      // shut the application down again.
+      try {
+        app.stop();
+      } catch (Exception e) {
+        log.info("Second stop() failed", e);
+      }
+      assertEquals(1, app.shutdownCalls.get(), "onShutdown should run only once");
     } finally {
       app.resource.release.countDown();
       req.join(10_000);
@@ -158,7 +168,7 @@ public class ShutdownTest {
   }
 
   private static class HangingApplication extends Application<TestRestConfig> {
-    public AtomicBoolean shutdown = new AtomicBoolean(false);
+    public AtomicInteger shutdownCalls = new AtomicInteger();
     public HangingResource resource = new HangingResource();
 
     HangingApplication(TestRestConfig props) {
@@ -167,7 +177,7 @@ public class ShutdownTest {
 
     @Override
     public void onShutdown() {
-      shutdown.set(true);
+      shutdownCalls.incrementAndGet();
     }
 
     @Override

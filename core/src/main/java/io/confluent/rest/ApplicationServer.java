@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.MetricName;
@@ -84,6 +85,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private static final long HSTS_MAX_AGE_SECONDS = 63072000L; // 2 years
 
   private final X509Source x509Source;
+
+  // Set once the applications have been shut down, so a second stop() (for example from both
+  // Jetty's shutdown hook and the application) doesn't shut them down twice.
+  private final AtomicBoolean applicationsShutDown = new AtomicBoolean(false);
 
   @VisibleForTesting
   static boolean isHttp2Compatible(SslConfig sslConfig) {
@@ -285,16 +290,18 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
     // Shut every application down even if stopping Jetty failed, so each one still closes its
     // metrics and resource extensions, runs onShutdown(), and releases join().
-    for (Application<?> application : applications) {
-      try {
-        application.getMetrics().close();
-      } catch (RuntimeException e) {
-        failure = addFailure(failure, e);
-      }
-      try {
-        application.doShutdown();
-      } catch (RuntimeException e) {
-        failure = addFailure(failure, e);
+    if (applicationsShutDown.compareAndSet(false, true)) {
+      for (Application<?> application : applications) {
+        try {
+          application.getMetrics().close();
+        } catch (RuntimeException e) {
+          failure = addFailure(failure, e);
+        }
+        try {
+          application.doShutdown();
+        } catch (RuntimeException e) {
+          failure = addFailure(failure, e);
+        }
       }
     }
     if (failure != null) {
@@ -314,6 +321,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   @Override
   protected final void doStart() throws Exception {
+    applicationsShutDown.set(false);
     // set the default error handler
     this.setErrorHandler(new StackTraceErrorHandler(
         serverConfig.getSuppressStackTraceInResponse()));
