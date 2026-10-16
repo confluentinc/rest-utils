@@ -17,7 +17,6 @@
 package io.confluent.rest;
 
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -283,7 +282,7 @@ public class SaslTest {
     }
 
     WebSocket ws = requestBuilder
-        .setRequestTimeout(Duration.ofMillis(10000))
+        .setRequestTimeout(10000)
         .execute(wsHandler)
         .get();
 
