@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.spiffe.workloadapi.X509Source;
@@ -41,9 +42,13 @@ import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.UriCompliance;
+import org.eclipse.jetty.http2.HTTP2Connection;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
+import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.NetworkTrafficListener;
+import org.eclipse.jetty.io.ssl.SslConnection;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -435,8 +440,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                                        boolean proxyProtocolEnabled) {
     ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
         httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled);
-    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
-        null, 0, 0, connectionFactories);
+    NetworkTrafficServerConnector connector = new GracefulHttp2Connector(this,
+        connectionFactories);
     if (http2Enabled) {
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
       // rigorously and remove support for ambiguous URIs, such as escaping
@@ -626,5 +631,45 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
             requestQueue);
+  }
+
+  /**
+   * A connector that lets HTTP/2 requests run for the whole graceful shutdown period.
+   *
+   * <p>When the server stops, Jetty lowers the idle timeout of every open connection to the
+   * connector's shutdown idle timeout (1s by default), so that idle HTTP/1.1 keep-alive
+   * connections close quickly. An HTTP/2 connection is instead sent a GOAWAY and closes once its
+   * streams finish, but after the GOAWAY an idle timeout fails every stream still open. With 1s,
+   * an HTTP/2 request that sends nothing for a second while the server stops is reset, whatever
+   * {@code shutdown.graceful.ms} is. This connector gives HTTP/2 connections the server's stop
+   * timeout ({@code shutdown.graceful.ms}) as their idle timeout instead, and leaves the others as
+   * Jetty sets them.
+   */
+  private static final class GracefulHttp2Connector extends NetworkTrafficServerConnector {
+    GracefulHttp2Connector(Server server, ConnectionFactory... connectionFactories) {
+      super(server, null, null, null, 0, 0, connectionFactories);
+    }
+
+    @Override
+    public CompletableFuture<Void> shutdown() {
+      CompletableFuture<Void> done = super.shutdown();
+      long gracefulShutdownMs = getServer().getStopTimeout();
+      if (gracefulShutdownMs > getShutdownIdleTimeout()) {
+        for (EndPoint endPoint : getConnectedEndPoints()) {
+          if (isHttp2(endPoint.getConnection())) {
+            endPoint.setIdleTimeout(gracefulShutdownMs);
+          }
+        }
+      }
+      return done;
+    }
+
+    private static boolean isHttp2(Connection connection) {
+      // With TLS, the HTTP/2 connection sits on the decrypted side of the TLS connection.
+      while (connection instanceof SslConnection) {
+        connection = ((SslConnection) connection).getSslEndPoint().getConnection();
+      }
+      return connection instanceof HTTP2Connection;
+    }
   }
 }
