@@ -652,13 +652,25 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
     @Override
     public CompletableFuture<Void> shutdown() {
-      CompletableFuture<Void> done = super.shutdown();
+      long shutdownIdleTimeout = getShutdownIdleTimeout();
       long gracefulShutdownMs = getServer().getStopTimeout();
-      if (gracefulShutdownMs > getShutdownIdleTimeout()) {
-        for (EndPoint endPoint : getConnectedEndPoints()) {
-          if (isHttp2(endPoint.getConnection())) {
-            endPoint.setIdleTimeout(gracefulShutdownMs);
-          }
+      if (gracefulShutdownMs <= shutdownIdleTimeout) {
+        return super.shutdown();
+      }
+      // Lowering an idle timeout checks it straight away, and by now the HTTP/2 sessions have
+      // sent their GOAWAY, so one that has been idle for longer than the new timeout would fail
+      // its streams at once. So no HTTP/2 connection gets the short timeout, not even briefly:
+      // Jetty sets the graceful period on every connection, and the others are then lowered.
+      CompletableFuture<Void> done;
+      setShutdownIdleTimeout(gracefulShutdownMs);
+      try {
+        done = super.shutdown();
+      } finally {
+        setShutdownIdleTimeout(shutdownIdleTimeout);
+      }
+      for (EndPoint endPoint : getConnectedEndPoints()) {
+        if (!isHttp2(endPoint.getConnection())) {
+          endPoint.setIdleTimeout(shutdownIdleTimeout);
         }
       }
       return done;

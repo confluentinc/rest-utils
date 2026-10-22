@@ -43,12 +43,14 @@ import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http2.ErrorCode;
+import org.eclipse.jetty.http2.SessionContainer;
 import org.eclipse.jetty.http2.api.Session;
 import org.eclipse.jetty.http2.api.Stream;
 import org.eclipse.jetty.http2.client.HTTP2Client;
 import org.eclipse.jetty.http2.client.transport.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.http2.frames.HeadersFrame;
 import org.eclipse.jetty.http2.frames.ResetFrame;
+import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -100,6 +102,27 @@ public class ShutdownIdleTimeoutTest {
         .get(10, TimeUnit.SECONDS);
 
     assertSlowRequestFinishesWhileStopping(getOverHttp2(session, uri.resolve("/slow")));
+  }
+
+  @Test
+  public void testHttp2RequestFinishesWhenTheGoAwayIsSentLongBeforeTheConnectorShutsDown()
+      throws Exception {
+    Server server = startServer();
+    http2Client = new HTTP2Client();
+    http2Client.start();
+    URI uri = server.getURI();
+    Session session = http2Client.connect(
+        new InetSocketAddress(uri.getHost(), uri.getPort()), new Session.Listener() {})
+        .get(10, TimeUnit.SECONDS);
+    CompletableFuture<String> responseBody = getOverHttp2(session, uri.resolve("/slow"));
+    assertTrue(app.resource.started.await(10, TimeUnit.SECONDS), "request did not start");
+    // When the server stops, Jetty sends the GOAWAY just before the connector shuts down. Send it
+    // now instead, so the session has been closing and idle for longer than the shutdown idle
+    // timeout when the connector shuts down.
+    server.getConnectors()[0].getConnectionFactory(HTTP2CServerConnectionFactory.class)
+        .getBean(SessionContainer.class).shutdown();
+
+    assertSlowRequestFinishesWhileStopping(responseBody);
   }
 
   @Test
