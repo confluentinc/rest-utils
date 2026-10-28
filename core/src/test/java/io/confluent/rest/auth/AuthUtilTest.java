@@ -78,7 +78,7 @@ public class AuthUtilTest {
     final ConstraintMapping mapping = AuthUtil.createGlobalAuthConstraint(config);
 
     // Then:
-    assertThat(mapping.getMethod(), is("*"));
+    assertThat(mapping.getMethod(), is(nullValue()));
   }
 
   @Test
@@ -210,10 +210,10 @@ public class AuthUtilTest {
 
     // Then:
     assertThat(mappings.size(), is(2));
-    assertThat(mappings.get(0).getMethod(), is("*"));
+    assertThat(mappings.get(0).getMethod(), is(nullValue()));
     assertThat(mappings.get(0).getPathSpec(), is("/path/1"));
     assertEquals(Constraint.Authorization.ALLOWED, mappings.get(0).getConstraint().getAuthorization());
-    assertThat(mappings.get(1).getMethod(), is("*"));
+    assertThat(mappings.get(1).getMethod(), is(nullValue()));
     assertThat(mappings.get(1).getPathSpec(), is("/path/2"));
     assertEquals(Constraint.Authorization.ALLOWED, mappings.get(1).getConstraint().getAuthorization());
   }
@@ -228,7 +228,7 @@ public class AuthUtilTest {
         AuthUtil.createUnsecuredConstraint(config, "/path/*");
 
     // Then:
-    assertThat(mappings.getMethod(), is("*"));
+    assertThat(mappings.getMethod(), is(nullValue()));
     assertThat(mappings.getPathSpec(), is("/path/*"));
     assertEquals(Constraint.Authorization.ALLOWED, mappings.getConstraint().getAuthorization());
   }
@@ -243,7 +243,7 @@ public class AuthUtilTest {
         AuthUtil.createSecuredConstraint(config, "/path/*");
 
     // Then:
-    assertThat(mappings.getMethod(), is("*"));
+    assertThat(mappings.getMethod(), is(nullValue()));
     assertThat(mappings.getPathSpec(), is("/path/*"));
     // Refer to https://javadoc.jetty.org/jetty-12/org/eclipse/jetty/security/Constraint.Authorization.html#KNOWN_ROLE
     assertEquals(Constraint.Authorization.KNOWN_ROLE, mappings.getConstraint().getAuthorization());

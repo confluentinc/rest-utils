@@ -158,7 +158,9 @@ public final class AuthUtil {
     }
 
     final ConstraintMapping mapping = new ConstraintMapping();
-    mapping.setMethod("*");
+    // A null method (rather than "*") is how Jetty's ConstraintMapping represents
+    // "applies to all HTTP methods"; setMethod("*") throws IllegalArgumentException.
+    mapping.setMethod(null);
     mapping.setConstraint(constraint.build());
 
     if (isRejectOptions(restConfig)) {
