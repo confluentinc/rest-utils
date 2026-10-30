@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.spiffe.workloadapi.X509Source;
@@ -41,9 +42,13 @@ import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.UriCompliance;
+import org.eclipse.jetty.http2.HTTP2Connection;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
+import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.NetworkTrafficListener;
+import org.eclipse.jetty.io.ssl.SslConnection;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -435,8 +440,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                                        boolean proxyProtocolEnabled) {
     ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
         httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled);
-    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
-        null, 0, 0, connectionFactories);
+    NetworkTrafficServerConnector connector =
+        new GracefulHttp2ServerConnector(this, connectionFactories);
     if (http2Enabled) {
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
       // rigorously and remove support for ambiguous URIs, such as escaping
@@ -626,5 +631,54 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return new QueuedThreadPool(config.getInt(RestConfig.THREAD_POOL_MAX_CONFIG),
             config.getInt(RestConfig.THREAD_POOL_MIN_CONFIG),
             requestQueue);
+  }
+
+  /**
+   * Lets in-flight HTTP/2 requests use the whole graceful shutdown period.
+   *
+   * <p>On graceful shutdown, Jetty 12.0 gives every open connection the connector's short shutdown
+   * idle timeout (1s by default) so idle HTTP/1.1 keep-alive connections close quickly. HTTP/2
+   * connections have already sent a GOAWAY by then, and an idle timeout after a GOAWAY resets all
+   * of their streams, so a request that sends nothing for a second is cancelled. This connector
+   * turns off the connection idle timeout of HTTP/2 connections instead, and leaves the others as
+   * Jetty sets them. Stream idle timeouts still apply, and the server's stop timeout
+   * ({@code shutdown.graceful.ms}) still bounds the drain, after which the connections are closed.
+   */
+  private static final class GracefulHttp2ServerConnector extends NetworkTrafficServerConnector {
+
+    GracefulHttp2ServerConnector(Server server, ConnectionFactory... connectionFactories) {
+      super(server, null, null, null, 0, 0, connectionFactories);
+    }
+
+    @Override
+    public CompletableFuture<Void> shutdown() {
+      long shutdownIdleTimeout = getShutdownIdleTimeout();
+      if (shutdownIdleTimeout <= 0) {
+        return super.shutdown();
+      }
+      // Lowering an idle timeout checks it immediately, which would reset the streams of an HTTP/2
+      // connection that has been quiet for longer than the shutdown idle timeout. So Jetty turns
+      // the idle timeout off on every connection, and only the non-HTTP/2 ones get it back.
+      CompletableFuture<Void> done;
+      setShutdownIdleTimeout(0);
+      try {
+        done = super.shutdown();
+      } finally {
+        setShutdownIdleTimeout(shutdownIdleTimeout);
+      }
+      for (EndPoint endPoint : getConnectedEndPoints()) {
+        if (!isHttp2(endPoint.getConnection())) {
+          endPoint.setIdleTimeout(shutdownIdleTimeout);
+        }
+      }
+      return done;
+    }
+
+    private static boolean isHttp2(Connection connection) {
+      while (connection instanceof SslConnection) {
+        connection = ((SslConnection) connection).getSslEndPoint().getConnection();
+      }
+      return connection instanceof HTTP2Connection;
+    }
   }
 }
