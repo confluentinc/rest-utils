@@ -22,6 +22,8 @@ import static java.util.Collections.emptyMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.rest.auth.AuthUtil;
+import io.confluent.rest.auth.SpiffeJwtAuthenticator;
+import io.confluent.rest.auth.SpiffeJwtLoginService;
 import io.confluent.rest.exceptions.ConstraintViolationExceptionMapper;
 import io.confluent.rest.exceptions.GenericExceptionMapper;
 import io.confluent.rest.exceptions.WebApplicationExceptionMapper;
@@ -38,6 +40,9 @@ import io.confluent.rest.metrics.Jetty429MetricsDosFilterListener;
 import io.confluent.rest.metrics.JettyRequestMetricsFilter;
 import io.confluent.rest.metrics.MetricsResourceMethodApplicationListener;
 import io.confluent.rest.validation.JacksonMessageBodyProvider;
+import io.spiffe.bundle.BundleSource;
+import io.spiffe.bundle.jwtbundle.JwtBundle;
+import io.spiffe.provider.SpiffeIdVerifier;
 import io.spiffe.workloadapi.X509Source;
 import java.io.IOException;
 import java.net.URI;
@@ -45,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +116,7 @@ public abstract class Application<T extends RestConfig> {
 
   protected ApplicationServer<?> server;
   private final X509Source x509Source;
+  private final BundleSource<JwtBundle> jwtBundleSource;
 
   protected Metrics metrics;
   protected final RequestLog requestLog;
@@ -157,10 +164,25 @@ public abstract class Application<T extends RestConfig> {
 
   public Application(T config, String path, String listenerName,
                      RequestLog customRequestLog, X509Source x509Source) {
+    this(config, path, listenerName, customRequestLog, x509Source, null);
+  }
+
+  /**
+   * Creates an application.
+   *
+   * @param jwtBundleSource source of the JWT bundles used to verify incoming SPIFFE JWT-SVIDs,
+   *     typically a java-spiffe {@code JwtSource}. Required when
+   *     {@link RestConfig#AUTHENTICATION_METHOD_CONFIG} is
+   *     {@link RestConfig#AUTHENTICATION_METHOD_SPIFFE_JWT}; the caller owns its lifecycle.
+   */
+  public Application(T config, String path, String listenerName,
+                     RequestLog customRequestLog, X509Source x509Source,
+                     BundleSource<JwtBundle> jwtBundleSource) {
     this.config = config;
     this.path = Objects.requireNonNull(path);
     this.listenerName = listenerName;
     this.x509Source = x509Source;
+    this.jwtBundleSource = jwtBundleSource;
 
     this.metrics = configureMetrics();
     this.getMetricsTags().putAll(config.getMap(RestConfig.METRICS_TAGS_CONFIG));
@@ -581,6 +603,8 @@ public abstract class Application<T extends RestConfig> {
       context.setSecurityHandler(createBasicSecurityHandler());
     } else if (enableBearerAuth(authMethod)) {
       context.setSecurityHandler(createBearerSecurityHandler());
+    } else if (enableSpiffeJwtAuth(authMethod)) {
+      context.setSecurityHandler(createSpiffeJwtSecurityHandler());
     } else {
       AuthUtil.createDisableOptionsConstraint(config)
           .ifPresent(optionsConstraint -> {
@@ -631,6 +655,10 @@ public abstract class Application<T extends RestConfig> {
     return RestConfig.AUTHENTICATION_METHOD_BEARER.equals(authMethod);
   }
 
+  static boolean enableSpiffeJwtAuth(String authMethod) {
+    return RestConfig.AUTHENTICATION_METHOD_SPIFFE_JWT.equals(authMethod);
+  }
+
   protected LoginAuthenticator createAuthenticator() {
     final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
     if (enableBasicAuth(method)) {
@@ -641,6 +669,8 @@ public abstract class Application<T extends RestConfig> {
                       + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
                       + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
       );
+    } else if (enableSpiffeJwtAuth(method)) {
+      return new SpiffeJwtAuthenticator();
     }
     return null;
   }
@@ -656,13 +686,41 @@ public abstract class Application<T extends RestConfig> {
                       + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
                       + RestConfig.AUTHENTICATION_METHOD_BEARER + "'."
       );
+    } else if (enableSpiffeJwtAuth(method)) {
+      return createSpiffeJwtLoginService(realm);
     }
+    return null;
+  }
+
+  private LoginService createSpiffeJwtLoginService(String realm) {
+    if (jwtBundleSource == null) {
+      throw new IllegalStateException("A JWT bundle source must be passed to the Application "
+          + "constructor when using '" + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
+          + RestConfig.AUTHENTICATION_METHOD_SPIFFE_JWT + "'.");
+    }
+    List<String> audiences =
+        config.getList(RestConfig.AUTHENTICATION_SPIFFE_JWT_AUDIENCES_CONFIG);
+    if (audiences.isEmpty()) {
+      throw new ConfigException(RestConfig.AUTHENTICATION_SPIFFE_JWT_AUDIENCES_CONFIG
+          + " must be set when using '" + RestConfig.AUTHENTICATION_METHOD_CONFIG + "="
+          + RestConfig.AUTHENTICATION_METHOD_SPIFFE_JWT + "'.");
+    }
+    return new SpiffeJwtLoginService(
+        realm, jwtBundleSource, new HashSet<>(audiences), createSpiffeIdVerifier());
+  }
+
+  /**
+   * Authorization check applied to callers authenticated with
+   * {@link RestConfig#AUTHENTICATION_METHOD_SPIFFE_JWT}, after their JWT-SVID has been validated.
+   * Return {@code null} (the default) to accept any SPIFFE ID with a valid token.
+   */
+  protected SpiffeIdVerifier createSpiffeIdVerifier() {
     return null;
   }
 
   protected IdentityService createIdentityService() {
     final String method = config.getString(RestConfig.AUTHENTICATION_METHOD_CONFIG);
-    if (enableBasicAuth(method) || enableBearerAuth(method)) {
+    if (enableBasicAuth(method) || enableBearerAuth(method) || enableSpiffeJwtAuth(method)) {
       return new DefaultIdentityService();
     }
     return null;
@@ -673,6 +731,10 @@ public abstract class Application<T extends RestConfig> {
   }
 
   protected ConstraintSecurityHandler createBearerSecurityHandler() {
+    return createSecurityHandler();
+  }
+
+  protected ConstraintSecurityHandler createSpiffeJwtSecurityHandler() {
     return createSecurityHandler();
   }
 
