@@ -327,17 +327,22 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_METHOD_NONE = "NONE";
   public static final String AUTHENTICATION_METHOD_BASIC = "BASIC";
   public static final String AUTHENTICATION_METHOD_BEARER = "BEARER";
+  public static final String AUTHENTICATION_METHOD_SPIFFE_JWT = "SPIFFE_JWT";
   public static final String AUTHENTICATION_METHOD_DOC =
-      "Method of authentication. Must be BASIC or BEARER to enable authentication. "
+      "Method of authentication. Must be BASIC, BEARER or SPIFFE_JWT to enable authentication. "
       + "For BASIC, you must supply a valid JAAS config file for the "
       + "'java.security.auth.login.config' system property for the appropriate authentication "
       + "provider. For BEARER, you must implement your own Application.createAuthenticator() "
-      + "& Application.createLoginService() methods.";
+      + "& Application.createLoginService() methods. For SPIFFE_JWT, requests must carry a "
+      + "SPIFFE JWT-SVID as an 'Authorization: Bearer' token; you must pass a JWT bundle source "
+      + "(e.g. a java-spiffe JwtSource) to the Application constructor and set "
+      + "'authentication.spiffe.jwt.audiences'.";
   public static final ConfigDef.ValidString AUTHENTICATION_METHOD_VALIDATOR =
       ConfigDef.ValidString.in(
           AUTHENTICATION_METHOD_NONE,
           AUTHENTICATION_METHOD_BASIC,
-          AUTHENTICATION_METHOD_BEARER
+          AUTHENTICATION_METHOD_BEARER,
+          AUTHENTICATION_METHOD_SPIFFE_JWT
       );
   public static final String AUTHENTICATION_REALM_CONFIG = "authentication.realm";
   public static final String AUTHENTICATION_REALM_DOC =
@@ -346,6 +351,16 @@ public class RestConfig extends AbstractConfig {
   public static final String AUTHENTICATION_ROLES_DOC = "Valid roles to authenticate against.";
   public static final List<String> AUTHENTICATION_ROLES_DEFAULT =
       unmodifiableList(Arrays.asList("*"));
+
+  public static final String AUTHENTICATION_SPIFFE_JWT_AUDIENCES_CONFIG =
+      "authentication.spiffe.jwt.audiences";
+  public static final String AUTHENTICATION_SPIFFE_JWT_AUDIENCES_DOC =
+      "Comma-separated list of audiences accepted in incoming SPIFFE JWT-SVIDs, typically this "
+      + "service's own SPIFFE ID. A token is accepted if its 'aud' claim contains any of these. "
+      + "Required when " + AUTHENTICATION_METHOD_CONFIG + " is "
+      + AUTHENTICATION_METHOD_SPIFFE_JWT + ". SPIFFE_JWT principals carry no roles, so set "
+      + "'authentication.roles' to '**' to admit any authenticated caller.";
+  public static final String AUTHENTICATION_SPIFFE_JWT_AUDIENCES_DEFAULT = "";
 
   public static final String AUTHENTICATION_SKIP_PATHS = "authentication.skip.paths";
   public static final String AUTHENTICATION_SKIP_PATHS_DOC = "Comma separated list of paths that "
@@ -1062,6 +1077,12 @@ public class RestConfig extends AbstractConfig {
             AUTHENTICATION_ROLES_DEFAULT,
             Importance.LOW,
             AUTHENTICATION_ROLES_DOC
+        ).define(
+            AUTHENTICATION_SPIFFE_JWT_AUDIENCES_CONFIG,
+            Type.LIST,
+            AUTHENTICATION_SPIFFE_JWT_AUDIENCES_DEFAULT,
+            Importance.LOW,
+            AUTHENTICATION_SPIFFE_JWT_AUDIENCES_DOC
         ).define(
             AUTHENTICATION_SKIP_PATHS,
             Type.LIST,
