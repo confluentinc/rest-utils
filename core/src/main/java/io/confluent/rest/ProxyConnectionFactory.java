@@ -24,6 +24,7 @@
 //      org.eclipse.jetty.server.ProxyConnectionFactory.ProxyEndPoint is used, so callers that
 //      check "instanceof ProxyConnectionFactory.ProxyEndPoint" keep working.
 //   3. Package changed to io.confluent.rest.
+// Upstream issue: https://github.com/jetty/jetty.project/issues/16090
 // Remove this copy once the buffer fix is available upstream.
 //
 
