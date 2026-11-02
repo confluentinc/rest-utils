@@ -12,7 +12,4 @@
               files="Application.java"/>
     <suppress checks="[a-zA-Z0-9]*"
               files="DoSFilter.java"/>
-    <!-- Copy of Jetty's ProxyConnectionFactory, kept in Jetty's formatting to ease diffing -->
-    <suppress checks="[a-zA-Z0-9]*"
-              files="ProxyConnectionFactory.java"/>
 </suppressions>

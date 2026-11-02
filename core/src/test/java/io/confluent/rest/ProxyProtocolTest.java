@@ -182,7 +182,7 @@ public class ProxyProtocolTest {
 
     boolean proxyConnectionFactoryFound = false;
     for (ConnectionFactory factory : server.getConnectors()[0].getConnectionFactories()) {
-      if (factory instanceof ProxyConnectionFactory) {
+      if (factory instanceof ProxyProtocolConnectionFactory) {
         proxyConnectionFactoryFound = true;
         break;
       }

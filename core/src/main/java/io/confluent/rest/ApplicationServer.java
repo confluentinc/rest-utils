@@ -43,6 +43,7 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
+import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NetworkTrafficListener;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
@@ -435,8 +436,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
         httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled,
         connectorConfig.getInt(RestConfig.PROXY_PROTOCOL_MAX_HEADER_BYTES_CONFIG));
+    // A PROXY protocol connector needs a pool that can size buffers for large PROXY headers.
+    ByteBufferPool bufferPool = proxyProtocolEnabled
+        ? ProxyProtocolConnectionFactory.wrapPool(getByteBufferPool()) : null;
     NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
-        null, 0, 0, connectionFactories);
+        bufferPool, 0, 0, connectionFactories);
     if (http2Enabled) {
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
       // rigorously and remove support for ambiguous URIs, such as escaping
@@ -535,14 +539,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   /**
    * Creates a PROXY protocol connection factory that accepts V2 headers up to
    * {@code maxProxyHeaderBytes}. Jetty's own default is 1024 bytes, which is too small for
-   * headers carrying large TLVs (e.g. authentication tokens). Uses the rest-utils copy of
-   * Jetty's factory, which also sizes its read buffer to the configured maximum.
+   * headers carrying large TLVs (e.g. authentication tokens).
    */
-  private static ProxyConnectionFactory newProxyConnectionFactory(String nextProtocol,
-                                                                  int maxProxyHeaderBytes) {
-    ProxyConnectionFactory factory = new ProxyConnectionFactory(nextProtocol);
-    factory.setMaxProxyHeader(maxProxyHeaderBytes);
-    return factory;
+  private static ProxyProtocolConnectionFactory newProxyConnectionFactory(String nextProtocol,
+                                                                          int maxProxyHeaderBytes) {
+    return ProxyProtocolConnectionFactory.create(nextProtocol, maxProxyHeaderBytes);
   }
 
   private static CidrRange parseAcceptedIpRange(RestConfig connectorConfig) {
