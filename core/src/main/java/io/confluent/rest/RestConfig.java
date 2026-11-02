@@ -635,6 +635,17 @@ public class RestConfig extends AbstractConfig {
           + "proxy.protocol.enabled is true.";
   protected static final String PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DEFAULT = "";
 
+  public static final String PROXY_PROTOCOL_MAX_HEADER_BYTES_CONFIG =
+      "proxy.protocol.max.header.bytes";
+  protected static final String PROXY_PROTOCOL_MAX_HEADER_BYTES_DOC =
+      "Maximum size in bytes of a PROXY protocol V2 header (address block plus TLVs) that the "
+          + "server accepts. Connections sending a larger header are rejected. Jetty's built-in "
+          + "default is 1024 bytes, which is too small when the proxy attaches large TLVs such as "
+          + "authentication tokens. The PROXY protocol V2 limit is 65535. Default is 8192.";
+  protected static final int PROXY_PROTOCOL_MAX_HEADER_BYTES_DEFAULT = 8 * 1024;
+  protected static final ConfigDef.Range PROXY_PROTOCOL_MAX_HEADER_BYTES_VALIDATOR =
+      ConfigDef.Range.between(1, 65535);
+
   public static final String SUPPRESS_STACK_TRACE_IN_RESPONSE = "suppress.stack.trace.response";
 
   protected static final String SUPPRESS_STACK_TRACE_IN_RESPONSE_DOC =
@@ -1315,6 +1326,13 @@ public class RestConfig extends AbstractConfig {
             PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DEFAULT,
             Importance.LOW,
             PROXY_PROTOCOL_ACCEPTED_IP_RANGE_DOC
+        ).define(
+            PROXY_PROTOCOL_MAX_HEADER_BYTES_CONFIG,
+            Type.INT,
+            PROXY_PROTOCOL_MAX_HEADER_BYTES_DEFAULT,
+            PROXY_PROTOCOL_MAX_HEADER_BYTES_VALIDATOR,
+            Importance.LOW,
+            PROXY_PROTOCOL_MAX_HEADER_BYTES_DOC
         ).define(
             NOSNIFF_PROTECTION_ENABLED,
             Type.BOOLEAN,
