@@ -34,7 +34,7 @@ import org.eclipse.jetty.server.ProxyConnectionFactory;
  * the V2 connection acquires its read buffer in its constructor, using the connection default
  * size (2 KiB) rather than the configured maximum header size. A header larger than that buffer
  * never finishes parsing and the connection hangs until the idle timeout. To avoid that, while
- * Jetty creates a PROXY connection, buffers acquired from a pool wrapped by
+ * Jetty creates a PROXY V2 connection, buffers acquired from a pool wrapped by
  * {@link #wrapPool(ByteBufferPool)} are enlarged to fit the largest allowed header.
  * The connector using this factory must use such a pool.</p>
  *
@@ -44,6 +44,10 @@ public final class ProxyProtocolConnectionFactory extends DetectorConnectionFact
 
   // Fixed part of a V2 header: signature, version/command, family/transport and length.
   private static final int V2_FIXED_HEADER_BYTES = 16;
+
+  private static final byte[] V2_SIGNATURE = {
+      0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A
+  };
 
   private static final ThreadLocal<Integer> MIN_BUFFER_SIZE = new ThreadLocal<>();
 
@@ -62,17 +66,22 @@ public final class ProxyProtocolConnectionFactory extends DetectorConnectionFact
     ProxyConnectionFactory jettyFactory = new ProxyConnectionFactory(nextProtocol);
     jettyFactory.setMaxProxyHeader(maxProxyHeader);
     // Jetty's V1 and V2 factories are private, but registered as beans in detection order.
+    // Only the V2 factory is wrapped; V1 behaves exactly as in Jetty.
     Collection<Detecting> jettyDetecting = jettyFactory.getBeans(Detecting.class);
     int minBufferSize = V2_FIXED_HEADER_BYTES + maxProxyHeader;
     Detecting[] detecting = jettyDetecting.stream()
-        .map(factory -> new BufferSizingDetecting(factory, minBufferSize))
+        .map(factory -> isV2(factory) ? new BufferSizingDetecting(factory, minBufferSize) : factory)
         .toArray(Detecting[]::new);
     return new ProxyProtocolConnectionFactory(maxProxyHeader, detecting);
   }
 
+  private static boolean isV2(Detecting factory) {
+    return factory.detect(ByteBuffer.wrap(V2_SIGNATURE)) == Detection.RECOGNIZED;
+  }
+
   /**
-   * Wraps a connector's buffer pool so that buffers acquired while a PROXY connection is created
-   * are large enough for the maximum V2 header.
+   * Wraps a connector's buffer pool so that buffers acquired while a PROXY V2 connection is
+   * created are large enough for the maximum V2 header.
    */
   public static ByteBufferPool wrapPool(ByteBufferPool pool) {
     return new ByteBufferPool.Wrapper(pool) {
