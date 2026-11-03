@@ -59,6 +59,7 @@
         <io.confluent.rest-utils.version>8.5.0-0</io.confluent.rest-utils.version>
         <conscrypt.version>2.5.2</conscrypt.version>
         <spiffe.version>0.8.17</spiffe.version>
+        <guava.version>33.7.2-jre</guava.version>
     </properties>
 
     <repositories>
