@@ -30,6 +30,7 @@ import org.eclipse.jetty.server.ProxyConnectionFactory;
  * PROXY protocol connection factory that accepts V2 headers up to a configured size.
  *
  * <p>Delegates all parsing to Jetty's {@link ProxyConnectionFactory}, working around a Jetty bug:
+ * <a href="#16090">https://github.com/jetty/jetty.project/issues/16090</a>. In that bug,
  * the V2 connection acquires its read buffer in its constructor, using the connection default
  * size (2 KiB) rather than the configured maximum header size. A header larger than that buffer
  * never finishes parsing and the connection hangs until the idle timeout. To avoid that, while

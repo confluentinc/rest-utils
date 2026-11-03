@@ -436,7 +436,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
         httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled,
         connectorConfig.getInt(RestConfig.PROXY_PROTOCOL_MAX_HEADER_BYTES_CONFIG));
-    // A PROXY protocol connector needs a pool that can size buffers for large PROXY headers.
     ByteBufferPool bufferPool = proxyProtocolEnabled
         ? ProxyProtocolConnectionFactory.wrapPool(getByteBufferPool()) : null;
     NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
@@ -536,11 +535,6 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     return connectionFactories.toArray(new ConnectionFactory[0]);
   }
 
-  /**
-   * Creates a PROXY protocol connection factory that accepts V2 headers up to
-   * {@code maxProxyHeaderBytes}. Jetty's own default is 1024 bytes, which is too small for
-   * headers carrying large TLVs (e.g. authentication tokens).
-   */
   private static ProxyProtocolConnectionFactory newProxyConnectionFactory(String nextProtocol,
                                                                           int maxProxyHeaderBytes) {
     return ProxyProtocolConnectionFactory.create(nextProtocol, maxProxyHeaderBytes);
