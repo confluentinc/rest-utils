@@ -43,6 +43,7 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
+import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NetworkTrafficListener;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.ConnectionFactory;
@@ -53,7 +54,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.NetworkTrafficServerConnector;
-import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -434,9 +434,12 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                                        boolean http2Enabled,
                                        boolean proxyProtocolEnabled) {
     ConnectionFactory[] connectionFactories = getConnectionFactories(httpConfiguration,
-        httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled);
+        httpConnectionFactory, listener, http2Enabled, proxyProtocolEnabled,
+        connectorConfig.getInt(RestConfig.PROXY_PROTOCOL_MAX_HEADER_BYTES_CONFIG));
+    ByteBufferPool bufferPool = proxyProtocolEnabled
+        ? ProxyProtocolConnectionFactory.wrapPool(getByteBufferPool()) : null;
     NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(this, null, null,
-        null, 0, 0, connectionFactories);
+        bufferPool, 0, 0, connectionFactories);
     if (http2Enabled) {
       // In Jetty 9.4.37, there was a change in behaviour to implement RFC 7230 more
       // rigorously and remove support for ambiguous URIs, such as escaping
@@ -464,7 +467,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                                                      HttpConnectionFactory httpConnectionFactory,
                                                      NamedURI listener,
                                                      boolean http2Enabled,
-                                                     boolean proxyProtocolEnabled) {
+                                                     boolean proxyProtocolEnabled,
+                                                     int maxProxyHeaderBytes) {
     ArrayList<ConnectionFactory> connectionFactories = new ArrayList<>();
 
     if (http2Enabled) {
@@ -475,7 +479,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
             new HTTP2CServerConnectionFactory(httpConfiguration);
 
         if (proxyProtocolEnabled) {
-          connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
+          connectionFactories.add(
+              newProxyConnectionFactory(httpConnectionFactory.getProtocol(), maxProxyHeaderBytes));
         }
 
         // The order of HTTP and HTTP/2 is significant here but it's not clear why :)
@@ -494,7 +499,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                     alpnConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
-          connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
+          connectionFactories.add(
+              newProxyConnectionFactory(sslConnectionFactory.getProtocol(), maxProxyHeaderBytes));
         }
 
         connectionFactories.add(sslConnectionFactory);
@@ -506,7 +512,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       log.info("Adding listener: " + listener);
       if (listener.getUri().getScheme().equals("http")) {
         if (proxyProtocolEnabled) {
-          connectionFactories.add(new ProxyConnectionFactory(httpConnectionFactory.getProtocol()));
+          connectionFactories.add(
+              newProxyConnectionFactory(httpConnectionFactory.getProtocol(), maxProxyHeaderBytes));
         }
 
       } else {
@@ -516,7 +523,8 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
                     httpConnectionFactory.getProtocol());
 
         if (proxyProtocolEnabled) {
-          connectionFactories.add(new ProxyConnectionFactory(sslConnectionFactory.getProtocol()));
+          connectionFactories.add(
+              newProxyConnectionFactory(sslConnectionFactory.getProtocol(), maxProxyHeaderBytes));
         }
 
         connectionFactories.add(sslConnectionFactory);
@@ -525,6 +533,11 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
     }
 
     return connectionFactories.toArray(new ConnectionFactory[0]);
+  }
+
+  private static ProxyProtocolConnectionFactory newProxyConnectionFactory(String nextProtocol,
+                                                                          int maxProxyHeaderBytes) {
+    return ProxyProtocolConnectionFactory.create(nextProtocol, maxProxyHeaderBytes);
   }
 
   private static CidrRange parseAcceptedIpRange(RestConfig connectorConfig) {
