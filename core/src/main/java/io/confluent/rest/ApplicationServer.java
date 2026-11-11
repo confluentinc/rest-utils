@@ -19,7 +19,6 @@ package io.confluent.rest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import io.confluent.rest.customizer.CidrRange;
 import io.confluent.rest.customizer.ProxyCustomizer;
 import io.confluent.rest.errorhandlers.StackTraceErrorHandler;
@@ -32,6 +31,7 @@ import java.util.Set;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.MetricName;
@@ -84,6 +84,10 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   private static final long HSTS_MAX_AGE_SECONDS = 63072000L; // 2 years
 
   private final X509Source x509Source;
+
+  // Applications are shut down at most once, even if stop() is called again (for example by both
+  // Jetty's shutdown hook and the application) after a failed stop.
+  private final AtomicBoolean applicationsShutDown = new AtomicBoolean(false);
 
   @VisibleForTesting
   static boolean isHttp2Compatible(SslConfig sslConfig) {
@@ -138,9 +142,26 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
       this.x509Source = x509Source;
     }
 
-    sslContextFactories = ImmutableMap.copyOf(
-            Maps.transformValues(config.getSslConfigs(),
-                    sslConfig -> SslFactory.createSslContextFactory(sslConfig, this.x509Source)));
+    // Build one SslContextFactory per listener. For a full-SPIRE listener with a SPIFFE-ID
+    // allowlist, the factory's trust manager records per-listener validation metrics;
+    // The ApplicationServer constructor builds the SslContextFactory
+    // before any Application is registered — at that moment the applications list is empty,
+    // so metricsForListener(...) would return null and the counters would bind to nothing.
+    //  so we pass a lazy supplier that resolves the owning listener's Application metrics
+    //  at handshake time so the apps are registered by then and
+    // application.getMetrics() returns the real per-listener Metrics
+    ImmutableMap.Builder<NamedURI, SslContextFactory> sslContextFactoriesBuilder =
+            ImmutableMap.builder();
+    for (Map.Entry<NamedURI, SslConfig> sslConfigEntry : config.getSslConfigs().entrySet()) {
+      final String listenerName = sslConfigEntry.getKey().getName();
+      sslContextFactoriesBuilder.put(sslConfigEntry.getKey(),
+              SslFactory.createSslContextFactory(
+                      sslConfigEntry.getValue(),
+                      this.x509Source,
+                      () -> metricsForListener(listenerName),
+                      () -> metricsTagsForListener(listenerName)));
+    }
+    sslContextFactories = sslContextFactoriesBuilder.build();
 
     configureConnectors();
     configureConnectionLimits();
@@ -154,6 +175,32 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
 
   public List<Application<?>> getApplications() {
     return Collections.unmodifiableList(applications);
+  }
+
+  /**
+   * Resolve the {@link Metrics} of the Application bound to {@code listenerName}, or null if no
+   * such Application is registered yet. Called lazily (at TLS handshake time) by a listener's
+   * SPIRE trust manager so its per-listener validation counters ride that Application's telemetry.
+   */
+  private Metrics metricsForListener(String listenerName) {
+    for (Application<?> application : applications) {
+      if (Objects.equals(application.getListenerName(), listenerName)) {
+        return application.getMetrics();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Metrics tags of the Application bound to {@code listenerName}, or null if not yet registered.
+   */
+  private Map<String, String> metricsTagsForListener(String listenerName) {
+    for (Application<?> application : applications) {
+      if (Objects.equals(application.getListenerName(), listenerName)) {
+        return application.getMetricsTags();
+      }
+    }
+    return null;
   }
 
   private static boolean isHstsHeaderEnabled(RestConfig connectorConfig) {
@@ -233,11 +280,42 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   protected void doStop() throws Exception {
-    super.doStop();
-    for (Application<?> application : applications) {
-      application.getMetrics().close();
-      application.doShutdown();
+    Exception failure = null;
+    try {
+      super.doStop();
+    } catch (Exception e) {
+      // For example a TimeoutException when requests outlive shutdown.graceful.ms.
+      failure = e;
     }
+    // Shut every application down even if stopping Jetty failed, so each one still closes its
+    // metrics and resource extensions, runs onShutdown(), and releases join().
+    if (applicationsShutDown.compareAndSet(false, true)) {
+      for (Application<?> application : applications) {
+        try {
+          application.getMetrics().close();
+        } catch (Exception e) {
+          failure = addFailure(failure, e);
+        }
+        try {
+          application.doShutdown();
+        } catch (Exception e) {
+          failure = addFailure(failure, e);
+        }
+      }
+    }
+    if (failure != null) {
+      throw failure;
+    }
+  }
+
+  private static Exception addFailure(Exception failure, Exception e) {
+    if (failure == null) {
+      return e;
+    }
+    if (failure != e) {
+      failure.addSuppressed(e);
+    }
+    return failure;
   }
 
   @Override

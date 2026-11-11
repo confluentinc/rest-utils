@@ -25,6 +25,22 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class RestConfigTest {
   private static final String PROPERTY_KEY = "property.key";
 
+  @Test
+  public void sslSpireAcceptedSpiffeIdPatterns_defaultsToEmptyList() {
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef());
+    assertTrue(config.getList(
+        RestConfig.SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG).isEmpty());
+  }
+
+  @Test
+  public void sslSpireAcceptedSpiffeIdPatterns_parsesCommaSeparatedList() {
+    Map<String, Object> props = new HashMap<>();
+    props.put(RestConfig.SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG, "a,b,c");
+    RestConfig config = new RestConfig(RestConfig.baseConfigDef(), props);
+    assertEquals(Arrays.asList("a", "b", "c"),
+        config.getList(RestConfig.SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG));
+  }
+
   // getListenerProtocolMap tests
 
   @ParameterizedTest
