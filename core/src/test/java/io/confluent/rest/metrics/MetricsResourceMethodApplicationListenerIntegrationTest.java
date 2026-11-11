@@ -24,7 +24,6 @@ import org.eclipse.jetty.util.Callback;
 import org.glassfish.jersey.server.ServerProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -351,8 +350,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(3, windowCheckpoint429 + windowTag1Checkpoint429 + windowTag2Checkpoint429);
   }
 
-  // TODO: Flaky test disabled: KNET-19715
-  @Disabled
   @Test
   public void testException5xxMetrics() throws Exception {
     int totalRequests = 10;
@@ -587,8 +584,6 @@ public class MetricsResourceMethodApplicationListenerIntegrationTest {
     assertEquals(0, Double.valueOf(allMetrics.get("hello.response-above-latency-sla-total")).intValue());
   }
 
-  // TODO: Flaky test disabled: KNET-19715
-  @Disabled
   @Test
   public void testGlobalLatencyMetricsForErrorsBeforeResourceMatching() throws Exception {
     // call service that fails before resource matching

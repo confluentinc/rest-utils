@@ -30,7 +30,6 @@ import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.test.TestSslUtils;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.ConnectionFactory;
-import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.ServerConnector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +64,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class ProxyProtocolTest {
   private static TestRestConfig testConfig;
@@ -353,7 +353,214 @@ public class ProxyProtocolTest {
   }
 
 
-    private static class ProxyTestApp extends Application<TestRestConfig> implements AutoCloseable {
+  /**
+   * When accepted.ip.range is configured and the peer IP (localhost/127.0.0.1) is NOT in the
+   * range, the PROXY protocol header should be ignored and the server should see the raw
+   * peer IP (127.0.0.1) instead of the spoofed IP from the PROXY header.
+   */
+  @Test
+  public void testAcceptedIpRange_peerNotInRange_proxyDataIgnored() throws Exception {
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://localhost:0");
+    // Set accepted range to Envoy CIDR — localhost is NOT in this range
+    props.setProperty(RestConfig.PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG, "10.240.0.0/16");
+
+    testConfig = new TestRestConfig(props);
+    server = new ApplicationServer<>(testConfig);
+    ProxyTestApp app = new ProxyTestApp("/app");
+    server.registerApplication(app);
+    server.start();
+
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+
+    // Send a PROXY v1 header with a spoofed IP (192.168.0.1)
+    try (Socket proxySocket = new Socket("localhost", connector.getLocalPort())) {
+      byte[] header = getProxyProtocolHeader(false, "192.168.0.1", "12345");
+      OutputStream proxyWriter = proxySocket.getOutputStream();
+      proxyWriter.write(header);
+      proxyWriter.flush();
+
+      String httpString = "HTTP/1.1";
+      String request1 = String.format(
+          "GET /app/resource %s\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+          httpString);
+      proxyWriter.write(request1.getBytes(StandardCharsets.UTF_8));
+      proxyWriter.flush();
+
+      InputStream input = proxySocket.getInputStream();
+      BufferedReader reader = new BufferedReader(
+          new InputStreamReader(input, StandardCharsets.UTF_8));
+      String responseLine = reader.readLine();
+      assertThat(responseLine, startsWith(httpString + " 200 "));
+
+      // Read to the last line (the body)
+      String lastLine = responseLine;
+      while (true) {
+        String l = reader.readLine();
+        if (l == null) break;
+        lastLine = l;
+      }
+
+      String[] tokens = lastLine.split(":");
+      // The server should see 127.0.0.1 (raw peer IP), NOT 192.168.0.1 (spoofed)
+      assertThat(tokens[0], is("127.0.0.1"));
+    }
+  }
+
+  /**
+   * When accepted.ip.range is configured and the peer IP IS in the range (using 127.0.0.0/8
+   * to match localhost), the PROXY protocol header should be used and the server should see
+   * the client IP from the PROXY header.
+   */
+  @Test
+  public void testAcceptedIpRange_peerInRange_proxyDataUsed() throws Exception {
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://localhost:0");
+    // Set accepted range to include localhost (127.0.0.0/8)
+    props.setProperty(RestConfig.PROXY_PROTOCOL_ACCEPTED_IP_RANGE_CONFIG, "127.0.0.0/8");
+
+    testConfig = new TestRestConfig(props);
+    server = new ApplicationServer<>(testConfig);
+    ProxyTestApp app = new ProxyTestApp("/app");
+    server.registerApplication(app);
+    server.start();
+
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+
+    // Send a PROXY v1 header with client IP 192.168.0.1
+    try (Socket proxySocket = new Socket("localhost", connector.getLocalPort())) {
+      byte[] header = getProxyProtocolHeader(false, "192.168.0.1", "12345");
+      OutputStream proxyWriter = proxySocket.getOutputStream();
+      proxyWriter.write(header);
+      proxyWriter.flush();
+
+      String httpString = "HTTP/1.1";
+      String request1 = String.format(
+          "GET /app/resource %s\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+          httpString);
+      proxyWriter.write(request1.getBytes(StandardCharsets.UTF_8));
+      proxyWriter.flush();
+
+      InputStream input = proxySocket.getInputStream();
+      BufferedReader reader = new BufferedReader(
+          new InputStreamReader(input, StandardCharsets.UTF_8));
+      String responseLine = reader.readLine();
+      assertThat(responseLine, startsWith(httpString + " 200 "));
+
+      String lastLine = responseLine;
+      while (true) {
+        String l = reader.readLine();
+        if (l == null) break;
+        lastLine = l;
+      }
+
+      String[] tokens = lastLine.split(":");
+      // The server should see 192.168.0.1 (from PROXY header), since peer is in range
+      assertThat(tokens[0], is("192.168.0.1"));
+      assertThat(tokens[1], is("12345"));
+    }
+  }
+
+  /**
+   * A PROXY protocol V2 header larger than Jetty's built-in 1024-byte limit (for example, one
+   * carrying a large authentication token TLV) must be accepted with the default config.
+   * The header payload is exactly the default maximum (8 KiB), so with the 16-byte fixed
+   * prefix it is also larger than Jetty's 8 KiB input buffer, which proves the buffer is
+   * sized to fit the configured maximum.
+   */
+  @Test
+  public void testPpv2LargeHeaderAccepted() throws Exception {
+    startHttpServer();
+
+    int basePayloadBytes = getProxyProtocolHeader(true, "192.168.0.1", "12345").length - 16;
+    byte[] header = getProxyProtocolV2HeaderWithPadding(
+        RestConfig.PROXY_PROTOCOL_MAX_HEADER_BYTES_DEFAULT - basePayloadBytes - 3);
+    String response = sendPpv2Request(header, "/app/resource");
+    assertNotNull(response, "server rejected a PROXY header within the configured maximum");
+    String[] tokens = response.split(":");
+
+    assertThat(tokens.length, is(4));
+    assertThat(tokens[0], is("192.168.0.1"));
+    assertThat(tokens[1], is("12345"));
+    assertThat(tokens[2], is("0102"));
+    assertThat(tokens[3], is("FFFFFF"));
+  }
+
+  /**
+   * A PROXY protocol V2 header larger than the configured maximum must be rejected and the
+   * connection closed.
+   */
+  @Test
+  public void testPpv2HeaderOverMaxRejected() throws Exception {
+    props.setProperty(RestConfig.PROXY_PROTOCOL_MAX_HEADER_BYTES_CONFIG, "1024");
+    startHttpServer();
+
+    byte[] header = getProxyProtocolV2HeaderWithPadding(4 * 1024);
+
+    assertNull(sendPpv2Request(header, "/app/resource"));
+  }
+
+  private void startHttpServer() throws Exception {
+    props.setProperty(RestConfig.LISTENERS_CONFIG, "http://localhost:0");
+    testConfig = new TestRestConfig(props);
+    server = new ApplicationServer<>(testConfig);
+    server.registerApplication(new ProxyTestApp("/app"));
+    server.start();
+  }
+
+  /**
+   * Same header as {@link #getProxyProtocolHeader} (V2) plus a trailing NOOP TLV of
+   * {@code paddingBytes} bytes, so the total header length can be controlled.
+   */
+  private byte[] getProxyProtocolV2HeaderWithPadding(int paddingBytes) {
+    byte[] base = getProxyProtocolHeader(true, "192.168.0.1", "12345");
+    // bytes 0-11 signature, 12 version/command, 13 family, 14-15 length, 16+ payload
+    int payloadLength = base.length - 16;
+    int newLength = payloadLength + 3 + paddingBytes;
+    byte[] header = new byte[base.length + 3 + paddingBytes];
+    System.arraycopy(base, 0, header, 0, base.length);
+    header[14] = (byte) (newLength >> 8);
+    header[15] = (byte) newLength;
+    // PP2_TYPE_NOOP = 0x04
+    header[base.length] = 0x04;
+    header[base.length + 1] = (byte) (paddingBytes >> 8);
+    header[base.length + 2] = (byte) paddingBytes;
+    return header;
+  }
+
+  /**
+   * Writes the PROXY protocol header followed by a plain HTTP GET and returns the body line
+   * produced by {@link RestResource}, or null if the server closed the connection without a
+   * 200 response.
+   */
+  private String sendPpv2Request(byte[] header, String path) throws Exception {
+    ServerConnector connector = (ServerConnector) server.getConnectors()[0];
+    try (Socket socket = new Socket("localhost", connector.getLocalPort())) {
+      // fail fast instead of hanging if the server never answers
+      socket.setSoTimeout(5000);
+      OutputStream output = socket.getOutputStream();
+      output.write(header);
+      output.write(String.format("GET %s HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+          path).getBytes(StandardCharsets.UTF_8));
+      output.flush();
+
+      BufferedReader reader = new BufferedReader(
+          new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+      String statusLine = reader.readLine();
+      if (statusLine == null || !statusLine.startsWith("HTTP/1.1 200 ")) {
+        return null;
+      }
+      String lastLine = statusLine;
+      String l;
+      while ((l = reader.readLine()) != null) {
+        lastLine = l;
+      }
+      return lastLine;
+    } catch (IOException e) {
+      // connection reset by the server counts as rejected
+      return null;
+    }
+  }
+
+  private static class ProxyTestApp extends Application<TestRestConfig> implements AutoCloseable {
       private static final AtomicBoolean SHUTDOWN_CALLED = new AtomicBoolean(true);
 
     ProxyTestApp(String path) {

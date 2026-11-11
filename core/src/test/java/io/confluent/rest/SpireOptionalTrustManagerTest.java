@@ -17,7 +17,9 @@
 package io.confluent.rest;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -28,14 +30,26 @@ import static org.mockito.Mockito.when;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class SpireOptionalTrustManagerTest {
+
+  @AfterEach
+  public void resetLogLevel() {
+    Configurator.setLevel(SpireOptionalTrustManager.class, (Level) null);
+  }
 
   private static X509Certificate certWithSans(List<List<?>> sans) throws Exception {
     X509Certificate cert = mock(X509Certificate.class);
@@ -73,6 +87,50 @@ public class SpireOptionalTrustManagerTest {
         .when(spiffeManager).checkClientTrusted(chain, "RSA");
 
     assertThrows(CertificateException.class, () -> trustManager.checkClientTrusted(chain, "RSA"));
+  }
+
+  private static final class CapturingAppender extends AbstractAppender {
+    private final List<LogEvent> events = new ArrayList<>();
+
+    CapturingAppender() {
+      super("capturing-test-appender", null, null);
+    }
+
+    @Override
+    public void append(LogEvent event) {
+      events.add(event.toImmutable());
+    }
+  }
+
+  @Test
+  public void checkClientTrustedLogsHandshakeFailureForInvalidSpiffeCert() throws Exception {
+    Configurator.setLevel(SpireOptionalTrustManager.class, Level.DEBUG);
+    org.apache.logging.log4j.core.Logger coreLogger =
+        (org.apache.logging.log4j.core.Logger) LogManager.getLogger(SpireOptionalTrustManager.class);
+    CapturingAppender appender = new CapturingAppender();
+    appender.start();
+    coreLogger.addAppender(appender);
+
+    try {
+      X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
+      X509ExtendedTrustManager trustManager = wrappedTrustManager(spiffeManager);
+
+      X509Certificate[] chain = {certWithSans(
+          Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
+      CertificateException cause = new CertificateException("untrusted SVID");
+      doThrow(cause).when(spiffeManager).checkClientTrusted(chain, "RSA");
+
+      assertThrows(CertificateException.class,
+          () -> trustManager.checkClientTrusted(chain, "RSA"));
+
+      assertTrue(appender.events.stream().anyMatch(e ->
+          e.getLevel() == Level.DEBUG
+              && e.getMessage().getFormattedMessage().contains("TLS handshake failed")
+              && e.getThrown() == cause));
+    } finally {
+      coreLogger.removeAppender(appender);
+      appender.stop();
+    }
   }
 
   @Test
@@ -158,5 +216,165 @@ public class SpireOptionalTrustManagerTest {
     TrustManager[] notExtended = new TrustManager[] {mock(TrustManager.class)};
 
     assertThrows(IllegalStateException.class, () -> SpireOptionalTrustManager.wrap(notExtended));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesNullChain() {
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(null));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesEmptyChain() {
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(new X509Certificate[0]));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesNullLeafCertificate() {
+    X509Certificate[] chain = {null};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesUnparseableSans() throws Exception {
+    X509Certificate cert = mock(X509Certificate.class);
+    when(cert.getSubjectAlternativeNames()).thenThrow(new CertificateParsingException("boom"));
+    X509Certificate[] chain = {cert};
+
+    String summary = SpireOptionalTrustManager.safeSanSummary(chain);
+
+    assertTrue(summary.contains("boom"));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesGetSubjectAlternativeNamesThrowingRuntimeException()
+      throws Exception {
+    X509Certificate cert = mock(X509Certificate.class);
+    when(cert.getSubjectAlternativeNames()).thenThrow(new IllegalStateException("boom"));
+    X509Certificate[] chain = {cert};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesNullSans() throws Exception {
+    X509Certificate[] chain = {certWithSans(null)};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesEmptySans() throws Exception {
+    X509Certificate[] chain = {certWithSans(Collections.emptyList())};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesNullSanEntry() throws Exception {
+    X509Certificate[] chain = {certWithSans(Collections.singletonList(null))};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesSanEntryTooShort() throws Exception {
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Collections.singletonList(6)))};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesSanEntryWithEmptyList() throws Exception {
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Collections.emptyList()))};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesSanEntryWithWrongTypeForFirstElement() throws Exception {
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Arrays.asList("not-an-integer", "spiffe://example.org/x")))};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesSanEntryWithNonStringValue() throws Exception {
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Arrays.asList(6, 12345)))};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesSanEntryWithNullValue() throws Exception {
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Arrays.asList(6, null)))};
+
+    assertDoesNotThrow(() -> SpireOptionalTrustManager.safeSanSummary(chain));
+  }
+
+  @Test
+  public void safeSanSummaryHandlesMixOfValidAndMalformedEntries() throws Exception {
+    List<List<?>> sans = Arrays.asList(
+        null,
+        Collections.singletonList(6),
+        Arrays.asList(6, "spiffe://example.org/workload"),
+        Arrays.asList("bad", 42),
+        Arrays.asList(2, "leader.internal.example.com"));
+    X509Certificate[] chain = {certWithSans(sans)};
+
+    String summary = SpireOptionalTrustManager.safeSanSummary(chain);
+
+    assertTrue(summary.contains("spiffe://example.org/workload"));
+  }
+
+  @Test
+  public void safeSanSummaryIncludesSpiffeUriForValidSan() throws Exception {
+    X509Certificate[] chain = {certWithSans(
+        Collections.singletonList(Arrays.asList(6, "spiffe://example.org/workload")))};
+
+    String summary = SpireOptionalTrustManager.safeSanSummary(chain);
+
+    assertTrue(summary.contains("spiffe://example.org/workload"));
+  }
+
+  @Test
+  public void checkClientTrustedNeverThrowsFromLoggingWithMalformedSpiffeSan() throws Exception {
+    Configurator.setLevel(SpireOptionalTrustManager.class, Level.DEBUG);
+    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
+    X509ExtendedTrustManager trustManager = wrappedTrustManager(spiffeManager);
+
+    List<List<?>> sans = Arrays.asList(
+        null,
+        Collections.singletonList(6),
+        Arrays.asList(6, "spiffe://example.org/workload"),
+        Arrays.asList("bad", 42));
+    X509Certificate[] chain = {certWithSans(sans)};
+
+    assertDoesNotThrow(() -> trustManager.checkClientTrusted(chain, "RSA"));
+    verify(spiffeManager).checkClientTrusted(chain, "RSA");
+  }
+
+  @Test
+  public void checkClientTrustedNeverThrowsFromLoggingWithMalformedNonSpiffeSan()
+      throws Exception {
+    Configurator.setLevel(SpireOptionalTrustManager.class, Level.DEBUG);
+    X509ExtendedTrustManager spiffeManager = mock(X509ExtendedTrustManager.class);
+    X509ExtendedTrustManager trustManager = wrappedTrustManager(spiffeManager);
+
+    List<List<?>> sans = Arrays.asList(
+        null,
+        Collections.singletonList(6),
+        Arrays.asList("bad", 42),
+        Arrays.asList(2, "leader.internal.example.com"));
+    X509Certificate[] chain = {certWithSans(sans)};
+
+    assertDoesNotThrow(() -> trustManager.checkClientTrusted(chain, "RSA"));
+    verify(spiffeManager, never())
+        .checkClientTrusted(any(X509Certificate[].class), any(String.class));
   }
 }

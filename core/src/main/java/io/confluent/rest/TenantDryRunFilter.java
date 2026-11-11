@@ -55,9 +55,13 @@ public class TenantDryRunFilter extends TenantDosFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain
   )
       throws IOException, ServletException {
+    if (TenantUtils.isHealthCheckRequest(request)) {
+      filterChain.doFilter(request, response);
+      return;
+    }
     // Log tenant classification for all requests (successful and violations)
     logTenantClassification(request);
-    
+
     // Let the parent class handle rate tracking and potential violations
     super.doFilter(request, response, filterChain);
   }
