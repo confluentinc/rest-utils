@@ -134,6 +134,10 @@ public final class SslConfig {
     return restConfig.getBoolean(RestConfig.SSL_SPIRE_TRUST_ONLY_ENABLED_CONFIG);
   }
 
+  public Boolean getIsInjectedTrustManagerEnabled() {
+    return restConfig.getBoolean(RestConfig.SSL_INJECTED_TRUST_MANAGER_ENABLED_CONFIG);
+  }
+
   /**
    * Regex allowlist matched against a client's {@code spiffe://} SVID URI. Empty means "any SPIFFE
    * ID that chains to the SPIRE bundle is accepted"; non-empty additionally requires the ID to

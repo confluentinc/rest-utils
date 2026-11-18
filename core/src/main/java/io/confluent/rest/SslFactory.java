@@ -146,6 +146,22 @@ public final class SslFactory {
       X509Source x509Source,
       Supplier<Metrics> metricsSupplier,
       Supplier<Map<String, String>> metricsTagsSupplier) {
+    return createSslContextFactory(
+        sslConfig, x509Source, null, metricsSupplier, metricsTagsSupplier);
+  }
+
+  /**
+   * Same as above, plus the optional {@code trustManagerSupplier} passed in by the embedding
+   * application. It is used only when the listener sets
+   * {@code ssl.injected.trust.manager.enabled=true}; see
+   * {@link #createInjectedTrustManagerServer}.
+   */
+  public static SslContextFactory createSslContextFactory(
+      SslConfig sslConfig,
+      X509Source x509Source,
+      Supplier<X509ExtendedTrustManager> trustManagerSupplier,
+      Supplier<Metrics> metricsSupplier,
+      Supplier<Map<String, String>> metricsTagsSupplier) {
     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
     
     /*
@@ -159,7 +175,11 @@ public final class SslFactory {
      * certificates are replaced seamlessly.
      * 
      */
-    if (sslConfig.getIsSpireEnabled()) {
+    if (sslConfig.getIsInjectedTrustManagerEnabled()) {
+      validateInjectedTrustManagerConfig(sslConfig, trustManagerSupplier);
+      log.info("Injected TrustManager SSL mode enabled");
+      sslContextFactory = createInjectedTrustManagerServer(trustManagerSupplier);
+    } else if (sslConfig.getIsSpireEnabled()) {
       if (sslConfig.getIsSpireTrustOnlyEnabled()) {
         validateSpireTrustOnlyConfig(sslConfig);
         log.info("SPIRE trust-only SSL mode enabled");
@@ -271,6 +291,41 @@ public final class SslFactory {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static void validateInjectedTrustManagerConfig(
+      SslConfig sslConfig, Supplier<X509ExtendedTrustManager> trustManagerSupplier) {
+    if (trustManagerSupplier == null) {
+      throw new ConfigException(
+          RestConfig.SSL_INJECTED_TRUST_MANAGER_ENABLED_CONFIG + " is enabled but no "
+              + "TrustManager supplier was passed to ApplicationServer.");
+    }
+    if (sslConfig.getIsSpireEnabled()) {
+      throw new ConfigException(
+          RestConfig.SSL_INJECTED_TRUST_MANAGER_ENABLED_CONFIG + " is incompatible with "
+              + RestConfig.SSL_SPIRE_ENABLED_CONFIG + ".");
+    }
+    if (sslConfig.getKeyStorePath().isEmpty()) {
+      throw new ConfigException(
+          RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
+              + RestConfig.SSL_INJECTED_TRUST_MANAGER_ENABLED_CONFIG + " is enabled.");
+    }
+  }
+
+  // Injected TrustManager mode: same shape as the SPIRE trust-only server below. The KeyManager
+  // is still loaded from the configured keystore by Jetty's normal load() path; only the
+  // TrustManager is replaced with the one built by the embedding application's supplier. Jetty
+  // calls getTrustManagers(...) each time it (re)builds the SSLContext, so a reload gets a fresh
+  // instance. The trustStore argument is ignored.
+  private static SslContextFactory.Server createInjectedTrustManagerServer(
+      Supplier<X509ExtendedTrustManager> trustManagerSupplier) {
+    return new SslContextFactory.Server() {
+      @Override
+      protected TrustManager[] getTrustManagers(KeyStore trustStore,
+                                                Collection<? extends CRL> crls) {
+        return new TrustManager[] {trustManagerSupplier.get()};
+      }
+    };
   }
 
   private static void validateSpireTrustOnlyConfig(SslConfig sslConfig) {

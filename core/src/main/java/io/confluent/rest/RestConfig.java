@@ -223,6 +223,14 @@ public class RestConfig extends AbstractConfig {
       + "ssl.keystore.* settings are honored while ssl.truststore.* settings are "
       + "ignored. Has no effect unless " + SSL_SPIRE_ENABLED_CONFIG + " is also true.";
   protected static final boolean SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT = false;
+  public static final String SSL_INJECTED_TRUST_MANAGER_ENABLED_CONFIG =
+      "ssl.injected.trust.manager.enabled";
+  public static final String SSL_INJECTED_TRUST_MANAGER_ENABLED_DOC =
+      "When true, client certificates are validated by the X509ExtendedTrustManager that the "
+      + "embedding application passed to ApplicationServer, instead of one built from "
+      + "ssl.truststore.* or ssl.spire.*. The server's cert/key is still loaded from the "
+      + "configured ssl.keystore.*. Incompatible with " + SSL_SPIRE_ENABLED_CONFIG + ".";
+  protected static final boolean SSL_INJECTED_TRUST_MANAGER_ENABLED_DEFAULT = false;
   public static final String SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG =
       "ssl.spire.accepted.spiffe.id.patterns";
   public static final String SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DOC =
@@ -939,6 +947,12 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_TRUST_ONLY_ENABLED_DEFAULT,
             Importance.LOW,
             SSL_SPIRE_TRUST_ONLY_ENABLED_DOC
+        ).define(
+            SSL_INJECTED_TRUST_MANAGER_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_INJECTED_TRUST_MANAGER_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_INJECTED_TRUST_MANAGER_ENABLED_DOC
         ).define(
             SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG,
             Type.LIST,
