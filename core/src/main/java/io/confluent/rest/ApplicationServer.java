@@ -32,6 +32,8 @@ import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
+import javax.net.ssl.X509ExtendedTrustManager;
 
 import io.spiffe.workloadapi.X509Source;
 import org.apache.kafka.common.MetricName;
@@ -116,6 +118,21 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
   }
 
   public ApplicationServer(T config, ThreadPool threadPool, X509Source x509Source) {
+    this(config, threadPool, x509Source, null);
+  }
+
+  /**
+   * {@code trustManagerSupplier} builds the client-cert {@link X509ExtendedTrustManager} for
+   * listeners that set {@code ssl.injected.trust.manager.enabled=true}; it is ignored by the
+   * others. Like {@code x509Source}, it is shared by all listeners and may be null.
+   */
+  public ApplicationServer(T config, X509Source x509Source,
+                           Supplier<X509ExtendedTrustManager> trustManagerSupplier) {
+    this(config, createThreadPool(config), x509Source, trustManagerSupplier);
+  }
+
+  public ApplicationServer(T config, ThreadPool threadPool, X509Source x509Source,
+                           Supplier<X509ExtendedTrustManager> trustManagerSupplier) {
     super(threadPool);
 
     this.serverConfig = config;
@@ -158,6 +175,7 @@ public final class ApplicationServer<T extends RestConfig> extends Server {
               SslFactory.createSslContextFactory(
                       sslConfigEntry.getValue(),
                       this.x509Source,
+                      trustManagerSupplier,
                       () -> metricsForListener(listenerName),
                       () -> metricsTagsForListener(listenerName)));
     }
