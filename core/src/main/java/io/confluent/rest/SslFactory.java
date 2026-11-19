@@ -159,7 +159,11 @@ public final class SslFactory {
      * certificates are replaced seamlessly.
      * 
      */
-    if (sslConfig.getIsSpireEnabled()) {
+    if (sslConfig.getIsConfluentTrustManagerEnabled()) {
+      validateConfluentTrustManagerConfig(sslConfig);
+      log.info("Confluent trust manager SSL mode enabled");
+      sslContextFactory = createConfluentTrustManagerServer(sslConfig, x509Source);
+    } else if (sslConfig.getIsSpireEnabled()) {
       if (sslConfig.getIsSpireTrustOnlyEnabled()) {
         validateSpireTrustOnlyConfig(sslConfig);
         log.info("SPIRE trust-only SSL mode enabled");
@@ -287,6 +291,47 @@ public final class SslFactory {
               + "non-SPIFFE client certificate is not validated at all, so requiring a "
               + "client certificate would accept any certificate without verifying it.");
     }
+  }
+
+  private static void validateConfluentTrustManagerConfig(SslConfig sslConfig) {
+    if (sslConfig.getIsSpireEnabled()) {
+      throw new ConfigException(
+          RestConfig.SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG + " cannot be combined with "
+              + RestConfig.SSL_SPIRE_ENABLED_CONFIG + ".");
+    }
+    if (sslConfig.getKeyStorePath().isEmpty()) {
+      throw new ConfigException(
+          RestConfig.SSL_KEYSTORE_LOCATION_CONFIG + " must be set when "
+              + RestConfig.SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG + " is enabled.");
+    }
+    if (sslConfig.getIsUseServerCertForClientAuthEnabled()
+        && sslConfig.getServerCertSanSuffixes().isEmpty()) {
+      throw new ConfigException(
+          RestConfig.SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_CONFIG + " must be set when "
+              + RestConfig.SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_CONFIG
+              + " is enabled.");
+    }
+  }
+
+  // Confluent trust manager mode: subclass to override getTrustManagers(...) with a
+  // ConfluentTrustManager (SPIRE, then server-cert fallback). KeyManager continues to be loaded
+  // from the configured keystore via Jetty's normal load() path.
+  private static SslContextFactory.Server createConfluentTrustManagerServer(
+      SslConfig sslConfig, X509Source x509Source) {
+    return new SslContextFactory.Server() {
+      @Override
+      protected TrustManager[] getTrustManagers(KeyStore trustStore,
+                                                Collection<? extends CRL> crls) {
+        return new TrustManager[] {
+            new ConfluentTrustManager(
+                x509Source,
+                sslConfig.getIsSpireServersideValidationEnabled(),
+                sslConfig.getIsUseServerCertForClientAuthEnabled(),
+                sslConfig.getServerCertSanSuffixes(),
+                sslConfig.getAdvertisedIssuerPatterns())
+        };
+      }
+    };
   }
 
   // Compile the accepted-SPIFFE-ID regex allowlist once at startup (not per handshake). Empty or

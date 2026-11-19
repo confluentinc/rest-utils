@@ -233,6 +233,46 @@ public class RestConfig extends AbstractConfig {
       + " is also true.";
   protected static final List<String> SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DEFAULT =
       java.util.Collections.emptyList();
+  public static final String SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG =
+      "ssl.confluent.trust.manager.enabled";
+  public static final String SSL_CONFLUENT_TRUST_MANAGER_ENABLED_DOC =
+      "Whether to validate client certificates with ConfluentTrustManager. Each validation step "
+      + "is enabled separately: ssl.spire.serverside.validation.enabled and "
+      + "ssl.mtls.use.server.cert.for.client.auth.serverside.enabled. The server cert/key "
+      + "is still loaded from the configured keystore. Cannot be combined with "
+      + SSL_SPIRE_ENABLED_CONFIG + ".";
+  protected static final boolean SSL_CONFLUENT_TRUST_MANAGER_ENABLED_DEFAULT = false;
+  public static final String SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_CONFIG =
+      "ssl.spire.serverside.validation.enabled";
+  public static final String SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_DOC =
+      "Accept a client certificate that is a valid SPIFFE SVID chaining to the SPIRE bundle. "
+      + "Has no effect unless " + SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG + " is true.";
+  protected static final boolean SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_DEFAULT = false;
+  public static final String SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_CONFIG =
+      "ssl.mtls.use.server.cert.for.client.auth.serverside.enabled";
+  public static final String SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_DOC =
+      "If SPIRE validation is disabled or fails, accept a client certificate that has a DNS SAN "
+      + "ending with one of ssl.mtls.server.cert.san.suffixes and validates as a server "
+      + "certificate against the JVM default truststore. Has no effect unless "
+      + SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG + " is true.";
+  protected static final boolean
+      SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_DEFAULT = false;
+  public static final String SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_CONFIG =
+      "ssl.mtls.server.cert.san.suffixes";
+  public static final String SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_DOC =
+      "DNS SAN suffixes accepted by the server-cert fallback. Any certificate in the chain "
+      + "may match. Required when "
+      + SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_CONFIG + " is true.";
+  protected static final List<String> SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_DEFAULT =
+      java.util.Collections.emptyList();
+  public static final String SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_CONFIG =
+      "ssl.mtls.advertised.issuer.patterns";
+  public static final String SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_DOC =
+      "Substrings matched against the subject of the JVM default truststore's CAs. Matching CAs "
+      + "are advertised in the CertificateRequest when the server-cert fallback is enabled. "
+      + "Empty means no default-truststore CA is advertised.";
+  protected static final List<String> SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_DEFAULT =
+      java.util.Collections.emptyList();
   public static final String SSL_KEYSTORE_RELOAD_CONFIG = "ssl.keystore.reload";
   protected static final String SSL_KEYSTORE_RELOAD_DOC =
       "Enable auto reload of ssl keystore";
@@ -945,6 +985,36 @@ public class RestConfig extends AbstractConfig {
             SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DEFAULT,
             Importance.LOW,
             SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_DOC
+        ).define(
+            SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_CONFLUENT_TRUST_MANAGER_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_CONFLUENT_TRUST_MANAGER_ENABLED_DOC
+        ).define(
+            SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_DOC
+        ).define(
+            SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_DEFAULT,
+            Importance.LOW,
+            SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_DOC
+        ).define(
+            SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_CONFIG,
+            Type.LIST,
+            SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_DEFAULT,
+            Importance.LOW,
+            SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_DOC
+        ).define(
+            SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_CONFIG,
+            Type.LIST,
+            SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_DEFAULT,
+            Importance.LOW,
+            SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_DOC
         ).define(
             SSL_KEYSTORE_RELOAD_CONFIG,
             Type.BOOLEAN,
