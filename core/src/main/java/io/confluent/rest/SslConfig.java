@@ -143,4 +143,25 @@ public final class SslConfig {
   public List<String> getAcceptedSpiffeIdPatterns() {
     return restConfig.getList(RestConfig.SSL_SPIRE_ACCEPTED_SPIFFE_ID_PATTERNS_CONFIG);
   }
+
+  public Boolean getIsConfluentTrustManagerEnabled() {
+    return restConfig.getBoolean(RestConfig.SSL_CONFLUENT_TRUST_MANAGER_ENABLED_CONFIG);
+  }
+
+  public Boolean getIsSpireServersideValidationEnabled() {
+    return restConfig.getBoolean(RestConfig.SSL_SPIRE_SERVERSIDE_VALIDATION_ENABLED_CONFIG);
+  }
+
+  public Boolean getIsUseServerCertForClientAuthEnabled() {
+    return restConfig.getBoolean(
+        RestConfig.SSL_MTLS_USE_SERVER_CERT_FOR_CLIENT_AUTH_SERVERSIDE_ENABLED_CONFIG);
+  }
+
+  public List<String> getServerCertSanSuffixes() {
+    return restConfig.getList(RestConfig.SSL_MTLS_SERVER_CERT_SAN_SUFFIXES_CONFIG);
+  }
+
+  public List<String> getAdvertisedIssuerPatterns() {
+    return restConfig.getList(RestConfig.SSL_MTLS_ADVERTISED_ISSUER_PATTERNS_CONFIG);
+  }
 }
